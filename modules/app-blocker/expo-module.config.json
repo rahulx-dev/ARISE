@@ -1,0 +1,9 @@
+{
+  "name": "app-blocker",
+  "platforms": ["android"],
+  "android": {
+    "modules": [
+      "com.arise.appblocker.AppBlockerModule"
+    ]
+  }
+}
