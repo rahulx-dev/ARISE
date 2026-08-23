@@ -15,67 +15,86 @@ class AppBlockerModule : Module() {
         Name("AppBlocker")
 
         Function("hasUsagePermission") {
-            val context = appContext.reactContext ?: return@Function false
-            UsageStatsHelper.hasUsagePermission(context)
+            val context = appContext.reactContext
+            if (context != null) {
+                UsageStatsHelper.hasUsagePermission(context)
+            } else {
+                false
+            }
         }
 
         Function("hasOverlayPermission") {
-            val context = appContext.reactContext ?: return@Function false
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                Settings.canDrawOverlays(context)
+            val context = appContext.reactContext
+            if (context != null) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    Settings.canDrawOverlays(context)
+                } else {
+                    true
+                }
             } else {
-                true
+                false
             }
         }
 
         Function("requestUsagePermission") {
-            val context = appContext.reactContext ?: return@Function
-            val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                data = Uri.parse("package:${context.packageName}")
-            }
-            try {
-                context.startActivity(intent)
-            } catch (e: Exception) {
-                context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
+            appContext.reactContext?.let { context ->
+                val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                })
+                    data = Uri.parse("package:${context.packageName}")
+                }
+                try {
+                    context.startActivity(intent)
+                } catch (e: Exception) {
+                    context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    })
+                }
             }
+            Unit
         }
 
         Function("requestOverlayPermission") {
-            val context = appContext.reactContext ?: return@Function
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                val intent = Intent(
-                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                    Uri.parse("package:${context.packageName}")
-                ).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            appContext.reactContext?.let { context ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    val intent = Intent(
+                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:${context.packageName}")
+                    ).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    }
+                    context.startActivity(intent)
                 }
-                context.startActivity(intent)
             }
+            Unit
         }
 
         Function("startMonitoring") { restrictedPackages: List<String> ->
-            val context = appContext.reactContext ?: return@Function
-            val intent = Intent(context, AppMonitorService::class.java).apply {
-                putStringArrayListExtra("RESTRICTED_PACKAGES", ArrayList(restrictedPackages))
+            appContext.reactContext?.let { context ->
+                val intent = Intent(context, AppMonitorService::class.java).apply {
+                    putStringArrayListExtra("RESTRICTED_PACKAGES", ArrayList(restrictedPackages))
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    context.startService(intent)
+                }
             }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
-            }
+            Unit
         }
 
         Function("stopMonitoring") {
-            val context = appContext.reactContext ?: return@Function
-            val intent = Intent(context, AppMonitorService::class.java)
-            context.stopService(intent)
+            appContext.reactContext?.let { context ->
+                val intent = Intent(context, AppMonitorService::class.java)
+                context.stopService(intent)
+            }
+            Unit
         }
 
         Function("getInstalledApps") {
-            val context = appContext.reactContext ?: return@Function emptyList<Map<String, Any>>()
+            val context = appContext.reactContext
+            if (context == null) {
+                return@Function emptyList<Map<String, Any>>()
+            }
             val pm = context.packageManager
             val launcherIntent = Intent(Intent.ACTION_MAIN, null).apply {
                 addCategory(Intent.CATEGORY_LAUNCHER)
