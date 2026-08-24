@@ -5,7 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Alert,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,8 +16,14 @@ import {
   Pause,
   Play,
   Square,
+  Volume2,
+  VolumeX,
+  Shield,
+  X,
+  CheckCircle2,
 } from 'lucide-react-native';
 import { MasterButton } from '../../src/components/master/MasterButton';
+import { MasterCard } from '../../src/components/master/MasterCard';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { userRepository } from '../../src/database/repositories/userRepository';
 import { voiceCoach } from '../../src/services/voiceCoach';
@@ -31,16 +37,19 @@ export default function FocusModeScreen() {
   const haptics = useHaptics();
   const loadProfile = usePlayerStore((s) => s.loadProfile);
 
-  const initialMinutes = 25;
-  const initialDurationMs = initialMinutes * 60 * 1000;
-
+  const [targetMinutes, setTargetMinutes] = useState<number>(25);
+  const [remainingMs, setRemainingMs] = useState<number>(25 * 60 * 1000);
   const [isActive, setIsActive] = useState<boolean>(true);
-  const [remainingMs, setRemainingMs] = useState<number>(initialDurationMs);
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [voiceEnabled, setVoiceEnabled] = useState<boolean>(true);
+  const [strictLock, setStrictLock] = useState<boolean>(true);
 
   const timerIntervalRef = useRef<any>(null);
 
   useEffect(() => {
-    voiceCoach.speakFocusStart(initialMinutes);
+    if (voiceEnabled) {
+      voiceCoach.speakFocusStart(targetMinutes);
+    }
 
     timerIntervalRef.current = setInterval(() => {
       setRemainingMs((prev) => {
@@ -58,12 +67,23 @@ export default function FocusModeScreen() {
     };
   }, []);
 
-  const handleTogglePlayPause = () => {
-    haptics.light();
+  const totalDurationMs = targetMinutes * 60 * 1000;
+  const elapsedMs = totalDurationMs - remainingMs;
+  const progressPercent = Math.min(100, Math.round((elapsedMs / totalDurationMs) * 100));
+
+  const minutesLeft = Math.floor(remainingMs / (60 * 1000));
+  const secondsLeft = Math.floor((remainingMs % (60 * 1000)) / 1000);
+  const formattedTime = `${minutesLeft.toString().padStart(2, '0')}:${secondsLeft.toString().padStart(2, '0')}`;
+
+  const togglePlayPause = () => {
+    haptics.medium();
     if (isActive) {
-      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
       setIsActive(false);
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+      if (voiceEnabled) voiceCoach.speak('Focus session paused.');
     } else {
+      setIsActive(true);
+      if (voiceEnabled) voiceCoach.speak('Resuming focus protocol.');
       timerIntervalRef.current = setInterval(() => {
         setRemainingMs((prev) => {
           const next = Math.max(0, prev - 1000);
@@ -73,153 +93,238 @@ export default function FocusModeScreen() {
           return next;
         });
       }, 1000);
-      setIsActive(true);
     }
   };
 
   const handleEndSession = () => {
-    haptics.warning();
-    Alert.alert(
-      'End Session Early?',
-      'Are you sure you want to end this focus sprint? Incomplete sessions do not earn full rewards.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'End Session',
-          style: 'destructive',
-          onPress: () => {
-            if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-            router.back();
-          },
-        },
-      ]
-    );
+    haptics.heavy();
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    voiceCoach.stop();
+    router.back();
   };
 
   const handleSessionComplete = async () => {
     if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-    haptics.heavy();
+    haptics.success();
     sound.play('quest_complete');
-    voiceCoach.speak(`Focus session complete! 20 coins and 50 XP awarded. Superb discipline.`);
+
+    if (voiceEnabled) {
+      voiceCoach.speak('Outstanding discipline! Focus session complete. You earned 20 Coins and 50 XP.');
+    }
 
     try {
-      await userRepository.addCoins(20, 'Focus Sprint Complete', 'focus');
+      await userRepository.addCoins(20, 'Focus Session Completed', 'FOCUS');
       await userRepository.addXP(50);
-      await userRepository.updateStat('focus', 1);
       await loadProfile();
-
-      Alert.alert(
-        'Deep Work Complete!',
-        'You maintained deep focus for 25 minutes. +50 XP and +20 Coins added to your vault!',
-        [{ text: 'Great', onPress: () => router.replace('/(tabs)') }]
-      );
     } catch (e) {
-      console.error('Focus save error:', e);
+      console.warn('Error rewarding focus session:', e);
     }
+
+    router.replace('/(tabs)');
   };
-
-  const elapsedMs = initialDurationMs - remainingMs;
-  const progressFraction = elapsedMs / initialDurationMs;
-
-  const totalSecs = Math.ceil(remainingMs / 1000);
-  const displayMins = Math.floor(totalSecs / 60);
-  const displaySecs = totalSecs % 60;
-  const timeFormatted = `${displayMins < 10 ? '0' : ''}${displayMins}:${displaySecs < 10 ? '0' : ''}${displaySecs}`;
-
-  const size = 260;
-  const center = size / 2;
-  const radius = size * 0.42;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - progressFraction * circumference;
 
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        {/* Top Header: ← Focus Mode + Settings */}
-        <View style={styles.topHeader}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.circleBtn}>
+        {/* Header */}
+        <View style={styles.headerRow}>
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={() => router.back()}
+            activeOpacity={0.8}
+          >
             <ArrowLeft size={20} color={colors.textPrimary} />
           </TouchableOpacity>
+
           <Text style={styles.headerTitle}>Focus Mode</Text>
-          <TouchableOpacity style={styles.circleBtn}>
+
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={() => setIsSettingsOpen(true)}
+            activeOpacity={0.8}
+          >
             <Settings size={20} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Main Focus Ring Gauge */}
-          <View style={styles.gaugeContainer}>
-            <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-              {/* Background Track */}
-              <Circle
-                cx={center}
-                cy={center}
-                r={radius}
-                stroke="#1A1A1A"
-                strokeWidth={10}
-                fill="none"
-              />
+          {/* Circular Countdown Gauge */}
+          <View style={styles.gaugeCenterContainer}>
+            <View style={styles.gaugeOuterWrapper}>
+              <Svg width={260} height={260} viewBox="0 0 260 260">
+                {/* Background Ring */}
+                <Circle
+                  cx={130}
+                  cy={130}
+                  r={105}
+                  stroke="#1A1A1A"
+                  strokeWidth={14}
+                  fill="none"
+                />
+                {/* Neon Purple Arc */}
+                <Circle
+                  cx={130}
+                  cy={130}
+                  r={105}
+                  stroke="#8A2BE2"
+                  strokeWidth={14}
+                  fill="none"
+                  strokeDasharray={`${(2 * Math.PI * 105 * progressPercent) / 100} ${2 * Math.PI * 105}`}
+                  strokeLinecap="round"
+                  transform="rotate(-90 130 130)"
+                />
+              </Svg>
 
-              {/* Progress Arc (Neon Purple to Green) */}
-              <Circle
-                cx={center}
-                cy={center}
-                r={radius}
-                stroke={colors.primaryPurple}
-                strokeWidth={10}
-                strokeDasharray={`${circumference} ${circumference}`}
-                strokeDashoffset={strokeDashoffset}
-                strokeLinecap="round"
-                fill="none"
-                transform={`rotate(-90 ${center} ${center})`}
-              />
-            </Svg>
-
-            {/* Center Content */}
-            <View style={styles.centerTextGroup}>
-              <Text style={styles.focusLabel}>Focus</Text>
-              <Text style={styles.timerText}>{timeFormatted}</Text>
-              <View style={styles.rewardsPill}>
-                <Text style={styles.rewardsPillText}>+50 XP</Text>
-                <Text style={styles.rewardsPillCoins}>+20 🟡</Text>
+              <View style={styles.gaugeInnerContent}>
+                <Text style={styles.gaugeTimeText}>{formattedTime}</Text>
+                <View style={styles.rewardPill}>
+                  <Text style={styles.rewardPillText}>+50 XP</Text>
+                  <Text style={[styles.rewardPillText, { color: colors.accentGold }]}>+20 🟡</Text>
+                </View>
               </View>
             </View>
           </View>
 
-          {/* Subtitle */}
-          <View style={styles.sessionMeta}>
-            <Text style={styles.sessionTitle}>Deep Work Session</Text>
-            <Text style={styles.sessionSubtitle}>Stay focused and get rewarded.</Text>
-          </View>
+          <Text style={styles.focusSubtitle}>
+            Deep Work Session — Stay focused and get rewarded.
+          </Text>
 
-          {/* Action Buttons Row: [ || Pause ] | [ ⏹ End Session ] */}
-          <View style={styles.actionsRow}>
+          {/* Action Buttons */}
+          <View style={styles.actionsContainer}>
             <TouchableOpacity
-              style={styles.pauseBtn}
-              onPress={handleTogglePlayPause}
+              style={styles.pauseActionBtn}
+              onPress={togglePlayPause}
               activeOpacity={0.8}
             >
               {isActive ? (
-                <Pause size={18} color={colors.textPrimary} />
+                <>
+                  <Pause size={18} color={colors.textPrimary} />
+                  <Text style={styles.pauseActionText}>Pause</Text>
+                </>
               ) : (
-                <Play size={18} color={colors.primary} />
+                <>
+                  <Play size={18} color={colors.primary} />
+                  <Text style={[styles.pauseActionText, { color: colors.primary }]}>Resume</Text>
+                </>
               )}
-              <Text style={styles.btnText}>{isActive ? 'Pause' : 'Resume'}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.endBtn}
+              style={styles.endActionBtn}
               onPress={handleEndSession}
               activeOpacity={0.8}
             >
-              <Square size={16} color={colors.danger} fill={colors.danger} />
-              <Text style={styles.endBtnText}>End Session</Text>
+              <Square size={16} color={colors.textSecondary} />
+              <Text style={styles.endActionText}>End Session</Text>
             </TouchableOpacity>
           </View>
 
           <View style={{ height: 40 }} />
         </ScrollView>
       </SafeAreaView>
+
+      {/* Focus Settings Modal */}
+      <Modal
+        visible={isSettingsOpen}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setIsSettingsOpen(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Focus Session Settings</Text>
+              <TouchableOpacity onPress={() => setIsSettingsOpen(false)} style={{ padding: 4 }}>
+                <X size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBody}>
+              <Text style={styles.settingLabel}>SESSION DURATION</Text>
+              <View style={styles.durationRow}>
+                {[15, 25, 45, 60].map((mins) => (
+                  <TouchableOpacity
+                    key={mins}
+                    style={[
+                      styles.durationBtn,
+                      targetMinutes === mins && styles.durationBtnActive,
+                    ]}
+                    onPress={() => {
+                      haptics.light();
+                      setTargetMinutes(mins);
+                      setRemainingMs(mins * 60 * 1000);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.durationBtnText,
+                        targetMinutes === mins && { color: '#000000', fontWeight: '900' },
+                      ]}
+                    >
+                      {mins}m
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <TouchableOpacity
+                style={styles.toggleRow}
+                onPress={() => {
+                  haptics.light();
+                  setVoiceEnabled(!voiceEnabled);
+                }}
+                activeOpacity={0.8}
+              >
+                <View style={styles.toggleLeft}>
+                  {voiceEnabled ? (
+                    <Volume2 size={20} color={colors.primary} />
+                  ) : (
+                    <VolumeX size={20} color={colors.textMuted} />
+                  )}
+                  <View>
+                    <Text style={styles.toggleTitle}>AI Voice Coaching</Text>
+                    <Text style={styles.toggleDesc}>Speech announcements during session</Text>
+                  </View>
+                </View>
+                <View style={[styles.toggleBadge, voiceEnabled && styles.toggleBadgeActive]}>
+                  <Text style={[styles.toggleBadgeText, voiceEnabled && { color: colors.primary }]}>
+                    {voiceEnabled ? 'ON' : 'OFF'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.toggleRow}
+                onPress={() => {
+                  haptics.light();
+                  setStrictLock(!strictLock);
+                }}
+                activeOpacity={0.8}
+              >
+                <View style={styles.toggleLeft}>
+                  <Shield size={20} color={strictLock ? '#8A2BE2' : colors.textMuted} />
+                  <View>
+                    <Text style={styles.toggleTitle}>Strict Discipline Lock</Text>
+                    <Text style={styles.toggleDesc}>Block restricted apps until timer expires</Text>
+                  </View>
+                </View>
+                <View style={[styles.toggleBadge, strictLock && { borderColor: '#8A2BE2' }]}>
+                  <Text style={[styles.toggleBadgeText, strictLock && { color: '#8A2BE2' }]}>
+                    {strictLock ? 'ACTIVE' : 'OFF'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              <MasterButton
+                title="SAVE SETTINGS"
+                onPress={() => setIsSettingsOpen(false)}
+                variant="green"
+                style={{ marginTop: 12 }}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -227,15 +332,23 @@ export default function FocusModeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   safeArea: { flex: 1 },
-  topHeader: {
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: 18,
+    paddingTop: 10,
+    paddingBottom: 10,
   },
-  circleBtn: {
-    padding: 6,
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#161616',
+    borderWidth: 1,
+    borderColor: '#242424',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: 18,
@@ -243,104 +356,195 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   scrollContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 24,
-    gap: 28,
+    gap: 20,
+    paddingTop: 20,
+    paddingBottom: 30,
   },
-  gaugeContainer: {
+  gaugeCenterContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 10,
+  },
+  gaugeOuterWrapper: {
     width: 260,
     height: 260,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
   },
-  centerTextGroup: {
+  gaugeInnerContent: {
     position: 'absolute',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
+    gap: 8,
   },
-  focusLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textMuted,
-  },
-  timerText: {
+  gaugeTimeText: {
     fontSize: 48,
     fontWeight: '900',
     color: colors.textPrimary,
     fontVariant: ['tabular-nums'],
-    letterSpacing: -1,
+    letterSpacing: 1,
   },
-  rewardsPill: {
+  rewardPill: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
-    backgroundColor: '#1E1E1E',
+    backgroundColor: '#161616',
     paddingHorizontal: 12,
     paddingVertical: 4,
-    borderRadius: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
   },
-  rewardsPillText: {
-    fontSize: 11,
+  rewardPillText: {
+    fontSize: 12,
     fontWeight: '800',
-    color: colors.textSecondary,
+    color: colors.primary,
   },
-  rewardsPillCoins: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: colors.accentGold,
-  },
-  sessionMeta: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  sessionTitle: {
-    fontSize: 20,
-    fontWeight: '900',
-    color: colors.textPrimary,
-  },
-  sessionSubtitle: {
+  focusSubtitle: {
     fontSize: 13,
-    color: colors.textMuted,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 18,
   },
-  actionsRow: {
+  actionsContainer: {
     flexDirection: 'row',
-    gap: 14,
+    gap: 12,
     width: '100%',
+    marginTop: 10,
   },
-  pauseBtn: {
+  pauseActionBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     backgroundColor: '#181818',
+    paddingVertical: 16,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#262626',
-    paddingVertical: 14,
-    borderRadius: 24,
+    borderColor: '#2C2C2C',
   },
-  btnText: {
-    fontSize: 14,
-    fontWeight: '800',
+  pauseActionText: {
+    fontSize: 15,
+    fontWeight: '900',
     color: colors.textPrimary,
   },
-  endBtn: {
+  endActionBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+    backgroundColor: '#141414',
+    paddingVertical: 16,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.25)',
-    paddingVertical: 14,
-    borderRadius: 24,
+    borderColor: '#222222',
   },
-  endBtnText: {
+  endActionText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.textSecondary,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: '#141414',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderWidth: 1,
+    borderColor: '#262626',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 28,
+    gap: 16,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: colors.textPrimary,
+  },
+  modalBody: {
+    gap: 16,
+  },
+  settingLabel: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: colors.textMuted,
+    letterSpacing: 0.8,
+  },
+  durationRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  durationBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    backgroundColor: '#1A1A1A',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#282828',
+  },
+  durationBtnActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  durationBtnText: {
     fontSize: 14,
     fontWeight: '800',
-    color: colors.danger,
+    color: colors.textSecondary,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#181818',
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#262626',
+  },
+  toggleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  toggleTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.textPrimary,
+  },
+  toggleDesc: {
+    fontSize: 11,
+    color: colors.textSecondary,
+  },
+  toggleBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#333333',
+  },
+  toggleBadgeActive: {
+    borderColor: colors.primary,
+    backgroundColor: 'rgba(0, 255, 106, 0.1)',
+  },
+  toggleBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.textMuted,
   },
 });

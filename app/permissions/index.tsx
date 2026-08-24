@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,147 +6,233 @@ import {
   TouchableOpacity,
   ScrollView,
   Platform,
+  AppState,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Camera } from 'expo-camera';
+import * as Notifications from 'expo-notifications';
 import {
   ArrowLeft,
-  ShieldCheck,
+  Shield,
   Clock,
   Layers,
-  Accessibility,
   Bell,
-  Folder,
+  Camera as CameraIcon,
   CheckCircle2,
   AlertCircle,
+  ExternalLink,
+  RefreshCw,
 } from 'lucide-react-native';
-import { SerqBackdrop } from '../../src/components/serq/SerqBackdrop';
-import { SerqCard } from '../../src/components/serq/SerqCard';
+import { MasterCard } from '../../src/components/master/MasterCard';
+import { MasterButton } from '../../src/components/master/MasterButton';
 import { appBlockerService } from '../../src/native';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { colors } from '../../src/theme/colors';
-
-interface PermissionItem {
-  key: string;
-  title: string;
-  description: string;
-  icon: any;
-  granted: boolean;
-}
 
 export default function PermissionsScreen() {
   const router = useRouter();
   const haptics = useHaptics();
 
-  const [permissions, setPermissions] = useState<PermissionItem[]>([
-    {
-      key: 'usage',
-      title: 'Usage Access',
-      description: 'Detects active app foreground usage',
-      icon: Clock,
-      granted: true,
-    },
-    {
-      key: 'overlay',
-      title: 'Display Over Other Apps',
-      description: 'Enforces lock screen during restriction',
-      icon: Layers,
-      granted: true,
-    },
-    {
-      key: 'accessibility',
-      title: 'Accessibility Service',
-      description: 'Ensures strict anti-bypass protection',
-      icon: Accessibility,
-      granted: true,
-    },
-    {
-      key: 'notifications',
-      title: 'Notifications',
-      description: 'Schedules on-device focus alerts',
-      icon: Bell,
-      granted: true,
-    },
-    {
-      key: 'storage',
-      title: 'Offline File Storage',
-      description: 'Enables encrypted backup save file export',
-      icon: Folder,
-      granted: true,
-    },
-  ]);
+  const [usageGranted, setUsageGranted] = useState<boolean>(false);
+  const [overlayGranted, setOverlayGranted] = useState<boolean>(false);
+  const [cameraGranted, setCameraGranted] = useState<boolean>(false);
+  const [notifGranted, setNotifGranted] = useState<boolean>(false);
 
-  const handleGrant = (permKey: string) => {
-    haptics.light();
-    if (Platform.OS === 'android') {
-      if (permKey === 'usage') appBlockerService.requestUsagePermission();
-      if (permKey === 'overlay') appBlockerService.requestOverlayPermission();
+  const checkAllPermissions = async () => {
+    try {
+      // 1. Usage stats permission
+      const usage = await appBlockerService.hasUsagePermission();
+      setUsageGranted(usage);
+
+      // 2. Overlay permission
+      const overlay = await appBlockerService.hasOverlayPermission();
+      setOverlayGranted(overlay);
+
+      // 3. Camera permission
+      const cam = await Camera.getCameraPermissionsAsync();
+      setCameraGranted(cam.granted);
+
+      // 4. Notifications permission
+      const notif = await Notifications.getPermissionsAsync();
+      setNotifGranted(notif.granted);
+    } catch (e) {
+      console.warn('Error checking permissions:', e);
     }
   };
 
+  useEffect(() => {
+    checkAllPermissions();
+
+    // Check again whenever user returns from Android Settings
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        checkAllPermissions();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  const handleGrantUsage = () => {
+    haptics.medium();
+    if (Platform.OS === 'android') {
+      appBlockerService.requestUsagePermission();
+    }
+  };
+
+  const handleGrantOverlay = () => {
+    haptics.medium();
+    if (Platform.OS === 'android') {
+      appBlockerService.requestOverlayPermission();
+    }
+  };
+
+  const handleGrantCamera = async () => {
+    haptics.medium();
+    const res = await Camera.requestCameraPermissionsAsync();
+    setCameraGranted(res.granted);
+  };
+
+  const handleGrantNotif = async () => {
+    haptics.medium();
+    const res = await Notifications.requestPermissionsAsync();
+    setNotifGranted(res.granted);
+  };
+
+  const permissionList = [
+    {
+      id: 'usage',
+      title: 'Usage Access (App Monitor)',
+      desc: 'Detects foreground restricted apps in real-time to enforce time limits.',
+      icon: Clock,
+      granted: usageGranted,
+      onGrant: handleGrantUsage,
+      actionLabel: 'OPEN SETTINGS',
+    },
+    {
+      id: 'overlay',
+      title: 'Display Over Apps (Lock Screen)',
+      desc: 'Enforces the ARISE full-screen discipline overlay when time expires.',
+      icon: Layers,
+      granted: overlayGranted,
+      onGrant: handleGrantOverlay,
+      actionLabel: 'OPEN SETTINGS',
+    },
+    {
+      id: 'camera',
+      title: 'Camera Access (AI Rep Tracker)',
+      desc: 'Powers real-time computer vision body joint tracking for push-ups & squats.',
+      icon: CameraIcon,
+      granted: cameraGranted,
+      onGrant: handleGrantCamera,
+      actionLabel: 'ALLOW CAMERA',
+    },
+    {
+      id: 'notif',
+      title: 'Notifications (Session Alerts)',
+      desc: 'Displays active countdown chronometer and streak deadline reminders.',
+      icon: Bell,
+      granted: notifGranted,
+      onGrant: handleGrantNotif,
+      actionLabel: 'ALLOW ALERTS',
+    },
+  ];
+
   return (
     <View style={styles.container}>
-      <SerqBackdrop />
       <SafeAreaView style={styles.safeArea}>
         {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.circleBtn}>
+        <View style={styles.headerRow}>
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={() => router.back()}
+            activeOpacity={0.8}
+          >
             <ArrowLeft size={20} color={colors.textPrimary} />
           </TouchableOpacity>
+
           <Text style={styles.headerTitle}>Permissions Hub</Text>
-          <View style={{ width: 40 }} />
+
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={() => {
+              haptics.light();
+              checkAllPermissions();
+            }}
+            activeOpacity={0.8}
+          >
+            <RefreshCw size={18} color={colors.primary} />
+          </TouchableOpacity>
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Banner */}
-          <SerqCard variant="elevated" glow style={styles.bannerCard}>
-            <ShieldCheck size={26} color={colors.primary} strokeWidth={2.5} />
-            <Text style={styles.bannerText}>
-              All offline system permissions are fully authorized on your device.
+          {/* Status Overview Card */}
+          <MasterCard style={styles.overviewCard}>
+            <View style={styles.overviewHeader}>
+              <Shield size={24} color={colors.primary} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.overviewTitle}>System Protection Protocol</Text>
+                <Text style={styles.overviewSubtitle}>
+                  100% Offline & Private on your device.
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.overviewDesc}>
+              Android requires special permissions to monitor app usage and display the screen-time lock. Tap below to grant required permissions.
             </Text>
-          </SerqCard>
+          </MasterCard>
 
-          {/* List */}
-          <View style={styles.list}>
-            {permissions.map((perm, idx) => {
-              const IconComp = perm.icon;
+          {/* Permissions List */}
+          <View style={styles.permList}>
+            {permissionList.map((item) => {
+              const IconComp = item.icon;
               return (
-                <SerqCard key={perm.key} variant="surface" delay={idx * 60} style={styles.permCard}>
-                  <View style={styles.permIconWrap}>
-                    <IconComp size={20} color={colors.primary} />
+                <MasterCard key={item.id} style={styles.permCard}>
+                  <View style={styles.permCardHeader}>
+                    <View style={styles.permIconWrap}>
+                      <IconComp
+                        size={22}
+                        color={item.granted ? colors.primary : colors.textMuted}
+                      />
+                    </View>
+
+                    <View style={styles.permMetaWrap}>
+                      <Text style={styles.permTitle}>{item.title}</Text>
+                      <Text style={styles.permDesc}>{item.desc}</Text>
+                    </View>
                   </View>
 
-                  <View style={styles.permMeta}>
-                    <Text style={styles.permTitle}>{perm.title}</Text>
-                    <Text style={styles.permDesc}>{perm.description}</Text>
-                  </View>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.statusPill,
-                      perm.granted ? styles.statusPillGranted : styles.statusPillMissing,
-                    ]}
-                    onPress={() => handleGrant(perm.key)}
-                    activeOpacity={0.8}
-                  >
-                    {perm.granted ? (
-                      <CheckCircle2 size={14} color={colors.primary} />
+                  <View style={styles.permActionRow}>
+                    {item.granted ? (
+                      <View style={styles.grantedBadge}>
+                        <CheckCircle2 size={16} color={colors.primary} />
+                        <Text style={styles.grantedBadgeText}>PERMISSION GRANTED</Text>
+                      </View>
                     ) : (
-                      <AlertCircle size={14} color={colors.danger} />
+                      <TouchableOpacity
+                        style={styles.grantActionBtn}
+                        onPress={item.onGrant}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.grantActionBtnText}>{item.actionLabel}</Text>
+                        <ExternalLink size={14} color="#000000" />
+                      </TouchableOpacity>
                     )}
-                    <Text
-                      style={[
-                        styles.statusPillText,
-                        { color: perm.granted ? colors.primary : colors.danger },
-                      ]}
-                    >
-                      {perm.granted ? 'Granted' : 'Enable'}
-                    </Text>
-                  </TouchableOpacity>
-                </SerqCard>
+                  </View>
+                </MasterCard>
               );
             })}
           </View>
+
+          <MasterButton
+            title="SAVE & RETURN"
+            onPress={() => router.back()}
+            variant="green"
+            style={{ marginTop: 8 }}
+          />
 
           <View style={{ height: 40 }} />
         </ScrollView>
@@ -158,20 +244,21 @@ export default function PermissionsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   safeArea: { flex: 1 },
-  header: {
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 18,
-    paddingVertical: 12,
+    paddingTop: 10,
+    paddingBottom: 10,
   },
-  circleBtn: {
+  backBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(24, 32, 36, 0.75)',
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: 'rgba(0, 230, 118, 0.2)',
+    borderColor: '#242424',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -182,71 +269,102 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 18,
-    paddingTop: 8,
-    gap: 16,
+    gap: 14,
+    paddingTop: 4,
+    paddingBottom: 24,
   },
-  bannerCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 16,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0, 230, 118, 0.08)',
-  },
-  bannerText: {
-    flex: 1,
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.textSecondary,
-    lineHeight: 16,
-  },
-  list: {
+  overviewCard: {
+    padding: 18,
     gap: 10,
   },
-  permCard: {
+  overviewHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
-    borderRadius: 20,
     gap: 12,
   },
+  overviewTitle: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: colors.textPrimary,
+  },
+  overviewSubtitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  overviewDesc: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  permList: {
+    gap: 12,
+  },
+  permCard: {
+    padding: 16,
+    gap: 12,
+  },
+  permCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 14,
+  },
   permIconWrap: {
-    width: 40,
-    height: 40,
+    width: 42,
+    height: 42,
     borderRadius: 14,
-    backgroundColor: 'rgba(0, 230, 118, 0.1)',
+    backgroundColor: '#1C1C1C',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  permMeta: {
+  permMetaWrap: {
     flex: 1,
-    gap: 2,
+    gap: 4,
   },
   permTitle: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '900',
     color: colors.textPrimary,
   },
   permDesc: {
     fontSize: 11,
-    color: colors.textMuted,
+    color: colors.textSecondary,
+    lineHeight: 16,
   },
-  statusPill: {
+  permActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingTop: 4,
+  },
+  grantedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    gap: 6,
+    backgroundColor: 'rgba(0, 255, 106, 0.12)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: `${colors.primary}40`,
   },
-  statusPillGranted: {
-    backgroundColor: 'rgba(0, 230, 118, 0.15)',
-  },
-  statusPillMissing: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-  },
-  statusPillText: {
+  grantedBadgeText: {
     fontSize: 11,
     fontWeight: '800',
+    color: colors.primary,
+  },
+  grantActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  grantActionBtnText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#000000',
   },
 });

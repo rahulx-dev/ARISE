@@ -14,19 +14,24 @@ import {
   Droplet,
   Footprints,
   BookOpen,
+  CheckCircle2,
 } from 'lucide-react-native';
 import { MasterCard } from '../../src/components/master/MasterCard';
 import { useQuestStore } from '../../src/stores/useQuestStore';
+import { usePlayerStore } from '../../src/stores/usePlayerStore';
+import { userRepository } from '../../src/database/repositories/userRepository';
+import { useHaptics } from '../../src/hooks/useHaptics';
+import { useSound } from '../../src/hooks/useSound';
+import { voiceCoach } from '../../src/services/voiceCoach';
 import { colors } from '../../src/theme/colors';
 
 export default function QuestsTab() {
   const [activeTab, setActiveTab] = useState<'daily' | 'weekly'>('daily');
-  const quests = useQuestStore((s) => s.quests);
-  const loadQuests = useQuestStore((s) => s.loadQuests);
-
-  useEffect(() => {
-    loadQuests();
-  }, []);
+  const [waterCount, setWaterCount] = useState<number>(3);
+  const [readMinutes, setReadMinutes] = useState<number>(0);
+  const haptics = useHaptics();
+  const sound = useSound();
+  const loadProfile = usePlayerStore((s) => s.loadProfile);
 
   const questList = [
     {
@@ -56,32 +61,46 @@ export default function QuestsTab() {
     {
       id: 'water',
       title: 'Drink Water',
-      progress: '0 / 8 Glasses',
+      progress: `${waterCount} / 8 Glasses`,
       type: 'Manual',
       xp: 20,
       coins: 10,
       icon: Droplet,
-      action: () => {},
+      action: async () => {
+        haptics.medium();
+        sound.play('rep_count');
+        const next = Math.min(8, waterCount + 1);
+        setWaterCount(next);
+        if (next === 8) {
+          sound.play('quest_complete');
+          voiceCoach.speak('Hydration goal completed! Plus 10 Coins.');
+          await userRepository.addCoins(10, 'Drink Water Quest', 'QUEST');
+          await loadProfile();
+        }
+      },
     },
     {
       id: 'steps',
       title: '10K Steps',
-      progress: '0 / 10000 Steps',
+      progress: '4,280 / 10,000 Steps',
       type: 'Tracked',
       xp: 40,
       coins: 20,
       icon: Footprints,
-      action: () => {},
+      action: () => {
+        haptics.light();
+        voiceCoach.speak('Step tracking active in background.');
+      },
     },
     {
       id: 'read',
       title: 'Read for 20 Min',
-      progress: '0 / 20 Min',
+      progress: `${readMinutes} / 20 Min`,
       type: 'Manual',
       xp: 30,
       coins: 15,
       icon: BookOpen,
-      action: () => {},
+      action: () => router.push('/focus/session'),
     },
   ];
 
@@ -141,26 +160,28 @@ export default function QuestsTab() {
                 <TouchableOpacity
                   key={q.id}
                   onPress={q.action}
-                  activeOpacity={0.82}
+                  activeOpacity={0.8}
                 >
                   <MasterCard style={styles.questCard}>
-                    <View style={styles.questIconCircle}>
-                      <IconComp size={20} color={colors.primary} />
-                    </View>
-
-                    <View style={styles.questMeta}>
-                      <View style={styles.titleRow}>
-                        <Text style={styles.questTitle}>{q.title}</Text>
-                        <View style={styles.typeBadge}>
-                          <Text style={styles.typeBadgeText}>{q.type}</Text>
-                        </View>
+                    <View style={styles.questLeft}>
+                      <View style={styles.questIconCircle}>
+                        <IconComp size={22} color={colors.primary} />
                       </View>
-                      <Text style={styles.questProgress}>{q.progress}</Text>
+
+                      <View style={styles.questMeta}>
+                        <Text style={styles.questTitle}>{q.title}</Text>
+                        <Text style={styles.questProgress}>{q.progress}</Text>
+                      </View>
                     </View>
 
-                    <View style={styles.rewardsCol}>
-                      <Text style={styles.rewardXP}>{q.xp} XP</Text>
-                      <Text style={styles.rewardCoins}>{q.coins} 🟡</Text>
+                    <View style={styles.questRight}>
+                      <View style={styles.badgePill}>
+                        <Text style={styles.badgeText}>{q.type}</Text>
+                      </View>
+                      <View style={styles.rewardsRow}>
+                        <Text style={styles.xpText}>{q.xp} XP</Text>
+                        <Text style={styles.coinsText}>{q.coins} 🟡</Text>
+                      </View>
                     </View>
                   </MasterCard>
                 </TouchableOpacity>
@@ -191,11 +212,12 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 18,
     gap: 16,
+    paddingTop: 4,
   },
   pillToggle: {
     flexDirection: 'row',
     backgroundColor: '#141414',
-    borderRadius: 16,
+    borderRadius: 24,
     padding: 4,
     borderWidth: 1,
     borderColor: '#1F1F1F',
@@ -204,78 +226,87 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 10,
     alignItems: 'center',
-    borderRadius: 12,
+    justifyContent: 'center',
+    borderRadius: 20,
   },
   pillBtnActive: {
-    backgroundColor: '#1E2F22',
+    backgroundColor: colors.primary,
   },
   pillBtnText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
-    color: colors.textMuted,
+    color: colors.textSecondary,
   },
   pillBtnTextActive: {
-    color: colors.primary,
+    color: '#000000',
     fontWeight: '900',
   },
   questsList: {
-    gap: 10,
+    gap: 12,
   },
   questCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
+    justifyContent: 'space-between',
+    padding: 16,
+  },
+  questLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 14,
+    flex: 1,
   },
   questIconCircle: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#1A1A1A',
-    borderWidth: 1,
-    borderColor: '#262626',
+    backgroundColor: '#1C1C1C',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#262626',
   },
   questMeta: {
-    flex: 1,
-    gap: 3,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    gap: 4,
   },
   questTitle: {
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '900',
     color: colors.textPrimary,
-  },
-  typeBadge: {
-    backgroundColor: '#1E1E1E',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  typeBadgeText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: colors.textSecondary,
   },
   questProgress: {
     fontSize: 12,
-    color: colors.textMuted,
-  },
-  rewardsCol: {
-    alignItems: 'flex-end',
-    gap: 2,
-  },
-  rewardXP: {
-    fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '700',
     color: colors.textSecondary,
   },
-  rewardCoins: {
+  questRight: {
+    alignItems: 'flex-end',
+    gap: 6,
+  },
+  badgePill: {
+    backgroundColor: '#1C1C1C',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#282828',
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.textMuted,
+  },
+  rewardsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  xpText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.primary,
+  },
+  coinsText: {
     fontSize: 12,
     fontWeight: '800',
     color: colors.accentGold,

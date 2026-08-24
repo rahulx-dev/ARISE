@@ -5,7 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Alert,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,11 +13,17 @@ import {
   ArrowLeft,
   Hourglass,
   Coins,
+  CheckCircle2,
+  AlertCircle,
+  X,
+  Sparkles,
 } from 'lucide-react-native';
 import { MasterCard } from '../../src/components/master/MasterCard';
+import { MasterButton } from '../../src/components/master/MasterButton';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { userRepository } from '../../src/database/repositories/userRepository';
 import { screenTimerService } from '../../src/native';
+import { voiceCoach } from '../../src/services/voiceCoach';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useSound } from '../../src/hooks/useSound';
 import { colors } from '../../src/theme/colors';
@@ -44,6 +50,8 @@ export default function TimeShopScreen() {
   const loadProfile = usePlayerStore((s) => s.loadProfile);
 
   const [purchasingId, setPurchasingId] = useState<string | null>(null);
+  const [successItem, setSuccessItem] = useState<ShopItem | null>(null);
+  const [insufficientItem, setInsufficientItem] = useState<ShopItem | null>(null);
 
   useEffect(() => {
     loadProfile();
@@ -56,10 +64,7 @@ export default function TimeShopScreen() {
 
     if (currentCoins < item.cost) {
       haptics.warning();
-      Alert.alert(
-        'Insufficient Coins',
-        `You need ${item.cost} Coins for ${item.minutes} Minutes. Complete workouts or focus sprints to earn coins!`
-      );
+      setInsufficientItem(item);
       return;
     }
 
@@ -86,7 +91,7 @@ export default function TimeShopScreen() {
       );
 
       if (!result.success) {
-        Alert.alert('Purchase Failed', result.error || 'Could not complete purchase.');
+        setInsufficientItem(item);
         return;
       }
 
@@ -95,10 +100,8 @@ export default function TimeShopScreen() {
 
       sound.play('purchase');
       haptics.success();
-      Alert.alert(
-        'Screen Time Unlocked!',
-        `Successfully unlocked ${item.minutes} minutes of unrestricted app access.`
-      );
+      voiceCoach.speak(`Screen time unlocked! ${item.minutes} minutes granted.`);
+      setSuccessItem(item);
     } catch (e) {
       console.error('Purchase error:', e);
     } finally {
@@ -144,14 +147,74 @@ export default function TimeShopScreen() {
             ))}
           </View>
 
-          {/* Footer Note */}
-          <Text style={styles.footerNote}>
-            Use Coins to unlock screen time for selected apps.
-          </Text>
+          {/* Subtitle Description Card */}
+          <MasterCard style={styles.descCard}>
+            <Text style={styles.descTitle}>Exchange Coins for Screen Time</Text>
+            <Text style={styles.descText}>
+              Use Coins earned from physical exercise and focus mode to unlock temporary screen time passes for restricted apps.
+            </Text>
+          </MasterCard>
 
-          <View style={{ height: 40 }} />
+          <View style={{ height: 90 }} />
         </ScrollView>
       </SafeAreaView>
+
+      {/* Success Modal */}
+      <Modal
+        visible={successItem !== null}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setSuccessItem(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <MasterCard style={styles.dialogCard}>
+            <View style={styles.successIconWrap}>
+              <CheckCircle2 size={44} color={colors.primary} />
+            </View>
+            <Text style={styles.dialogTitle}>Screen Time Unlocked!</Text>
+            <Text style={styles.dialogDesc}>
+              {successItem?.minutes} minutes of unrestricted app access has been activated. Active timer is running in notification tray.
+            </Text>
+
+            <MasterButton
+              title="CONTINUE"
+              onPress={() => setSuccessItem(null)}
+              variant="green"
+              style={{ width: '100%', marginTop: 8 }}
+            />
+          </MasterCard>
+        </View>
+      </Modal>
+
+      {/* Insufficient Coins Modal */}
+      <Modal
+        visible={insufficientItem !== null}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setInsufficientItem(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <MasterCard style={styles.dialogCard}>
+            <View style={[styles.successIconWrap, { borderColor: `${colors.danger}40` }]}>
+              <AlertCircle size={44} color={colors.danger} />
+            </View>
+            <Text style={styles.dialogTitle}>Insufficient Coins</Text>
+            <Text style={styles.dialogDesc}>
+              You need {insufficientItem?.cost} Coins for {insufficientItem?.minutes} Minutes. Complete push-ups, squats, or focus sprints to earn coins!
+            </Text>
+
+            <MasterButton
+              title="EARN COINS (EXERCISE)"
+              onPress={() => {
+                setInsufficientItem(null);
+                router.push('/exercise/PUSHUP');
+              }}
+              variant="green"
+              style={{ width: '100%', marginTop: 8 }}
+            />
+          </MasterCard>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -165,7 +228,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 8,
+    paddingBottom: 16,
   },
   headerTitle: {
     fontSize: 22,
@@ -173,21 +236,20 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   coinPill: {
-    backgroundColor: '#181818',
+    backgroundColor: '#1E1E1E',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#242424',
+    borderColor: '#2A2A2A',
   },
   coinPillText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '900',
     color: colors.accentGold,
   },
   scrollContent: {
     paddingHorizontal: 18,
-    paddingTop: 10,
     gap: 16,
   },
   itemsList: {
@@ -198,7 +260,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
-    borderRadius: 20,
   },
   itemLeft: {
     flexDirection: 'row',
@@ -210,33 +271,84 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     backgroundColor: '#1A1A1A',
-    borderWidth: 1,
-    borderColor: '#262626',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#262626',
   },
   itemTitle: {
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '900',
     color: colors.textPrimary,
   },
   costBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    backgroundColor: '#1C1C1C',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#282828',
   },
   costText: {
-    fontSize: 16,
+    fontSize: 14,
+    fontWeight: '900',
+    color: colors.accentGold,
+  },
+  coinGlyph: {
+    fontSize: 13,
+  },
+  descCard: {
+    padding: 18,
+    gap: 8,
+    marginTop: 8,
+  },
+  descTitle: {
+    fontSize: 15,
     fontWeight: '900',
     color: colors.textPrimary,
   },
-  coinGlyph: {
-    fontSize: 14,
-  },
-  footerNote: {
+  descText: {
     fontSize: 12,
-    color: colors.textMuted,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  dialogCard: {
+    width: '100%',
+    padding: 24,
+    alignItems: 'center',
+    gap: 12,
+  },
+  successIconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#181818',
+    borderWidth: 2,
+    borderColor: `${colors.primary}40`,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  dialogTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: colors.textPrimary,
     textAlign: 'center',
-    marginTop: 10,
+  },
+  dialogDesc: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 18,
   },
 });

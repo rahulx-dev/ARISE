@@ -6,12 +6,12 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import {
   Bell,
-  User,
   Coins,
   Star,
   Dumbbell,
@@ -22,6 +22,11 @@ import {
   Clock,
   ShoppingBag,
   Triangle,
+  Flame,
+  ChevronRight,
+  X,
+  Camera,
+  Activity,
 } from 'lucide-react-native';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { useQuestStore } from '../../src/stores/useQuestStore';
@@ -29,14 +34,28 @@ import { streakService } from '../../src/services/streakService';
 import { initializeDatabase } from '../../src/database/client';
 import { MasterCard } from '../../src/components/master/MasterCard';
 import { MasterButton } from '../../src/components/master/MasterButton';
+import { PlayerAvatar } from '../../src/components/ui/PlayerAvatar';
+import { useHaptics } from '../../src/hooks/useHaptics';
 import { colors } from '../../src/theme/colors';
+
+const EXERCISE_OPTIONS = [
+  { type: 'PUSHUP', name: 'Push-ups', target: '20 Reps', icon: Dumbbell, xp: '+50 XP', coins: '+25 🟡' },
+  { type: 'SQUAT', name: 'Squats', target: '25 Reps', icon: Activity, xp: '+45 XP', coins: '+20 🟡' },
+  { type: 'PLANK', name: 'Plank Hold', target: '45 Sec', icon: Shield, xp: '+40 XP', coins: '+20 🟡' },
+  { type: 'SITUP', name: 'Sit-ups', target: '20 Reps', icon: Flame, xp: '+40 XP', coins: '+20 🟡' },
+  { type: 'JUMPING_JACK', name: 'Jumping Jacks', target: '30 Reps', icon: Crosshair, xp: '+35 XP', coins: '+15 🟡' },
+];
 
 export default function HomeDashboard() {
   const profile = usePlayerStore((s) => s.profile);
   const loadProfile = usePlayerStore((s) => s.loadProfile);
   const quests = useQuestStore((s) => s.quests);
   const loadQuests = useQuestStore((s) => s.loadQuests);
+  const haptics = useHaptics();
+
   const [loading, setLoading] = useState(true);
+  const [isExercisePickerOpen, setIsExercisePickerOpen] = useState(false);
+  const [isNotifSheetOpen, setIsNotifSheetOpen] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -67,6 +86,7 @@ export default function HomeDashboard() {
   const targetXP = level * 100;
   const coins = profile?.coins || 0;
   const streak = profile?.currentStreak || 0;
+  const displayName = profile?.displayName || 'Warrior';
   const completedQuestsCount = quests.filter((q) => q.completed).length;
   const totalQuestsCount = quests.length || 5;
 
@@ -92,7 +112,10 @@ export default function HomeDashboard() {
 
           <TouchableOpacity
             style={styles.bellBtn}
-            onPress={() => router.push('/onboarding/profile' as any)}
+            onPress={() => {
+              haptics.light();
+              setIsNotifSheetOpen(true);
+            }}
             activeOpacity={0.8}
           >
             <Bell size={20} color={colors.textSecondary} />
@@ -103,17 +126,18 @@ export default function HomeDashboard() {
           {/* Hero Player Card */}
           <MasterCard style={styles.playerCard}>
             <View style={styles.avatarRow}>
-              <View style={styles.avatarGlowCircle}>
-                <View style={styles.avatarInner}>
-                  <User size={32} color={colors.primary} />
-                </View>
-              </View>
+              <TouchableOpacity
+                onPress={() => router.push('/(tabs)/profile')}
+                activeOpacity={0.8}
+              >
+                <PlayerAvatar size={64} glow={true} />
+              </TouchableOpacity>
 
               <View style={styles.playerMeta}>
                 <View style={styles.levelRow}>
-                  <Text style={styles.levelText}>Level {level}</Text>
+                  <Text style={styles.levelText}>{displayName}</Text>
                   <View style={styles.noviceBadge}>
-                    <Text style={styles.noviceBadgeText}>Novice</Text>
+                    <Text style={styles.noviceBadgeText}>Level {level} Novice</Text>
                   </View>
                 </View>
 
@@ -138,7 +162,7 @@ export default function HomeDashboard() {
               <View style={styles.statColDivider} />
 
               <View style={styles.statCol}>
-                <Star size={18} color={colors.accentGold} />
+                <Star size={18} color={colors.primary} />
                 <Text style={styles.statLabel}>Streak</Text>
                 <Text style={styles.statValue}>{streak} days</Text>
               </View>
@@ -146,91 +170,184 @@ export default function HomeDashboard() {
           </MasterCard>
 
           {/* Core Attributes */}
-          <View style={styles.sectionBlock}>
-            <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionTitle}>Core Attributes</Text>
-              <TouchableOpacity onPress={() => router.push('/progress')}>
-                <Text style={styles.viewAllText}>View all</Text>
-              </TouchableOpacity>
-            </View>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Core Attributes</Text>
+            <TouchableOpacity onPress={() => router.push('/(tabs)/progress')} activeOpacity={0.8}>
+              <Text style={styles.viewAllText}>View all</Text>
+            </TouchableOpacity>
+          </View>
 
-            <View style={styles.attributesRow}>
-              {attributes.map((attr) => {
-                const IconComponent = attr.icon;
-                return (
-                  <View key={attr.name} style={styles.attrItem}>
-                    <View style={[styles.attrCircle, { borderColor: attr.color }]}>
-                      <IconComponent size={18} color={attr.color} />
-                    </View>
-                    <Text style={styles.attrName}>{attr.name}</Text>
-                    <Text style={styles.attrVal}>{attr.val}</Text>
+          <View style={styles.attributesRow}>
+            {attributes.map((attr) => {
+              const IconComp = attr.icon;
+              return (
+                <View key={attr.name} style={styles.attributeItem}>
+                  <View style={[styles.attributeCircle, { borderColor: `${attr.color}40` }]}>
+                    <IconComp size={18} color={attr.color} />
                   </View>
-                );
-              })}
-            </View>
+                  <Text style={styles.attributeVal}>{attr.val}</Text>
+                  <Text style={styles.attributeName}>{attr.name}</Text>
+                </View>
+              );
+            })}
           </View>
 
           {/* Today's Quests Card */}
           <MasterCard style={styles.questsCard}>
             <View style={styles.questsCardHeader}>
-              <Text style={styles.questsCardTitle}>Today's Quests</Text>
-              <Text style={styles.questsCardCount}>{completedQuestsCount} / {totalQuestsCount} Completed</Text>
+              <View>
+                <Text style={styles.questsCardTitle}>Today's Quests</Text>
+                <Text style={styles.questsCardSubtitle}>
+                  {completedQuestsCount} / {totalQuestsCount} Completed
+                </Text>
+              </View>
+              <Flame size={22} color={colors.primary} />
             </View>
 
-            <Text style={styles.questsCardSubtitle}>
-              Complete quests to earn XP and Coins
-            </Text>
-
             <MasterButton
-              title="View Quests"
-              onPress={() => router.push('/quests')}
-              showArrow
+              title="VIEW QUESTS"
+              onPress={() => router.push('/(tabs)/quests')}
               variant="green"
-              style={{ marginTop: 6 }}
+              showArrow
             />
           </MasterCard>
 
           {/* Quick Actions */}
-          <View style={styles.sectionBlock}>
-            <Text style={styles.sectionTitle}>Quick Actions</Text>
-            <View style={styles.quickActionsRow}>
-              <TouchableOpacity
-                style={styles.quickActionPill}
-                onPress={() => router.push('/focus/session')}
-                activeOpacity={0.8}
-              >
-                <Clock size={16} color={colors.primary} />
-                <Text style={styles.quickActionText}>Start Focus</Text>
-              </TouchableOpacity>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <View style={styles.quickActionsRow}>
+            <TouchableOpacity
+              style={styles.quickActionCard}
+              onPress={() => router.push('/focus/session')}
+              activeOpacity={0.8}
+            >
+              <Clock size={20} color={colors.primary} />
+              <Text style={styles.quickActionText}>Start Focus</Text>
+            </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.quickActionPill}
-                onPress={() =>
-                  router.push({
-                    pathname: '/exercise/[type]',
-                    params: { type: 'PUSHUP' },
-                  })
-                }
-                activeOpacity={0.8}
-              >
-                <Dumbbell size={16} color={colors.primary} />
-                <Text style={styles.quickActionText}>Exercise</Text>
-              </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.quickActionCard}
+              onPress={() => {
+                haptics.light();
+                setIsExercisePickerOpen(true);
+              }}
+              activeOpacity={0.8}
+            >
+              <Dumbbell size={20} color={colors.stats.strength} />
+              <Text style={styles.quickActionText}>Exercise</Text>
+            </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.quickActionPill}
-                onPress={() => router.push('/shop')}
-                activeOpacity={0.8}
-              >
-                <ShoppingBag size={16} color={colors.primary} />
-                <Text style={styles.quickActionText}>Time Shop</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={styles.quickActionCard}
+              onPress={() => router.push('/shop')}
+              activeOpacity={0.8}
+            >
+              <ShoppingBag size={20} color={colors.accentGold} />
+              <Text style={styles.quickActionText}>Time Shop</Text>
+            </TouchableOpacity>
           </View>
 
           <View style={{ height: 90 }} />
         </ScrollView>
       </SafeAreaView>
+
+      {/* Exercise Selection Modal */}
+      <Modal
+        visible={isExercisePickerOpen}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setIsExercisePickerOpen(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Choose AI Exercise</Text>
+                <Text style={styles.modalSubtitle}>Real-time camera pose tracking</Text>
+              </View>
+              <TouchableOpacity onPress={() => setIsExercisePickerOpen(false)} style={{ padding: 4 }}>
+                <X size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.exerciseList}>
+              {EXERCISE_OPTIONS.map((ex) => {
+                const IconComp = ex.icon;
+                return (
+                  <TouchableOpacity
+                    key={ex.type}
+                    style={styles.exerciseRow}
+                    onPress={() => {
+                      haptics.medium();
+                      setIsExercisePickerOpen(false);
+                      router.push(`/exercise/${ex.type}` as any);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.exLeft}>
+                      <View style={styles.exIconCircle}>
+                        <IconComp size={20} color={colors.primary} />
+                      </View>
+                      <View>
+                        <Text style={styles.exName}>{ex.name}</Text>
+                        <Text style={styles.exTarget}>{ex.target}</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.exRight}>
+                      <Text style={styles.exRewardsText}>{ex.xp} {ex.coins}</Text>
+                      <Camera size={16} color={colors.primary} />
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Notifications & Streak Sheet */}
+      <Modal
+        visible={isNotifSheetOpen}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setIsNotifSheetOpen(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Alerts & Status</Text>
+              <TouchableOpacity onPress={() => setIsNotifSheetOpen(false)} style={{ padding: 4 }}>
+                <X size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.notifBody}>
+              <MasterCard style={styles.notifCard}>
+                <Star size={24} color={colors.accentGold} />
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={styles.notifTitle}>{streak} Day Active Streak</Text>
+                  <Text style={styles.notifDesc}>Keep your streak alive by completing 1 quest today.</Text>
+                </View>
+              </MasterCard>
+
+              <MasterCard style={styles.notifCard}>
+                <Shield size={24} color={colors.primary} />
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={styles.notifTitle}>Permissions Active</Text>
+                  <Text style={styles.notifDesc}>On-device protection protocol running.</Text>
+                </View>
+              </MasterCard>
+
+              <MasterButton
+                title="CLOSE"
+                onPress={() => setIsNotifSheetOpen(false)}
+                variant="green"
+                style={{ marginTop: 8 }}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -244,7 +361,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   logoRow: {
     flexDirection: 'row',
@@ -258,44 +376,28 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   bellBtn: {
-    padding: 6,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#161616',
+    borderWidth: 1,
+    borderColor: '#242424',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   scrollContent: {
     paddingHorizontal: 18,
-    gap: 18,
-    paddingTop: 4,
+    gap: 20,
+    paddingTop: 8,
   },
   playerCard: {
     padding: 18,
-    gap: 14,
+    gap: 16,
   },
   avatarRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-  },
-  avatarGlowCircle: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: '#1E1E1E',
-    borderWidth: 2,
-    borderColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
-    elevation: 4,
-  },
-  avatarInner: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#121212',
-    justifyContent: 'center',
-    alignItems: 'center',
+    gap: 14,
   },
   playerMeta: {
     flex: 1,
@@ -344,22 +446,18 @@ const styles = StyleSheet.create({
   },
   cardDivider: {
     height: 1,
-    backgroundColor: '#202020',
+    backgroundColor: '#1F1F1F',
   },
   statsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
     alignItems: 'center',
   },
   statCol: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
-  },
-  statColDivider: {
-    width: 1,
-    height: 20,
-    backgroundColor: '#202020',
   },
   statLabel: {
     fontSize: 13,
@@ -371,13 +469,15 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: colors.textPrimary,
   },
-  sectionBlock: {
-    gap: 12,
+  statColDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: '#262626',
   },
-  sectionHeaderRow: {
+  sectionHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   sectionTitle: {
     fontSize: 16,
@@ -385,80 +485,170 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   viewAllText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
-    color: colors.textMuted,
+    color: colors.primary,
   },
   attributesRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  attrItem: {
+  attributeItem: {
     alignItems: 'center',
     gap: 6,
-    flex: 1,
   },
-  attrCircle: {
+  attributeCircle: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#181818',
+    backgroundColor: '#161616',
     borderWidth: 1.5,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  attrName: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.textSecondary,
-  },
-  attrVal: {
-    fontSize: 12,
+  attributeVal: {
+    fontSize: 14,
     fontWeight: '900',
     color: colors.textPrimary,
   },
+  attributeName: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.textMuted,
+  },
   questsCard: {
     padding: 18,
-    gap: 10,
+    gap: 14,
   },
   questsCardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   questsCardTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: colors.textPrimary,
+  },
+  questsCardSubtitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  quickActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  quickActionCard: {
+    flex: 1,
+    backgroundColor: '#141414',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#1F1F1F',
+    paddingVertical: 18,
+    alignItems: 'center',
+    gap: 8,
+  },
+  quickActionText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.textPrimary,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: '#141414',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderWidth: 1,
+    borderColor: '#262626',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 28,
+    gap: 16,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  modalTitle: {
     fontSize: 17,
     fontWeight: '900',
     color: colors.textPrimary,
   },
-  questsCardCount: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: colors.textMuted,
+  modalSubtitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary,
+    marginTop: 2,
   },
-  questsCardSubtitle: {
-    fontSize: 12,
-    color: colors.textSecondary,
+  exerciseList: {
+    gap: 10,
   },
-  quickActionsRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  quickActionPill: {
-    flex: 1,
+  exerciseRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: colors.card,
-    paddingVertical: 12,
-    borderRadius: 20,
+    justifyContent: 'space-between',
+    backgroundColor: '#181818',
+    padding: 14,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#242424',
   },
-  quickActionText: {
+  exLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  exIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#202020',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  exName: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: colors.textPrimary,
+  },
+  exTarget: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  exRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  exRewardsText: {
     fontSize: 11,
     fontWeight: '800',
+    color: colors.accentGold,
+  },
+  notifBody: {
+    gap: 12,
+  },
+  notifCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    padding: 14,
+  },
+  notifTitle: {
+    fontSize: 14,
+    fontWeight: '900',
     color: colors.textPrimary,
+  },
+  notifDesc: {
+    fontSize: 11,
+    color: colors.textSecondary,
   },
 });
