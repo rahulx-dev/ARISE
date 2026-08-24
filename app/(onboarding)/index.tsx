@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   TextInput,
   Switch,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,6 +16,9 @@ import { useSettingsStore } from '../../src/stores/useSettingsStore';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useSound } from '../../src/hooks/useSound';
+import { appBlockerService, InstalledAppItem } from '../../src/native';
+import { db } from '../../src/database/client';
+import { appRestriction } from '../../src/database/schema';
 import { Card } from '../../src/components/ui/Card';
 import { Button } from '../../src/components/ui/Button';
 import { Badge } from '../../src/components/ui/Badge';
@@ -30,13 +34,6 @@ const GOALS_LIST = [
   { id: 'discipline', title: 'Iron Discipline', icon: 'shield-sword', desc: 'Build consecutive day streaks and habits' },
 ];
 
-const RESTRICTED_APP_OPTIONS = [
-  { name: 'Instagram', pkg: 'com.instagram.android', icon: 'instagram' },
-  { name: 'YouTube', pkg: 'com.google.android.youtube', icon: 'youtube' },
-  { name: 'TikTok', pkg: 'com.zhiliaoapp.musically', icon: 'music-box' },
-  { name: 'Reddit', pkg: 'com.reddit.frontpage', icon: 'reddit' },
-];
-
 export default function OnboardingScreen() {
   const router = useRouter();
   const haptics = useHaptics();
@@ -48,14 +45,59 @@ export default function OnboardingScreen() {
   const [step, setStep] = useState<number>(1);
   const [userName, setUserName] = useState<string>('Warrior');
   const [selectedGoals, setSelectedGoals] = useState<string[]>(['fitness', 'screentime']);
-  const [selectedApps, setSelectedApps] = useState<string[]>([
-    'com.instagram.android',
-    'com.google.android.youtube',
-  ]);
+  const [selectedApps, setSelectedApps] = useState<string[]>([]);
+  const [installedApps, setInstalledApps] = useState<InstalledAppItem[]>([]);
+  const [loadingApps, setLoadingApps] = useState<boolean>(false);
+  const [hasUsagePerm, setHasUsagePerm] = useState<boolean>(true);
   const [dailyBudget, setDailyBudget] = useState<number>(60);
   const [allowNotifications, setAllowNotifications] = useState<boolean>(true);
 
   const totalSteps = 7;
+
+  useEffect(() => {
+    if (step === 3) {
+      loadInstalledApps();
+    }
+  }, [step]);
+
+  const loadInstalledApps = async () => {
+    setLoadingApps(true);
+    try {
+      const perm = await appBlockerService.hasUsagePermission();
+      setHasUsagePerm(perm);
+
+      const apps = await appBlockerService.getInstalledApps();
+      const filtered = apps.filter((a) => !a.isSystemApp);
+      const appList = filtered.length > 0 ? filtered : apps;
+      setInstalledApps(appList);
+
+      // Pre-select top distraction apps if found
+      if (selectedApps.length === 0) {
+        const topDistractions = ['instagram', 'youtube', 'tiktok', 'snapchat', 'reddit', 'twitter', 'facebook'];
+        const matched = appList
+          .filter((a) => topDistractions.some((d) => a.packageName.toLowerCase().includes(d) || a.appName.toLowerCase().includes(d)))
+          .map((a) => a.packageName);
+        if (matched.length > 0) {
+          setSelectedApps(matched);
+        } else if (appList.length > 0) {
+          setSelectedApps([appList[0].packageName]);
+        }
+      }
+    } catch (e) {
+      console.warn('Error loading installed apps:', e);
+    } finally {
+      setLoadingApps(false);
+    }
+  };
+
+  const handleGrantUsagePermission = () => {
+    haptics.medium();
+    appBlockerService.requestUsagePermission();
+    // After user returns, reload
+    setTimeout(() => {
+      loadInstalledApps();
+    }, 1000);
+  };
 
   const toggleGoal = (id: string) => {
     haptics.light();
@@ -82,6 +124,26 @@ export default function OnboardingScreen() {
 
   const finishOnboarding = async () => {
     await updateProfile({ displayName: userName.trim() || 'Warrior' });
+
+    // Save selected restricted apps to SQLite database
+    for (const pkg of selectedApps) {
+      const appInfo = installedApps.find((a) => a.packageName === pkg);
+      try {
+        await db.insert(appRestriction).values({
+          packageName: pkg,
+          appName: appInfo?.appName || pkg,
+          isRestricted: 1,
+        });
+      } catch (e) {
+        // Ignore duplicate insert errors
+      }
+    }
+
+    // Start background app monitoring if any restricted apps selected
+    if (selectedApps.length > 0) {
+      appBlockerService.startMonitoring(selectedApps);
+    }
+
     await setOnboardingCompleted();
     sound.play('level_up');
     haptics.heavy();
@@ -176,42 +238,85 @@ export default function OnboardingScreen() {
           <View style={styles.stepView}>
             <Text style={styles.stepTitle}>Select Apps to Restrict</Text>
             <Text style={styles.stepSubtitle}>
-              These apps will require Coins earned from exercise or focus to unlock.
+              Choose which apps will require Coins earned from exercise to unlock.
             </Text>
 
-            <View style={styles.optionsList}>
-              {RESTRICTED_APP_OPTIONS.map((app) => {
-                const isSelected = selectedApps.includes(app.pkg);
-                return (
-                  <TouchableOpacity
-                    key={app.pkg}
-                    activeOpacity={0.8}
-                    onPress={() => toggleApp(app.pkg)}
-                  >
-                    <Card
-                      variant={isSelected ? 'glow' : 'elevated'}
-                      style={[styles.appCard, isSelected && styles.appCardSelected]}
+            {!hasUsagePerm && (
+              <TouchableOpacity
+                style={styles.permBanner}
+                onPress={handleGrantUsagePermission}
+                activeOpacity={0.8}
+              >
+                <MaterialCommunityIcons name="shield-alert" size={24} color={colors.accentGold} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.permBannerTitle}>Usage Access Needed</Text>
+                  <Text style={styles.permBannerDesc}>Tap to allow ARISE to detect active apps</Text>
+                </View>
+                <Badge label="GRANT" color={colors.accentGold} size="sm" variant="filled" />
+              </TouchableOpacity>
+            )}
+
+            {selectedApps.length > 0 && (
+              <View style={styles.selectedCountBadge}>
+                <Text style={styles.selectedCountText}>
+                  {selectedApps.length} app{selectedApps.length !== 1 ? 's' : ''} restricted
+                </Text>
+              </View>
+            )}
+
+            <ScrollView
+              style={{ width: '100%', maxHeight: 340 }}
+              contentContainerStyle={{ gap: 10, paddingBottom: 10 }}
+              showsVerticalScrollIndicator={false}
+              nestedScrollEnabled={true}
+            >
+              {loadingApps ? (
+                <View style={{ paddingVertical: 40, alignItems: 'center', gap: 10 }}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={{ color: colors.textMuted, fontSize: 13 }}>Reading installed apps...</Text>
+                </View>
+              ) : installedApps.length === 0 ? (
+                <View style={{ paddingVertical: 30, alignItems: 'center', gap: 6 }}>
+                  <Text style={{ color: colors.textMuted, fontSize: 13 }}>No launcher apps found.</Text>
+                </View>
+              ) : (
+                installedApps.map((app) => {
+                  const isSelected = selectedApps.includes(app.packageName);
+                  return (
+                    <TouchableOpacity
+                      key={app.packageName}
+                      activeOpacity={0.8}
+                      onPress={() => toggleApp(app.packageName)}
                     >
-                      <MaterialCommunityIcons
-                        name={app.icon as any}
-                        size={26}
-                        color={isSelected ? colors.primaryLight : colors.textMuted}
-                      />
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.appNameText}>{app.name}</Text>
-                        <Text style={styles.appPkgText}>{app.pkg}</Text>
-                      </View>
-                      <Switch
-                        value={isSelected}
-                        onValueChange={() => toggleApp(app.pkg)}
-                        trackColor={{ false: colors.surfaceLight, true: colors.primary }}
-                        thumbColor={isSelected ? colors.background : colors.textMuted}
-                      />
-                    </Card>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+                      <Card
+                        variant={isSelected ? 'glow' : 'elevated'}
+                        style={[styles.appCard, isSelected && styles.appCardSelected]}
+                      >
+                        <View style={styles.appIconCircle}>
+                          <MaterialCommunityIcons
+                            name="cellphone"
+                            size={20}
+                            color={isSelected ? colors.primary : colors.textMuted}
+                          />
+                        </View>
+                        <View style={{ flex: 1, gap: 2 }}>
+                          <Text style={styles.appNameText}>{app.appName}</Text>
+                          <Text style={styles.appPkgText} numberOfLines={1}>
+                            {app.packageName}
+                          </Text>
+                        </View>
+                        <Switch
+                          value={isSelected}
+                          onValueChange={() => toggleApp(app.packageName)}
+                          trackColor={{ false: colors.surfaceLight, true: colors.primary }}
+                          thumbColor={isSelected ? colors.background : colors.textMuted}
+                        />
+                      </Card>
+                    </TouchableOpacity>
+                  );
+                })
+              )}
+            </ScrollView>
           </View>
         )}
 
@@ -432,4 +537,45 @@ const styles = StyleSheet.create({
   readyTagline: { fontSize: 14, fontWeight: '700', color: colors.secondary, textAlign: 'center' },
   readyDesc: { fontSize: 13, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 },
   footer: { padding: 20, borderTopWidth: 1, borderTopColor: colors.surfaceBorder },
+  permBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#1E1A0F',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#4A3B18',
+    padding: 12,
+    width: '100%',
+  },
+  permBannerTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.accentGold,
+  },
+  permBannerDesc: {
+    fontSize: 11,
+    color: colors.textMuted,
+  },
+  selectedCountBadge: {
+    backgroundColor: 'rgba(0, 255, 106, 0.1)',
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  selectedCountText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.primary,
+  },
+  appIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });

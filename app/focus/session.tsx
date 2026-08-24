@@ -30,6 +30,8 @@ import { voiceCoach } from '../../src/services/voiceCoach';
 import { useSound } from '../../src/hooks/useSound';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { colors } from '../../src/theme/colors';
+import { focusMusicService, FOCUS_MUSIC_TRACKS } from '../../src/services/focusMusic';
+import { Music, Music2 } from 'lucide-react-native';
 
 export default function FocusModeScreen() {
   const router = useRouter();
@@ -43,6 +45,7 @@ export default function FocusModeScreen() {
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [voiceEnabled, setVoiceEnabled] = useState<boolean>(true);
   const [strictLock, setStrictLock] = useState<boolean>(true);
+  const [selectedTrackId, setSelectedTrackId] = useState<string>('rain');
 
   const timerIntervalRef = useRef<any>(null);
 
@@ -50,6 +53,9 @@ export default function FocusModeScreen() {
     if (voiceEnabled) {
       voiceCoach.speakFocusStart(targetMinutes);
     }
+
+    // Start ambient music
+    focusMusicService.play(selectedTrackId);
 
     timerIntervalRef.current = setInterval(() => {
       setRemainingMs((prev) => {
@@ -64,6 +70,7 @@ export default function FocusModeScreen() {
     return () => {
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
       voiceCoach.stop();
+      focusMusicService.stop();
     };
   }, []);
 
@@ -75,15 +82,27 @@ export default function FocusModeScreen() {
   const secondsLeft = Math.floor((remainingMs % (60 * 1000)) / 1000);
   const formattedTime = `${minutesLeft.toString().padStart(2, '0')}:${secondsLeft.toString().padStart(2, '0')}`;
 
+  const currentTrack = FOCUS_MUSIC_TRACKS.find((t) => t.id === selectedTrackId) || FOCUS_MUSIC_TRACKS[0];
+
+  const handleSelectTrack = (trackId: string) => {
+    haptics.light();
+    setSelectedTrackId(trackId);
+    if (isActive) {
+      focusMusicService.play(trackId);
+    }
+  };
+
   const togglePlayPause = () => {
     haptics.medium();
     if (isActive) {
       setIsActive(false);
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
       if (voiceEnabled) voiceCoach.speak('Focus session paused.');
+      focusMusicService.stop();
     } else {
       setIsActive(true);
       if (voiceEnabled) voiceCoach.speak('Resuming focus protocol.');
+      focusMusicService.play(selectedTrackId);
       timerIntervalRef.current = setInterval(() => {
         setRemainingMs((prev) => {
           const next = Math.max(0, prev - 1000);
@@ -100,11 +119,13 @@ export default function FocusModeScreen() {
     haptics.heavy();
     if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     voiceCoach.stop();
+    focusMusicService.stop();
     router.back();
   };
 
   const handleSessionComplete = async () => {
     if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    focusMusicService.stop();
     haptics.success();
     sound.play('quest_complete');
 
@@ -185,6 +206,19 @@ export default function FocusModeScreen() {
             </View>
           </View>
 
+          {/* Ambient Sound Pill */}
+          <TouchableOpacity
+            style={styles.ambientPill}
+            onPress={() => setIsSettingsOpen(true)}
+            activeOpacity={0.8}
+          >
+            <Music size={14} color={colors.primary} />
+            <Text style={styles.ambientPillText}>
+              {currentTrack.emoji} {currentTrack.name} Ambient
+            </Text>
+            <Text style={styles.ambientPillChange}>Change</Text>
+          </TouchableOpacity>
+
           <Text style={styles.focusSubtitle}>
             Deep Work Session — Stay focused and get rewarded.
           </Text>
@@ -239,89 +273,124 @@ export default function FocusModeScreen() {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.modalBody}>
-              <Text style={styles.settingLabel}>SESSION DURATION</Text>
-              <View style={styles.durationRow}>
-                {[15, 25, 45, 60].map((mins) => (
-                  <TouchableOpacity
-                    key={mins}
-                    style={[
-                      styles.durationBtn,
-                      targetMinutes === mins && styles.durationBtnActive,
-                    ]}
-                    onPress={() => {
-                      haptics.light();
-                      setTargetMinutes(mins);
-                      setRemainingMs(mins * 60 * 1000);
-                    }}
-                  >
-                    <Text
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={styles.modalBody}>
+                {/* 1. Duration */}
+                <Text style={styles.settingLabel}>SESSION DURATION</Text>
+                <View style={styles.durationRow}>
+                  {[15, 25, 45, 60].map((mins) => (
+                    <TouchableOpacity
+                      key={mins}
                       style={[
-                        styles.durationBtnText,
-                        targetMinutes === mins && { color: '#000000', fontWeight: '900' },
+                        styles.durationBtn,
+                        targetMinutes === mins && styles.durationBtnActive,
                       ]}
+                      onPress={() => {
+                        haptics.light();
+                        setTargetMinutes(mins);
+                        setRemainingMs(mins * 60 * 1000);
+                      }}
                     >
-                      {mins}m
+                      <Text
+                        style={[
+                          styles.durationBtnText,
+                          targetMinutes === mins && { color: '#000000', fontWeight: '900' },
+                        ]}
+                      >
+                        {mins}m
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {/* 2. Ambient Soundscape Selection */}
+                <Text style={styles.settingLabel}>AMBIENT SOUNDSCAPE</Text>
+                <View style={styles.musicGrid}>
+                  {FOCUS_MUSIC_TRACKS.map((track) => {
+                    const isSelected = selectedTrackId === track.id;
+                    return (
+                      <TouchableOpacity
+                        key={track.id}
+                        style={[
+                          styles.musicCard,
+                          isSelected && styles.musicCardActive,
+                        ]}
+                        onPress={() => handleSelectTrack(track.id)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.musicEmoji}>{track.emoji}</Text>
+                        <Text
+                          style={[
+                            styles.musicName,
+                            isSelected && { color: colors.primary },
+                          ]}
+                        >
+                          {track.name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* 3. AI Voice Coaching */}
+                <TouchableOpacity
+                  style={styles.toggleRow}
+                  onPress={() => {
+                    haptics.light();
+                    setVoiceEnabled(!voiceEnabled);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.toggleLeft}>
+                    {voiceEnabled ? (
+                      <Volume2 size={20} color={colors.primary} />
+                    ) : (
+                      <VolumeX size={20} color={colors.textMuted} />
+                    )}
+                    <View>
+                      <Text style={styles.toggleTitle}>AI Voice Coaching</Text>
+                      <Text style={styles.toggleDesc}>Speech announcements during session</Text>
+                    </View>
+                  </View>
+                  <View style={[styles.toggleBadge, voiceEnabled && styles.toggleBadgeActive]}>
+                    <Text style={[styles.toggleBadgeText, voiceEnabled && { color: colors.primary }]}>
+                      {voiceEnabled ? 'ON' : 'OFF'}
                     </Text>
-                  </TouchableOpacity>
-                ))}
+                  </View>
+                </TouchableOpacity>
+
+                {/* 4. Strict Discipline Lock */}
+                <TouchableOpacity
+                  style={styles.toggleRow}
+                  onPress={() => {
+                    haptics.light();
+                    setStrictLock(!strictLock);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.toggleLeft}>
+                    <Shield size={20} color={strictLock ? '#8A2BE2' : colors.textMuted} />
+                    <View>
+                      <Text style={styles.toggleTitle}>Strict Discipline Lock</Text>
+                      <Text style={styles.toggleDesc}>Block restricted apps until timer expires</Text>
+                    </View>
+                  </View>
+                  <View style={[styles.toggleBadge, strictLock && { borderColor: '#8A2BE2' }]}>
+                    <Text style={[styles.toggleBadgeText, strictLock && { color: '#8A2BE2' }]}>
+                      {strictLock ? 'ACTIVE' : 'OFF'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                <MasterButton
+                  title="SAVE & CONTINUE"
+                  onPress={() => setIsSettingsOpen(false)}
+                  variant="green"
+                  style={{ marginTop: 8 }}
+                />
+                <View style={{ height: 16 }} />
               </View>
-
-              <TouchableOpacity
-                style={styles.toggleRow}
-                onPress={() => {
-                  haptics.light();
-                  setVoiceEnabled(!voiceEnabled);
-                }}
-                activeOpacity={0.8}
-              >
-                <View style={styles.toggleLeft}>
-                  {voiceEnabled ? (
-                    <Volume2 size={20} color={colors.primary} />
-                  ) : (
-                    <VolumeX size={20} color={colors.textMuted} />
-                  )}
-                  <View>
-                    <Text style={styles.toggleTitle}>AI Voice Coaching</Text>
-                    <Text style={styles.toggleDesc}>Speech announcements during session</Text>
-                  </View>
-                </View>
-                <View style={[styles.toggleBadge, voiceEnabled && styles.toggleBadgeActive]}>
-                  <Text style={[styles.toggleBadgeText, voiceEnabled && { color: colors.primary }]}>
-                    {voiceEnabled ? 'ON' : 'OFF'}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.toggleRow}
-                onPress={() => {
-                  haptics.light();
-                  setStrictLock(!strictLock);
-                }}
-                activeOpacity={0.8}
-              >
-                <View style={styles.toggleLeft}>
-                  <Shield size={20} color={strictLock ? '#8A2BE2' : colors.textMuted} />
-                  <View>
-                    <Text style={styles.toggleTitle}>Strict Discipline Lock</Text>
-                    <Text style={styles.toggleDesc}>Block restricted apps until timer expires</Text>
-                  </View>
-                </View>
-                <View style={[styles.toggleBadge, strictLock && { borderColor: '#8A2BE2' }]}>
-                  <Text style={[styles.toggleBadgeText, strictLock && { color: '#8A2BE2' }]}>
-                    {strictLock ? 'ACTIVE' : 'OFF'}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-
-              <MasterButton
-                title="SAVE SETTINGS"
-                onPress={() => setIsSettingsOpen(false)}
-                variant="green"
-                style={{ marginTop: 12 }}
-              />
-            </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -546,5 +615,54 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
     color: colors.textMuted,
+  },
+  ambientPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#161616',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#262626',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  ambientPillText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.textPrimary,
+  },
+  ambientPillChange: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary,
+    marginLeft: 4,
+  },
+  musicGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  musicCard: {
+    width: '31%',
+    backgroundColor: '#1A1A1A',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#282828',
+    paddingVertical: 12,
+    alignItems: 'center',
+    gap: 4,
+  },
+  musicCardActive: {
+    borderColor: colors.primary,
+    backgroundColor: 'rgba(0, 255, 106, 0.08)',
+  },
+  musicEmoji: {
+    fontSize: 22,
+  },
+  musicName: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.textSecondary,
   },
 });

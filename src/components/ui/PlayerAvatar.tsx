@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle, Image, ImageSourcePropType } from 'react-native';
 import { User } from 'lucide-react-native';
-import { AVATAR_ICONS } from '../profile/AvatarPicker';
+import { AVATAR_ICONS, AVATAR_IMAGES } from '../profile/AvatarPicker';
 import { colors } from '../../theme/colors';
 
 interface PlayerAvatarProps {
@@ -21,17 +21,23 @@ export function PlayerAvatar({
   glow = true,
   style,
 }: PlayerAvatarProps) {
+  const imageConfig = AVATAR_IMAGES.find((i) => i.id === iconId);
   const iconConfig = AVATAR_ICONS.find((i) => i.id === iconId);
   const IconComponent = iconConfig ? iconConfig.component : User;
   const innerIconSize = Math.round(size * 0.48);
 
-  const isCustomImage =
-    Boolean(imageSource) ||
-    (typeof iconId === 'string' &&
-      (iconId.startsWith('http') ||
-        iconId.startsWith('file:') ||
-        iconId.startsWith('data:') ||
-        iconId.startsWith('img_')));
+  const resolvedSource =
+    imageSource ??
+    (imageConfig
+      ? imageConfig.source
+      : typeof iconId === 'string' &&
+        (iconId.startsWith('http') ||
+          iconId.startsWith('file:') ||
+          iconId.startsWith('data:'))
+      ? { uri: iconId }
+      : null);
+
+  const isCustomImage = Boolean(resolvedSource);
 
   return (
     <View
@@ -64,13 +70,9 @@ export function PlayerAvatar({
           },
         ]}
       >
-        {isCustomImage ? (
+        {isCustomImage && resolvedSource ? (
           <Image
-            source={
-              typeof imageSource === 'object' || typeof imageSource === 'number'
-                ? imageSource
-                : { uri: typeof imageSource === 'string' ? imageSource : iconId }
-            }
+            source={resolvedSource}
             style={{ width: '100%', height: '100%' }}
             resizeMode="cover"
           />

@@ -7,6 +7,7 @@ import {
   ScrollView,
   TextInput,
   ActivityIndicator,
+  AppState,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,6 +17,9 @@ import {
   LayoutGrid,
   Check,
   Smartphone,
+  ShieldAlert,
+  ShieldCheck,
+  RefreshCw,
 } from 'lucide-react-native';
 import { MasterCard } from '../../src/components/master/MasterCard';
 import { MasterButton } from '../../src/components/master/MasterButton';
@@ -32,53 +36,56 @@ interface AppItem {
   isRestricted: boolean;
 }
 
-const DEFAULT_POPULAR_APPS: AppItem[] = [
-  { appName: 'Instagram', packageName: 'com.instagram.android', isRestricted: true },
-  { appName: 'YouTube', packageName: 'com.google.android.youtube', isRestricted: true },
-  { appName: 'WhatsApp', packageName: 'com.whatsapp', isRestricted: true },
-  { appName: 'Chrome', packageName: 'com.android.chrome', isRestricted: true },
-  { appName: 'Snapchat', packageName: 'com.snapchat.android', isRestricted: true },
-  { appName: 'Netflix', packageName: 'com.netflix.mediaclient', isRestricted: false },
-  { appName: 'Twitter', packageName: 'com.twitter.android', isRestricted: false },
-  { appName: 'Spotify', packageName: 'com.spotify.music', isRestricted: false },
-];
-
 export default function SelectAppsScreen() {
   const router = useRouter();
   const haptics = useHaptics();
 
   const [loading, setLoading] = useState<boolean>(true);
-  const [allApps, setAllApps] = useState<AppItem[]>(DEFAULT_POPULAR_APPS);
+  const [hasUsagePerm, setHasUsagePerm] = useState<boolean>(true);
+  const [hasOverlayPerm, setHasOverlayPerm] = useState<boolean>(true);
+  const [allApps, setAllApps] = useState<AppItem[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   useEffect(() => {
     loadApps();
+
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        loadApps();
+      }
+    });
+
+    return () => sub.remove();
   }, []);
 
   const loadApps = async () => {
     setLoading(true);
     try {
+      const [usagePerm, overlayPerm] = await Promise.all([
+        appBlockerService.hasUsagePermission(),
+        appBlockerService.hasOverlayPermission(),
+      ]);
+      setHasUsagePerm(usagePerm);
+      setHasOverlayPerm(overlayPerm);
+
       const installed = await appBlockerService.getInstalledApps();
       const saved = await db.select().from(appRestriction);
       const restrictedSet = new Set(
         saved.filter((r) => r.isRestricted === 1).map((r) => r.packageName)
       );
 
-      if (installed.length > 0) {
-        const merged: AppItem[] = installed.map((app) => ({
-          packageName: app.packageName,
-          appName: app.appName,
-          isRestricted: restrictedSet.has(app.packageName),
-        }));
-        setAllApps(merged);
-      } else {
-        setAllApps(
-          DEFAULT_POPULAR_APPS.map((a) => ({
-            ...a,
-            isRestricted: restrictedSet.has(a.packageName) || a.isRestricted,
-          }))
-        );
-      }
+      const nonSystemApps = installed.filter((a) => !a.isSystemApp);
+      const targetApps = nonSystemApps.length > 0 ? nonSystemApps : installed;
+
+      const merged: AppItem[] = targetApps.map((app) => ({
+        packageName: app.packageName,
+        appName: app.appName,
+        isRestricted: restrictedSet.has(app.packageName),
+      }));
+
+      // Sort alphabetically by appName
+      merged.sort((a, b) => a.appName.localeCompare(b.appName));
+      setAllApps(merged);
     } catch (e) {
       console.error('Error loading apps:', e);
     } finally {
@@ -154,6 +161,16 @@ export default function SelectAppsScreen() {
     }
   };
 
+  const handleSelectAll = () => {
+    haptics.light();
+    setAllApps((prev) => prev.map((a) => ({ ...a, isRestricted: true })));
+  };
+
+  const handleClearAll = () => {
+    haptics.light();
+    setAllApps((prev) => prev.map((a) => ({ ...a, isRestricted: false })));
+  };
+
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
@@ -163,16 +180,48 @@ export default function SelectAppsScreen() {
             <ArrowLeft size={20} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Select Apps</Text>
-          <View style={{ width: 40 }} />
+          <TouchableOpacity onPress={loadApps} style={styles.circleBtn}>
+            <RefreshCw size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
         </View>
 
-        {/* Search Bar */}
+        {/* Permission Warnings if missing */}
+        {(!hasUsagePerm || !hasOverlayPerm) && (
+          <View style={styles.permWarningBox}>
+            <ShieldAlert size={20} color={colors.accentGold} />
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={styles.permWarningTitle}>Permissions Required</Text>
+              <Text style={styles.permWarningDesc}>
+                {!hasUsagePerm && !hasOverlayPerm
+                  ? 'Usage Access & Display Overlay needed to lock apps.'
+                  : !hasUsagePerm
+                  ? 'Usage Access needed to detect active apps.'
+                  : 'Display Overlay needed to show lock screen.'}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.permFixBtn}
+              onPress={() => {
+                haptics.medium();
+                if (!hasUsagePerm) {
+                  appBlockerService.requestUsagePermission();
+                } else {
+                  appBlockerService.requestOverlayPermission();
+                }
+              }}
+            >
+              <Text style={styles.permFixBtnText}>FIX</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Search Bar & Quick Toggles */}
         <View style={styles.searchRow}>
           <View style={styles.searchBar}>
             <Search size={18} color={colors.textMuted} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search apps..."
+              placeholder="Search installed apps..."
               placeholderTextColor={colors.textMuted}
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -180,46 +229,71 @@ export default function SelectAppsScreen() {
               autoCorrect={false}
             />
           </View>
-          <TouchableOpacity style={styles.gridBtn}>
-            <LayoutGrid size={20} color={colors.textSecondary} />
-          </TouchableOpacity>
+        </View>
+
+        {/* Quick Action Pill Row */}
+        <View style={styles.quickActionRow}>
+          <Text style={styles.appCountLabel}>
+            {filteredApps.length} Apps ({restrictedCount} restricted)
+          </Text>
+          <View style={styles.quickPills}>
+            <TouchableOpacity style={styles.pillBtn} onPress={handleSelectAll}>
+              <Text style={styles.pillBtnText}>Select All</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.pillBtn} onPress={handleClearAll}>
+              <Text style={styles.pillBtnText}>Clear All</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* App List */}
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <View style={styles.appsList}>
-            {filteredApps.map((app) => (
-              <TouchableOpacity
-                key={app.packageName}
-                style={styles.appRow}
-                onPress={() => toggleAppRestriction(app.packageName)}
-                activeOpacity={0.8}
-              >
-                <View style={styles.appIconCircle}>
-                  <Smartphone size={20} color={colors.primary} />
-                </View>
-
-                <View style={styles.appMeta}>
-                  <Text style={styles.appName}>{app.appName}</Text>
-                  <Text style={styles.appPackage} numberOfLines={1}>
-                    {app.packageName}
-                  </Text>
-                </View>
-
-                {/* Square Green Checkbox */}
-                <View
-                  style={[
-                    styles.checkbox,
-                    app.isRestricted && styles.checkboxActive,
-                  ]}
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={styles.loadingText}>Scanning device for installed apps...</Text>
+            </View>
+          ) : filteredApps.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Smartphone size={36} color={colors.textMuted} />
+              <Text style={styles.emptyTitle}>No matching apps found</Text>
+              <Text style={styles.emptyDesc}>Try adjusting your search query</Text>
+            </View>
+          ) : (
+            <View style={styles.appsList}>
+              {filteredApps.map((app) => (
+                <TouchableOpacity
+                  key={app.packageName}
+                  style={styles.appRow}
+                  onPress={() => toggleAppRestriction(app.packageName)}
+                  activeOpacity={0.8}
                 >
-                  {app.isRestricted && (
-                    <Check size={14} color="#0A0A0A" strokeWidth={3} />
-                  )}
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
+                  <View style={styles.appIconCircle}>
+                    <Smartphone size={20} color={app.isRestricted ? colors.primary : colors.textMuted} />
+                  </View>
+
+                  <View style={styles.appMeta}>
+                    <Text style={styles.appName}>{app.appName}</Text>
+                    <Text style={styles.appPackage} numberOfLines={1}>
+                      {app.packageName}
+                    </Text>
+                  </View>
+
+                  {/* Square Green Checkbox */}
+                  <View
+                    style={[
+                      styles.checkbox,
+                      app.isRestricted && styles.checkboxActive,
+                    ]}
+                  >
+                    {app.isRestricted && (
+                      <Check size={14} color="#0A0A0A" strokeWidth={3} />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
 
           <View style={{ height: 110 }} />
         </ScrollView>
@@ -347,5 +421,91 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderTopWidth: 1,
     borderTopColor: '#1A1A1A',
+  },
+  permWarningBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#1E190A',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#4A3A10',
+    padding: 14,
+    marginHorizontal: 20,
+    marginBottom: 12,
+  },
+  permWarningTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.accentGold,
+  },
+  permWarningDesc: {
+    fontSize: 11,
+    color: colors.textMuted,
+    lineHeight: 15,
+  },
+  permFixBtn: {
+    backgroundColor: colors.accentGold,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  permFixBtnText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#0A0A0A',
+  },
+  quickActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    marginBottom: 12,
+  },
+  appCountLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textMuted,
+  },
+  quickPills: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  pillBtn: {
+    backgroundColor: '#181818',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#282828',
+  },
+  pillBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textSecondary,
+  },
+  loadingContainer: {
+    paddingVertical: 60,
+    alignItems: 'center',
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 13,
+    color: colors.textMuted,
+    fontWeight: '600',
+  },
+  emptyContainer: {
+    paddingVertical: 60,
+    alignItems: 'center',
+    gap: 8,
+  },
+  emptyTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.textPrimary,
+  },
+  emptyDesc: {
+    fontSize: 12,
+    color: colors.textMuted,
   },
 });
