@@ -1,11 +1,12 @@
 import React from 'react';
-import { View, StyleSheet, ViewStyle } from 'react-native';
+import { View, StyleSheet, ViewStyle, Image, ImageSourcePropType } from 'react-native';
 import { User } from 'lucide-react-native';
 import { AVATAR_ICONS } from '../profile/AvatarPicker';
 import { colors } from '../../theme/colors';
 
 interface PlayerAvatarProps {
   iconId?: string;
+  imageSource?: ImageSourcePropType | string;
   glowColor?: string;
   size?: number;
   glow?: boolean;
@@ -14,6 +15,7 @@ interface PlayerAvatarProps {
 
 export function PlayerAvatar({
   iconId = 'user',
+  imageSource,
   glowColor = colors.primary,
   size = 64,
   glow = true,
@@ -22,6 +24,14 @@ export function PlayerAvatar({
   const iconConfig = AVATAR_ICONS.find((i) => i.id === iconId);
   const IconComponent = iconConfig ? iconConfig.component : User;
   const innerIconSize = Math.round(size * 0.48);
+
+  const isCustomImage =
+    Boolean(imageSource) ||
+    (typeof iconId === 'string' &&
+      (iconId.startsWith('http') ||
+        iconId.startsWith('file:') ||
+        iconId.startsWith('data:') ||
+        iconId.startsWith('img_')));
 
   return (
     <View
@@ -36,8 +46,8 @@ export function PlayerAvatar({
         glow && {
           shadowColor: glowColor,
           shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: 0.7,
-          shadowRadius: 12,
+          shadowOpacity: 0.8,
+          shadowRadius: 14,
           elevation: 6,
         },
         style,
@@ -50,10 +60,23 @@ export function PlayerAvatar({
             width: size - 6,
             height: size - 6,
             borderRadius: (size - 6) / 2,
+            overflow: 'hidden',
           },
         ]}
       >
-        <IconComponent size={innerIconSize} color={glowColor} strokeWidth={2.2} />
+        {isCustomImage ? (
+          <Image
+            source={
+              typeof imageSource === 'object' || typeof imageSource === 'number'
+                ? imageSource
+                : { uri: typeof imageSource === 'string' ? imageSource : iconId }
+            }
+            style={{ width: '100%', height: '100%' }}
+            resizeMode="cover"
+          />
+        ) : (
+          <IconComponent size={innerIconSize} color={glowColor} strokeWidth={2.2} />
+        )}
       </View>
     </View>
   );

@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
+  Image,
   ScrollView,
 } from 'react-native';
 import {
@@ -23,6 +24,8 @@ import {
   Cpu,
   Heart,
   Star,
+  Image as ImageIcon,
+  Sparkles,
 } from 'lucide-react-native';
 import { useHaptics } from '../../hooks/useHaptics';
 import { colors } from '../../theme/colors';
@@ -31,6 +34,12 @@ export interface AvatarIconOption {
   id: string;
   name: string;
   component: any;
+}
+
+export interface AvatarImageOption {
+  id: string;
+  name: string;
+  source: any;
 }
 
 export const AVATAR_ICONS: AvatarIconOption[] = [
@@ -51,6 +60,8 @@ export const AVATAR_ICONS: AvatarIconOption[] = [
   { id: 'heart', name: 'Vitality', component: Heart },
   { id: 'star', name: 'Ascended', component: Star },
 ];
+
+export const AVATAR_IMAGES: AvatarImageOption[] = [];
 
 export const AVATAR_COLORS = [
   { id: 'green', color: '#00FF6A', label: 'Neon Green' },
@@ -74,6 +85,7 @@ export function AvatarPicker({
   onSelectColor,
 }: AvatarPickerProps) {
   const haptics = useHaptics();
+  const [activeTab, setActiveTab] = useState<'icons' | 'images'>('icons');
 
   return (
     <View style={styles.container}>
@@ -100,51 +112,118 @@ export function AvatarPicker({
         })}
       </View>
 
-      {/* 2. Free Vector Icon Grid */}
-      <Text style={[styles.sectionTitle, { marginTop: 14 }]}>CHOOSE WARRIOR ICON</Text>
-      <View style={styles.iconsGrid}>
-        {AVATAR_ICONS.map((item) => {
-          const isSelected = selectedIconId === item.id;
-          const IconComp = item.component;
-
-          return (
-            <TouchableOpacity
-              key={item.id}
+      {/* 2. Toggle: Icons vs Images */}
+      {AVATAR_IMAGES.length > 0 && (
+        <View style={styles.tabToggleRow}>
+          <TouchableOpacity
+            style={[styles.tabToggleBtn, activeTab === 'icons' && styles.tabToggleBtnActive]}
+            onPress={() => setActiveTab('icons')}
+          >
+            <Sparkles size={14} color={activeTab === 'icons' ? '#000000' : colors.textSecondary} />
+            <Text
               style={[
-                styles.iconBox,
-                isSelected && {
-                  borderColor: selectedColor,
-                  backgroundColor: `${selectedColor}18`,
-                  shadowColor: selectedColor,
-                  shadowOpacity: 0.6,
-                  shadowRadius: 10,
-                  elevation: 4,
-                },
+                styles.tabToggleText,
+                activeTab === 'icons' && styles.tabToggleTextActive,
               ]}
-              onPress={() => {
-                haptics.medium();
-                onSelectIcon(item.id);
-              }}
-              activeOpacity={0.8}
             >
-              <IconComp
-                size={22}
-                color={isSelected ? selectedColor : colors.textSecondary}
-                strokeWidth={isSelected ? 2.5 : 2}
-              />
-              <Text
+              Vector Icons
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.tabToggleBtn, activeTab === 'images' && styles.tabToggleBtnActive]}
+            onPress={() => setActiveTab('images')}
+          >
+            <ImageIcon size={14} color={activeTab === 'images' ? '#000000' : colors.textSecondary} />
+            <Text
+              style={[
+                styles.tabToggleText,
+                activeTab === 'images' && styles.tabToggleTextActive,
+              ]}
+            >
+              Custom Images
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* 3. Free Vector Icon Grid */}
+      {activeTab === 'icons' ? (
+        <>
+          <Text style={[styles.sectionTitle, { marginTop: 14 }]}>CHOOSE WARRIOR ICON</Text>
+          <View style={styles.iconsGrid}>
+            {AVATAR_ICONS.map((item) => {
+              const isSelected = selectedIconId === item.id;
+              const IconComp = item.component;
+
+              return (
+                <TouchableOpacity
+                  key={item.id}
+                  style={[
+                    styles.iconBox,
+                    isSelected && {
+                      borderColor: selectedColor,
+                      backgroundColor: `${selectedColor}18`,
+                      shadowColor: selectedColor,
+                      shadowOpacity: 0.6,
+                      shadowRadius: 10,
+                      elevation: 4,
+                    },
+                  ]}
+                  onPress={() => {
+                    haptics.medium();
+                    onSelectIcon(item.id);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <IconComp
+                    size={22}
+                    color={isSelected ? selectedColor : colors.textSecondary}
+                    strokeWidth={isSelected ? 2.5 : 2}
+                  />
+                  <Text
+                    style={[
+                      styles.iconLabel,
+                      isSelected && { color: selectedColor, fontWeight: '900' },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {item.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </>
+      ) : (
+        /* Custom Images Grid */
+        <View style={styles.iconsGrid}>
+          {AVATAR_IMAGES.map((item) => {
+            const isSelected = selectedIconId === item.id;
+
+            return (
+              <TouchableOpacity
+                key={item.id}
                 style={[
-                  styles.iconLabel,
-                  isSelected && { color: selectedColor, fontWeight: '900' },
+                  styles.iconBox,
+                  { padding: 0, overflow: 'hidden' },
+                  isSelected && {
+                    borderColor: selectedColor,
+                    borderWidth: 2,
+                  },
                 ]}
-                numberOfLines={1}
+                onPress={() => {
+                  haptics.medium();
+                  onSelectIcon(item.id);
+                }}
+                activeOpacity={0.8}
               >
-                {item.name}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+                <Image source={item.source} style={{ width: '100%', height: '100%' }} />
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
     </View>
   );
 }
@@ -174,6 +253,37 @@ const styles = StyleSheet.create({
   colorDotSelected: {
     borderColor: '#FFFFFF',
     transform: [{ scale: 1.15 }],
+  },
+  tabToggleRow: {
+    flexDirection: 'row',
+    backgroundColor: '#161616',
+    borderRadius: 12,
+    padding: 3,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#242424',
+    gap: 4,
+  },
+  tabToggleBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    borderRadius: 9,
+  },
+  tabToggleBtnActive: {
+    backgroundColor: colors.primary,
+  },
+  tabToggleText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.textSecondary,
+  },
+  tabToggleTextActive: {
+    color: '#000000',
+    fontWeight: '900',
   },
   iconsGrid: {
     flexDirection: 'row',
