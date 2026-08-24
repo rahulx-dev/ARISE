@@ -96,26 +96,55 @@ class AppBlockerModule : Module() {
                 return@Function emptyList<Map<String, Any>>()
             }
             val pm = context.packageManager
-            val launcherIntent = Intent(Intent.ACTION_MAIN, null).apply {
-                addCategory(Intent.CATEGORY_LAUNCHER)
-            }
-            val resolveInfos = pm.queryIntentActivities(launcherIntent, 0)
             val apps = mutableListOf<Map<String, Any>>()
 
-            for (info in resolveInfos) {
-                val pkgName = info.activityInfo.packageName
-                if (pkgName != context.packageName) {
-                    val appName = info.loadLabel(pm).toString()
-                    val isSystem = (info.activityInfo.applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
-                    apps.add(
-                        mapOf(
-                            "packageName" to pkgName,
-                            "appName" to appName,
-                            "isSystemApp" to isSystem
+            try {
+                // Tier 1: Query Category Launcher Activities
+                val launcherIntent = Intent(Intent.ACTION_MAIN, null).apply {
+                    addCategory(Intent.CATEGORY_LAUNCHER)
+                }
+                val resolveInfos = pm.queryIntentActivities(launcherIntent, 0)
+                for (info in resolveInfos) {
+                    val pkgName = info.activityInfo.packageName
+                    if (pkgName != context.packageName) {
+                        val appName = info.loadLabel(pm).toString()
+                        val isSystem = (info.activityInfo.applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
+                        apps.add(
+                            mapOf(
+                                "packageName" to pkgName,
+                                "appName" to appName,
+                                "isSystemApp" to isSystem
+                            )
                         )
-                    )
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
+            // Tier 2: Fallback to getInstalledApplications if queryIntentActivities returned empty
+            if (apps.isEmpty()) {
+                try {
+                    val installedList = pm.getInstalledApplications(PackageManager.GET_META_DATA)
+                    for (appInfo in installedList) {
+                        val pkgName = appInfo.packageName
+                        if (pkgName != context.packageName && pm.getLaunchIntentForPackage(pkgName) != null) {
+                            val appName = appInfo.loadLabel(pm).toString()
+                            val isSystem = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
+                            apps.add(
+                                mapOf(
+                                    "packageName" to pkgName,
+                                    "appName" to appName,
+                                    "isSystemApp" to isSystem
+                                )
+                            )
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
                 }
             }
+
             apps.distinctBy { it["packageName"] }.sortedBy { (it["appName"] as String).lowercase() }
         }
     }

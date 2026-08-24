@@ -73,13 +73,30 @@ class BlockOverlayService : Service() {
             setLineSpacing(8f, 1.2f)
         }
 
-        val homeButton = Button(this).apply {
-            text = "Return to Safety (Home)"
-            setBackgroundColor(Color.parseColor("#00F0FF"))
-            setTextColor(Color.parseColor("#0A0E1A"))
+        val ariseButton = Button(this).apply {
+            text = "⚡ UNLOCK IN ARISE (EXERCISE)"
+            setBackgroundColor(Color.parseColor("#00FF6A"))
+            setTextColor(Color.parseColor("#0A0A0A"))
             textSize = 15f
             typeface = Typeface.DEFAULT_BOLD
             setPadding(32, 24, 32, 24)
+            setOnClickListener {
+                val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+                if (launchIntent != null) {
+                    launchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    startActivity(launchIntent)
+                }
+                stopSelf()
+            }
+        }
+
+        val homeButton = Button(this).apply {
+            text = "Exit to Home Screen"
+            setBackgroundColor(Color.parseColor("#1E1E1E"))
+            setTextColor(Color.parseColor("#9CA3AF"))
+            textSize = 13f
+            typeface = Typeface.DEFAULT_BOLD
+            setPadding(24, 16, 24, 16)
             setOnClickListener {
                 val startMain = Intent(Intent.ACTION_MAIN).apply {
                     addCategory(Intent.CATEGORY_HOME)
@@ -92,6 +109,12 @@ class BlockOverlayService : Service() {
 
         layout.addView(title)
         layout.addView(subtitle)
+        layout.addView(ariseButton)
+
+        val spacer = View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 24)
+        }
+        layout.addView(spacer)
         layout.addView(homeButton)
 
         overlayView = layout

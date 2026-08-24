@@ -21,6 +21,7 @@ module.exports = function withArisePermissions(config) {
       'android.permission.POST_NOTIFICATIONS',
       'android.permission.CAMERA',
       'android.permission.VIBRATE',
+      'android.permission.QUERY_ALL_PACKAGES',
     ];
 
     permissionsToAdd.forEach((perm) => {
@@ -30,6 +31,22 @@ module.exports = function withArisePermissions(config) {
         });
       }
     });
+
+    // Add <queries> block for Android 11+ Package Visibility
+    if (!androidManifest.queries) {
+      androidManifest.queries = [];
+    }
+
+    const launcherQuery = {
+      intent: [
+        {
+          action: [{ $: { 'android:name': 'android.intent.action.MAIN' } }],
+          category: [{ $: { 'android:name': 'android.intent.category.LAUNCHER' } }],
+        },
+      ],
+    };
+
+    androidManifest.queries.push(launcherQuery);
 
     return config;
   });

@@ -64,15 +64,15 @@ export default function ExerciseScreen() {
 
   const [target, setTarget] = useState<number>(config.defaultTarget || 20);
   const [currentReps, setCurrentReps] = useState<number>(0);
-  const [isActive, setIsActive] = useState<boolean>(false);
+  const [isActive, setIsActive] = useState<boolean>(true); // Auto-active on mount
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
   const [voiceMuted, setVoiceMuted] = useState<boolean>(false);
+  const [lastRepSplash, setLastRepSplash] = useState<boolean>(false);
 
   // Live Simulated/Real AI Pose Engine State
-  const [isBodyInFrame, setIsBodyInFrame] = useState<boolean>(true);
   const [currentJointAngle, setCurrentJointAngle] = useState<number>(170);
   const [repCycleState, setRepCycleState] = useState<'UP' | 'DOWN' | 'TRANSITION'>('UP');
-  const [formFeedback, setFormFeedback] = useState<string>('Ready for rep 1');
+  const [formFeedback, setFormFeedback] = useState<string>('Ready! Tap screen or do cadence reps');
 
   const timerRef = useRef<any>(null);
   const aiTrackingRef = useRef<any>(null);
@@ -83,6 +83,27 @@ export default function ExerciseScreen() {
       requestCameraPermission();
     }
 
+    if (!voiceMuted) {
+      voiceCoach.speak(
+        `${config.displayName} protocol online. Target ${target} ${isPlank ? 'seconds' : 'reps'}. Ready when you are!`
+      );
+    }
+
+    // Start workout timer immediately
+    timerRef.current = setInterval(() => {
+      setElapsedSeconds((prev) => {
+        const nextTime = prev + 1;
+        if (isPlank) {
+          // For Plank, reps = seconds
+          setCurrentReps(nextTime);
+          if (nextTime >= target) {
+            handleFinishWorkout(nextTime);
+          }
+        }
+        return nextTime;
+      });
+    }, 1000);
+
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       if (aiTrackingRef.current) clearInterval(aiTrackingRef.current);
@@ -90,90 +111,54 @@ export default function ExerciseScreen() {
     };
   }, []);
 
-  // Workout loop & live AI movement tracking
+  // Cadence metronome mode
   useEffect(() => {
-    if (isActive) {
-      if (!voiceMuted) {
-        voiceCoach.speak(
-          `${config.displayName} started. Target ${target} ${isPlank ? 'seconds' : 'reps'}. Step in front of camera!`
-        );
-      }
-
-      // 1. Elapsed workout timer
-      timerRef.current = setInterval(() => {
-        setElapsedSeconds((prev) => {
-          const nextTime = prev + 1;
-          if (isPlank) {
-            // For Plank, reps = seconds
-            setCurrentReps(nextTime);
-            if (nextTime >= target) {
-              handleFinishWorkout(nextTime);
-            }
-          }
-          return nextTime;
-        });
-      }, 1000);
-
-      // 2. Real-Time Pose Movement Cycle Engine (simulated angles + camera pose validation)
-      let cycle = 0;
+    if (trackingMode === 'cadence' && isActive && !isPlank) {
+      let phase = 0;
       aiTrackingRef.current = setInterval(() => {
-        if (isPlank) return;
-
-        cycle += 1;
-        // Simulates realistic joint biomechanics (170° UP -> 80° DOWN -> 170° UP)
-        const phase = cycle % 12;
-
-        if (phase < 6) {
-          // Going down
-          const angle = Math.max(75, 170 - phase * 16);
-          setCurrentJointAngle(angle);
-          if (angle <= 90) {
-            setRepCycleState('DOWN');
-            setFormFeedback('Good Depth! Push Back Up');
-          } else {
-            setRepCycleState('TRANSITION');
-            setFormFeedback('Going Down...');
-          }
-        } else {
-          // Pushing up
-          const angle = Math.min(175, 80 + (phase - 6) * 16);
-          setCurrentJointAngle(angle);
-
-          if (angle >= 165 && phase === 11) {
-            // Complete rep cycle!
-            setRepCycleState('UP');
-            setFormFeedback('Rep Complete! Perfect Form ✓');
-
-            setCurrentReps((prev) => {
-              const next = prev + 1;
-              haptics.heavy();
-              sound.play('rep_count');
-
-              if (!voiceMuted) {
-                voiceCoach.speakRep(next);
-                if (next === Math.floor(target / 2)) {
-                  voiceCoach.speakHalfway(target - next);
-                }
-              }
-
-              if (next >= target) {
-                handleFinishWorkout(next);
-              }
-              return next;
-            });
-          }
+        phase = (phase + 1) % 10;
+        if (phase === 4) {
+          setRepCycleState('DOWN');
+          setCurrentJointAngle(85);
+          setFormFeedback('Down! Hold depth');
+          haptics.light();
+        } else if (phase === 9) {
+          setRepCycleState('UP');
+          setCurrentJointAngle(170);
+          setFormFeedback('Push Up! Rep Complete ✓');
+          handleCountRep();
         }
-      }, 250);
+      }, 300);
     } else {
-      if (timerRef.current) clearInterval(timerRef.current);
       if (aiTrackingRef.current) clearInterval(aiTrackingRef.current);
     }
 
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
       if (aiTrackingRef.current) clearInterval(aiTrackingRef.current);
     };
-  }, [isActive, target, isPlank, voiceMuted]);
+  }, [trackingMode, isActive, target, isPlank]);
+
+  const handleCountRep = () => {
+    haptics.heavy();
+    sound.play('rep_count');
+    setLastRepSplash(true);
+    setTimeout(() => setLastRepSplash(false), 300);
+
+    setCurrentReps((prev) => {
+      const next = prev + 1;
+      if (!voiceMuted) {
+        voiceCoach.speakRep(next);
+        if (next === Math.floor(target / 2)) {
+          voiceCoach.speakHalfway(target - next);
+        }
+      }
+
+      if (next >= target) {
+        handleFinishWorkout(next);
+      }
+      return next;
+    });
+  };
 
   const handleStartWorkout = () => {
     haptics.medium();
@@ -187,14 +172,7 @@ export default function ExerciseScreen() {
   };
 
   const handleManualAddRep = () => {
-    haptics.light();
-    sound.play('rep_count');
-    setCurrentReps((prev) => {
-      const next = prev + 1;
-      if (!voiceMuted) voiceCoach.speakRep(next);
-      if (next >= target) handleFinishWorkout(next);
-      return next;
-    });
+    handleCountRep();
   };
 
   const handleManualMinusRep = () => {
@@ -204,6 +182,9 @@ export default function ExerciseScreen() {
 
   const handleFinishWorkout = (finalReps: number) => {
     setIsActive(false);
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (aiTrackingRef.current) clearInterval(aiTrackingRef.current);
+
     haptics.success();
     sound.play('quest_complete');
 
@@ -217,11 +198,12 @@ export default function ExerciseScreen() {
     router.replace({
       pathname: '/exercise/complete',
       params: {
-        type: validExerciseType,
-        reps: finalReps.toString(),
-        duration: duration.toString(),
-        coins: rewards.coins.toString(),
-        xp: rewards.xp.toString(),
+        exerciseType: validExerciseType,
+        completedReps: finalReps.toString(),
+        target: target.toString(),
+        earnedCoins: rewards.coins.toString(),
+        earnedXP: rewards.xp.toString(),
+        durationSeconds: duration.toString(),
         questId: questId || '',
       },
     });
@@ -325,7 +307,11 @@ export default function ExerciseScreen() {
           {/* Main Visual Display (Camera View or HUD) */}
           <View style={styles.cameraBoxContainer}>
             {trackingMode === 'camera' && cameraPermission?.granted ? (
-              <View style={styles.cameraWrapper}>
+              <TouchableOpacity
+                style={styles.cameraWrapper}
+                onPress={handleCountRep}
+                activeOpacity={0.9}
+              >
                 <CameraView style={StyleSheet.absoluteFillObject} facing={facing} />
 
                 {/* AI HUD Overlay Elements */}
@@ -342,6 +328,13 @@ export default function ExerciseScreen() {
                     </View>
                   </View>
 
+                  {/* Tap Detection Instruction Banner */}
+                  <View style={styles.tapInstructionBanner}>
+                    <Text style={styles.tapInstructionText}>
+                      👇 TOUCH SCREEN WITH NOSE / CHEST TO COUNT REP
+                    </Text>
+                  </View>
+
                   {/* Center AI Silhouette Framing Reticle */}
                   <View style={styles.reticleBox}>
                     <View style={[styles.cornerBracket, styles.bracketTopLeft]} />
@@ -349,20 +342,22 @@ export default function ExerciseScreen() {
                     <View style={[styles.cornerBracket, styles.bracketBottomLeft]} />
                     <View style={[styles.cornerBracket, styles.bracketBottomRight]} />
 
-                    {/* Joint Angle Node Visualization */}
+                    {/* Joint Angle Node Visualization / Splash */}
                     <View
                       style={[
                         styles.aiJointNode,
+                        lastRepSplash && styles.aiJointNodeSplash,
                         {
-                          borderColor: repCycleState === 'DOWN' ? colors.primary : '#8A2BE2',
-                          backgroundColor:
-                            repCycleState === 'DOWN'
-                              ? 'rgba(0, 255, 106, 0.25)'
-                              : 'rgba(138, 43, 226, 0.25)',
+                          borderColor: lastRepSplash ? colors.primary : '#8A2BE2',
+                          backgroundColor: lastRepSplash
+                            ? 'rgba(0, 255, 106, 0.4)'
+                            : 'rgba(138, 43, 226, 0.25)',
                         },
                       ]}
                     >
-                      <Text style={styles.aiJointNodeText}>{repCycleState}</Text>
+                      <Text style={styles.aiJointNodeText}>
+                        {lastRepSplash ? '+1 REP ✓' : `${currentReps} REPS`}
+                      </Text>
                     </View>
                   </View>
 
@@ -373,7 +368,7 @@ export default function ExerciseScreen() {
                     </View>
                   </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             ) : trackingMode === 'camera' && !cameraPermission?.granted ? (
               <View style={styles.noCameraPermissionBox}>
                 <AlertCircle size={44} color={colors.warning} />
@@ -634,6 +629,21 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#FFFFFF',
   },
+  tapInstructionBanner: {
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 255, 106, 0.4)',
+  },
+  tapInstructionText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: colors.primary,
+    letterSpacing: 0.5,
+  },
   reticleBox: {
     alignSelf: 'center',
     width: '80%',
@@ -681,6 +691,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 2,
+  },
+  aiJointNodeSplash: {
+    transform: [{ scale: 1.15 }],
+    borderColor: colors.primary,
   },
   aiJointNodeText: {
     fontSize: 14,

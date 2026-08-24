@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Modal,
+  AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -27,11 +28,13 @@ import {
   X,
   Camera,
   Activity,
+  ShieldAlert,
 } from 'lucide-react-native';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { useQuestStore } from '../../src/stores/useQuestStore';
 import { streakService } from '../../src/services/streakService';
 import { initializeDatabase } from '../../src/database/client';
+import { appBlockerService } from '../../src/native';
 import { MasterCard } from '../../src/components/master/MasterCard';
 import { MasterButton } from '../../src/components/master/MasterButton';
 import { PlayerAvatar } from '../../src/components/ui/PlayerAvatar';
@@ -56,6 +59,19 @@ export default function HomeDashboard() {
   const [loading, setLoading] = useState(true);
   const [isExercisePickerOpen, setIsExercisePickerOpen] = useState(false);
   const [isNotifSheetOpen, setIsNotifSheetOpen] = useState(false);
+  const [hasAllPermissions, setHasAllPermissions] = useState(true);
+
+  const checkPermissions = async () => {
+    try {
+      const [usage, overlay] = await Promise.all([
+        appBlockerService.hasUsagePermission(),
+        appBlockerService.hasOverlayPermission(),
+      ]);
+      setHasAllPermissions(usage && overlay);
+    } catch {
+      setHasAllPermissions(true);
+    }
+  };
 
   useEffect(() => {
     const init = async () => {
@@ -64,6 +80,7 @@ export default function HomeDashboard() {
         await loadProfile();
         await loadQuests();
         await streakService.checkAndUpdateStreak();
+        await checkPermissions();
       } catch (error) {
         console.error('Initialization error:', error);
       } finally {
@@ -71,6 +88,13 @@ export default function HomeDashboard() {
       }
     };
     init();
+
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        checkPermissions();
+      }
+    });
+    return () => sub.remove();
   }, []);
 
   if (loading) {
@@ -123,6 +147,29 @@ export default function HomeDashboard() {
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {/* Permission Shield Alert Banner */}
+          {!hasAllPermissions && (
+            <TouchableOpacity
+              style={styles.permAlertCard}
+              onPress={() => {
+                haptics.medium();
+                router.push('/permissions' as any);
+              }}
+              activeOpacity={0.8}
+            >
+              <ShieldAlert size={22} color={colors.accentGold} />
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={styles.permAlertTitle}>Phone Shield Inactive</Text>
+                <Text style={styles.permAlertDesc}>
+                  Tap to grant Usage Access & Overlay so ARISE can lock apps
+                </Text>
+              </View>
+              <View style={styles.permAlertBadge}>
+                <Text style={styles.permAlertBadgeText}>GRANT</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+
           {/* Hero Player Card */}
           <MasterCard style={styles.playerCard}>
             <View style={styles.avatarRow}>
@@ -650,5 +697,37 @@ const styles = StyleSheet.create({
   notifDesc: {
     fontSize: 11,
     color: colors.textSecondary,
+  },
+  permAlertCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#1E190A',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#4A3A10',
+    padding: 14,
+    marginBottom: 4,
+  },
+  permAlertTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: colors.accentGold,
+  },
+  permAlertDesc: {
+    fontSize: 11,
+    color: colors.textMuted,
+    lineHeight: 15,
+  },
+  permAlertBadge: {
+    backgroundColor: colors.accentGold,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  permAlertBadgeText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#0A0A0A',
   },
 });
