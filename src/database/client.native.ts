@@ -42,6 +42,7 @@ export async function initializeDatabase(): Promise<void> {
       reward_xp INTEGER NOT NULL DEFAULT 0,
       difficulty TEXT NOT NULL DEFAULT 'easy',
       completed INTEGER NOT NULL DEFAULT 0,
+      quest_type TEXT NOT NULL DEFAULT 'TRACKED',
       date TEXT NOT NULL,
       is_custom INTEGER NOT NULL DEFAULT 0,
       repeat_schedule TEXT,
@@ -129,6 +130,19 @@ export async function initializeDatabase(): Promise<void> {
   `;
 
   expoDb.execSync(createTablesSql);
+
+  // Safe schema migrations for existing databases
+  try {
+    expoDb.execSync("ALTER TABLE quest ADD COLUMN quest_type TEXT NOT NULL DEFAULT 'TRACKED';");
+  } catch (_) {
+    // Column already exists
+  }
+
+  try {
+    expoDb.execSync("ALTER TABLE app_restriction ADD COLUMN app_icon_uri TEXT;");
+  } catch (_) {
+    // Column already exists
+  }
 
   // Check and seed User Profile
   const profileRows = await db.select().from(schema.userProfile).limit(1);
