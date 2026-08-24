@@ -25,7 +25,7 @@ class TimerAlarmReceiver : BroadcastReceiver() {
         showExpiryNotification(context, label)
     }
 
-    private fun showExpiryNotification(context: Context, label: string) {
+    private fun showExpiryNotification(context: Context, label: String) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val channelId = "arise_timer_expired_channel"
 
