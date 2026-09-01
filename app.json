@@ -2,7 +2,6 @@
   "expo": {
     "name": "ARISE",
     "slug": "arise",
-    "owner": "luckyxdevs-team",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -79,9 +78,7 @@
     },
     "extra": {
       "router": {},
-      "eas": {
-        "projectId": "12654c01-74c7-4665-86ff-c26f8fcca25e"
-      }
+      "eas": {}
     }
   }
 }
