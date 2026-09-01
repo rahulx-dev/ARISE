@@ -1,5 +1,6 @@
 import { Audio } from 'expo-av';
-import { useSettingsStore } from '../stores/useSettingsStore';
+import * as FileSystem from 'expo-file-system/legacy';
+import { Platform } from 'react-native';
 
 export interface AudioTrackInfo {
   id: string;
@@ -61,12 +62,44 @@ export const AUDIO_TRACKS: AudioTrackInfo[] = [
   },
 ];
 
-// Helper to generate a 16-bit 44.1kHz PCM WAV Data URI with Base64 encoding
-function generateSoundscapeWavUri(
+// Pure, universal base64 encoder for raw binary byte buffers
+function uint8ArrayToBase64(bytes: Uint8Array): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  let result = '';
+  const len = bytes.length;
+  let i = 0;
+  for (; i + 2 < len; i += 3) {
+    const a = bytes[i];
+    const b = bytes[i + 1];
+    const c = bytes[i + 2];
+    result +=
+      chars[a >> 2] +
+      chars[((a & 3) << 4) | (b >> 4)] +
+      chars[((b & 15) << 2) | (c >> 6)] +
+      chars[c & 63];
+  }
+  if (i < len) {
+    const a = bytes[i];
+    if (i + 1 < len) {
+      const b = bytes[i + 1];
+      result +=
+        chars[a >> 2] +
+        chars[((a & 3) << 4) | (b >> 4)] +
+        chars[((b & 15) << 2)] +
+        '=';
+    } else {
+      result += chars[a >> 2] + chars[(a & 3) << 4] + '==';
+    }
+  }
+  return result;
+}
+
+// Generates a 16-bit 22.05kHz PCM WAV byte buffer (compact & crystal clear)
+function generateSoundscapeWavBytes(
   durationSec: number,
   generator: (t: number, duration: number) => number,
-  sampleRate = 44100
-): string {
+  sampleRate = 22050
+): Uint8Array {
   const numSamples = Math.floor(sampleRate * durationSec);
   const dataSize = numSamples * 2;
   const buffer = new Uint8Array(44 + dataSize);
@@ -95,27 +128,14 @@ function generateSoundscapeWavUri(
   let offset = 44;
   for (let i = 0; i < numSamples; i++) {
     const t = i / sampleRate;
-    const sample = Math.max(-1, Math.min(1, generator(t, durationSec)));
-    const intSample = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
+    const raw = generator(t, durationSec);
+    const sample = Math.max(-1, Math.min(1, raw));
+    const intSample = sample < 0 ? Math.floor(sample * 0x8000) : Math.floor(sample * 0x7fff);
     view.setInt16(offset, intSample, true);
     offset += 2;
   }
 
-  // Base64 encode
-  let binary = '';
-  const bytes = new Uint8Array(buffer);
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-
-  // Robust universal base64 encode
-  const b64 =
-    typeof btoa !== 'undefined'
-      ? btoa(binary)
-      : Buffer.from(binary, 'binary').toString('base64');
-
-  return `data:audio/wav;base64,${b64}`;
+  return buffer;
 }
 
 export class AudioService {
@@ -124,7 +144,8 @@ export class AudioService {
   private currentTrackId: string = 'deep_focus';
   private isPlaying: boolean = false;
   private volume: number = 0.7;
-  private isInitialized: boolean = false;
+  private isAudioModeSet: boolean = false;
+  private cachedFileUris: Map<string, string> = new Map();
 
   private constructor() {}
 
@@ -136,70 +157,82 @@ export class AudioService {
   }
 
   async initAudioSession(): Promise<void> {
-    if (this.isInitialized) return;
+    if (this.isAudioModeSet) return;
     try {
       await Audio.setAudioModeAsync({
-        playsInSilentModeIOS: true,
+        allowsRecordingIOS: false,
         staysActiveInBackground: true,
+        playsInSilentModeIOS: true,
         shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
       });
-      this.isInitialized = true;
+      this.isAudioModeSet = true;
     } catch (e) {
-      console.warn('[AudioService] Audio mode init warning:', e);
+      console.warn('[AudioService] Audio mode init:', e);
     }
   }
 
-  private generateTrackUri(trackId: string): string {
-    const DURATION = 8.0; // 8-second seamless looping buffer
+  private async getOrCreateTrackFileUri(trackId: string): Promise<string> {
+    if (this.cachedFileUris.has(trackId)) {
+      return this.cachedFileUris.get(trackId)!;
+    }
+
+    const DURATION = 6.0; // 6-second seamless looping buffer
+    let rawBytes: Uint8Array;
 
     switch (trackId) {
       case 'deep_focus': // 14Hz Binaural Alpha on 108Hz carrier
-        return generateSoundscapeWavUri(DURATION, (t) => {
+        rawBytes = generateSoundscapeWavBytes(DURATION, (t) => {
           const carrierL = Math.sin(2 * Math.PI * 108 * t);
           const carrierR = Math.sin(2 * Math.PI * 122 * t);
-          const sub = Math.sin(2 * Math.PI * 54 * t) * 0.4;
+          const sub = Math.sin(2 * Math.PI * 54 * t) * 0.35;
           const pad = Math.sin(2 * Math.PI * 216 * t) * 0.15;
-          return (carrierL * 0.35 + carrierR * 0.35 + sub + pad) * 0.6;
+          return (carrierL * 0.35 + carrierR * 0.35 + sub + pad) * 0.65;
         });
+        break;
 
       case 'productivity_sprint': // 40Hz Gamma wave
-        return generateSoundscapeWavUri(DURATION, (t) => {
+        rawBytes = generateSoundscapeWavBytes(DURATION, (t) => {
           const gamma = Math.sin(2 * Math.PI * 40 * t) * 0.3;
           const tone1 = Math.sin(2 * Math.PI * 240 * t) * 0.2;
           const tone2 = Math.sin(2 * Math.PI * 280 * t) * 0.2;
           const pulse = Math.sin(2 * Math.PI * 2 * t) * 0.1;
           return (gamma + tone1 + tone2 + pulse) * 0.7;
         });
+        break;
 
       case 'brown_noise': // Warm low-frequency space rumble
-        return generateSoundscapeWavUri(DURATION, (t) => {
+        rawBytes = generateSoundscapeWavBytes(DURATION, (t) => {
           let noise = 0;
-          for (let f = 20; f < 300; f += 25) {
+          for (let f = 30; f < 300; f += 25) {
             noise += (Math.sin(2 * Math.PI * f * t + Math.sin(t * 2)) * 1) / Math.sqrt(f);
           }
-          return noise * 0.4;
+          return noise * 0.45;
         });
+        break;
 
       case 'rain_window': // Raindrops & atmospheric showers
-        return generateSoundscapeWavUri(DURATION, (t) => {
-          const hiss = (Math.random() * 2 - 1) * 0.15;
-          const drop1 = Math.sin(2 * Math.PI * 1200 * t) * Math.exp(-((t * 8) % 1) * 5) * 0.1;
-          const drop2 = Math.sin(2 * Math.PI * 800 * t) * Math.exp(-((t * 5) % 1) * 6) * 0.1;
+        rawBytes = generateSoundscapeWavBytes(DURATION, (t) => {
+          const hiss = (Math.sin(t * 12000) * 0.5 + Math.sin(t * 8500) * 0.5) * 0.15;
+          const drop1 = Math.sin(2 * Math.PI * 1100 * t) * Math.exp(-((t * 6) % 1) * 6) * 0.12;
+          const drop2 = Math.sin(2 * Math.PI * 750 * t) * Math.exp(-((t * 4) % 1) * 7) * 0.12;
           const rumble = Math.sin(2 * Math.PI * 45 * t) * 0.15;
-          return (hiss + drop1 + drop2 + rumble) * 0.7;
+          return (hiss + drop1 + drop2 + rumble) * 0.75;
         });
+        break;
 
       case 'forest_wind': // Mountain breeze with soft harmonic pads
-        return generateSoundscapeWavUri(DURATION, (t) => {
+        rawBytes = generateSoundscapeWavBytes(DURATION, (t) => {
           const windMod = (Math.sin(2 * Math.PI * 0.25 * t) + 1) * 0.5;
           const breeze = (Math.sin(2 * Math.PI * 95 * t) + Math.sin(2 * Math.PI * 140 * t)) * 0.25 * windMod;
-          const birds = Math.sin(2 * Math.PI * 1600 * t) * Math.exp(-((t * 3) % 1) * 8) * 0.04;
-          return (breeze + birds) * 0.6;
+          const birds = Math.sin(2 * Math.PI * 1600 * t) * Math.exp(-((t * 3) % 1) * 8) * 0.05;
+          return (breeze + birds) * 0.65;
         });
+        break;
 
-      case 'lofi_beats': // Dm7 - G7 jazz chords with tape warmth
-        return generateSoundscapeWavUri(DURATION, (t) => {
-          const chordIndex = Math.floor((t / 2) % 4);
+      case 'lofi_beats': // Warm jazz chords
+        rawBytes = generateSoundscapeWavBytes(DURATION, (t) => {
+          const chordIndex = Math.floor((t / 1.5) % 4);
           const chords = [
             [146.83, 174.61, 220.0, 261.63], // Dm7
             [196.0, 246.94, 293.66, 349.23], // G7
@@ -212,18 +245,42 @@ export class AudioService {
             val += Math.sin(2 * Math.PI * freq * t) * 0.15;
           }
           const sub = Math.sin(2 * Math.PI * (notes[0] / 2) * t) * 0.2;
-          return (val + sub) * 0.6;
+          return (val + sub) * 0.65;
         });
+        break;
 
       case 'calm_ambient':
       default: // 432Hz Solar Ambient
-        return generateSoundscapeWavUri(DURATION, (t) => {
+        rawBytes = generateSoundscapeWavBytes(DURATION, (t) => {
           const root = Math.sin(2 * Math.PI * 108 * t) * 0.3;
           const fifth = Math.sin(2 * Math.PI * 162 * t) * 0.2;
           const octave = Math.sin(2 * Math.PI * 216 * t) * 0.15;
           const shimmer = Math.sin(2 * Math.PI * 432 * t) * 0.08 * (Math.sin(t) * 0.5 + 0.5);
-          return (root + fifth + octave + shimmer) * 0.65;
+          return (root + fifth + octave + shimmer) * 0.7;
         });
+        break;
+    }
+
+    const b64 = uint8ArrayToBase64(rawBytes);
+
+    if (Platform.OS === 'web' || !FileSystem.cacheDirectory) {
+      const dataUri = `data:audio/wav;base64,${b64}`;
+      this.cachedFileUris.set(trackId, dataUri);
+      return dataUri;
+    }
+
+    // Write real .wav file to local app cache for Android MediaPlayer
+    const targetPath = `${FileSystem.cacheDirectory}arise_audio_${trackId}.wav`;
+    try {
+      await FileSystem.writeAsStringAsync(targetPath, b64, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      this.cachedFileUris.set(trackId, targetPath);
+      return targetPath;
+    } catch (e) {
+      console.warn('[AudioService] FileSystem write error, fallback to data URI:', e);
+      const dataUri = `data:audio/wav;base64,${b64}`;
+      return dataUri;
     }
   }
 
@@ -233,7 +290,7 @@ export class AudioService {
     await this.initAudioSession();
 
     try {
-      const uri = this.generateTrackUri(trackId);
+      const uri = await this.getOrCreateTrackFileUri(trackId);
       const { sound } = await Audio.Sound.createAsync(
         { uri },
         {
@@ -245,9 +302,6 @@ export class AudioService {
 
       this.sound = sound;
       this.isPlaying = true;
-      if (__DEV__) {
-        console.log(`[AudioService] Playing soundscape "${trackId}" (Volume: ${this.volume})`);
-      }
     } catch (e) {
       console.warn('[AudioService] Failed to play track:', e);
       this.isPlaying = false;
