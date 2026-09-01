@@ -23,11 +23,15 @@ import { useSound } from '../../src/hooks/useSound';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { colors } from '../../src/theme/colors';
 
+import { useSettingsStore } from '../../src/stores/useSettingsStore';
+import { setIsOnboardingCompletedSync } from '../../src/services/appStateService';
+
 export default function ProfileCreateScreen() {
   const router = useRouter();
   const sound = useSound();
   const haptics = useHaptics();
   const loadProfile = usePlayerStore((s) => s.loadProfile);
+  const setOnboardingCompleted = useSettingsStore((s) => s.setOnboardingCompleted);
 
   const [name, setName] = useState('Warrior');
   const [selectedIconId, setSelectedIconId] = useState('user');
@@ -45,6 +49,8 @@ export default function ProfileCreateScreen() {
         displayName: name.trim(),
       });
       await loadProfile();
+      await setOnboardingCompleted();
+      setIsOnboardingCompletedSync(true);
 
       voiceCoach.speak(`Welcome ${name.trim()}! Your ARISE discipline protocol is online. Let's begin!`);
 

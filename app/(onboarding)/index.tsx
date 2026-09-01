@@ -48,6 +48,7 @@ import { GlowCard } from '../../src/components/design-system/GlowCard';
 import { GlowButton } from '../../src/components/design-system/GlowButton';
 import { AriseLogo } from '../../src/components/ui/AriseLogo';
 import { AVATAR_IMAGES, AVATAR_ICONS } from '../../src/components/profile/AvatarPicker';
+import { getIsOnboardingCompleted, setIsOnboardingCompletedSync } from '../../src/services/appStateService';
 import { colors } from '../../src/theme/colors';
 
 const { width } = Dimensions.get('window');
@@ -64,6 +65,7 @@ export default function OnboardingScreen() {
   const haptics = useHaptics();
   const sound = useSound();
 
+  const onboardingCompleted = useSettingsStore((s) => s.onboardingCompleted);
   const setOnboardingCompleted = useSettingsStore((s) => s.setOnboardingCompleted);
   const updateProfile = usePlayerStore((s) => s.updateProfile);
 
@@ -78,6 +80,14 @@ export default function OnboardingScreen() {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   const totalSteps = 3;
+
+  useEffect(() => {
+    // If onboarding already marked done, immediately skip to tabs
+    if (onboardingCompleted || getIsOnboardingCompleted()) {
+      useSettingsStore.setState({ onboardingCompleted: true });
+      router.replace('/(tabs)');
+    }
+  }, [onboardingCompleted]);
 
   useEffect(() => {
     if (step === 2) {
@@ -179,8 +189,9 @@ export default function OnboardingScreen() {
         appBlockerService.startMonitoring(selectedApps);
       }
 
-      // 4. Mark onboarding completed in SQLite settings table BEFORE navigating
+      // 4. Mark onboarding completed in SQLite settings table synchronously BEFORE navigating
       await setOnboardingCompleted();
+      setIsOnboardingCompletedSync(true);
 
       sound.play('level_up');
       haptics.success();

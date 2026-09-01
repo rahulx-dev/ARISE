@@ -17,6 +17,9 @@ import { usePlayerStore } from '../src/stores/usePlayerStore';
 import { ErrorBoundary } from '../src/components/ui/ErrorBoundary';
 import { colors } from '../src/theme/colors';
 
+import { IOSAlertProvider } from '../src/components/ios/IOSAlertModal';
+import { getIsOnboardingCompleted } from '../src/services/appStateService';
+
 /**
  * ARISE App Startup States:
  *
@@ -44,19 +47,21 @@ export default function RootLayout() {
     try {
       // 1. Initialize database (create tables, seed if first launch)
       await initializeDatabase();
-      console.log('[ARISE Startup] Database initialized');
 
       // 2. Load settings from SQLite (source of truth)
       await useSettingsStore.getState().loadSettings();
-      console.log('[ARISE Startup] Settings loaded');
 
       // 3. Load player profile from SQLite
       await usePlayerStore.getState().loadProfile();
-      console.log('[ARISE Startup] Profile loaded');
 
-      // 4. Check onboarding status from SQLite-backed store
-      const onboardingCompleted = useSettingsStore.getState().onboardingCompleted;
-      console.log('[ARISE Startup] onboardingCompleted:', onboardingCompleted);
+      // 4. Check onboarding status from SQLite-backed store & synchronous SQLite query
+      let onboardingCompleted = useSettingsStore.getState().onboardingCompleted;
+      if (!onboardingCompleted) {
+        onboardingCompleted = getIsOnboardingCompleted();
+        if (onboardingCompleted) {
+          useSettingsStore.setState({ onboardingCompleted: true });
+        }
+      }
 
       if (onboardingCompleted) {
         setAppState('READY');
@@ -65,7 +70,6 @@ export default function RootLayout() {
       }
     } catch (e) {
       console.error('[ARISE Startup] Bootstrap failed:', e);
-      // On error, still try to proceed to home
       setAppState('READY');
     }
   };
@@ -86,28 +90,29 @@ export default function RootLayout() {
     <ErrorBoundary>
       <GestureHandlerRootView style={styles.container}>
         <SafeAreaProvider>
-          <StatusBar style="light" />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: colors.background },
-              animation: 'fade',
-            }}
-            // Gate initial route based on SQLite onboardingCompleted flag
-            initialRouteName={appState === 'PROFILE_REQUIRED' ? '(onboarding)' : '(tabs)'}
-          >
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="(onboarding)" options={{ animation: 'fade' }} />
-            <Stack.Screen name="exercise" options={{ animation: 'slide_from_right' }} />
-            <Stack.Screen name="focus" options={{ animation: 'slide_from_right' }} />
-            <Stack.Screen
-              name="shop"
-              options={{ animation: 'slide_from_bottom', presentation: 'modal' }}
-            />
-            <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
-            <Stack.Screen name="permissions" options={{ animation: 'slide_from_right' }} />
-            <Stack.Screen name="photos" options={{ animation: 'slide_from_right' }} />
-          </Stack>
+          <IOSAlertProvider>
+            <StatusBar style="light" />
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: colors.background },
+                animation: 'fade',
+              }}
+            >
+              <Stack.Screen name="index" />
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="(onboarding)" options={{ animation: 'fade' }} />
+              <Stack.Screen name="exercise" options={{ animation: 'slide_from_right' }} />
+              <Stack.Screen name="focus" options={{ animation: 'slide_from_right' }} />
+              <Stack.Screen
+                name="shop"
+                options={{ animation: 'slide_from_bottom', presentation: 'modal' }}
+              />
+              <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
+              <Stack.Screen name="permissions" options={{ animation: 'slide_from_right' }} />
+              <Stack.Screen name="photos" options={{ animation: 'slide_from_right' }} />
+            </Stack>
+          </IOSAlertProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>
     </ErrorBoundary>

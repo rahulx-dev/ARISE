@@ -31,6 +31,8 @@ import { eq } from 'drizzle-orm';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { colors } from '../../src/theme/colors';
 
+import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
+
 interface AppItem {
   packageName: string;
   appName: string;
@@ -181,9 +183,10 @@ export default function LockedAppsScreen() {
             <TouchableOpacity
               style={styles.iconBtn}
               onPress={() =>
-                Alert.alert(
+                showIOSAlert(
                   'Locked Apps Protocol',
-                  'Apps with lock enabled require screen-time tokens earned from physical exercise and focus sessions to open.'
+                  'Apps with lock enabled require screen-time tokens earned from physical exercise and focus sessions to open.',
+                  [{ text: 'Understood', style: 'primary' }]
                 )
               }
               activeOpacity={0.8}

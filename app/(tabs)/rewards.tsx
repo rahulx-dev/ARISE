@@ -31,6 +31,8 @@ import { achievementService, AchievementItem } from '../../src/services/achievem
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { colors } from '../../src/theme/colors';
 
+import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
+
 export default function RewardsTab() {
   const [activeTab, setActiveTab] = useState<'achievements' | 'badges'>('achievements');
   const [items, setItems] = useState<AchievementItem[]>([]);
@@ -89,9 +91,10 @@ export default function RewardsTab() {
           <TouchableOpacity
             style={styles.helpBtn}
             onPress={() =>
-              Alert.alert(
+              showIOSAlert(
                 'Honors & Badges',
-                'Unlock trophies and medals by executing daily physical and cognitive disciplines.'
+                'Unlock trophies and medals by executing daily physical and cognitive disciplines.',
+                [{ text: 'Got It', style: 'primary' }]
               )
             }
             activeOpacity={0.8}
