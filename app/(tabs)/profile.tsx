@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -25,9 +26,12 @@ import {
   Flame,
   Award,
   Coins,
+  Code2,
+  ExternalLink,
+  ShieldCheck,
 } from 'lucide-react-native';
-import { GlowCard } from '../../src/components/design-system/GlowCard';
-import { GlowButton } from '../../src/components/design-system/GlowButton';
+import { GlassCard } from '../../src/components/ios/GlassCard';
+import { GlassButton } from '../../src/components/ios/GlassButton';
 import { PlayerAvatar } from '../../src/components/ui/PlayerAvatar';
 import { XPBar } from '../../src/components/design-system/XPBar';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
@@ -39,7 +43,7 @@ export default function ProfileTab() {
   const profile = usePlayerStore((s) => s.profile);
   const loadProfile = usePlayerStore((s) => s.loadProfile);
   const haptics = useHaptics();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
 
   useEffect(() => {
     loadProfile();
@@ -51,6 +55,15 @@ export default function ProfileTab() {
   const coins = profile?.coins || 0;
   const streak = profile?.currentStreak || 0;
   const avatarIcon = profile?.avatarIcon || 'img_pfp_01';
+
+  const handleOpenGitHub = async () => {
+    haptics.light();
+    try {
+      await Linking.openURL('https://github.com/rahulx-dev/ARISE');
+    } catch {
+      Alert.alert('Link Error', 'Could not open GitHub repository URL.');
+    }
+  };
 
   const handleExportBackup = async () => {
     haptics.medium();
@@ -70,6 +83,13 @@ export default function ProfileTab() {
       icon: Edit3,
       color: colors.primary,
       action: () => router.push('/settings/profile-edit' as any),
+    },
+    {
+      title: 'Open Source Source Code',
+      sub: 'Inspect privacy, SQLite schema & contribute on GitHub',
+      icon: Code2,
+      color: colors.secondary,
+      action: handleOpenGitHub,
     },
     {
       title: 'Physique Transformation Photos',
@@ -121,7 +141,7 @@ export default function ProfileTab() {
       action: () =>
         Alert.alert(
           'ARISE Engine v1.0.0',
-          'Production-grade hardware-accelerated discipline OS.\n100% Offline SQLite architecture.\nOn-device Google ML Kit Pose Detection.'
+          'Production-grade hardware-accelerated discipline OS.\n100% Offline SQLite architecture.\nOn-device Google ML Kit Pose Detection.\nAuthor: Rahul (github.com/rahulx-dev)'
         ),
     },
   ];
@@ -136,11 +156,11 @@ export default function ProfileTab() {
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {/* Hero Profile Card */}
-          <GlowCard variant="glow" style={styles.profileHeroCard}>
+          <GlassCard variant="glow" style={styles.profileHeroCard}>
             <View style={styles.avatarRow}>
               <PlayerAvatar
                 iconId={avatarIcon}
-                size={80}
+                size={76}
                 glow={true}
                 glowColor={colors.primary}
               />
@@ -150,7 +170,7 @@ export default function ProfileTab() {
                   <Text style={[styles.playerName, { color: colors.textPrimary }]} numberOfLines={1}>
                     {displayName}
                   </Text>
-                  <View style={[styles.levelBadge, { backgroundColor: 'rgba(209, 255, 0, 0.15)' }]}>
+                  <View style={[styles.levelBadge, { backgroundColor: isDark ? 'rgba(209, 255, 0, 0.15)' : 'rgba(16, 185, 129, 0.15)' }]}>
                     <Text style={[styles.levelBadgeText, { color: colors.primary }]}>LV. {level}</Text>
                   </View>
                 </View>
@@ -160,11 +180,11 @@ export default function ProfileTab() {
                 </Text>
 
                 <View style={styles.statPillsRow}>
-                  <View style={[styles.statPill, { backgroundColor: colors.surfaceLight }]}>
+                  <View style={[styles.statPill, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0,0,0,0.04)' }]}>
                     <Flame size={13} color={colors.danger} />
                     <Text style={[styles.statPillText, { color: colors.textPrimary }]}>{streak}d Streak</Text>
                   </View>
-                  <View style={[styles.statPill, { backgroundColor: colors.surfaceLight }]}>
+                  <View style={[styles.statPill, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0,0,0,0.04)' }]}>
                     <Coins size={13} color={colors.accentGold} />
                     <Text style={[styles.statPillText, { color: colors.textPrimary }]}>{coins} Coins</Text>
                   </View>
@@ -172,20 +192,59 @@ export default function ProfileTab() {
               </View>
             </View>
 
-            <View style={{ width: '100%', marginTop: 6 }}>
+            <View style={{ width: '100%', marginTop: 4 }}>
               <XPBar progress={Math.min(100, Math.round((currentXP / Math.max(1, level * 100)) * 100))} />
             </View>
 
-            <GlowButton
-              title="EDIT IDENTITY & PREFERENCES"
+            <GlassButton
+              title="EDIT CALLSIGN & BIO"
               onPress={() => router.push('/settings/profile-edit' as any)}
               variant="outline"
               size="sm"
               icon={<Edit3 size={14} color={colors.primary} />}
             />
-          </GlowCard>
+          </GlassCard>
 
-          {/* Menu Items List */}
+          {/* GitHub Source Code & Privacy Verification Card */}
+          <GlassCard variant="accent" style={styles.privacyVerificationCard}>
+            <View style={styles.privacyTopRow}>
+              <View style={[styles.shieldBadge, { backgroundColor: isDark ? 'rgba(0, 240, 255, 0.15)' : 'rgba(2, 132, 199, 0.15)' }]}>
+                <ShieldCheck size={20} color={colors.secondary} />
+              </View>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={[styles.privacyTitle, { color: colors.textPrimary }]}>
+                  100% Open Source & Privacy Verified
+                </Text>
+                <Text style={[styles.privacySubtitle, { color: colors.textSecondary }]}>
+                  Zero cloud telemetry • Offline SQLite SSOT • On-device ML Kit
+                </Text>
+              </View>
+            </View>
+
+            <Text style={[styles.privacyDesc, { color: colors.textSecondary }]}>
+              ARISE is completely open-source. Anyone can inspect the codebase to verify that no personal data, camera frames, or usage stats ever leave your phone.
+            </Text>
+
+            <TouchableOpacity
+              onPress={handleOpenGitHub}
+              style={[
+                styles.githubButton,
+                {
+                  backgroundColor: isDark ? '#1C1D24' : '#FFFFFF',
+                  borderColor: colors.border,
+                },
+              ]}
+              activeOpacity={0.8}
+            >
+              <Code2 size={16} color={colors.primary} />
+              <Text style={[styles.githubBtnText, { color: colors.textPrimary }]}>
+                github.com/rahulx-dev/ARISE
+              </Text>
+              <ExternalLink size={14} color={colors.textMuted} />
+            </TouchableOpacity>
+          </GlassCard>
+
+          {/* System Protocols Menu List */}
           <Text style={[styles.sectionHeading, { color: colors.textMuted }]}>SYSTEM PROTOCOLS</Text>
           <View style={styles.menuList}>
             {menuItems.map((item) => {
@@ -193,11 +252,11 @@ export default function ProfileTab() {
               return (
                 <TouchableOpacity
                   key={item.title}
-                  style={[styles.menuRow, { backgroundColor: colors.card, borderColor: colors.border }]}
+                  style={[styles.menuRow, { backgroundColor: isDark ? 'rgba(22, 22, 26, 0.75)' : 'rgba(255, 255, 255, 0.85)', borderColor: colors.border }]}
                   onPress={item.action}
                   activeOpacity={0.8}
                 >
-                  <View style={[styles.menuIconCircle, { backgroundColor: 'rgba(255, 255, 255, 0.05)' }]}>
+                  <View style={[styles.menuIconCircle, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0,0,0,0.04)' }]}>
                     <IconComp size={18} color={item.color} />
                   </View>
 
@@ -223,28 +282,28 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   safeArea: { flex: 1 },
   header: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     paddingTop: 10,
     paddingBottom: 8,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '900',
     letterSpacing: 1.2,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    gap: 16,
+    paddingHorizontal: 18,
+    gap: 14,
   },
   profileHeroCard: {
-    padding: 18,
+    padding: 16,
     borderRadius: 22,
     gap: 12,
   },
   avatarRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    gap: 14,
   },
   profileMeta: {
     flex: 1,
@@ -266,34 +325,80 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   levelBadgeText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '900',
   },
   bioText: {
     fontSize: 11,
-    lineHeight: 15,
+    lineHeight: 14,
   },
   statPillsRow: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 4,
+    marginTop: 2,
   },
   statPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 3,
     borderRadius: 8,
   },
   statPillText: {
     fontSize: 10,
     fontWeight: '800',
   },
+  privacyVerificationCard: {
+    padding: 16,
+    borderRadius: 20,
+    gap: 10,
+  },
+  privacyTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  shieldBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  privacyTitle: {
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  privacySubtitle: {
+    fontSize: 10,
+  },
+  privacyDesc: {
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  githubButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 2,
+  },
+  githubBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+    flex: 1,
+    marginLeft: 8,
+    fontFamily: 'monospace',
+  },
   sectionHeading: {
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 1.2,
+    marginTop: 2,
   },
   menuList: {
     gap: 8,
@@ -307,8 +412,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   menuIconCircle: {
-    width: 38,
-    height: 38,
+    width: 36,
+    height: 36,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
@@ -318,10 +423,10 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   menuTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
   },
   menuSub: {
-    fontSize: 11,
+    fontSize: 10,
   },
 });
