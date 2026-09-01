@@ -78,7 +78,10 @@
     },
     "extra": {
       "router": {},
-      "eas": {}
-    }
+      "eas": {
+        "projectId": "821ecb85-fba0-40b2-8ad7-7fdbe160e311"
+      }
+    },
+    "owner": "rahulxdev"
   }
 }
