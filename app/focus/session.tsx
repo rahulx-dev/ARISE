@@ -6,376 +6,327 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
-  Alert,
+  AppState,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Circle } from 'react-native-svg';
 import {
   ArrowLeft,
-  HelpCircle,
-  Pause,
   Play,
+  Pause,
+  RotateCcw,
+  Music,
   Volume2,
   VolumeX,
   X,
-  Music,
+  Shield,
+  Sparkles,
+  Zap,
+  Disc,
+  Trees,
+  CloudRain,
+  Sun,
+  Brain,
+  SkipForward,
 } from 'lucide-react-native';
-import { GlowButton } from '../../src/components/design-system/GlowButton';
-import { GlowCard } from '../../src/components/design-system/GlowCard';
+import { GlassCard } from '../../src/components/ios/GlassCard';
+import { GlassButton } from '../../src/components/ios/GlassButton';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
-import { userRepository } from '../../src/database/repositories/userRepository';
-import { voiceCoach } from '../../src/services/voiceCoach';
-import { useSound } from '../../src/hooks/useSound';
-import { useHaptics } from '../../src/hooks/useHaptics';
-import { colors } from '../../src/theme/colors';
-import { focusMusicService, FOCUS_MUSIC_TRACKS, FocusTrack } from '../../src/services/focusMusic';
+import { audioService, AUDIO_TRACKS, AudioTrackInfo } from '../../src/services/audioService';
 import { db } from '../../src/database/client';
 import { focusSession } from '../../src/database/schema';
+import { useSound } from '../../src/hooks/useSound';
+import { useHaptics } from '../../src/hooks/useHaptics';
+import { useTheme } from '../../src/hooks/useTheme';
 
-const DURATION_PRESETS = [15, 25, 50];
+const DURATION_PRESETS = [15, 25, 45, 60];
+
+const TRACK_ICONS: Record<string, any> = {
+  deep_focus: Brain,
+  productivity_sprint: Zap,
+  brown_noise: Disc,
+  rain_window: CloudRain,
+  forest_wind: Trees,
+  lofi_beats: Music,
+  calm_ambient: Sun,
+};
 
 export default function FocusModeScreen() {
   const router = useRouter();
   const sound = useSound();
   const haptics = useHaptics();
+  const { colors, isDark } = useTheme();
   const loadProfile = usePlayerStore((s) => s.loadProfile);
 
   const [targetMinutes, setTargetMinutes] = useState<number>(25);
   const [remainingMs, setRemainingMs] = useState<number>(25 * 60 * 1000);
   const [isActive, setIsActive] = useState<boolean>(false);
   const [isAudioSheetOpen, setIsAudioSheetOpen] = useState<boolean>(false);
-  const [selectedTrackId, setSelectedTrackId] = useState<string>('rain');
-  const [soundMuted, setSoundMuted] = useState<boolean>(false);
+  const [selectedTrackId, setSelectedTrackId] = useState<string>('deep_focus');
+  const [volume, setVolume] = useState<number>(0.7);
 
-  const timerIntervalRef = useRef<any>(null);
+  const timerRef = useRef<any>(null);
+  const startTimeRef = useRef<number | null>(null);
 
   useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      audioService.stop();
+    };
+  }, []);
+
+  // Timer loop
+  useEffect(() => {
     if (isActive) {
-      timerIntervalRef.current = setInterval(() => {
+      startTimeRef.current = Date.now();
+      audioService.play(selectedTrackId);
+
+      timerRef.current = setInterval(() => {
         setRemainingMs((prev) => {
-          const next = Math.max(0, prev - 1000);
-          if (next <= 0) {
-            handleSessionComplete();
+          if (prev <= 1000) {
+            clearInterval(timerRef.current);
+            handleCompleteSession();
+            return 0;
           }
-          return next;
+          return prev - 1000;
         });
       }, 1000);
     } else {
-      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+      if (timerRef.current) clearInterval(timerRef.current);
+      audioService.pause();
     }
 
     return () => {
-      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+      if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [isActive]);
 
-  const handleStart = () => {
+  const handleStartPause = () => {
     haptics.heavy();
-    sound.play('quest_start');
-    setIsActive(true);
-    try {
-      voiceCoach.speakFocusStart(targetMinutes);
-    } catch {}
-    if (!soundMuted && selectedTrackId !== 'silent') {
-      focusMusicService.play(selectedTrackId);
+    if (!isActive) {
+      sound.play('quest_start');
+      setIsActive(true);
+    } else {
+      setIsActive(false);
     }
   };
 
-  const handlePause = () => {
+  const handleReset = () => {
     haptics.medium();
     setIsActive(false);
-    focusMusicService.stop();
+    audioService.stop();
+    setRemainingMs(targetMinutes * 60 * 1000);
   };
 
-  const handleReset = (minutes: number) => {
+  const handleSelectPreset = (mins: number) => {
+    if (isActive) return;
     haptics.light();
-    setIsActive(false);
-    setTargetMinutes(minutes);
-    setRemainingMs(minutes * 60 * 1000);
-    focusMusicService.stop();
+    setTargetMinutes(mins);
+    setRemainingMs(mins * 60 * 1000);
   };
 
-  const handleSessionComplete = async () => {
-    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+  const handleCompleteSession = async () => {
     setIsActive(false);
-    focusMusicService.stop();
+    audioService.stop();
     sound.play('quest_complete');
-    haptics.heavy();
+    haptics.success();
 
-    const coinsEarned = targetMinutes * 2;
-    const xpEarned = targetMinutes * 4;
+    const coinsEarned = Math.round(targetMinutes * 1.5);
+    const xpEarned = targetMinutes * 3;
 
     try {
-      voiceCoach.speak(`Focus session complete! You earned ${coinsEarned} coins.`);
       await db.insert(focusSession).values({
         targetMinutes,
         completedMinutes: targetMinutes,
-        startTime: new Date(Date.now() - targetMinutes * 60000).toISOString(),
-        endTime: new Date().toISOString(),
         status: 'COMPLETED',
+        startTime: new Date(Date.now() - targetMinutes * 60 * 1000).toISOString(),
+        endTime: new Date().toISOString(),
         rewardCoins: coinsEarned,
         rewardXP: xpEarned,
       });
-      await userRepository.addCoins(coinsEarned, `${targetMinutes}m Focus Session`, 'focus');
-      await userRepository.addXP(xpEarned);
-      await userRepository.updateStat('focus', 1);
-      await userRepository.updateStreak();
+
       await loadProfile();
     } catch (e) {
-      console.warn('Error completing focus session:', e);
+      console.warn('Failed to record focus session:', e);
     }
 
-    Alert.alert(
-      'Flow State Accomplished!',
-      `You stayed focused for ${targetMinutes} minutes.\n+${coinsEarned} Coins 🪙\n+${xpEarned} XP ⚡`,
-      [
-        {
-          text: 'CLAIM BOUNTY',
-          onPress: () => router.replace('/(tabs)'),
-        },
-      ]
-    );
+    router.replace({
+      pathname: '/exercise/complete',
+      params: {
+        exerciseType: 'DEEP_FOCUS',
+        completedReps: targetMinutes.toString(),
+        target: targetMinutes.toString(),
+        earnedCoins: coinsEarned.toString(),
+        earnedXP: xpEarned.toString(),
+        durationSeconds: (targetMinutes * 60).toString(),
+      },
+    });
   };
 
-  const totalDurationMs = targetMinutes * 60 * 1000;
-  const elapsedMs = totalDurationMs - remainingMs;
-  const progressRatio = totalDurationMs > 0 ? (totalDurationMs - remainingMs) / totalDurationMs : 0;
+  const totalMs = targetMinutes * 60 * 1000;
+  const progressFraction = Math.max(0, Math.min(1, 1 - remainingMs / totalMs));
+  const minutes = Math.floor(remainingMs / 60000);
+  const seconds = Math.floor((remainingMs % 60000) / 1000);
 
-  const minutesLeft = Math.floor(remainingMs / 60000);
-  const secondsLeft = Math.floor((remainingMs % 60000) / 1000);
-  const timeFormatted = `${minutesLeft.toString().padStart(2, '0')}:${secondsLeft.toString().padStart(2, '0')}`;
-
-  // SVG Gauge dimensions
-  const circleSize = 270;
-  const strokeWidth = 10;
-  const radius = (circleSize - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference * (1 - progressRatio);
+  const currentTrack = AUDIO_TRACKS.find((t) => t.id === selectedTrackId) || AUDIO_TRACKS[0];
+  const CurrentIcon = TRACK_ICONS[currentTrack.id] || Music;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <SafeAreaView style={styles.safeArea}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={() => router.back()}
-            activeOpacity={0.8}
-          >
-            <ArrowLeft size={20} color={colors.textPrimary} />
+        {/* Top Header */}
+        <View style={[styles.header, { borderBottomColor: colors.border }]}>
+          <TouchableOpacity onPress={() => router.back()} style={[styles.iconBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderColor: colors.border }]}>
+            <ArrowLeft size={18} color={colors.textPrimary} />
           </TouchableOpacity>
-
-          <Text style={styles.headerTitle}>Focus</Text>
-
-          <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={() =>
-              Alert.alert(
-                'Focus Flow State',
-                'Activate silent immersion to block all app distractions and build discipline.'
-              )
-            }
-            activeOpacity={0.8}
-          >
-            <HelpCircle size={20} color={colors.textSecondary} />
-          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>DEEP FOCUS SANCTUARY</Text>
+          <View style={{ width: 36 }} />
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Concentric Tachometer Chronometer */}
-          <View style={styles.gaugeContainer}>
-            <Svg width={circleSize} height={circleSize} style={styles.svgGauge}>
-              {/* Outer Background Track */}
-              <Circle
-                cx={circleSize / 2}
-                cy={circleSize / 2}
-                r={radius}
-                stroke="#1A1A1A"
-                strokeWidth={strokeWidth}
-                fill="none"
-              />
-
-              {/* Inner Glowing Track */}
-              <Circle
-                cx={circleSize / 2}
-                cy={circleSize / 2}
-                r={radius - 16}
-                stroke="#141414"
-                strokeWidth={2}
-                fill="none"
-              />
-
-              {/* Active Lime Progress Arc */}
-              <Circle
-                cx={circleSize / 2}
-                cy={circleSize / 2}
-                r={radius}
-                stroke={colors.primary}
-                strokeWidth={strokeWidth}
-                strokeDasharray={`${circumference} ${circumference}`}
-                strokeDashoffset={strokeDashoffset}
-                strokeLinecap="round"
-                fill="none"
-                transform={`rotate(-90 ${circleSize / 2} ${circleSize / 2})`}
-              />
-            </Svg>
-
-            <View style={styles.gaugeInnerContent}>
-              <Text style={styles.gaugeLabel}>Focus Time</Text>
-              <Text style={styles.gaugeTimeText}>{timeFormatted}</Text>
+          {/* Circular Countdown Hero */}
+          <GlassCard variant="glow" style={styles.timerHeroCard}>
+            <View style={styles.timerCircleWrap}>
+              {/* Outer decorative ring */}
+              <View style={[styles.outerGlowRing, { borderColor: isActive ? colors.primary : colors.border }]}>
+                <View style={[styles.innerCircle, { backgroundColor: isDark ? '#0D0E12' : '#FFFFFF' }]}>
+                  <Text style={[styles.timerDigits, { color: colors.textPrimary }]}>
+                    {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
+                  </Text>
+                  <Text style={[styles.timerStatusLabel, { color: isActive ? colors.primary : colors.textMuted }]}>
+                    {isActive ? 'SHIELD PROTOCOL ACTIVE' : 'READY TO SPRINT'}
+                  </Text>
+                </View>
+              </View>
             </View>
-          </View>
 
-          <Text style={styles.gaugeSubtitle}>
-            {isActive ? 'Deep immersion active. Zero distractions.' : 'Stay focused and achieve your goals!'}
-          </Text>
+            {/* Progress Bar */}
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: `${progressFraction * 100}%`, backgroundColor: colors.primary }]} />
+            </View>
 
-          {/* Main Action Button */}
-          {isActive ? (
-            <GlowButton
-              title="Pause Focus"
-              onPress={handlePause}
-              variant="secondary"
-              size="lg"
-              icon={<Pause size={18} color="#FFFFFF" />}
-            />
-          ) : (
-            <GlowButton
-              title="Start Focus"
-              onPress={handleStart}
-              variant="primary"
-              size="lg"
-              icon={<Play size={18} color="#050505" />}
-            />
-          )}
-
-          {/* Select Duration Section */}
-          <View style={styles.durationSection}>
-            <Text style={styles.sectionTitle}>Select Duration</Text>
-            <View style={styles.presetRow}>
+            {/* Duration Presets */}
+            <View style={styles.presetsRow}>
               {DURATION_PRESETS.map((mins) => {
-                const isSelected = targetMinutes === mins && !isActive;
+                const isSelected = targetMinutes === mins;
                 return (
                   <TouchableOpacity
                     key={mins}
+                    onPress={() => handleSelectPreset(mins)}
+                    disabled={isActive}
                     style={[
-                      styles.durationPill,
-                      isSelected && styles.durationPillActive,
+                      styles.presetPill,
+                      { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderColor: colors.border },
+                      isSelected && { backgroundColor: colors.primary, borderColor: colors.primary },
                     ]}
-                    onPress={() => handleReset(mins)}
-                    activeOpacity={0.8}
                   >
                     <Text
                       style={[
-                        styles.durationPillText,
-                        isSelected && styles.durationPillTextActive,
+                        styles.presetPillText,
+                        { color: colors.textSecondary },
+                        isSelected && { color: '#000000', fontWeight: '900' },
                       ]}
                     >
-                      {mins} min
+                      {mins}m
                     </Text>
                   </TouchableOpacity>
                 );
               })}
-
-              <TouchableOpacity
-                style={[
-                  styles.durationPill,
-                  targetMinutes === 60 && !isActive && styles.durationPillActive,
-                ]}
-                onPress={() => handleReset(60)}
-                activeOpacity={0.8}
-              >
-                <Text
-                  style={[
-                    styles.durationPillText,
-                    targetMinutes === 60 && !isActive && styles.durationPillTextActive,
-                  ]}
-                >
-                  Custom
-                </Text>
-              </TouchableOpacity>
             </View>
-          </View>
+          </GlassCard>
 
-          {/* Ambient BGM Card */}
-          <GlowCard style={styles.bgmCard}>
-            <View style={styles.bgmLeft}>
-              <View style={styles.bgmIconCircle}>
-                <Music size={20} color={colors.primary} />
+          {/* Real Audio Soundscape Controller Card */}
+          <GlassCard variant="default" style={styles.soundscapeCard}>
+            <View style={styles.soundscapeLeft}>
+              <View style={[styles.soundscapeIconCircle, { backgroundColor: isDark ? 'rgba(209, 255, 0, 0.15)' : 'rgba(16, 185, 129, 0.15)' }]}>
+                <CurrentIcon size={20} color={colors.primary} />
               </View>
-              <View>
-                <Text style={styles.bgmTitle}>Ambient Soundscape</Text>
-                <Text style={styles.bgmSubtitle}>
-                  {FOCUS_MUSIC_TRACKS.find((t: FocusTrack) => t.id === selectedTrackId)?.name || 'Rain'} (100% Offline Audio)
-                </Text>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={[styles.soundscapeTitle, { color: colors.textPrimary }]}>{currentTrack.name}</Text>
+                <Text style={[styles.soundscapeDesc, { color: colors.textSecondary }]}>{currentTrack.category} • 100% Offline Synthesis</Text>
               </View>
             </View>
 
             <TouchableOpacity
-              style={styles.changeSoundBtn}
               onPress={() => setIsAudioSheetOpen(true)}
+              style={[styles.changeTrackBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)', borderColor: colors.border }]}
+            >
+              <Text style={[styles.changeTrackBtnText, { color: colors.primary }]}>CHANGE</Text>
+            </TouchableOpacity>
+          </GlassCard>
+
+          {/* Primary Action Controls */}
+          <View style={styles.actionControlsRow}>
+            <GlassButton
+              title={isActive ? 'PAUSE SPRINT' : 'START FOCUS SPRINT'}
+              onPress={handleStartPause}
+              variant="primary"
+              size="lg"
+              style={{ flex: 2 }}
+              icon={isActive ? <Pause size={18} color="#000" /> : <Play size={18} color="#000" />}
+            />
+
+            <TouchableOpacity
+              onPress={handleReset}
+              style={[styles.resetBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)', borderColor: colors.border }]}
               activeOpacity={0.8}
             >
-              <Text style={styles.changeSoundBtnText}>CHANGE</Text>
+              <RotateCcw size={18} color={colors.textPrimary} />
             </TouchableOpacity>
-          </GlowCard>
+          </View>
 
           <View style={{ height: 40 }} />
         </ScrollView>
 
-        {/* Ambient Soundscape Picker Modal */}
-        <Modal
-          visible={isAudioSheetOpen}
-          animationType="slide"
-          transparent={true}
-          onRequestClose={() => setIsAudioSheetOpen(false)}
-        >
+        {/* Audio Track Selector Sheet Modal */}
+        <Modal visible={isAudioSheetOpen} transparent animationType="slide">
           <View style={styles.modalOverlay}>
-            <View style={styles.modalSheet}>
+            <GlassCard variant="elevated" style={styles.modalSheet}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Select Ambient Soundscape</Text>
-                <TouchableOpacity
-                  onPress={() => setIsAudioSheetOpen(false)}
-                  style={styles.iconBtn}
-                >
-                  <X size={20} color={colors.textSecondary} />
+                <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Choose Ambient Soundscape</Text>
+                <TouchableOpacity onPress={() => setIsAudioSheetOpen(false)} style={styles.iconBtn}>
+                  <X size={18} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
 
-              <View style={styles.trackList}>
-                {FOCUS_MUSIC_TRACKS.map((t: FocusTrack) => {
+              <ScrollView style={{ maxHeight: 380 }} contentContainerStyle={{ gap: 8 }}>
+                {AUDIO_TRACKS.map((t) => {
                   const isSelected = selectedTrackId === t.id;
+                  const IconC = TRACK_ICONS[t.id] || Music;
+
                   return (
                     <TouchableOpacity
                       key={t.id}
-                      style={[
-                        styles.trackRow,
-                        isSelected && styles.trackRowActive,
-                      ]}
                       onPress={() => {
                         haptics.medium();
                         setSelectedTrackId(t.id);
                         if (isActive) {
-                          focusMusicService.play(t.id);
+                          audioService.play(t.id);
                         }
                         setIsAudioSheetOpen(false);
                       }}
-                      activeOpacity={0.8}
+                      style={[
+                        styles.trackRow,
+                        { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', borderColor: colors.border },
+                        isSelected && { borderColor: colors.primary, backgroundColor: 'rgba(209, 255, 0, 0.1)' },
+                      ]}
                     >
-                      <View style={styles.trackInfo}>
-                        <Text style={styles.trackName}>{t.name}</Text>
-                        <Text style={styles.trackDesc}>{t.description}</Text>
+                      <View style={[styles.trackIconWrap, { backgroundColor: isSelected ? colors.primary : 'rgba(255,255,255,0.06)' }]}>
+                        <IconC size={18} color={isSelected ? '#000000' : colors.textPrimary} />
                       </View>
-
-                      {isSelected && (
-                        <View style={styles.selectedDot} />
-                      )}
+                      <View style={{ flex: 1, gap: 2 }}>
+                        <Text style={[styles.trackRowName, { color: colors.textPrimary }, isSelected && { color: colors.primary }]}>
+                          {t.name}
+                        </Text>
+                        <Text style={[styles.trackRowDesc, { color: colors.textSecondary }]} numberOfLines={1}>
+                          {t.description}
+                        </Text>
+                      </View>
                     </TouchableOpacity>
                   );
                 })}
-              </View>
-            </View>
+              </ScrollView>
+            </GlassCard>
           </View>
         </Modal>
       </SafeAreaView>
@@ -384,208 +335,186 @@ export default function FocusModeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1 },
   safeArea: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 12,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '900',
-    color: colors.textPrimary,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
   },
   iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#161616',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#242424',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 1.2,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    gap: 20,
-    alignItems: 'center',
-    paddingTop: 10,
+    padding: 18,
+    gap: 16,
   },
-  gaugeContainer: {
-    width: 270,
-    height: 270,
+  timerHeroCard: {
+    padding: 24,
+    alignItems: 'center',
+    gap: 20,
+    borderRadius: 24,
+  },
+  timerCircleWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+  },
+  outerGlowRing: {
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    borderWidth: 3,
     justifyContent: 'center',
     alignItems: 'center',
-    position: 'relative',
-    marginTop: 10,
   },
-  svgGauge: {
-    position: 'absolute',
-  },
-  gaugeInnerContent: {
+  innerCircle: {
+    width: 182,
+    height: 182,
+    borderRadius: 91,
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
-  gaugeLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textSecondary,
-    letterSpacing: 0.5,
-  },
-  gaugeTimeText: {
-    fontSize: 48,
+  timerDigits: {
+    fontSize: 40,
     fontWeight: '900',
-    color: colors.textPrimary,
     fontVariant: ['tabular-nums'],
     letterSpacing: 1,
   },
-  gaugeSubtitle: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  durationSection: {
-    width: '100%',
-    gap: 12,
-    marginTop: 8,
-  },
-  sectionTitle: {
-    fontSize: 14,
+  timerStatusLabel: {
+    fontSize: 9,
     fontWeight: '900',
-    color: colors.textPrimary,
+    letterSpacing: 1,
   },
-  presetRow: {
+  progressTrack: {
+    width: '100%',
+    height: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  presetsRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
   },
-  durationPill: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 100,
-    backgroundColor: '#161616',
+  presetPill: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#242424',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  durationPillActive: {
-    backgroundColor: '#1C2600',
-    borderColor: colors.primary,
+  presetPillText: {
+    fontSize: 12,
+    fontWeight: '800',
   },
-  durationPillText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textSecondary,
-  },
-  durationPillTextActive: {
-    color: colors.primary,
-    fontWeight: '900',
-  },
-  bgmCard: {
-    width: '100%',
+  soundscapeCard: {
+    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
-    borderRadius: 20,
+    borderRadius: 18,
   },
-  bgmLeft: {
+  soundscapeLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    flex: 1,
   },
-  bgmIconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#1E1E1E',
+  soundscapeIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  bgmTitle: {
-    fontSize: 14,
+  soundscapeTitle: {
+    fontSize: 13,
     fontWeight: '900',
-    color: colors.textPrimary,
   },
-  bgmSubtitle: {
-    fontSize: 11,
-    color: colors.textSecondary,
+  soundscapeDesc: {
+    fontSize: 10,
   },
-  changeSoundBtn: {
-    backgroundColor: '#222222',
+  changeTrackBtn: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 10,
+    borderWidth: 1,
   },
-  changeSoundBtnText: {
-    fontSize: 11,
+  changeTrackBtnText: {
+    fontSize: 10,
     fontWeight: '900',
-    color: colors.primary,
+    letterSpacing: 0.5,
+  },
+  actionControlsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  resetBtn: {
+    width: 52,
+    height: 52,
+    borderRadius: 18,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.88)',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
-    backgroundColor: '#161616',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    borderWidth: 1,
-    borderColor: '#262626',
-    paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 32,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 18,
     gap: 14,
   },
   modalHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
   modalTitle: {
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: '900',
-    color: colors.textPrimary,
-  },
-  trackList: {
-    gap: 8,
   },
   trackRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#1A1A1A',
-    padding: 14,
-    borderRadius: 16,
+    padding: 12,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#242424',
+    gap: 12,
   },
-  trackRowActive: {
-    borderColor: colors.primary,
-    backgroundColor: '#1C2600',
+  trackIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  trackInfo: {
-    gap: 2,
-  },
-  trackName: {
-    fontSize: 14,
+  trackRowName: {
+    fontSize: 13,
     fontWeight: '900',
-    color: colors.textPrimary,
   },
-  trackDesc: {
+  trackRowDesc: {
     fontSize: 11,
-    color: colors.textSecondary,
-  },
-  selectedDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.primary,
   },
 });

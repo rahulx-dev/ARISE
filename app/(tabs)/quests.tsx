@@ -1,344 +1,215 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import {
-  Dumbbell,
-  Clock,
-  Droplet,
-  Footprints,
-  BookOpen,
+  ClipboardList,
   CheckCircle2,
-  Gift,
-  HelpCircle,
+  Coins,
   Sparkles,
-  Award,
+  Zap,
   Flame,
-  Activity,
+  Brain,
+  Dumbbell,
+  Shield,
+  Check,
 } from 'lucide-react-native';
-import { GlowCard } from '../../src/components/design-system/GlowCard';
-import { XPBar } from '../../src/components/design-system/XPBar';
+import { GlassCard } from '../../src/components/ios/GlassCard';
+import { GlassButton } from '../../src/components/ios/GlassButton';
 import { useQuestStore } from '../../src/stores/useQuestStore';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
-import { achievementService, AchievementItem } from '../../src/services/achievementService';
-import { useHaptics } from '../../src/hooks/useHaptics';
 import { useSound } from '../../src/hooks/useSound';
-import { voiceCoach } from '../../src/services/voiceCoach';
-import { colors } from '../../src/theme/colors';
+import { useHaptics } from '../../src/hooks/useHaptics';
+import { useTheme } from '../../src/hooks/useTheme';
+
+const CATEGORY_ICONS: Record<string, any> = {
+  strength: Dumbbell,
+  fitness: Dumbbell,
+  focus: Brain,
+  discipline: Flame,
+  health: Shield,
+  general: Zap,
+};
 
 export default function QuestsTab() {
-  const [activeTab, setActiveTab] = useState<'daily' | 'weekly' | 'achievement'>('daily');
-  const [achievements, setAchievements] = useState<AchievementItem[]>([]);
-  const haptics = useHaptics();
+  const { colors, isDark } = useTheme();
   const sound = useSound();
+  const haptics = useHaptics();
+
   const dailyQuests = useQuestStore((s) => s.dailyQuests);
-  const weeklyQuests = useQuestStore((s) => s.weeklyQuests);
   const loadQuests = useQuestStore((s) => s.loadQuests);
   const completeQuest = useQuestStore((s) => s.completeQuest);
-  const loadProfile = usePlayerStore((s) => s.loadProfile);
+  const profile = usePlayerStore((s) => s.profile);
 
-  const loadData = async () => {
-    await loadQuests();
-    await loadProfile();
-    const ach = await achievementService.getAchievements();
-    setAchievements(ach);
-  };
-
-  useFocusEffect(
-    useCallback(() => {
-      loadData();
-    }, [])
-  );
+  const [activeFilter, setActiveFilter] = useState<'ALL' | 'DAILY' | 'STRENGTH' | 'FOCUS'>('ALL');
+  const [loading, setLoading] = useState<boolean>(false);
 
   useEffect(() => {
-    loadData();
+    loadQuests();
   }, []);
 
-  const completedDailyCount = dailyQuests.filter((q) => q.completed).length;
-  const totalDailyCount = dailyQuests.length || 1;
-  const dailyProgressPercent = Math.round((completedDailyCount / totalDailyCount) * 100);
-
-  const handleQuestAction = async (q: any) => {
-    if (q.completed) {
-      haptics.light();
-      Alert.alert('Quest Accomplished', `You already completed "${q.title}" and claimed your reward!`);
-      return;
-    }
-
-    if (q.exerciseType || q.category === 'FITNESS') {
-      haptics.medium();
-      router.push({
-        pathname: '/exercise/[type]',
-        params: {
-          type: q.exerciseType || 'PUSHUP',
-          questId: q.id.toString(),
-          target: (q.target || 20).toString(),
-        },
-      });
-      return;
-    }
-
-    if (q.category === 'FOCUS') {
-      haptics.medium();
-      router.push('/focus/session');
-      return;
-    }
-
-    // Manual completion
-    haptics.success();
+  const handleComplete = async (questId: number) => {
+    haptics.heavy();
     sound.play('quest_complete');
-    try {
-      voiceCoach.speak(`Quest completed: ${q.title}! Reward claimed.`);
-      await completeQuest(q.id);
-      await loadData();
-    } catch (e) {
-      console.warn('Error completing quest:', e);
-    }
+    await completeQuest(questId);
   };
 
-  const getQuestIcon = (category: string, exType?: string | null) => {
-    if (exType === 'PUSHUP' || category === 'FITNESS') return Dumbbell;
-    if (category === 'FOCUS') return Clock;
-    if (category === 'HYDRATION') return Droplet;
-    if (category === 'STEPS') return Footprints;
-    return BookOpen;
-  };
+  const filteredQuests = dailyQuests.filter((q) => {
+    if (activeFilter === 'ALL') return true;
+    if (activeFilter === 'DAILY') return true;
+    if (activeFilter === 'STRENGTH') return q.category === 'strength' || q.category === 'fitness';
+    if (activeFilter === 'FOCUS') return q.category === 'focus';
+    return true;
+  });
+
+  const completedCount = dailyQuests.filter((q) => q.completed).length;
+  const totalCount = dailyQuests.length || 1;
+  const progressPercent = Math.round((completedCount / totalCount) * 100);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <SafeAreaView style={styles.safeArea}>
-        {/* Header with Title & Help */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Quests</Text>
-          <TouchableOpacity
-            style={styles.helpBtn}
-            onPress={() =>
-              Alert.alert(
-                'Quests Protocol',
-                'Complete daily physical exercise and focus sprints to unlock screen-time tokens and level up your discipline.'
-              )
-            }
-            activeOpacity={0.8}
-          >
-            <HelpCircle size={20} color={colors.textSecondary} />
-          </TouchableOpacity>
+        {/* Top Header */}
+        <View style={[styles.header, { borderBottomColor: colors.border }]}>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>MISSION DIRECTIVES</Text>
+          <View style={[styles.completionBadge, { backgroundColor: isDark ? 'rgba(209, 255, 0, 0.15)' : 'rgba(16, 185, 129, 0.15)' }]}>
+            <Text style={[styles.completionBadgeText, { color: colors.primary }]}>
+              {completedCount}/{dailyQuests.length} DONE
+            </Text>
+          </View>
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Tabs Pill Switch: Daily | Weekly | Achievement */}
-          <View style={styles.tabBar}>
-            {(['daily', 'weekly', 'achievement'] as const).map((tab) => {
-              const isActive = activeTab === tab;
+          {/* Progress Overview Hero Card */}
+          <GlassCard variant="glow" style={styles.heroCard}>
+            <View style={styles.heroTopRow}>
+              <View style={styles.heroLeftCol}>
+                <Text style={[styles.heroSubTitle, { color: colors.textSecondary }]}>DAILY PROTOCOL PROGRESS</Text>
+                <Text style={[styles.heroMainTitle, { color: colors.textPrimary }]}>
+                  {completedCount === dailyQuests.length && dailyQuests.length > 0
+                    ? 'ALL MISSIONS COMPLETE'
+                    : `${dailyQuests.length - completedCount} Missions Remaining`}
+                </Text>
+              </View>
+
+              <View style={styles.heroRightCol}>
+                <Text style={[styles.heroPercentText, { color: colors.primary }]}>{progressPercent}%</Text>
+              </View>
+            </View>
+
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: `${progressPercent}%`, backgroundColor: colors.primary }]} />
+            </View>
+          </GlassCard>
+
+          {/* Filter Pills */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+            {(['ALL', 'DAILY', 'STRENGTH', 'FOCUS'] as const).map((filter) => {
+              const isSelected = activeFilter === filter;
               return (
                 <TouchableOpacity
-                  key={tab}
-                  style={[styles.tabBtn, isActive && styles.tabBtnActive]}
+                  key={filter}
                   onPress={() => {
                     haptics.light();
-                    setActiveTab(tab);
+                    setActiveFilter(filter);
                   }}
-                  activeOpacity={0.8}
+                  style={[
+                    styles.filterPill,
+                    { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0,0,0,0.04)', borderColor: colors.border },
+                    isSelected && { backgroundColor: colors.primary, borderColor: colors.primary },
+                  ]}
                 >
-                  <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
-                    {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  <Text
+                    style={[
+                      styles.filterPillText,
+                      { color: colors.textSecondary },
+                      isSelected && { color: '#000000', fontWeight: '900' },
+                    ]}
+                  >
+                    {filter}
                   </Text>
-                  {isActive && <View style={styles.tabIndicator} />}
                 </TouchableOpacity>
               );
             })}
-          </View>
+          </ScrollView>
 
-          {/* Daily Progress Hero Card */}
-          {activeTab === 'daily' && (
-            <GlowCard variant="default" style={styles.dailyProgressCard}>
-              <View style={styles.progressCardLeft}>
-                <Text style={styles.progressCardTitle}>Daily Progress</Text>
-                <Text style={styles.progressCardSubtitle}>
-                  {completedDailyCount}/{totalDailyCount} completed
+          {/* Quests List */}
+          <View style={styles.questsList}>
+            {filteredQuests.length === 0 ? (
+              <GlassCard variant="default" style={styles.emptyCard}>
+                <Sparkles size={28} color={colors.textMuted} />
+                <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>No Missions Found</Text>
+                <Text style={[styles.emptySub, { color: colors.textSecondary }]}>
+                  Check back tomorrow for newly calibrated daily missions.
                 </Text>
+              </GlassCard>
+            ) : (
+              filteredQuests.map((q) => {
+                const IconComp = CATEGORY_ICONS[q.category] || Zap;
+                const isDone = q.completed === true;
 
-                <View style={{ marginTop: 12 }}>
-                  <XPBar progress={dailyProgressPercent} height={10} color={colors.primary} />
-                </View>
-              </View>
-
-              <View style={styles.giftIconWrap}>
-                <Gift size={36} color={colors.primary} />
-              </View>
-            </GlowCard>
-          )}
-
-          {/* Daily Quests List */}
-          {activeTab === 'daily' && (
-            <View style={styles.questList}>
-              {dailyQuests.length === 0 ? (
-                <View style={styles.emptyState}>
-                  <Text style={styles.emptyStateText}>No daily quests available for today.</Text>
-                </View>
-              ) : (
-                dailyQuests.map((q) => {
-                  const IconComp = getQuestIcon(q.category, q.exerciseType);
-                  const isDone = q.completed;
-                  return (
+                return (
+                  <GlassCard key={q.id} variant={isDone ? 'default' : 'elevated'} style={styles.questCard}>
                     <TouchableOpacity
-                      key={q.id}
-                      onPress={() => handleQuestAction(q)}
+                      onPress={() => !isDone && handleComplete(q.id)}
+                      style={styles.questCardInner}
                       activeOpacity={0.8}
                     >
-                      <GlowCard
-                        variant={isDone ? 'subtle' : 'default'}
-                        style={styles.questCard}
-                      >
-                        <View style={styles.questCardLeft}>
-                          <View
-                            style={[
-                              styles.questIconCircle,
-                              isDone && styles.questIconCircleDone,
-                            ]}
-                          >
-                            <IconComp
-                              size={20}
-                              color={isDone ? colors.primary : '#FFFFFF'}
-                            />
-                          </View>
-
-                          <View style={{ flex: 1, gap: 3 }}>
-                            <Text
-                              style={[
-                                styles.questTitle,
-                                isDone && styles.questTitleDone,
-                              ]}
-                            >
-                              {q.title}
-                            </Text>
-                            <Text style={styles.questMeta}>
-                              {isDone ? 'Completed' : `${q.target} Target`}
-                            </Text>
-                          </View>
-                        </View>
-
-                        {/* Reward Badge */}
-                        {isDone ? (
-                          <View style={styles.completedBadge}>
-                            <Text style={styles.completedBadgeText}>+{q.rewardCoins}</Text>
-                            <CheckCircle2 size={16} color={colors.primary} />
-                          </View>
-                        ) : (
-                          <View style={styles.rewardChip}>
-                            <Text style={styles.rewardChipText}>+{q.rewardCoins}</Text>
-                            <View style={styles.rewardChipCoin} />
-                          </View>
-                        )}
-                      </GlowCard>
-                    </TouchableOpacity>
-                  );
-                })
-              )}
-            </View>
-          )}
-
-          {/* Weekly Quests List */}
-          {activeTab === 'weekly' && (
-            <View style={styles.questList}>
-              {weeklyQuests.length === 0 ? (
-                <View style={styles.emptyState}>
-                  <Text style={styles.emptyStateText}>No weekly challenges active.</Text>
-                </View>
-              ) : (
-                weeklyQuests.map((q) => {
-                  const IconComp = getQuestIcon(q.category, q.exerciseType);
-                  const isDone = q.completed;
-                  return (
-                    <TouchableOpacity
-                      key={q.id}
-                      onPress={() => handleQuestAction(q)}
-                      activeOpacity={0.8}
-                    >
-                      <GlowCard
-                        variant={isDone ? 'subtle' : 'default'}
-                        style={styles.questCard}
-                      >
-                        <View style={styles.questCardLeft}>
-                          <View style={styles.questIconCircle}>
-                            <IconComp size={20} color={colors.primary} />
-                          </View>
-                          <View style={{ flex: 1, gap: 3 }}>
-                            <Text style={[styles.questTitle, isDone && styles.questTitleDone]}>
-                              {q.title}
-                            </Text>
-                            <Text style={styles.questMeta}>
-                              {isDone ? 'Completed' : `${q.target} Weekly Target`}
-                            </Text>
-                          </View>
-                        </View>
-
-                        {isDone ? (
-                          <View style={styles.completedBadge}>
-                            <Text style={styles.completedBadgeText}>+{q.rewardCoins}</Text>
-                            <CheckCircle2 size={16} color={colors.primary} />
-                          </View>
-                        ) : (
-                          <View style={styles.rewardChip}>
-                            <Text style={styles.rewardChipText}>+{q.rewardCoins}</Text>
-                            <View style={styles.rewardChipCoin} />
-                          </View>
-                        )}
-                      </GlowCard>
-                    </TouchableOpacity>
-                  );
-                })
-              )}
-            </View>
-          )}
-
-          {/* Achievement Quests List */}
-          {activeTab === 'achievement' && (
-            <View style={styles.questList}>
-              {achievements
-                .filter((a) => a.category === 'ACHIEVEMENT')
-                .map((a) => (
-                  <GlowCard
-                    key={a.id}
-                    variant={a.unlocked ? 'glow' : 'default'}
-                    style={styles.questCard}
-                  >
-                    <View style={styles.questCardLeft}>
+                      {/* Checkbox button */}
                       <View
                         style={[
-                          styles.questIconCircle,
-                          a.unlocked && styles.questIconCircleDone,
+                          styles.checkboxBtn,
+                          { borderColor: isDone ? colors.primary : colors.border },
+                          isDone && { backgroundColor: colors.primary },
                         ]}
                       >
-                        <Award
-                          size={20}
-                          color={a.unlocked ? colors.primary : '#888888'}
-                        />
+                        {isDone && <Check size={14} color="#000" strokeWidth={3} />}
                       </View>
-                      <View style={{ flex: 1, gap: 3 }}>
-                        <Text style={styles.questTitle}>{a.title}</Text>
-                        <Text style={styles.questMeta}>
-                          {a.unlocked
-                            ? 'Milestone Unlocked ✓'
-                            : `${a.progress}/${a.target} Progress`}
+
+                      {/* Content */}
+                      <View style={styles.questContentCol}>
+                        <View style={styles.questCategoryRow}>
+                          <IconComp size={12} color={colors.primary} />
+                          <Text style={[styles.questCategoryText, { color: colors.primary }]}>
+                            {q.category.toUpperCase()} PROTOCOL
+                          </Text>
+                        </View>
+
+                        <Text
+                          style={[
+                            styles.questTitle,
+                            { color: colors.textPrimary },
+                            isDone && { textDecorationLine: 'line-through', opacity: 0.6 },
+                          ]}
+                        >
+                          {q.title}
+                        </Text>
+
+                        <Text style={[styles.questDesc, { color: colors.textSecondary }]} numberOfLines={2}>
+                          {q.description}
                         </Text>
                       </View>
-                    </View>
 
-                    <View style={styles.rewardChip}>
-                      <Text style={styles.rewardChipText}>+{a.rewardCoins}</Text>
-                      <View style={styles.rewardChipCoin} />
-                    </View>
-                  </GlowCard>
-                ))}
-            </View>
-          )}
+                      {/* Rewards Column */}
+                      <View style={styles.rewardsCol}>
+                        <View style={[styles.rewardBadge, { backgroundColor: isDark ? 'rgba(209, 255, 0, 0.12)' : 'rgba(16, 185, 129, 0.12)' }]}>
+                          <Text style={[styles.rewardBadgeText, { color: colors.primary }]}>+{q.rewardCoins} 🪙</Text>
+                        </View>
+                        <Text style={[styles.xpRewardText, { color: colors.secondary }]}>+{q.rewardXP} XP</Text>
+                      </View>
+                    </TouchableOpacity>
+                  </GlassCard>
+                );
+              })
+            )}
+          </View>
 
           <View style={{ height: 100 }} />
         </ScrollView>
@@ -348,183 +219,163 @@ export default function QuestsTab() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1 },
   safeArea: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 14,
     fontWeight: '900',
-    color: colors.textPrimary,
+    letterSpacing: 1.2,
+  },
+  completionBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  completionBadgeText: {
+    fontSize: 10,
+    fontWeight: '900',
     letterSpacing: 0.5,
   },
-  helpBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#161616',
-    borderWidth: 1,
-    borderColor: '#242424',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   scrollContent: {
-    paddingHorizontal: 20,
-    gap: 16,
-    paddingTop: 4,
-  },
-  tabBar: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#1F1F1F',
-    paddingBottom: 4,
-  },
-  tabBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    position: 'relative',
-  },
-  tabBtnActive: {},
-  tabText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.textMuted,
-  },
-  tabTextActive: {
-    color: colors.primary,
-    fontWeight: '900',
-  },
-  tabIndicator: {
-    position: 'absolute',
-    bottom: -5,
-    height: 2,
-    width: '60%',
-    backgroundColor: colors.primary,
-    borderRadius: 1,
-  },
-  dailyProgressCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     padding: 18,
-    borderRadius: 22,
+    gap: 14,
   },
-  progressCardLeft: {
-    flex: 1,
-    marginRight: 16,
-  },
-  progressCardTitle: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: colors.textPrimary,
-  },
-  progressCardSubtitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.primary,
-    marginTop: 2,
-  },
-  giftIconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(209, 255, 0, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  questList: {
-    gap: 12,
-  },
-  questCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  heroCard: {
     padding: 16,
     borderRadius: 20,
+    gap: 12,
   },
-  questCardLeft: {
+  heroTopRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 14,
+  },
+  heroLeftCol: {
+    gap: 2,
     flex: 1,
   },
-  questIconCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#1E1E1E',
+  heroSubTitle: {
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  heroMainTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  heroRightCol: {
+    alignItems: 'flex-end',
+  },
+  heroPercentText: {
+    fontSize: 22,
+    fontWeight: '900',
+    fontVariant: ['tabular-nums'],
+  },
+  progressTrack: {
+    width: '100%',
+    height: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  filterRow: {
+    gap: 8,
+    paddingVertical: 2,
+  },
+  filterPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  filterPillText: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  questsList: {
+    gap: 10,
+  },
+  questCard: {
+    borderRadius: 18,
+  },
+  questCardInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    gap: 12,
+  },
+  checkboxBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 2,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  questIconCircleDone: {
-    backgroundColor: 'rgba(209, 255, 0, 0.15)',
+  questContentCol: {
+    flex: 1,
+    gap: 3,
+  },
+  questCategoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  questCategoryText: {
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 0.8,
   },
   questTitle: {
     fontSize: 14,
     fontWeight: '900',
-    color: colors.textPrimary,
   },
-  questTitleDone: {
-    color: colors.textSecondary,
-    textDecorationLine: 'line-through',
-  },
-  questMeta: {
+  questDesc: {
     fontSize: 11,
-    color: colors.textSecondary,
-    fontWeight: '600',
+    lineHeight: 15,
   },
-  rewardChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#1C1C1C',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 100,
-    borderWidth: 1,
-    borderColor: '#262626',
+  rewardsCol: {
+    alignItems: 'flex-end',
+    gap: 3,
   },
-  rewardChipText: {
-    fontSize: 13,
+  rewardBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  rewardBadgeText: {
+    fontSize: 11,
     fontWeight: '900',
-    color: colors.primary,
   },
-  rewardChipCoin: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.primary,
+  xpRewardText: {
+    fontSize: 9,
+    fontWeight: '800',
   },
-  completedBadge: {
-    flexDirection: 'row',
+  emptyCard: {
+    padding: 28,
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(209, 255, 0, 0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 100,
-    borderWidth: 1,
-    borderColor: 'rgba(209, 255, 0, 0.3)',
+    gap: 8,
+    borderRadius: 18,
   },
-  completedBadgeText: {
-    fontSize: 12,
+  emptyTitle: {
+    fontSize: 14,
     fontWeight: '900',
-    color: colors.primary,
   },
-  emptyState: {
-    padding: 30,
-    alignItems: 'center',
-  },
-  emptyStateText: {
-    color: colors.textMuted,
-    fontSize: 13,
-    fontWeight: '600',
+  emptySub: {
+    fontSize: 11,
+    textAlign: 'center',
   },
 });

@@ -16,52 +16,39 @@ import {
   Bell,
   TrendingUp,
   Award,
-  Calendar,
-  Plus,
-  Trophy,
   Dumbbell,
-  Shield,
   Crosshair,
   Flame,
-  Activity,
-  ChevronRight,
   X,
   Sparkles,
   ShieldAlert,
   Coins,
   Camera,
   ShoppingBag,
-  Zap,
   Check,
+  Zap,
 } from 'lucide-react-native';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { useQuestStore } from '../../src/stores/useQuestStore';
-import { useSettingsStore } from '../../src/stores/useSettingsStore';
 import { streakService } from '../../src/services/streakService';
 import { notificationService, AppNotification } from '../../src/services/notificationService';
 import { initializeDatabase } from '../../src/database/client';
 import { appBlockerService } from '../../src/native';
-import { GlowCard } from '../../src/components/design-system/GlowCard';
-import { GlowButton } from '../../src/components/design-system/GlowButton';
+import { GlassCard } from '../../src/components/ios/GlassCard';
+import { GlassButton } from '../../src/components/ios/GlassButton';
 import { CoinBalance } from '../../src/components/design-system/CoinBalance';
 import { PlayerAvatar } from '../../src/components/ui/PlayerAvatar';
 import { AriseLogo } from '../../src/components/ui/AriseLogo';
 import { XPBar } from '../../src/components/design-system/XPBar';
-import { DigitalClockWidget } from '../../src/components/home/DigitalClockWidget';
+import { WatchClockWidget } from '../../src/components/ios/WatchClockWidget';
 import { WeatherWidget } from '../../src/components/home/WeatherWidget';
+import { StreakHeatmap } from '../../src/components/home/StreakHeatmap';
+import { ActivityMetricGraph } from '../../src/components/home/ActivityMetricGraph';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTheme } from '../../src/hooks/useTheme';
 
-const EXERCISE_OPTIONS = [
-  { type: 'PUSHUP', name: 'Push-ups', target: '20 Reps', icon: Dumbbell, xp: '+50 XP', coins: '+25' },
-  { type: 'SQUAT', name: 'Squats', target: '25 Reps', icon: Activity, xp: '+45 XP', coins: '+20' },
-  { type: 'PLANK', name: 'Plank Hold', target: '45 Sec', icon: Shield, xp: '+40 XP', coins: '+20' },
-  { type: 'SITUP', name: 'Sit-ups', target: '20 Reps', icon: Flame, xp: '+40 XP', coins: '+20' },
-  { type: 'JUMPING_JACK', name: 'Jumping Jacks', target: '30 Reps', icon: Crosshair, xp: '+35 XP', coins: '+15' },
-];
-
 export default function HomeDashboard() {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const haptics = useHaptics();
 
   const profile = usePlayerStore((s) => s.profile);
@@ -71,7 +58,6 @@ export default function HomeDashboard() {
   const completeQuest = useQuestStore((s) => s.completeQuest);
 
   const [loading, setLoading] = useState(true);
-  const [isExercisePickerOpen, setIsExercisePickerOpen] = useState(false);
   const [isNotifSheetOpen, setIsNotifSheetOpen] = useState(false);
   const [hasAllPermissions, setHasAllPermissions] = useState(true);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -143,25 +129,10 @@ export default function HomeDashboard() {
   const coins = profile?.coins || 0;
   const streak = profile?.currentStreak || 0;
   const displayName = profile?.displayName || 'Warrior';
-  const avatarIcon = profile?.avatarIcon || 'user';
+  const avatarIcon = profile?.avatarIcon || 'img_pfp_01';
   const completedQuestsCount = dailyQuests.filter((q) => q.completed).length;
   const totalQuestsCount = dailyQuests.length || 1;
   const winRate = totalQuestsCount > 0 ? Math.round((completedQuestsCount / totalQuestsCount) * 100) : 0;
-
-  // 7-day capsule calendar dates
-  const today = new Date();
-  const currentDayIndex = today.getDay();
-  const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const calendarDays = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date();
-    const diff = i - (currentDayIndex === 0 ? 6 : currentDayIndex - 1);
-    d.setDate(today.getDate() + diff);
-    return {
-      dayName: daysOfWeek[d.getDay()],
-      dateNum: d.getDate(),
-      isToday: diff === 0,
-    };
-  });
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -169,9 +140,9 @@ export default function HomeDashboard() {
         {/* Top Header Bar */}
         <View style={[styles.topHeader, { borderBottomColor: colors.border }]}>
           <View style={styles.headerLeftIcons}>
-            <AriseLogo size={34} glow={true} />
+            <AriseLogo size={32} glow={true} />
             <TouchableOpacity
-              style={[styles.iconBtn, { backgroundColor: colors.surfaceLight, borderColor: colors.border }]}
+              style={[styles.iconBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderColor: colors.border }]}
               onPress={() => router.push('/settings')}
               activeOpacity={0.8}
             >
@@ -179,7 +150,7 @@ export default function HomeDashboard() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.iconBtn, { backgroundColor: colors.surfaceLight, borderColor: colors.border }]}
+              style={[styles.iconBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderColor: colors.border }]}
               onPress={() => {
                 haptics.light();
                 loadNotifications();
@@ -188,7 +159,9 @@ export default function HomeDashboard() {
               activeOpacity={0.8}
             >
               <Bell size={18} color={colors.textPrimary} />
-              {notifications.some((n) => !n.isRead) && <View style={[styles.bellDot, { backgroundColor: colors.primary }]} />}
+              {notifications.some((n) => !n.isRead) && (
+                <View style={[styles.bellDot, { backgroundColor: colors.primary }]} />
+              )}
             </TouchableOpacity>
           </View>
 
@@ -209,11 +182,11 @@ export default function HomeDashboard() {
               }}
               activeOpacity={0.8}
             >
-              <ShieldAlert size={22} color={colors.primary} />
+              <ShieldAlert size={20} color={colors.primary} />
               <View style={{ flex: 1, gap: 2 }}>
                 <Text style={[styles.permAlertTitle, { color: colors.textPrimary }]}>Phone Shield Inactive</Text>
                 <Text style={[styles.permAlertDesc, { color: colors.textSecondary }]}>
-                  Tap to grant Usage Access & Overlay permissions for app locking.
+                  Grant Usage Access & Overlay permissions to lock distraction apps.
                 </Text>
               </View>
               <View style={[styles.permAlertBadge, { backgroundColor: colors.primary }]}>
@@ -222,11 +195,11 @@ export default function HomeDashboard() {
             </TouchableOpacity>
           )}
 
-          {/* Digital Clock Widget */}
-          <DigitalClockWidget />
+          {/* Watch-Style Chronometer Widget */}
+          <WatchClockWidget />
 
           {/* Player Identity Hero Card */}
-          <GlowCard variant="glow" style={styles.heroSection}>
+          <GlassCard variant="glow" style={styles.heroCard}>
             <View style={styles.heroTopRow}>
               <TouchableOpacity
                 onPress={() => router.push('/(tabs)/profile')}
@@ -235,7 +208,7 @@ export default function HomeDashboard() {
               >
                 <PlayerAvatar
                   iconId={avatarIcon}
-                  size={72}
+                  size={68}
                   glow={true}
                   glowColor={colors.primary}
                 />
@@ -246,25 +219,25 @@ export default function HomeDashboard() {
                   <Text style={[styles.playerName, { color: colors.textPrimary }]} numberOfLines={1}>
                     {displayName}
                   </Text>
-                  <View style={[styles.rankTag, { backgroundColor: 'rgba(209, 255, 0, 0.15)' }]}>
+                  <View style={[styles.rankTag, { backgroundColor: isDark ? 'rgba(209, 255, 0, 0.15)' : 'rgba(16, 185, 129, 0.15)' }]}>
                     <Text style={[styles.rankTagText, { color: colors.primary }]}>LV. {level}</Text>
                   </View>
                 </View>
-                <Text style={[styles.playerBioText, { color: colors.textSecondary }]} numberOfLines={2}>
+                <Text style={[styles.playerBioText, { color: colors.textSecondary }]} numberOfLines={1}>
                   {profile?.bio || 'Disciplined warrior in training.'}
                 </Text>
               </View>
             </View>
 
             {/* XP Progress Bar */}
-            <View style={{ width: '100%', marginTop: 6 }}>
+            <View style={{ width: '100%', marginTop: 2 }}>
               <XPBar progress={Math.min(100, Math.round((currentXP / Math.max(1, level * 100)) * 100))} />
             </View>
 
             {/* 3 Metric Columns: Streak | Win Rate | Quests */}
-            <View style={[styles.threeStatsRow, { backgroundColor: colors.surfaceLight, borderColor: colors.border }]}>
+            <View style={[styles.threeStatsRow, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.03)', borderColor: colors.border }]}>
               <View style={styles.statColumn}>
-                <Flame size={18} color={colors.danger} />
+                <Flame size={16} color={colors.danger} />
                 <Text style={[styles.statColumnValue, { color: colors.textPrimary }]}>{streak} Days</Text>
                 <Text style={[styles.statColumnLabel, { color: colors.textMuted }]}>STREAK</Text>
               </View>
@@ -272,79 +245,85 @@ export default function HomeDashboard() {
               <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
 
               <View style={styles.statColumn}>
-                <TrendingUp size={18} color={colors.primary} />
+                <TrendingUp size={16} color={colors.primary} />
                 <Text style={[styles.statColumnValue, { color: colors.textPrimary }]}>{winRate}%</Text>
-                <Text style={[styles.statColumnLabel, { color: colors.textMuted }]}>COMPLETION</Text>
+                <Text style={[styles.statColumnLabel, { color: colors.textMuted }]}>WIN RATE</Text>
               </View>
 
               <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
 
               <View style={styles.statColumn}>
-                <Award size={18} color={colors.secondary} />
+                <Award size={16} color={colors.secondary} />
                 <Text style={[styles.statColumnValue, { color: colors.textPrimary }]}>{completedQuestsCount}</Text>
                 <Text style={[styles.statColumnLabel, { color: colors.textMuted }]}>TASKS DONE</Text>
               </View>
             </View>
-          </GlowCard>
+          </GlassCard>
 
           {/* Quick Actions Dock */}
           <View style={styles.quickActionsSection}>
             <Text style={[styles.sectionHeading, { color: colors.textMuted }]}>QUICK DIRECTIVES</Text>
             <View style={styles.quickDockRow}>
               <TouchableOpacity
-                style={[styles.dockItem, { backgroundColor: colors.card, borderColor: colors.border }]}
+                style={[styles.dockItem, { backgroundColor: isDark ? 'rgba(22, 22, 26, 0.75)' : 'rgba(255, 255, 255, 0.85)', borderColor: colors.border }]}
                 onPress={() => router.push('/(tabs)/progress')}
                 activeOpacity={0.8}
               >
                 <View style={[styles.dockIconCircle, { backgroundColor: 'rgba(209, 255, 0, 0.15)' }]}>
-                  <Dumbbell size={20} color={colors.primary} />
+                  <Dumbbell size={18} color={colors.primary} />
                 </View>
                 <Text style={[styles.dockLabel, { color: colors.textPrimary }]}>Gym</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.dockItem, { backgroundColor: colors.card, borderColor: colors.border }]}
+                style={[styles.dockItem, { backgroundColor: isDark ? 'rgba(22, 22, 26, 0.75)' : 'rgba(255, 255, 255, 0.85)', borderColor: colors.border }]}
                 onPress={() => router.push('/focus/session')}
                 activeOpacity={0.8}
               >
                 <View style={[styles.dockIconCircle, { backgroundColor: 'rgba(0, 240, 255, 0.15)' }]}>
-                  <Crosshair size={20} color={colors.secondary} />
+                  <Crosshair size={18} color={colors.secondary} />
                 </View>
                 <Text style={[styles.dockLabel, { color: colors.textPrimary }]}>Focus</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.dockItem, { backgroundColor: colors.card, borderColor: colors.border }]}
+                style={[styles.dockItem, { backgroundColor: isDark ? 'rgba(22, 22, 26, 0.75)' : 'rgba(255, 255, 255, 0.85)', borderColor: colors.border }]}
                 onPress={() => router.push('/photos')}
                 activeOpacity={0.8}
               >
                 <View style={[styles.dockIconCircle, { backgroundColor: 'rgba(255, 184, 0, 0.15)' }]}>
-                  <Camera size={20} color={colors.accentGold} />
+                  <Camera size={18} color={colors.accentGold} />
                 </View>
                 <Text style={[styles.dockLabel, { color: colors.textPrimary }]}>Photo</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.dockItem, { backgroundColor: colors.card, borderColor: colors.border }]}
+                style={[styles.dockItem, { backgroundColor: isDark ? 'rgba(22, 22, 26, 0.75)' : 'rgba(255, 255, 255, 0.85)', borderColor: colors.border }]}
                 onPress={() => router.push('/shop')}
                 activeOpacity={0.8}
               >
                 <View style={[styles.dockIconCircle, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
-                  <ShoppingBag size={20} color={colors.danger} />
+                  <ShoppingBag size={18} color={colors.danger} />
                 </View>
                 <Text style={[styles.dockLabel, { color: colors.textPrimary }]}>Shop</Text>
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* Weather Widget */}
+          {/* GitHub-Style 12-Week Streak Heatmap */}
+          <StreakHeatmap />
+
+          {/* 7-Day Switchable Activity Metric Graph */}
+          <ActivityMetricGraph />
+
+          {/* Real/Cached Weather Card */}
           <WeatherWidget />
 
           {/* Today's Active Quests Section */}
           <View style={styles.questsSection}>
             <View style={styles.sectionHeaderRow}>
               <Text style={[styles.sectionHeading, { color: colors.textMuted }]}>
-                TODAY'S QUESTS ({completedQuestsCount}/{dailyQuests.length})
+                TODAY'S MISSION ({completedQuestsCount}/{dailyQuests.length})
               </Text>
               <TouchableOpacity onPress={() => router.push('/(tabs)/quests')}>
                 <Text style={[styles.seeAllText, { color: colors.primary }]}>VIEW ALL</Text>
@@ -352,16 +331,16 @@ export default function HomeDashboard() {
             </View>
 
             {dailyQuests.length === 0 ? (
-              <GlowCard variant="default" style={styles.emptyCard}>
-                <Sparkles size={28} color={colors.textMuted} />
-                <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>All Quests Complete</Text>
+              <GlassCard variant="default" style={styles.emptyCard}>
+                <Sparkles size={24} color={colors.textMuted} />
+                <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>All Quests Completed</Text>
                 <Text style={[styles.emptySub, { color: colors.textSecondary }]}>
                   New daily protocol quests regenerate tomorrow at 00:00.
                 </Text>
-              </GlowCard>
+              </GlassCard>
             ) : (
               dailyQuests.slice(0, 3).map((q) => (
-                <GlowCard key={q.id} variant={q.completed ? 'default' : 'glow'} style={styles.questCard}>
+                <GlassCard key={q.id} variant={q.completed ? 'default' : 'glow'} style={styles.questCard}>
                   <View style={styles.questCardLeft}>
                     <View
                       style={[
@@ -369,7 +348,7 @@ export default function HomeDashboard() {
                         q.completed && { backgroundColor: colors.primary, borderColor: colors.primary },
                       ]}
                     >
-                      {q.completed && <Check size={14} color="#000" strokeWidth={3} />}
+                      {q.completed && <Check size={12} color="#000" strokeWidth={3} />}
                     </View>
                     <View style={{ flex: 1, gap: 2 }}>
                       <Text
@@ -388,36 +367,14 @@ export default function HomeDashboard() {
                   </View>
 
                   <View style={styles.questCardRight}>
-                    <View style={[styles.rewardTag, { backgroundColor: 'rgba(209, 255, 0, 0.1)' }]}>
+                    <View style={[styles.rewardTag, { backgroundColor: isDark ? 'rgba(209, 255, 0, 0.1)' : 'rgba(16, 185, 129, 0.1)' }]}>
                       <Text style={[styles.rewardTagText, { color: colors.primary }]}>+{q.rewardCoins} 🪙</Text>
                     </View>
                   </View>
-                </GlowCard>
+                </GlassCard>
               ))
             )}
           </View>
-
-          {/* Weekly 7-Day Capsule Panel */}
-          <GlowCard variant="default" style={styles.weeklyPanel}>
-            <View style={styles.weeklyRow}>
-              {calendarDays.map((item, idx) => (
-                <View
-                  key={idx}
-                  style={[
-                    styles.dayItem,
-                    item.isToday && { backgroundColor: 'rgba(209, 255, 0, 0.12)', borderColor: colors.primary, borderWidth: 1 },
-                  ]}
-                >
-                  <Text style={[styles.dayText, { color: item.isToday ? colors.primary : colors.textMuted }]}>
-                    {item.dayName}
-                  </Text>
-                  <Text style={[styles.dateText, { color: item.isToday ? colors.textPrimary : colors.textSecondary }]}>
-                    {item.dateNum}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </GlowCard>
 
           <View style={{ height: 100 }} />
         </ScrollView>
@@ -430,29 +387,32 @@ export default function HomeDashboard() {
           onRequestClose={() => setIsNotifSheetOpen(false)}
         >
           <View style={styles.modalOverlay}>
-            <View style={[styles.modalSheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <GlassCard variant="elevated" style={styles.modalSheet}>
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>System Notifications</Text>
                 <TouchableOpacity onPress={() => setIsNotifSheetOpen(false)} style={styles.iconBtn}>
-                  <X size={20} color={colors.textSecondary} />
+                  <X size={18} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
 
-              <ScrollView style={{ maxHeight: 350 }} contentContainerStyle={{ gap: 10 }}>
+              <ScrollView style={{ maxHeight: 360 }} contentContainerStyle={{ gap: 10 }}>
                 {notifications.length === 0 ? (
-                  <View style={{ padding: 30, alignItems: 'center', gap: 8 }}>
-                    <Sparkles size={28} color={colors.textMuted} />
-                    <Text style={{ color: colors.textPrimary, fontWeight: '800', fontSize: 14 }}>
+                  <View style={{ padding: 28, alignItems: 'center', gap: 8 }}>
+                    <Sparkles size={24} color={colors.textMuted} />
+                    <Text style={{ color: colors.textPrimary, fontWeight: '800', fontSize: 13 }}>
                       No notifications yet.
                     </Text>
-                    <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>
+                    <Text style={{ color: colors.textMuted, fontSize: 11, textAlign: 'center' }}>
                       Quest completions and achievements will appear here.
                     </Text>
                   </View>
                 ) : (
                   notifications.map((n) => (
-                    <GlowCard key={n.id} variant="default" style={styles.notifCard}>
-                      <Sparkles size={20} color={colors.primary} />
+                    <View
+                      key={n.id}
+                      style={[styles.notifCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}
+                    >
+                      <Sparkles size={18} color={colors.primary} />
                       <View style={{ flex: 1, gap: 2 }}>
                         <Text style={[styles.notifTitle, { color: colors.textPrimary }]}>{n.title}</Text>
                         <Text style={[styles.notifDesc, { color: colors.textSecondary }]}>{n.message}</Text>
@@ -463,11 +423,11 @@ export default function HomeDashboard() {
                           })}
                         </Text>
                       </View>
-                    </GlowCard>
+                    </View>
                   ))
                 )}
               </ScrollView>
-            </View>
+            </GlassCard>
           </View>
         </Modal>
       </SafeAreaView>
@@ -483,14 +443,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     paddingVertical: 10,
     borderBottomWidth: 1,
   },
   headerLeftIcons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
   iconBtn: {
     width: 36,
@@ -503,51 +463,51 @@ const styles = StyleSheet.create({
   },
   bellDot: {
     position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
+    top: 7,
+    right: 7,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   scrollContent: {
-    padding: 20,
-    gap: 16,
+    padding: 16,
+    gap: 14,
   },
   permAlertCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
+    padding: 12,
     borderRadius: 16,
     borderWidth: 1,
-    gap: 12,
+    gap: 10,
   },
   permAlertTitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '900',
   },
   permAlertDesc: {
-    fontSize: 11,
-    lineHeight: 15,
+    fontSize: 10,
+    lineHeight: 14,
   },
   permAlertBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 6,
   },
   permAlertBadgeText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '900',
     color: '#000',
   },
-  heroSection: {
-    padding: 18,
+  heroCard: {
+    padding: 16,
     borderRadius: 22,
-    gap: 14,
+    gap: 12,
   },
   heroTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 12,
   },
   avatarWrap: {
     position: 'relative',
@@ -558,28 +518,28 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   playerName: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '900',
   },
   rankTag: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 6,
   },
   rankTagText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '900',
     letterSpacing: 0.5,
   },
   playerBioText: {
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 11,
+    lineHeight: 14,
   },
   threeStatsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderRadius: 14,
     borderWidth: 1,
   },
@@ -589,18 +549,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   statColumnValue: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '900',
     marginTop: 2,
   },
   statColumnLabel: {
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: '800',
     letterSpacing: 0.8,
   },
   statDivider: {
     width: 1,
-    height: 24,
+    height: 20,
   },
   quickActionsSection: {
     gap: 8,
@@ -612,25 +572,25 @@ const styles = StyleSheet.create({
   },
   quickDockRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
   },
   dockItem: {
     flex: 1,
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderRadius: 16,
     borderWidth: 1,
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
   },
   dockIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
   },
   dockLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '800',
   },
   questsSection: {
@@ -642,7 +602,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   seeAllText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '900',
     letterSpacing: 0.8,
   },
@@ -650,92 +610,67 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 14,
+    padding: 12,
     borderRadius: 16,
   },
   questCardLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
     flex: 1,
   },
   questCheckCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1.5,
     borderColor: '#333',
     justifyContent: 'center',
     alignItems: 'center',
   },
   questTitleText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '900',
   },
   questDescText: {
-    fontSize: 11,
+    fontSize: 10,
   },
   questCardRight: {
-    marginLeft: 8,
+    marginLeft: 6,
   },
   rewardTag: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
     borderRadius: 6,
   },
   rewardTagText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '900',
   },
   emptyCard: {
-    padding: 24,
+    padding: 20,
     alignItems: 'center',
     gap: 6,
     borderRadius: 16,
   },
   emptyTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '900',
   },
   emptySub: {
-    fontSize: 11,
+    fontSize: 10,
     textAlign: 'center',
-  },
-  weeklyPanel: {
-    padding: 12,
-    borderRadius: 18,
-  },
-  weeklyRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  dayItem: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderRadius: 10,
-    gap: 4,
-  },
-  dayText: {
-    fontSize: 9,
-    fontWeight: '800',
-  },
-  dateText: {
-    fontSize: 12,
-    fontWeight: '900',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    padding: 20,
-    gap: 14,
-    borderWidth: 1,
+    padding: 18,
+    gap: 12,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -743,21 +678,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '900',
   },
   notifCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    padding: 12,
-    borderRadius: 14,
+    gap: 10,
+    padding: 10,
+    borderRadius: 12,
   },
   notifTitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '900',
   },
   notifDesc: {
-    fontSize: 11,
+    fontSize: 10,
   },
 });
