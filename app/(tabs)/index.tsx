@@ -44,6 +44,7 @@ import { WatchClockWidget } from '../../src/components/ios/WatchClockWidget';
 import { WeatherWidget } from '../../src/components/home/WeatherWidget';
 import { StreakHeatmap } from '../../src/components/home/StreakHeatmap';
 import { ActivityMetricGraph } from '../../src/components/home/ActivityMetricGraph';
+import { IOSActivityRings } from '../../src/components/ios/IOSActivityRings';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTheme } from '../../src/hooks/useTheme';
 
@@ -258,6 +259,22 @@ export default function HomeDashboard() {
                 <Text style={[styles.statColumnLabel, { color: colors.textMuted }]}>TASKS DONE</Text>
               </View>
             </View>
+          </GlassCard>
+
+          {/* Apple Fitness Activity Rings Card */}
+          <GlassCard variant="elevated" style={styles.activityRingsCard}>
+            <View style={styles.ringsHeaderRow}>
+              <Text style={[styles.ringsCardTitle, { color: colors.textPrimary }]}>ACTIVITY RINGS</Text>
+              <Text style={[styles.ringsCardDate, { color: colors.textMuted }]}>
+                {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase()}
+              </Text>
+            </View>
+            <IOSActivityRings
+              workoutProgress={Math.min(100, (completedQuestsCount / Math.max(1, totalQuestsCount)) * 100)}
+              focusProgress={Math.min(100, Math.round(((profile?.dailyFocusGoal || 30) / 45) * 100))}
+              questProgress={winRate}
+              size={130}
+            />
           </GlassCard>
 
           {/* Quick Actions Dock */}
@@ -694,5 +711,26 @@ const styles = StyleSheet.create({
   },
   notifDesc: {
     fontSize: 10,
+  },
+  activityRingsCard: {
+    padding: 16,
+    borderRadius: 22,
+    gap: 12,
+  },
+  ringsHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  ringsCardTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  ringsCardDate: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
 });

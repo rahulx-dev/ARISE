@@ -23,6 +23,7 @@ import {
 } from 'lucide-react-native';
 import { GlassCard } from '../../src/components/ios/GlassCard';
 import { GlassButton } from '../../src/components/ios/GlassButton';
+import { IOSSegmentedControl } from '../../src/components/ios/IOSSegmentedControl';
 import { useQuestStore } from '../../src/stores/useQuestStore';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { useSound } from '../../src/hooks/useSound';
@@ -109,36 +110,20 @@ export default function QuestsTab() {
             </View>
           </GlassCard>
 
-          {/* Filter Pills */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-            {(['ALL', 'DAILY', 'STRENGTH', 'FOCUS'] as const).map((filter) => {
-              const isSelected = activeFilter === filter;
-              return (
-                <TouchableOpacity
-                  key={filter}
-                  onPress={() => {
-                    haptics.light();
-                    setActiveFilter(filter);
-                  }}
-                  style={[
-                    styles.filterPill,
-                    { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0,0,0,0.04)', borderColor: colors.border },
-                    isSelected && { backgroundColor: colors.primary, borderColor: colors.primary },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.filterPillText,
-                      { color: colors.textSecondary },
-                      isSelected && { color: '#000000', fontWeight: '900' },
-                    ]}
-                  >
-                    {filter}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+          {/* Apple iOS Segmented Control Filter */}
+          <View style={{ paddingVertical: 2 }}>
+            <IOSSegmentedControl<'ALL' | 'DAILY' | 'STRENGTH' | 'FOCUS'>
+              values={['ALL', 'DAILY', 'STRENGTH', 'FOCUS']}
+              labels={{
+                ALL: 'All',
+                DAILY: 'Daily',
+                STRENGTH: 'Strength',
+                FOCUS: 'Focus',
+              }}
+              selectedValue={activeFilter}
+              onChange={(val) => setActiveFilter(val)}
+            />
+          </View>
 
           {/* Quests List */}
           <View style={styles.questsList}>
