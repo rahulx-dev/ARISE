@@ -150,6 +150,18 @@ npx eas-cli build -p android --profile preview
 
 ---
 
+## 🤝 Contributing & Road Ahead
+
+ARISE is an actively evolving, community-driven project. While the core native engine, ML Kit kinematics, and offline SQLite architecture are solidly built, you may encounter minor edge-case bugs or device-specific quirks as we continue to push updates.
+
+We're continuously improving stability, pose accuracy, and performance! 
+
+**Want to help make ARISE better?**
+- Found a bug or have an idea? Open an [Issue](https://github.com/rahulx-dev/ARISE/issues).
+- Want to contribute code, optimize ML models, or add new exercises? Fork the repo, create a branch, and open a **Pull Request** — all contributions are warmly welcomed!
+
+---
+
 ## 📜 License
 
 Distributed under the MIT License. See `LICENSE` for more information.
@@ -157,5 +169,5 @@ Distributed under the MIT License. See `LICENSE` for more information.
 ---
 
 <div align="center">
-Built with discipline by <b>Rahul</b> & the ARISE Core Team.
+Crafted with discipline by <b><a href="https://github.com/rahulx-dev">Rahul</a></b>.
 </div>
