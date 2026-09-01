@@ -8,22 +8,23 @@ import {
   TextInput,
   ActivityIndicator,
   AppState,
+  Alert,
+  Image,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ArrowLeft,
   Search,
-  LayoutGrid,
-  Check,
-  Smartphone,
+  Lock,
+  Unlock,
+  HelpCircle,
   ShieldAlert,
-  ShieldCheck,
-  RefreshCw,
+  Smartphone,
 } from 'lucide-react-native';
-import { MasterCard } from '../../src/components/master/MasterCard';
-import { MasterButton } from '../../src/components/master/MasterButton';
-import { appBlockerService } from '../../src/native';
+import { GlowCard } from '../../src/components/design-system/GlowCard';
+import { appBlockerService, InstalledAppItem } from '../../src/native';
 import { db } from '../../src/database/client';
 import { appRestriction } from '../../src/database/schema';
 import { eq } from 'drizzle-orm';
@@ -34,9 +35,10 @@ interface AppItem {
   packageName: string;
   appName: string;
   isRestricted: boolean;
+  appIconBase64?: string;
 }
 
-export default function SelectAppsScreen() {
+export default function LockedAppsScreen() {
   const router = useRouter();
   const haptics = useHaptics();
 
@@ -74,18 +76,30 @@ export default function SelectAppsScreen() {
         saved.filter((r) => r.isRestricted === 1).map((r) => r.packageName)
       );
 
-      const nonSystemApps = installed.filter((a) => !a.isSystemApp);
-      const targetApps = nonSystemApps.length > 0 ? nonSystemApps : installed;
-
-      const merged: AppItem[] = targetApps.map((app) => ({
-        packageName: app.packageName,
-        appName: app.appName,
-        isRestricted: restrictedSet.has(app.packageName),
-      }));
-
-      // Sort alphabetically by appName
-      merged.sort((a, b) => a.appName.localeCompare(b.appName));
-      setAllApps(merged);
+      if (installed.length > 0) {
+        const merged: AppItem[] = installed
+          .filter((a) => !a.isSystemApp || restrictedSet.has(a.packageName))
+          .map((app) => ({
+            packageName: app.packageName,
+            appName: app.appName,
+            isRestricted: restrictedSet.has(app.packageName),
+            appIconBase64: app.appIconBase64,
+          }));
+        merged.sort((a, b) => (b.isRestricted ? 1 : 0) - (a.isRestricted ? 1 : 0));
+        setAllApps(merged);
+      } else {
+        // Only on Web preview fallback if no native apps found
+        if (Platform.OS === 'web') {
+          const webDemo = [
+            { packageName: 'com.instagram.android', appName: 'Instagram', isRestricted: restrictedSet.has('com.instagram.android') },
+            { packageName: 'com.google.android.youtube', appName: 'YouTube', isRestricted: restrictedSet.has('com.google.android.youtube') },
+            { packageName: 'com.zhiliaoapp.musically', appName: 'TikTok', isRestricted: restrictedSet.has('com.zhiliaoapp.musically') },
+          ];
+          setAllApps(webDemo);
+        } else {
+          setAllApps([]);
+        }
+      }
     } catch (e) {
       console.error('Error loading apps:', e);
     } finally {
@@ -103,120 +117,101 @@ export default function SelectAppsScreen() {
     );
   }, [allApps, searchQuery]);
 
-  const toggleAppRestriction = (packageName: string) => {
-    haptics.light();
+  const toggleAppRestriction = async (item: AppItem) => {
+    haptics.medium();
+    const newStatus = !item.isRestricted;
+
+    // Optimistic UI update
     setAllApps((prev) =>
-      prev.map((app) =>
-        app.packageName === packageName
-          ? { ...app, isRestricted: !app.isRestricted }
-          : app
+      prev.map((a) =>
+        a.packageName === item.packageName
+          ? { ...a, isRestricted: newStatus }
+          : a
       )
     );
-  };
 
-  const restrictedCount = useMemo(() => {
-    return allApps.filter((a) => a.isRestricted).length;
-  }, [allApps]);
-
-  const handleSave = async () => {
-    haptics.medium();
     try {
-      for (const app of allApps) {
-        const existing = await db
-          .select()
-          .from(appRestriction)
-          .where(eq(appRestriction.packageName, app.packageName))
-          .limit(1);
+      const existing = await db
+        .select()
+        .from(appRestriction)
+        .where(eq(appRestriction.packageName, item.packageName));
 
-        if (existing.length > 0) {
-          await db
-            .update(appRestriction)
-            .set({
-              isRestricted: app.isRestricted ? 1 : 0,
-            })
-            .where(eq(appRestriction.packageName, app.packageName));
-        } else if (app.isRestricted) {
-          await db.insert(appRestriction).values({
-            packageName: app.packageName,
-            appName: app.appName,
-            isRestricted: 1,
-          });
-        }
-      }
-
-      const restrictedPkgs = allApps
-        .filter((a) => a.isRestricted)
-        .map((a) => a.packageName);
-
-      if (restrictedPkgs.length > 0) {
-        appBlockerService.startMonitoring(restrictedPkgs);
+      if (existing.length > 0) {
+        await db
+          .update(appRestriction)
+          .set({ isRestricted: newStatus ? 1 : 0 })
+          .where(eq(appRestriction.packageName, item.packageName));
       } else {
-        appBlockerService.stopMonitoring();
+        await db.insert(appRestriction).values({
+          packageName: item.packageName,
+          appName: item.appName,
+          isRestricted: newStatus ? 1 : 0,
+        });
       }
 
-      haptics.success();
-      router.back();
+      // Sync active restricted packages with native monitor
+      const updatedSaved = await db.select().from(appRestriction);
+      const restrictedPackages = updatedSaved
+        .filter((r) => r.isRestricted === 1)
+        .map((r) => r.packageName);
+
+      appBlockerService.setRestrictedPackages(restrictedPackages);
     } catch (e) {
-      console.error('Error saving app restrictions:', e);
+      console.error('Error updating app restriction:', e);
     }
-  };
-
-  const handleSelectAll = () => {
-    haptics.light();
-    setAllApps((prev) => prev.map((a) => ({ ...a, isRestricted: true })));
-  };
-
-  const handleClearAll = () => {
-    haptics.light();
-    setAllApps((prev) => prev.map((a) => ({ ...a, isRestricted: false })));
   };
 
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        {/* Header: ← Select Apps */}
+        {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.circleBtn}>
-            <ArrowLeft size={20} color={colors.textPrimary} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Select Apps</Text>
-          <TouchableOpacity onPress={loadApps} style={styles.circleBtn}>
-            <RefreshCw size={18} color={colors.textSecondary} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Permission Warnings if missing */}
-        {(!hasUsagePerm || !hasOverlayPerm) && (
-          <View style={styles.permWarningBox}>
-            <ShieldAlert size={20} color={colors.accentGold} />
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text style={styles.permWarningTitle}>Permissions Required</Text>
-              <Text style={styles.permWarningDesc}>
-                {!hasUsagePerm && !hasOverlayPerm
-                  ? 'Usage Access & Display Overlay needed to lock apps.'
-                  : !hasUsagePerm
-                  ? 'Usage Access needed to detect active apps.'
-                  : 'Display Overlay needed to show lock screen.'}
-              </Text>
-            </View>
+          <View style={styles.headerLeft}>
             <TouchableOpacity
-              style={styles.permFixBtn}
-              onPress={() => {
-                haptics.medium();
-                if (!hasUsagePerm) {
-                  appBlockerService.requestUsagePermission();
-                } else {
-                  appBlockerService.requestOverlayPermission();
-                }
-              }}
+              style={styles.iconBtn}
+              onPress={() => router.back()}
+              activeOpacity={0.8}
             >
-              <Text style={styles.permFixBtnText}>FIX</Text>
+              <ArrowLeft size={20} color={colors.textPrimary} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Locked Apps</Text>
+          </View>
+
+          <View style={styles.headerRight}>
+            <TouchableOpacity
+              style={styles.iconBtn}
+              onPress={() =>
+                Alert.alert(
+                  'Locked Apps Protocol',
+                  'Apps with lock enabled require screen-time tokens earned from physical exercise and focus sessions to open.'
+                )
+              }
+              activeOpacity={0.8}
+            >
+              <HelpCircle size={20} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
-        )}
+        </View>
 
-        {/* Search Bar & Quick Toggles */}
-        <View style={styles.searchRow}>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {/* Permission Alert if missing */}
+          {(!hasUsagePerm || !hasOverlayPerm) && (
+            <TouchableOpacity
+              style={styles.permBanner}
+              onPress={() => router.push('/permissions' as any)}
+              activeOpacity={0.8}
+            >
+              <ShieldAlert size={22} color={colors.accentGold} />
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={styles.permBannerTitle}>Permissions Required</Text>
+                <Text style={styles.permBannerDesc}>
+                  Grant Usage Access and Display Over Apps for instant lock enforcement.
+                </Text>
+              </View>
+            </TouchableOpacity>
+          )}
+
+          {/* Search Box */}
           <View style={styles.searchBar}>
             <Search size={18} color={colors.textMuted} />
             <TextInput
@@ -225,87 +220,86 @@ export default function SelectAppsScreen() {
               placeholderTextColor={colors.textMuted}
               value={searchQuery}
               onChangeText={setSearchQuery}
-              autoCapitalize="none"
-              autoCorrect={false}
             />
           </View>
-        </View>
 
-        {/* Quick Action Pill Row */}
-        <View style={styles.quickActionRow}>
-          <Text style={styles.appCountLabel}>
-            {filteredApps.length} Apps ({restrictedCount} restricted)
-          </Text>
-          <View style={styles.quickPills}>
-            <TouchableOpacity style={styles.pillBtn} onPress={handleSelectAll}>
-              <Text style={styles.pillBtnText}>Select All</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.pillBtn} onPress={handleClearAll}>
-              <Text style={styles.pillBtnText}>Clear All</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* App List */}
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {/* App List */}
           {loading ? (
-            <View style={styles.loadingContainer}>
+            <View style={styles.loadingWrap}>
               <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={styles.loadingText}>Scanning device for installed apps...</Text>
+              <Text style={styles.loadingText}>Scanning device for installed applications...</Text>
             </View>
           ) : filteredApps.length === 0 ? (
-            <View style={styles.emptyContainer}>
+            <View style={styles.emptyWrap}>
               <Smartphone size={36} color={colors.textMuted} />
-              <Text style={styles.emptyTitle}>No matching apps found</Text>
-              <Text style={styles.emptyDesc}>Try adjusting your search query</Text>
+              <Text style={styles.emptyTitle}>No Applications Found</Text>
+              <Text style={styles.emptyDesc}>
+                {searchQuery
+                  ? 'No apps match your search query.'
+                  : 'Grant Usage Access permission to view and lock installed apps.'}
+              </Text>
             </View>
           ) : (
-            <View style={styles.appsList}>
-              {filteredApps.map((app) => (
+            <View style={styles.appList}>
+              {filteredApps.map((item) => (
                 <TouchableOpacity
-                  key={app.packageName}
-                  style={styles.appRow}
-                  onPress={() => toggleAppRestriction(app.packageName)}
+                  key={item.packageName}
+                  onPress={() => toggleAppRestriction(item)}
                   activeOpacity={0.8}
                 >
-                  <View style={styles.appIconCircle}>
-                    <Smartphone size={20} color={app.isRestricted ? colors.primary : colors.textMuted} />
-                  </View>
-
-                  <View style={styles.appMeta}>
-                    <Text style={styles.appName}>{app.appName}</Text>
-                    <Text style={styles.appPackage} numberOfLines={1}>
-                      {app.packageName}
-                    </Text>
-                  </View>
-
-                  {/* Square Green Checkbox */}
-                  <View
-                    style={[
-                      styles.checkbox,
-                      app.isRestricted && styles.checkboxActive,
-                    ]}
+                  <GlowCard
+                    variant={item.isRestricted ? 'glow' : 'default'}
+                    style={styles.appCard}
                   >
-                    {app.isRestricted && (
-                      <Check size={14} color="#0A0A0A" strokeWidth={3} />
-                    )}
-                  </View>
+                    <View style={styles.appLeft}>
+                      <View
+                        style={[
+                          styles.appIconCircle,
+                          item.isRestricted && styles.appIconCircleLocked,
+                        ]}
+                      >
+                        {item.appIconBase64 ? (
+                          <Image
+                            source={{ uri: item.appIconBase64 }}
+                            style={styles.appIconImg}
+                            resizeMode="contain"
+                          />
+                        ) : (
+                          <Smartphone
+                            size={20}
+                            color={item.isRestricted ? colors.primary : colors.textSecondary}
+                          />
+                        )}
+                      </View>
+
+                      <View style={{ flex: 1, gap: 2 }}>
+                        <Text style={styles.appName}>{item.appName}</Text>
+                        <Text style={styles.appPkg} numberOfLines={1}>
+                          {item.packageName}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View
+                      style={[
+                        styles.lockBadge,
+                        item.isRestricted && styles.lockBadgeActive,
+                      ]}
+                    >
+                      {item.isRestricted ? (
+                        <Lock size={18} color={colors.primary} />
+                      ) : (
+                        <Unlock size={18} color={colors.textMuted} />
+                      )}
+                    </View>
+                  </GlowCard>
                 </TouchableOpacity>
               ))}
             </View>
           )}
 
-          <View style={{ height: 110 }} />
+          <View style={{ height: 40 }} />
         </ScrollView>
-
-        {/* Sticky Bottom Button: [ Save Selection (5) ] */}
-        <View style={styles.footer}>
-          <MasterButton
-            title={`Save Selection (${restrictedCount})`}
-            onPress={handleSave}
-            variant="green"
-          />
-        </View>
       </SafeAreaView>
     </View>
   );
@@ -319,193 +313,157 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingTop: 8,
+    paddingBottom: 12,
   },
-  circleBtn: {
-    padding: 6,
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: '900',
     color: colors.textPrimary,
+    letterSpacing: 0.5,
   },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    gap: 12,
-    marginBottom: 12,
-  },
-  searchBar: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#141414',
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+  iconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: '#1F1F1F',
-    gap: 10,
-  },
-  searchInput: {
-    flex: 1,
-    color: colors.textPrimary,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  gridBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 16,
-    backgroundColor: '#141414',
-    borderWidth: 1,
-    borderColor: '#1F1F1F',
+    borderColor: '#242424',
     justifyContent: 'center',
     alignItems: 'center',
   },
   scrollContent: {
     paddingHorizontal: 20,
+    gap: 16,
+    paddingTop: 4,
   },
-  appsList: {
-    gap: 14,
-  },
-  appRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  appIconCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    backgroundColor: '#141414',
-    borderWidth: 1,
-    borderColor: '#1F1F1F',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  appMeta: {
-    flex: 1,
-    gap: 2,
-  },
-  appName: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: colors.textPrimary,
-  },
-  appPackage: {
-    fontSize: 11,
-    color: colors.textMuted,
-  },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: '#2E2E2E',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkboxActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: colors.background,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#1A1A1A',
-  },
-  permWarningBox: {
+  permBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     backgroundColor: '#1E190A',
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: '#4A3A10',
     padding: 14,
-    marginHorizontal: 20,
-    marginBottom: 12,
   },
-  permWarningTitle: {
-    fontSize: 13,
-    fontWeight: '800',
+  permBannerTitle: {
+    fontSize: 14,
+    fontWeight: '900',
     color: colors.accentGold,
   },
-  permWarningDesc: {
+  permBannerDesc: {
     fontSize: 11,
     color: colors.textMuted,
     lineHeight: 15,
   },
-  permFixBtn: {
-    backgroundColor: colors.accentGold,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  permFixBtnText: {
-    fontSize: 11,
-    fontWeight: '900',
-    color: '#0A0A0A',
-  },
-  quickActionRow: {
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginBottom: 12,
-  },
-  appCountLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.textMuted,
-  },
-  quickPills: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  pillBtn: {
-    backgroundColor: '#181818',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
+    gap: 10,
+    backgroundColor: '#161616',
+    borderRadius: 100,
     borderWidth: 1,
-    borderColor: '#282828',
+    borderColor: '#242424',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
-  pillBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.textSecondary,
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.textPrimary,
+    fontWeight: '600',
   },
-  loadingContainer: {
-    paddingVertical: 60,
+  loadingWrap: {
     alignItems: 'center',
+    paddingVertical: 40,
     gap: 12,
   },
   loadingText: {
     fontSize: 13,
-    color: colors.textMuted,
-    fontWeight: '600',
+    color: colors.textSecondary,
   },
-  emptyContainer: {
-    paddingVertical: 60,
+  emptyWrap: {
     alignItems: 'center',
+    paddingVertical: 48,
     gap: 8,
   },
   emptyTitle: {
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '900',
     color: colors.textPrimary,
   },
   emptyDesc: {
     fontSize: 12,
     color: colors.textMuted,
+    textAlign: 'center',
+    maxWidth: 260,
+    lineHeight: 16,
+  },
+  appList: {
+    gap: 10,
+  },
+  appCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+    borderRadius: 20,
+  },
+  appLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  appIconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: '#1E1E1E',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  appIconCircleLocked: {
+    backgroundColor: 'rgba(209, 255, 0, 0.1)',
+  },
+  appIconImg: {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+  },
+  appName: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: colors.textPrimary,
+  },
+  appPkg: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  lockBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#1C1C1C',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  lockBadgeActive: {
+    backgroundColor: 'rgba(209, 255, 0, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(209, 255, 0, 0.3)',
   },
 });

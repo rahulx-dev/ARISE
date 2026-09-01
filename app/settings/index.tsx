@@ -22,32 +22,39 @@ import {
   ChevronRight,
   X,
   AlertTriangle,
+  User,
+  Camera,
+  Moon,
+  Music,
+  Sliders,
 } from 'lucide-react-native';
-import { MasterCard } from '../../src/components/master/MasterCard';
-import { MasterButton } from '../../src/components/master/MasterButton';
+import { GlowCard } from '../../src/components/design-system/GlowCard';
+import { GlowButton } from '../../src/components/design-system/GlowButton';
 import { useSettingsStore } from '../../src/stores/useSettingsStore';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { useHaptics } from '../../src/hooks/useHaptics';
-import { colors } from '../../src/theme/colors';
+import { useTheme } from '../../src/hooks/useTheme';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const haptics = useHaptics();
+  const { colors } = useTheme();
 
   const {
     sfxEnabled,
     hapticsEnabled,
     notificationsEnabled,
+    bgMusicEnabled,
     toggleSfx,
     toggleHaptics,
     toggleNotifications,
+    setBgMusic,
   } = useSettingsStore();
 
   const resetProfile = usePlayerStore((s) => s.resetProfile);
 
   const [showResetModal, setShowResetModal] = useState<boolean>(false);
   const [confirmInput, setConfirmInput] = useState<string>('');
-  const [resetDone, setResetDone] = useState<boolean>(false);
 
   const handleResetData = async () => {
     if (confirmInput.trim().toUpperCase() !== 'ARISE') {
@@ -59,72 +66,108 @@ export default function SettingsScreen() {
     setShowResetModal(false);
     setConfirmInput('');
     haptics.heavy();
-    setResetDone(true);
+    router.replace('/(onboarding)');
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <SafeAreaView style={styles.safeArea}>
         {/* Header */}
-        <View style={styles.headerRow}>
+        <View style={[styles.headerRow, { borderBottomColor: colors.border }]}>
           <TouchableOpacity
-            style={styles.backBtn}
+            style={[styles.backBtn, { backgroundColor: colors.surfaceLight, borderColor: colors.border }]}
             onPress={() => router.back()}
             activeOpacity={0.8}
           >
             <ArrowLeft size={20} color={colors.textPrimary} />
           </TouchableOpacity>
 
-          <Text style={styles.headerTitle}>System Settings</Text>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>SYSTEM SETTINGS</Text>
           <View style={{ width: 40 }} />
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Section 1: Permissions & Restrictions */}
-          <Text style={styles.sectionHeader}>PERMISSIONS & RESTRICTIONS</Text>
-          <MasterCard style={styles.cardBlock}>
+          {/* Section 1: Profile & Identity */}
+          <Text style={[styles.sectionHeader, { color: colors.textMuted }]}>IDENTITY & CUSTOMIZATION</Text>
+          <GlowCard variant="default" style={styles.cardBlock}>
+            <TouchableOpacity
+              style={styles.navRow}
+              activeOpacity={0.7}
+              onPress={() => router.push('/settings/profile-edit' as any)}
+            >
+              <View style={[styles.iconCircle, { backgroundColor: 'rgba(209, 255, 0, 0.15)' }]}>
+                <User size={20} color={colors.primary} />
+              </View>
+              <View style={styles.settingTextGroup}>
+                <Text style={[styles.settingTitle, { color: colors.textPrimary }]}>Edit Profile & Avatar</Text>
+                <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>Callsign, bio, goals & custom PFP</Text>
+              </View>
+              <ChevronRight size={18} color={colors.textMuted} />
+            </TouchableOpacity>
+
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+            <TouchableOpacity
+              style={styles.navRow}
+              activeOpacity={0.7}
+              onPress={() => router.push('/photos' as any)}
+            >
+              <View style={[styles.iconCircle, { backgroundColor: 'rgba(255, 184, 0, 0.15)' }]}>
+                <Camera size={20} color={colors.accentGold} />
+              </View>
+              <View style={styles.settingTextGroup}>
+                <Text style={[styles.settingTitle, { color: colors.textPrimary }]}>Physique Progress Photos</Text>
+                <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>Daily transformation gallery timeline</Text>
+              </View>
+              <ChevronRight size={18} color={colors.textMuted} />
+            </TouchableOpacity>
+          </GlowCard>
+
+          {/* Section 2: Permissions & Restrictions */}
+          <Text style={[styles.sectionHeader, { color: colors.textMuted }]}>PERMISSIONS & APP BLOCKING</Text>
+          <GlowCard variant="default" style={styles.cardBlock}>
             <TouchableOpacity
               style={styles.navRow}
               activeOpacity={0.7}
               onPress={() => router.push('/permissions' as any)}
             >
-              <View style={styles.iconCircle}>
-                <Shield size={20} color={colors.primary} />
+              <View style={[styles.iconCircle, { backgroundColor: 'rgba(0, 240, 255, 0.15)' }]}>
+                <Shield size={20} color={colors.secondary} />
               </View>
               <View style={styles.settingTextGroup}>
-                <Text style={styles.settingTitle}>Permissions Hub</Text>
-                <Text style={styles.settingDesc}>Usage access, overlay lock & camera</Text>
+                <Text style={[styles.settingTitle, { color: colors.textPrimary }]}>Permissions Hub</Text>
+                <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>Usage access, overlay & camera status</Text>
               </View>
               <ChevronRight size={18} color={colors.textMuted} />
             </TouchableOpacity>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
             <TouchableOpacity
               style={styles.navRow}
               activeOpacity={0.7}
               onPress={() => router.push('/settings/apps')}
             >
-              <View style={styles.iconCircle}>
-                <Smartphone size={20} color={'#8A2BE2'} />
+              <View style={[styles.iconCircle, { backgroundColor: 'rgba(138, 43, 226, 0.15)' }]}>
+                <Smartphone size={20} color={'#A855F7'} />
               </View>
               <View style={styles.settingTextGroup}>
-                <Text style={styles.settingTitle}>Blocked Apps</Text>
-                <Text style={styles.settingDesc}>Configure apps locked by screen timer</Text>
+                <Text style={[styles.settingTitle, { color: colors.textPrimary }]}>Locked Distraction Apps</Text>
+                <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>Select real installed apps to lock behind workouts</Text>
               </View>
               <ChevronRight size={18} color={colors.textMuted} />
             </TouchableOpacity>
-          </MasterCard>
+          </GlowCard>
 
-          {/* Section 2: Audio & Haptics */}
-          <Text style={styles.sectionHeader}>AUDIO & FEEDBACK</Text>
-          <MasterCard style={styles.cardBlock}>
+          {/* Section 3: Audio & Haptics */}
+          <Text style={[styles.sectionHeader, { color: colors.textMuted }]}>AUDIO & FEEDBACK</Text>
+          <GlowCard variant="default" style={styles.cardBlock}>
             <View style={styles.toggleRow}>
               <View style={styles.toggleLeft}>
                 <Volume2 size={20} color={sfxEnabled ? colors.primary : colors.textMuted} />
                 <View>
-                  <Text style={styles.settingTitle}>Sound Effects</Text>
-                  <Text style={styles.settingDesc}>Synthesizer chimes and workout cues</Text>
+                  <Text style={[styles.settingTitle, { color: colors.textPrimary }]}>Sound Effects (SFX)</Text>
+                  <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>Rep counters & quest completions</Text>
                 </View>
               </View>
               <Switch
@@ -138,14 +181,14 @@ export default function SettingsScreen() {
               />
             </View>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
             <View style={styles.toggleRow}>
               <View style={styles.toggleLeft}>
                 <Vibrate size={20} color={hapticsEnabled ? colors.primary : colors.textMuted} />
                 <View>
-                  <Text style={styles.settingTitle}>Vibration Haptics</Text>
-                  <Text style={styles.settingDesc}>Tactile pulse on button taps & reps</Text>
+                  <Text style={[styles.settingTitle, { color: colors.textPrimary }]}>Vibration Haptics</Text>
+                  <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>Tactile pulses on button taps & reps</Text>
                 </View>
               </View>
               <Switch
@@ -159,31 +202,31 @@ export default function SettingsScreen() {
               />
             </View>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
             <View style={styles.toggleRow}>
               <View style={styles.toggleLeft}>
-                <Bell size={20} color={notificationsEnabled ? colors.primary : colors.textMuted} />
+                <Music size={20} color={bgMusicEnabled ? colors.primary : colors.textMuted} />
                 <View>
-                  <Text style={styles.settingTitle}>Daily Streak Reminders</Text>
-                  <Text style={styles.settingDesc}>100% on-device local alerts</Text>
+                  <Text style={[styles.settingTitle, { color: colors.textPrimary }]}>Background Ambient Music</Text>
+                  <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>Subtle ambient atmospheric soundtrack</Text>
                 </View>
               </View>
               <Switch
-                value={notificationsEnabled}
+                value={bgMusicEnabled}
                 onValueChange={() => {
                   haptics.light();
-                  toggleNotifications();
+                  setBgMusic(!bgMusicEnabled);
                 }}
                 trackColor={{ false: '#262626', true: colors.primary }}
-                thumbColor={notificationsEnabled ? '#000000' : '#888888'}
+                thumbColor={bgMusicEnabled ? '#000000' : '#888888'}
               />
             </View>
-          </MasterCard>
+          </GlowCard>
 
-          {/* Section 3: Danger Zone */}
-          <Text style={[styles.sectionHeader, { color: colors.danger }]}>DANGER ZONE</Text>
-          <MasterCard style={[styles.cardBlock, { borderColor: `${colors.danger}40` }]}>
+          {/* Section 4: Development / Danger Zone */}
+          <Text style={[styles.sectionHeader, { color: colors.danger }]}>DEVELOPMENT PROTOCOL RESET</Text>
+          <GlowCard variant="default" style={[styles.cardBlock, { borderColor: `${colors.danger}40` }]}>
             <TouchableOpacity
               style={styles.navRow}
               activeOpacity={0.7}
@@ -193,12 +236,14 @@ export default function SettingsScreen() {
                 <Trash2 size={20} color={colors.danger} />
               </View>
               <View style={styles.settingTextGroup}>
-                <Text style={[styles.settingTitle, { color: colors.danger }]}>Reset All Player Data</Text>
-                <Text style={styles.settingDesc}>Clear coins, levels & restart protocol</Text>
+                <Text style={[styles.settingTitle, { color: colors.danger }]}>Reset All Local Data (Dev Reset)</Text>
+                <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>
+                  Wipe database to clean first-install state
+                </Text>
               </View>
               <ChevronRight size={18} color={colors.danger} />
             </TouchableOpacity>
-          </MasterCard>
+          </GlowCard>
 
           <View style={{ height: 40 }} />
         </ScrollView>
@@ -212,22 +257,24 @@ export default function SettingsScreen() {
         onRequestClose={() => setShowResetModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <MasterCard style={styles.resetModalSheet}>
+          <View style={[styles.resetModalSheet, { backgroundColor: colors.surface, borderColor: colors.danger }]}>
             <View style={styles.modalHeader}>
               <AlertTriangle size={24} color={colors.danger} />
-              <Text style={styles.modalTitle}>Confirm Data Reset</Text>
+              <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Clean Protocol Reset</Text>
               <TouchableOpacity onPress={() => setShowResetModal(false)} style={{ padding: 4 }}>
                 <X size={20} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.modalDesc}>
-              This will permanently delete all earned Coins, Level progress, and Streak history from your offline database.
+            <Text style={[styles.modalDesc, { color: colors.textSecondary }]}>
+              This will permanently delete all Coins, XP, Level, workout history, and photo timelines, returning ARISE to the initial first-launch state.
             </Text>
 
-            <Text style={styles.inputPrompt}>Type <Text style={{ color: colors.primary, fontWeight: '900' }}>ARISE</Text> to confirm:</Text>
+            <Text style={[styles.inputPrompt, { color: colors.textSecondary }]}>
+              Type <Text style={{ color: colors.primary, fontWeight: '900' }}>ARISE</Text> to confirm:
+            </Text>
             <TextInput
-              style={styles.resetInput}
+              style={[styles.resetInput, { backgroundColor: colors.surfaceLight, color: colors.textPrimary, borderColor: colors.border }]}
               value={confirmInput}
               onChangeText={setConfirmInput}
               placeholder="ARISE"
@@ -235,13 +282,14 @@ export default function SettingsScreen() {
               autoCapitalize="characters"
             />
 
-            <MasterButton
-              title="PERMANENTLY RESET DATA"
+            <GlowButton
+              title="PERMANENTLY RESET ALL DATA"
               onPress={handleResetData}
-              variant="dark"
-              style={{ backgroundColor: colors.danger, marginTop: 8 }}
+              variant="danger"
+              size="md"
+              style={{ marginTop: 8 }}
             />
-          </MasterCard>
+          </View>
         </View>
       </Modal>
     </View>
@@ -249,46 +297,44 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1 },
   safeArea: { flex: 1 },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 18,
+    paddingHorizontal: 20,
     paddingTop: 10,
     paddingBottom: 10,
+    borderBottomWidth: 1,
   },
   backBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: '#242424',
     justifyContent: 'center',
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '900',
-    color: colors.textPrimary,
+    letterSpacing: 1.2,
   },
   scrollContent: {
-    paddingHorizontal: 18,
+    paddingHorizontal: 20,
     gap: 14,
-    paddingTop: 8,
-    paddingBottom: 30,
+    paddingTop: 12,
   },
   sectionHeader: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '900',
-    color: colors.textMuted,
-    letterSpacing: 1,
+    letterSpacing: 1.2,
     marginTop: 6,
   },
   cardBlock: {
     padding: 6,
+    borderRadius: 18,
   },
   navRow: {
     flexDirection: 'row',
@@ -312,7 +358,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 14,
-    backgroundColor: '#1C1C1C',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -323,15 +368,12 @@ const styles = StyleSheet.create({
   settingTitle: {
     fontSize: 14,
     fontWeight: '800',
-    color: colors.textPrimary,
   },
   settingDesc: {
     fontSize: 11,
-    color: colors.textSecondary,
   },
   divider: {
     height: 1,
-    backgroundColor: '#1E1E1E',
     marginHorizontal: 12,
   },
   modalOverlay: {
@@ -345,6 +387,8 @@ const styles = StyleSheet.create({
     width: '100%',
     padding: 22,
     gap: 14,
+    borderRadius: 22,
+    borderWidth: 2,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -354,27 +398,21 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 16,
     fontWeight: '900',
-    color: colors.textPrimary,
     flex: 1,
   },
   modalDesc: {
     fontSize: 13,
-    color: colors.textSecondary,
     lineHeight: 18,
   },
   inputPrompt: {
     fontSize: 12,
     fontWeight: '700',
-    color: colors.textSecondary,
   },
   resetInput: {
-    backgroundColor: '#1E1E1E',
     borderWidth: 1,
-    borderColor: '#333333',
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '800',
   },

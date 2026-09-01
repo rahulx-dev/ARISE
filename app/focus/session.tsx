@@ -6,32 +6,34 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 import {
   ArrowLeft,
-  Settings,
+  HelpCircle,
   Pause,
   Play,
-  Square,
   Volume2,
   VolumeX,
-  Shield,
   X,
-  CheckCircle2,
+  Music,
 } from 'lucide-react-native';
-import { MasterButton } from '../../src/components/master/MasterButton';
-import { MasterCard } from '../../src/components/master/MasterCard';
+import { GlowButton } from '../../src/components/design-system/GlowButton';
+import { GlowCard } from '../../src/components/design-system/GlowCard';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { userRepository } from '../../src/database/repositories/userRepository';
 import { voiceCoach } from '../../src/services/voiceCoach';
 import { useSound } from '../../src/hooks/useSound';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { colors } from '../../src/theme/colors';
-import { focusMusicService, FOCUS_MUSIC_TRACKS } from '../../src/services/focusMusic';
-import { Music, Music2 } from 'lucide-react-native';
+import { focusMusicService, FOCUS_MUSIC_TRACKS, FocusTrack } from '../../src/services/focusMusic';
+import { db } from '../../src/database/client';
+import { focusSession } from '../../src/database/schema';
+
+const DURATION_PRESETS = [15, 25, 50];
 
 export default function FocusModeScreen() {
   const router = useRouter();
@@ -41,68 +43,15 @@ export default function FocusModeScreen() {
 
   const [targetMinutes, setTargetMinutes] = useState<number>(25);
   const [remainingMs, setRemainingMs] = useState<number>(25 * 60 * 1000);
-  const [isActive, setIsActive] = useState<boolean>(true);
-  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
-  const [voiceEnabled, setVoiceEnabled] = useState<boolean>(true);
-  const [strictLock, setStrictLock] = useState<boolean>(true);
+  const [isActive, setIsActive] = useState<boolean>(false);
+  const [isAudioSheetOpen, setIsAudioSheetOpen] = useState<boolean>(false);
   const [selectedTrackId, setSelectedTrackId] = useState<string>('rain');
+  const [soundMuted, setSoundMuted] = useState<boolean>(false);
 
   const timerIntervalRef = useRef<any>(null);
 
   useEffect(() => {
-    if (voiceEnabled) {
-      voiceCoach.speakFocusStart(targetMinutes);
-    }
-
-    // Start ambient music
-    focusMusicService.play(selectedTrackId);
-
-    timerIntervalRef.current = setInterval(() => {
-      setRemainingMs((prev) => {
-        const next = Math.max(0, prev - 1000);
-        if (next <= 0) {
-          handleSessionComplete();
-        }
-        return next;
-      });
-    }, 1000);
-
-    return () => {
-      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-      voiceCoach.stop();
-      focusMusicService.stop();
-    };
-  }, []);
-
-  const totalDurationMs = targetMinutes * 60 * 1000;
-  const elapsedMs = totalDurationMs - remainingMs;
-  const progressPercent = Math.min(100, Math.round((elapsedMs / totalDurationMs) * 100));
-
-  const minutesLeft = Math.floor(remainingMs / (60 * 1000));
-  const secondsLeft = Math.floor((remainingMs % (60 * 1000)) / 1000);
-  const formattedTime = `${minutesLeft.toString().padStart(2, '0')}:${secondsLeft.toString().padStart(2, '0')}`;
-
-  const currentTrack = FOCUS_MUSIC_TRACKS.find((t) => t.id === selectedTrackId) || FOCUS_MUSIC_TRACKS[0];
-
-  const handleSelectTrack = (trackId: string) => {
-    haptics.light();
-    setSelectedTrackId(trackId);
     if (isActive) {
-      focusMusicService.play(trackId);
-    }
-  };
-
-  const togglePlayPause = () => {
-    haptics.medium();
-    if (isActive) {
-      setIsActive(false);
-      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-      if (voiceEnabled) voiceCoach.speak('Focus session paused.');
-      focusMusicService.stop();
-    } else {
-      setIsActive(true);
-      if (voiceEnabled) voiceCoach.speak('Resuming focus protocol.');
-      focusMusicService.play(selectedTrackId);
       timerIntervalRef.current = setInterval(() => {
         setRemainingMs((prev) => {
           const next = Math.max(0, prev - 1000);
@@ -112,288 +61,324 @@ export default function FocusModeScreen() {
           return next;
         });
       }, 1000);
+    } else {
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    }
+
+    return () => {
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    };
+  }, [isActive]);
+
+  const handleStart = () => {
+    haptics.heavy();
+    sound.play('quest_start');
+    setIsActive(true);
+    try {
+      voiceCoach.speakFocusStart(targetMinutes);
+    } catch {}
+    if (!soundMuted && selectedTrackId !== 'silent') {
+      focusMusicService.play(selectedTrackId);
     }
   };
 
-  const handleEndSession = () => {
-    haptics.heavy();
-    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-    voiceCoach.stop();
+  const handlePause = () => {
+    haptics.medium();
+    setIsActive(false);
     focusMusicService.stop();
-    router.back();
+  };
+
+  const handleReset = (minutes: number) => {
+    haptics.light();
+    setIsActive(false);
+    setTargetMinutes(minutes);
+    setRemainingMs(minutes * 60 * 1000);
+    focusMusicService.stop();
   };
 
   const handleSessionComplete = async () => {
     if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    setIsActive(false);
     focusMusicService.stop();
-    haptics.success();
     sound.play('quest_complete');
+    haptics.heavy();
 
-    if (voiceEnabled) {
-      voiceCoach.speak('Outstanding discipline! Focus session complete. You earned 20 Coins and 50 XP.');
-    }
+    const coinsEarned = targetMinutes * 2;
+    const xpEarned = targetMinutes * 4;
 
     try {
-      await userRepository.addCoins(20, 'Focus Session Completed', 'FOCUS');
-      await userRepository.addXP(50);
+      voiceCoach.speak(`Focus session complete! You earned ${coinsEarned} coins.`);
+      await db.insert(focusSession).values({
+        targetMinutes,
+        completedMinutes: targetMinutes,
+        startTime: new Date(Date.now() - targetMinutes * 60000).toISOString(),
+        endTime: new Date().toISOString(),
+        status: 'COMPLETED',
+        rewardCoins: coinsEarned,
+        rewardXP: xpEarned,
+      });
+      await userRepository.addCoins(coinsEarned, `${targetMinutes}m Focus Session`, 'focus');
+      await userRepository.addXP(xpEarned);
+      await userRepository.updateStat('focus', 1);
+      await userRepository.updateStreak();
       await loadProfile();
     } catch (e) {
-      console.warn('Error rewarding focus session:', e);
+      console.warn('Error completing focus session:', e);
     }
 
-    router.replace('/(tabs)');
+    Alert.alert(
+      'Flow State Accomplished!',
+      `You stayed focused for ${targetMinutes} minutes.\n+${coinsEarned} Coins 🪙\n+${xpEarned} XP ⚡`,
+      [
+        {
+          text: 'CLAIM BOUNTY',
+          onPress: () => router.replace('/(tabs)'),
+        },
+      ]
+    );
   };
+
+  const totalDurationMs = targetMinutes * 60 * 1000;
+  const elapsedMs = totalDurationMs - remainingMs;
+  const progressRatio = totalDurationMs > 0 ? (totalDurationMs - remainingMs) / totalDurationMs : 0;
+
+  const minutesLeft = Math.floor(remainingMs / 60000);
+  const secondsLeft = Math.floor((remainingMs % 60000) / 1000);
+  const timeFormatted = `${minutesLeft.toString().padStart(2, '0')}:${secondsLeft.toString().padStart(2, '0')}`;
+
+  // SVG Gauge dimensions
+  const circleSize = 270;
+  const strokeWidth = 10;
+  const radius = (circleSize - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference * (1 - progressRatio);
 
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         {/* Header */}
-        <View style={styles.headerRow}>
+        <View style={styles.header}>
           <TouchableOpacity
-            style={styles.backBtn}
+            style={styles.iconBtn}
             onPress={() => router.back()}
             activeOpacity={0.8}
           >
             <ArrowLeft size={20} color={colors.textPrimary} />
           </TouchableOpacity>
 
-          <Text style={styles.headerTitle}>Focus Mode</Text>
+          <Text style={styles.headerTitle}>Focus</Text>
 
           <TouchableOpacity
-            style={styles.backBtn}
-            onPress={() => setIsSettingsOpen(true)}
+            style={styles.iconBtn}
+            onPress={() =>
+              Alert.alert(
+                'Focus Flow State',
+                'Activate silent immersion to block all app distractions and build discipline.'
+              )
+            }
             activeOpacity={0.8}
           >
-            <Settings size={20} color={colors.textSecondary} />
+            <HelpCircle size={20} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Circular Countdown Gauge */}
-          <View style={styles.gaugeCenterContainer}>
-            <View style={styles.gaugeOuterWrapper}>
-              <Svg width={260} height={260} viewBox="0 0 260 260">
-                {/* Background Ring */}
-                <Circle
-                  cx={130}
-                  cy={130}
-                  r={105}
-                  stroke="#1A1A1A"
-                  strokeWidth={14}
-                  fill="none"
-                />
-                {/* Neon Purple Arc */}
-                <Circle
-                  cx={130}
-                  cy={130}
-                  r={105}
-                  stroke="#8A2BE2"
-                  strokeWidth={14}
-                  fill="none"
-                  strokeDasharray={`${(2 * Math.PI * 105 * progressPercent) / 100} ${2 * Math.PI * 105}`}
-                  strokeLinecap="round"
-                  transform="rotate(-90 130 130)"
-                />
-              </Svg>
+          {/* Concentric Tachometer Chronometer */}
+          <View style={styles.gaugeContainer}>
+            <Svg width={circleSize} height={circleSize} style={styles.svgGauge}>
+              {/* Outer Background Track */}
+              <Circle
+                cx={circleSize / 2}
+                cy={circleSize / 2}
+                r={radius}
+                stroke="#1A1A1A"
+                strokeWidth={strokeWidth}
+                fill="none"
+              />
 
-              <View style={styles.gaugeInnerContent}>
-                <Text style={styles.gaugeTimeText}>{formattedTime}</Text>
-                <View style={styles.rewardPill}>
-                  <Text style={styles.rewardPillText}>+50 XP</Text>
-                  <Text style={[styles.rewardPillText, { color: colors.accentGold }]}>+20 🟡</Text>
-                </View>
-              </View>
+              {/* Inner Glowing Track */}
+              <Circle
+                cx={circleSize / 2}
+                cy={circleSize / 2}
+                r={radius - 16}
+                stroke="#141414"
+                strokeWidth={2}
+                fill="none"
+              />
+
+              {/* Active Lime Progress Arc */}
+              <Circle
+                cx={circleSize / 2}
+                cy={circleSize / 2}
+                r={radius}
+                stroke={colors.primary}
+                strokeWidth={strokeWidth}
+                strokeDasharray={`${circumference} ${circumference}`}
+                strokeDashoffset={strokeDashoffset}
+                strokeLinecap="round"
+                fill="none"
+                transform={`rotate(-90 ${circleSize / 2} ${circleSize / 2})`}
+              />
+            </Svg>
+
+            <View style={styles.gaugeInnerContent}>
+              <Text style={styles.gaugeLabel}>Focus Time</Text>
+              <Text style={styles.gaugeTimeText}>{timeFormatted}</Text>
             </View>
           </View>
 
-          {/* Ambient Sound Pill */}
-          <TouchableOpacity
-            style={styles.ambientPill}
-            onPress={() => setIsSettingsOpen(true)}
-            activeOpacity={0.8}
-          >
-            <Music size={14} color={colors.primary} />
-            <Text style={styles.ambientPillText}>
-              {currentTrack.emoji} {currentTrack.name} Ambient
-            </Text>
-            <Text style={styles.ambientPillChange}>Change</Text>
-          </TouchableOpacity>
-
-          <Text style={styles.focusSubtitle}>
-            Deep Work Session — Stay focused and get rewarded.
+          <Text style={styles.gaugeSubtitle}>
+            {isActive ? 'Deep immersion active. Zero distractions.' : 'Stay focused and achieve your goals!'}
           </Text>
 
-          {/* Action Buttons */}
-          <View style={styles.actionsContainer}>
-            <TouchableOpacity
-              style={styles.pauseActionBtn}
-              onPress={togglePlayPause}
-              activeOpacity={0.8}
-            >
-              {isActive ? (
-                <>
-                  <Pause size={18} color={colors.textPrimary} />
-                  <Text style={styles.pauseActionText}>Pause</Text>
-                </>
-              ) : (
-                <>
-                  <Play size={18} color={colors.primary} />
-                  <Text style={[styles.pauseActionText, { color: colors.primary }]}>Resume</Text>
-                </>
-              )}
-            </TouchableOpacity>
+          {/* Main Action Button */}
+          {isActive ? (
+            <GlowButton
+              title="Pause Focus"
+              onPress={handlePause}
+              variant="secondary"
+              size="lg"
+              icon={<Pause size={18} color="#FFFFFF" />}
+            />
+          ) : (
+            <GlowButton
+              title="Start Focus"
+              onPress={handleStart}
+              variant="primary"
+              size="lg"
+              icon={<Play size={18} color="#050505" />}
+            />
+          )}
+
+          {/* Select Duration Section */}
+          <View style={styles.durationSection}>
+            <Text style={styles.sectionTitle}>Select Duration</Text>
+            <View style={styles.presetRow}>
+              {DURATION_PRESETS.map((mins) => {
+                const isSelected = targetMinutes === mins && !isActive;
+                return (
+                  <TouchableOpacity
+                    key={mins}
+                    style={[
+                      styles.durationPill,
+                      isSelected && styles.durationPillActive,
+                    ]}
+                    onPress={() => handleReset(mins)}
+                    activeOpacity={0.8}
+                  >
+                    <Text
+                      style={[
+                        styles.durationPillText,
+                        isSelected && styles.durationPillTextActive,
+                      ]}
+                    >
+                      {mins} min
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+
+              <TouchableOpacity
+                style={[
+                  styles.durationPill,
+                  targetMinutes === 60 && !isActive && styles.durationPillActive,
+                ]}
+                onPress={() => handleReset(60)}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    styles.durationPillText,
+                    targetMinutes === 60 && !isActive && styles.durationPillTextActive,
+                  ]}
+                >
+                  Custom
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Ambient BGM Card */}
+          <GlowCard style={styles.bgmCard}>
+            <View style={styles.bgmLeft}>
+              <View style={styles.bgmIconCircle}>
+                <Music size={20} color={colors.primary} />
+              </View>
+              <View>
+                <Text style={styles.bgmTitle}>Ambient Soundscape</Text>
+                <Text style={styles.bgmSubtitle}>
+                  {FOCUS_MUSIC_TRACKS.find((t: FocusTrack) => t.id === selectedTrackId)?.name || 'Rain'} (100% Offline Audio)
+                </Text>
+              </View>
+            </View>
 
             <TouchableOpacity
-              style={styles.endActionBtn}
-              onPress={handleEndSession}
+              style={styles.changeSoundBtn}
+              onPress={() => setIsAudioSheetOpen(true)}
               activeOpacity={0.8}
             >
-              <Square size={16} color={colors.textSecondary} />
-              <Text style={styles.endActionText}>End Session</Text>
+              <Text style={styles.changeSoundBtnText}>CHANGE</Text>
             </TouchableOpacity>
-          </View>
+          </GlowCard>
 
           <View style={{ height: 40 }} />
         </ScrollView>
-      </SafeAreaView>
 
-      {/* Focus Settings Modal */}
-      <Modal
-        visible={isSettingsOpen}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setIsSettingsOpen(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Focus Session Settings</Text>
-              <TouchableOpacity onPress={() => setIsSettingsOpen(false)} style={{ padding: 4 }}>
-                <X size={20} color={colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
+        {/* Ambient Soundscape Picker Modal */}
+        <Modal
+          visible={isAudioSheetOpen}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setIsAudioSheetOpen(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalSheet}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Select Ambient Soundscape</Text>
+                <TouchableOpacity
+                  onPress={() => setIsAudioSheetOpen(false)}
+                  style={styles.iconBtn}
+                >
+                  <X size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <View style={styles.modalBody}>
-                {/* 1. Duration */}
-                <Text style={styles.settingLabel}>SESSION DURATION</Text>
-                <View style={styles.durationRow}>
-                  {[15, 25, 45, 60].map((mins) => (
+              <View style={styles.trackList}>
+                {FOCUS_MUSIC_TRACKS.map((t: FocusTrack) => {
+                  const isSelected = selectedTrackId === t.id;
+                  return (
                     <TouchableOpacity
-                      key={mins}
+                      key={t.id}
                       style={[
-                        styles.durationBtn,
-                        targetMinutes === mins && styles.durationBtnActive,
+                        styles.trackRow,
+                        isSelected && styles.trackRowActive,
                       ]}
                       onPress={() => {
-                        haptics.light();
-                        setTargetMinutes(mins);
-                        setRemainingMs(mins * 60 * 1000);
+                        haptics.medium();
+                        setSelectedTrackId(t.id);
+                        if (isActive) {
+                          focusMusicService.play(t.id);
+                        }
+                        setIsAudioSheetOpen(false);
                       }}
+                      activeOpacity={0.8}
                     >
-                      <Text
-                        style={[
-                          styles.durationBtnText,
-                          targetMinutes === mins && { color: '#000000', fontWeight: '900' },
-                        ]}
-                      >
-                        {mins}m
-                      </Text>
+                      <View style={styles.trackInfo}>
+                        <Text style={styles.trackName}>{t.name}</Text>
+                        <Text style={styles.trackDesc}>{t.description}</Text>
+                      </View>
+
+                      {isSelected && (
+                        <View style={styles.selectedDot} />
+                      )}
                     </TouchableOpacity>
-                  ))}
-                </View>
-
-                {/* 2. Ambient Soundscape Selection */}
-                <Text style={styles.settingLabel}>AMBIENT SOUNDSCAPE</Text>
-                <View style={styles.musicGrid}>
-                  {FOCUS_MUSIC_TRACKS.map((track) => {
-                    const isSelected = selectedTrackId === track.id;
-                    return (
-                      <TouchableOpacity
-                        key={track.id}
-                        style={[
-                          styles.musicCard,
-                          isSelected && styles.musicCardActive,
-                        ]}
-                        onPress={() => handleSelectTrack(track.id)}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.musicEmoji}>{track.emoji}</Text>
-                        <Text
-                          style={[
-                            styles.musicName,
-                            isSelected && { color: colors.primary },
-                          ]}
-                        >
-                          {track.name}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-
-                {/* 3. AI Voice Coaching */}
-                <TouchableOpacity
-                  style={styles.toggleRow}
-                  onPress={() => {
-                    haptics.light();
-                    setVoiceEnabled(!voiceEnabled);
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.toggleLeft}>
-                    {voiceEnabled ? (
-                      <Volume2 size={20} color={colors.primary} />
-                    ) : (
-                      <VolumeX size={20} color={colors.textMuted} />
-                    )}
-                    <View>
-                      <Text style={styles.toggleTitle}>AI Voice Coaching</Text>
-                      <Text style={styles.toggleDesc}>Speech announcements during session</Text>
-                    </View>
-                  </View>
-                  <View style={[styles.toggleBadge, voiceEnabled && styles.toggleBadgeActive]}>
-                    <Text style={[styles.toggleBadgeText, voiceEnabled && { color: colors.primary }]}>
-                      {voiceEnabled ? 'ON' : 'OFF'}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-
-                {/* 4. Strict Discipline Lock */}
-                <TouchableOpacity
-                  style={styles.toggleRow}
-                  onPress={() => {
-                    haptics.light();
-                    setStrictLock(!strictLock);
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.toggleLeft}>
-                    <Shield size={20} color={strictLock ? '#8A2BE2' : colors.textMuted} />
-                    <View>
-                      <Text style={styles.toggleTitle}>Strict Discipline Lock</Text>
-                      <Text style={styles.toggleDesc}>Block restricted apps until timer expires</Text>
-                    </View>
-                  </View>
-                  <View style={[styles.toggleBadge, strictLock && { borderColor: '#8A2BE2' }]}>
-                    <Text style={[styles.toggleBadgeText, strictLock && { color: '#8A2BE2' }]}>
-                      {strictLock ? 'ACTIVE' : 'OFF'}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-
-                <MasterButton
-                  title="SAVE & CONTINUE"
-                  onPress={() => setIsSettingsOpen(false)}
-                  variant="green"
-                  style={{ marginTop: 8 }}
-                />
-                <View style={{ height: 16 }} />
+                  );
+                })}
               </View>
-            </ScrollView>
+            </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
+      </SafeAreaView>
     </View>
   );
 }
@@ -401,52 +386,55 @@ export default function FocusModeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   safeArea: { flex: 1 },
-  headerRow: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    paddingTop: 10,
-    paddingBottom: 10,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 12,
   },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: colors.textPrimary,
+  },
+  iconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: '#161616',
     borderWidth: 1,
     borderColor: '#242424',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: colors.textPrimary,
-  },
   scrollContent: {
-    paddingHorizontal: 18,
-    alignItems: 'center',
+    paddingHorizontal: 20,
     gap: 20,
-    paddingTop: 20,
-    paddingBottom: 30,
-  },
-  gaugeCenterContainer: {
     alignItems: 'center',
-    justifyContent: 'center',
-    marginVertical: 10,
+    paddingTop: 10,
   },
-  gaugeOuterWrapper: {
-    width: 260,
-    height: 260,
-    alignItems: 'center',
+  gaugeContainer: {
+    width: 270,
+    height: 270,
     justifyContent: 'center',
+    alignItems: 'center',
     position: 'relative',
+    marginTop: 10,
+  },
+  svgGauge: {
+    position: 'absolute',
   },
   gaugeInnerContent: {
-    position: 'absolute',
     alignItems: 'center',
-    gap: 8,
+    gap: 4,
+  },
+  gaugeLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    letterSpacing: 0.5,
   },
   gaugeTimeText: {
     fontSize: 48,
@@ -455,83 +443,105 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
     letterSpacing: 1,
   },
-  rewardPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#161616',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#2A2A2A',
-  },
-  rewardPillText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: colors.primary,
-  },
-  focusSubtitle: {
+  gaugeSubtitle: {
     fontSize: 13,
     color: colors.textSecondary,
+    fontWeight: '600',
     textAlign: 'center',
-    lineHeight: 18,
   },
-  actionsContainer: {
-    flexDirection: 'row',
-    gap: 12,
+  durationSection: {
     width: '100%',
-    marginTop: 10,
+    gap: 12,
+    marginTop: 8,
   },
-  pauseActionBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#181818',
-    paddingVertical: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#2C2C2C',
-  },
-  pauseActionText: {
-    fontSize: 15,
+  sectionTitle: {
+    fontSize: 14,
     fontWeight: '900',
     color: colors.textPrimary,
   },
-  endActionBtn: {
-    flex: 1,
+  presetRow: {
     flexDirection: 'row',
+    gap: 8,
+  },
+  durationPill: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 100,
+    backgroundColor: '#161616',
+    borderWidth: 1,
+    borderColor: '#242424',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#141414',
-    paddingVertical: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#222222',
   },
-  endActionText: {
-    fontSize: 15,
-    fontWeight: '800',
+  durationPillActive: {
+    backgroundColor: '#1C2600',
+    borderColor: colors.primary,
+  },
+  durationPillText: {
+    fontSize: 13,
+    fontWeight: '700',
     color: colors.textSecondary,
+  },
+  durationPillTextActive: {
+    color: colors.primary,
+    fontWeight: '900',
+  },
+  bgmCard: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderRadius: 20,
+  },
+  bgmLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  bgmIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#1E1E1E',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bgmTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: colors.textPrimary,
+  },
+  bgmSubtitle: {
+    fontSize: 11,
+    color: colors.textSecondary,
+  },
+  changeSoundBtn: {
+    backgroundColor: '#222222',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  changeSoundBtnText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: colors.primary,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    backgroundColor: 'rgba(0, 0, 0, 0.88)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
-    backgroundColor: '#141414',
+    backgroundColor: '#161616',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     borderWidth: 1,
     borderColor: '#262626',
     paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 28,
-    gap: 16,
+    paddingTop: 18,
+    paddingBottom: 32,
+    gap: 14,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -543,126 +553,39 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: colors.textPrimary,
   },
-  modalBody: {
-    gap: 16,
-  },
-  settingLabel: {
-    fontSize: 10,
-    fontWeight: '900',
-    color: colors.textMuted,
-    letterSpacing: 0.8,
-  },
-  durationRow: {
-    flexDirection: 'row',
+  trackList: {
     gap: 8,
   },
-  durationBtn: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    backgroundColor: '#1A1A1A',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#282828',
-  },
-  durationBtnActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  durationBtnText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: colors.textSecondary,
-  },
-  toggleRow: {
+  trackRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#181818',
+    backgroundColor: '#1A1A1A',
     padding: 14,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#262626',
+    borderColor: '#242424',
   },
-  toggleLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
+  trackRowActive: {
+    borderColor: colors.primary,
+    backgroundColor: '#1C2600',
   },
-  toggleTitle: {
+  trackInfo: {
+    gap: 2,
+  },
+  trackName: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '900',
     color: colors.textPrimary,
   },
-  toggleDesc: {
+  trackDesc: {
     fontSize: 11,
     color: colors.textSecondary,
   },
-  toggleBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#333333',
-  },
-  toggleBadgeActive: {
-    borderColor: colors.primary,
-    backgroundColor: 'rgba(0, 255, 106, 0.1)',
-  },
-  toggleBadgeText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: colors.textMuted,
-  },
-  ambientPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#161616',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#262626',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  ambientPillText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: colors.textPrimary,
-  },
-  ambientPillChange: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.primary,
-    marginLeft: 4,
-  },
-  musicGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  musicCard: {
-    width: '31%',
-    backgroundColor: '#1A1A1A',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#282828',
-    paddingVertical: 12,
-    alignItems: 'center',
-    gap: 4,
-  },
-  musicCardActive: {
-    borderColor: colors.primary,
-    backgroundColor: 'rgba(0, 255, 106, 0.08)',
-  },
-  musicEmoji: {
-    fontSize: 22,
-  },
-  musicName: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: colors.textSecondary,
+  selectedDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.primary,
   },
 });

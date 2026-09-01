@@ -11,21 +11,19 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import Svg, { Circle, Rect, Line } from 'react-native-svg';
 import {
-  ArrowLeft,
-  Settings,
+  X,
   Camera as CameraIcon,
   SwitchCamera,
   Play,
   Pause,
-  Plus,
-  Minus,
-  CheckCircle2,
+  StopCircle,
   AlertCircle,
   Activity,
   Volume2,
   VolumeX,
+  Eye,
+  Zap,
 } from 'lucide-react-native';
 import {
   EXERCISE_REGISTRY,
@@ -33,25 +31,37 @@ import {
   getExerciseConfig,
   isDurationBased,
   calculateRewards,
+  createInitialState,
+  processFrame,
+  RepCounterState,
 } from '../../src/exercise';
-import { MasterCard } from '../../src/components/master/MasterCard';
-import { MasterButton } from '../../src/components/master/MasterButton';
+import {
+  initialize as initPoseDetector,
+  processBase64Frame,
+  release as releasePoseDetector,
+  convertToMoveNetKeypoints,
+} from '../../modules/pose-detector';
+import { GlowCard } from '../../src/components/design-system/GlowCard';
+import { GlowButton } from '../../src/components/design-system/GlowButton';
 import { useSound } from '../../src/hooks/useSound';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { voiceCoach } from '../../src/services/voiceCoach';
 import { colors } from '../../src/theme/colors';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 export default function ExerciseScreen() {
-  const { type, questId } = useLocalSearchParams<{ type: string; questId?: string }>();
+  const { type, questId, target: paramTarget } = useLocalSearchParams<{
+    type: string;
+    questId?: string;
+    target?: string;
+  }>();
   const router = useRouter();
   const sound = useSound();
   const haptics = useHaptics();
 
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [facing, setFacing] = useState<'front' | 'back'>('front');
-  const [trackingMode, setTrackingMode] = useState<'camera' | 'cadence'>('camera');
 
   const validExerciseType: ExerciseType = (
     type && type.toUpperCase() in EXERCISE_REGISTRY
@@ -62,40 +72,56 @@ export default function ExerciseScreen() {
   const config = getExerciseConfig(validExerciseType);
   const isPlank = isDurationBased(validExerciseType);
 
-  const [target, setTarget] = useState<number>(config.defaultTarget || 20);
+  const target = paramTarget ? parseInt(paramTarget, 10) : (config.defaultTarget || 20);
   const [currentReps, setCurrentReps] = useState<number>(0);
-  const [isActive, setIsActive] = useState<boolean>(true); // Auto-active on mount
+  const [isActive, setIsActive] = useState<boolean>(true);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
   const [voiceMuted, setVoiceMuted] = useState<boolean>(false);
-  const [lastRepSplash, setLastRepSplash] = useState<boolean>(false);
 
-  // Live Simulated/Real AI Pose Engine State
+  // Form geometry & tracking state machine
   const [currentJointAngle, setCurrentJointAngle] = useState<number>(170);
-  const [repCycleState, setRepCycleState] = useState<'UP' | 'DOWN' | 'TRANSITION'>('UP');
-  const [formFeedback, setFormFeedback] = useState<string>('Ready! Tap screen or do cadence reps');
+  const [formFeedback, setFormFeedback] = useState<string>('Ready! Position body in camera view');
+  const [isBodyDetected, setIsBodyDetected] = useState<boolean>(false);
+  const [isAiProcessing, setIsAiProcessing] = useState<boolean>(false);
 
+  const cameraRef = useRef<any>(null);
   const timerRef = useRef<any>(null);
-  const aiTrackingRef = useRef<any>(null);
+  const repsRef = useRef<number>(0);
+  const repStateRef = useRef<RepCounterState>(createInitialState());
+  const isMountedRef = useRef<boolean>(true);
+  const isProcessingFrameRef = useRef<boolean>(false);
 
   useEffect(() => {
-    // Request camera permission on mount if in camera mode
+    isMountedRef.current = true;
+
     if (!cameraPermission?.granted) {
       requestCameraPermission();
     }
 
+    // Initialize on-device ML Kit Pose Detector
+    initPoseDetector()
+      .then((success) => {
+        if (__DEV__) {
+          console.log('[ARISE AI] ML Kit PoseDetector initialized:', success);
+        }
+      })
+      .catch((err) => {
+        console.warn('[ARISE AI] PoseDetector init warning:', err);
+      });
+
     if (!voiceMuted) {
       voiceCoach.speak(
-        `${config.displayName} protocol online. Target ${target} ${isPlank ? 'seconds' : 'reps'}. Ready when you are!`
+        `${config.displayName} tracking active. Target: ${target} ${isPlank ? 'seconds' : 'reps'}. Get into position!`
       );
     }
 
-    // Start workout timer immediately
+    // Elapsed timer
     timerRef.current = setInterval(() => {
       setElapsedSeconds((prev) => {
         const nextTime = prev + 1;
         if (isPlank) {
-          // For Plank, reps = seconds
           setCurrentReps(nextTime);
+          repsRef.current = nextTime;
           if (nextTime >= target) {
             handleFinishWorkout(nextTime);
           }
@@ -105,85 +131,111 @@ export default function ExerciseScreen() {
     }, 1000);
 
     return () => {
+      isMountedRef.current = false;
       if (timerRef.current) clearInterval(timerRef.current);
-      if (aiTrackingRef.current) clearInterval(aiTrackingRef.current);
       voiceCoach.stop();
+      releasePoseDetector();
     };
   }, []);
 
-  // Cadence metronome mode
+  // Real on-device ML Kit Pose Detection Loop
   useEffect(() => {
-    if (trackingMode === 'cadence' && isActive && !isPlank) {
-      let phase = 0;
-      aiTrackingRef.current = setInterval(() => {
-        phase = (phase + 1) % 10;
-        if (phase === 4) {
-          setRepCycleState('DOWN');
-          setCurrentJointAngle(85);
-          setFormFeedback('Down! Hold depth');
-          haptics.light();
-        } else if (phase === 9) {
-          setRepCycleState('UP');
-          setCurrentJointAngle(170);
-          setFormFeedback('Push Up! Rep Complete ✓');
-          handleCountRep();
+    if (!isActive || isPlank) return;
+
+    let frameLoopTimer: any = null;
+
+    const runPoseInference = async () => {
+      if (!isMountedRef.current || !isActive || isProcessingFrameRef.current) return;
+
+      if (!cameraRef.current || !cameraPermission?.granted) {
+        frameLoopTimer = setTimeout(runPoseInference, 500);
+        return;
+      }
+
+      isProcessingFrameRef.current = true;
+      setIsAiProcessing(true);
+
+      try {
+        // Capture lightweight snapshot frame
+        const photo = await cameraRef.current.takePictureAsync({
+          base64: true,
+          quality: 0.3,
+          skipProcessing: true,
+          shutterSound: false,
+        });
+
+        if (photo?.base64 && isMountedRef.current) {
+          // Process on-device with ML Kit
+          const landmarks = await processBase64Frame(photo.base64);
+
+          if (isMountedRef.current && landmarks.length > 0) {
+            // Convert ML Kit 33 landmarks to MoveNet 17 keypoints
+            const keypoints = convertToMoveNetKeypoints(landmarks);
+
+            // Execute state machine
+            const now = Date.now();
+            const nextState = processFrame(repStateRef.current, keypoints, config, now);
+            repStateRef.current = nextState;
+
+            setIsBodyDetected(nextState.isBodyDetected);
+            setCurrentJointAngle(Math.round(nextState.lastAngle || 0));
+            setFormFeedback(nextState.feedback.message);
+
+            // Check if a new rep was completed
+            if (nextState.count > repsRef.current) {
+              const newCount = nextState.count;
+              handleCountRep(newCount);
+            }
+          } else if (isMountedRef.current) {
+            setIsBodyDetected(false);
+            setFormFeedback('Move into frame');
+          }
         }
-      }, 300);
-    } else {
-      if (aiTrackingRef.current) clearInterval(aiTrackingRef.current);
-    }
+      } catch (err) {
+        // Frame capture skipped or camera busy
+      } finally {
+        isProcessingFrameRef.current = false;
+        if (isMountedRef.current) {
+          setIsAiProcessing(false);
+          // Throttle next inference (~120ms interval for smooth performance)
+          frameLoopTimer = setTimeout(runPoseInference, 120);
+        }
+      }
+    };
+
+    // Start inference loop
+    frameLoopTimer = setTimeout(runPoseInference, 600);
 
     return () => {
-      if (aiTrackingRef.current) clearInterval(aiTrackingRef.current);
+      if (frameLoopTimer) clearTimeout(frameLoopTimer);
     };
-  }, [trackingMode, isActive, target, isPlank]);
+  }, [isActive, isPlank, cameraPermission?.granted]);
 
-  const handleCountRep = () => {
+  const handleCountRep = (newCount: number) => {
+    repsRef.current = newCount;
+    setCurrentReps(newCount);
+
     haptics.heavy();
     sound.play('rep_count');
-    setLastRepSplash(true);
-    setTimeout(() => setLastRepSplash(false), 300);
 
-    setCurrentReps((prev) => {
-      const next = prev + 1;
+    try {
       if (!voiceMuted) {
-        voiceCoach.speakRep(next);
-        if (next === Math.floor(target / 2)) {
-          voiceCoach.speakHalfway(target - next);
+        if (newCount === Math.floor(target / 2)) {
+          voiceCoach.speakHalfway(target - newCount);
+        } else {
+          voiceCoach.speakRep(newCount);
         }
       }
+    } catch {}
 
-      if (next >= target) {
-        handleFinishWorkout(next);
-      }
-      return next;
-    });
-  };
-
-  const handleStartWorkout = () => {
-    haptics.medium();
-    sound.play('quest_start');
-    setIsActive(true);
-  };
-
-  const handlePauseWorkout = () => {
-    haptics.light();
-    setIsActive(false);
-  };
-
-  const handleManualAddRep = () => {
-    handleCountRep();
-  };
-
-  const handleManualMinusRep = () => {
-    haptics.light();
-    setCurrentReps((prev) => Math.max(0, prev - 1));
+    if (newCount >= target) {
+      handleFinishWorkout(newCount);
+    }
   };
 
   const handleFinishWorkout = (finalReps: number) => {
     setIsActive(false);
     if (timerRef.current) clearInterval(timerRef.current);
-    if (aiTrackingRef.current) clearInterval(aiTrackingRef.current);
 
     haptics.success();
     sound.play('quest_complete');
@@ -209,26 +261,21 @@ export default function ExerciseScreen() {
     });
   };
 
-  const progressPercent = Math.min(100, Math.round((currentReps / target) * 100));
-
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         {/* Top Header Bar */}
         <View style={styles.headerRow}>
           <TouchableOpacity
-            style={styles.backBtn}
+            style={styles.iconBtn}
             onPress={() => router.back()}
             activeOpacity={0.8}
           >
-            <ArrowLeft size={20} color={colors.textPrimary} />
+            <X size={20} color={colors.textPrimary} />
           </TouchableOpacity>
 
           <View style={styles.headerTitleWrap}>
-            <Text style={styles.exerciseTitle}>{config.displayName}</Text>
-            <Text style={styles.exerciseSubtitle}>
-              {trackingMode === 'camera' ? 'AI Vision Tracking' : 'Cadence Timer'}
-            </Text>
+            <Text style={styles.exerciseTitle}>{config.displayName.toUpperCase()}</Text>
           </View>
 
           <View style={styles.headerRightActions}>
@@ -238,143 +285,105 @@ export default function ExerciseScreen() {
               activeOpacity={0.8}
             >
               {voiceMuted ? (
-                <VolumeX size={20} color={colors.danger} />
+                <VolumeX size={18} color={colors.danger} />
               ) : (
-                <Volume2 size={20} color={colors.primary} />
+                <Volume2 size={18} color={colors.primary} />
               )}
             </TouchableOpacity>
 
-            {trackingMode === 'camera' && (
-              <TouchableOpacity
-                style={styles.iconBtn}
-                onPress={() => setFacing((f) => (f === 'front' ? 'back' : 'front'))}
-                activeOpacity={0.8}
-              >
-                <SwitchCamera size={20} color={colors.textPrimary} />
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity
+              style={styles.iconBtn}
+              onPress={() => setFacing((f) => (f === 'front' ? 'back' : 'front'))}
+              activeOpacity={0.8}
+            >
+              <SwitchCamera size={18} color={colors.textPrimary} />
+            </TouchableOpacity>
           </View>
-        </View>
-
-        {/* Mode Selector Tabs */}
-        <View style={styles.modeToggleRow}>
-          <TouchableOpacity
-            style={[
-              styles.modeTab,
-              trackingMode === 'camera' && styles.modeTabActive,
-            ]}
-            onPress={() => setTrackingMode('camera')}
-            activeOpacity={0.8}
-          >
-            <CameraIcon
-              size={15}
-              color={trackingMode === 'camera' ? '#000000' : colors.textSecondary}
-            />
-            <Text
-              style={[
-                styles.modeTabText,
-                trackingMode === 'camera' && styles.modeTabTextActive,
-              ]}
-            >
-              LIVE CAMERA AI
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.modeTab,
-              trackingMode === 'cadence' && styles.modeTabActive,
-            ]}
-            onPress={() => setTrackingMode('cadence')}
-            activeOpacity={0.8}
-          >
-            <Activity
-              size={15}
-              color={trackingMode === 'cadence' ? '#000000' : colors.textSecondary}
-            />
-            <Text
-              style={[
-                styles.modeTabText,
-                trackingMode === 'cadence' && styles.modeTabTextActive,
-              ]}
-            >
-              CADENCE TIMER
-            </Text>
-          </TouchableOpacity>
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {/* Main Visual Display (Camera View or HUD) */}
           <View style={styles.cameraBoxContainer}>
-            {trackingMode === 'camera' && cameraPermission?.granted ? (
-              <TouchableOpacity
-                style={styles.cameraWrapper}
-                onPress={handleCountRep}
-                activeOpacity={0.9}
-              >
-                <CameraView style={StyleSheet.absoluteFillObject} facing={facing} />
+            {cameraPermission?.granted ? (
+              <View style={styles.cameraWrapper}>
+                <CameraView
+                  ref={cameraRef}
+                  style={StyleSheet.absoluteFillObject}
+                  facing={facing}
+                  mute={true}
+                />
 
-                {/* AI HUD Overlay Elements */}
+                {/* Camera HUD Overlay */}
                 <View style={styles.cameraHUDOverlay}>
-                  {/* Top Status Badges */}
+                  {/* Top Status */}
                   <View style={styles.hudTopRow}>
-                    <View style={styles.hudBadge}>
-                      <View style={styles.liveGreenDot} />
-                      <Text style={styles.hudBadgeText}>AI VISION ACTIVE</Text>
+                    <View
+                      style={[
+                        styles.hudBadge,
+                        isBodyDetected ? styles.hudBadgeDetected : styles.hudBadgeSearching,
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.liveGreenDot,
+                          !isBodyDetected && { backgroundColor: colors.warning },
+                        ]}
+                      />
+                      <Text style={styles.hudBadgeText}>
+                        {isBodyDetected ? 'BODY LOCKED' : 'SEARCHING BODY...'}
+                      </Text>
                     </View>
 
-                    <View style={styles.hudAngleBadge}>
-                      <Text style={styles.hudAngleText}>{currentJointAngle}°</Text>
-                    </View>
+                    {currentJointAngle > 0 && (
+                      <View style={styles.hudAngleBadge}>
+                        <Text style={styles.hudAngleText}>{currentJointAngle}°</Text>
+                      </View>
+                    )}
                   </View>
 
-                  {/* Tap Detection Instruction Banner */}
-                  <View style={styles.tapInstructionBanner}>
-                    <Text style={styles.tapInstructionText}>
-                      👇 TOUCH SCREEN WITH NOSE / CHEST TO COUNT REP
-                    </Text>
-                  </View>
-
-                  {/* Center AI Silhouette Framing Reticle */}
+                  {/* Corner Markers Reticle */}
                   <View style={styles.reticleBox}>
                     <View style={[styles.cornerBracket, styles.bracketTopLeft]} />
                     <View style={[styles.cornerBracket, styles.bracketTopRight]} />
                     <View style={[styles.cornerBracket, styles.bracketBottomLeft]} />
                     <View style={[styles.cornerBracket, styles.bracketBottomRight]} />
 
-                    {/* Joint Angle Node Visualization / Splash */}
+                    {/* Central Indicator */}
                     <View
                       style={[
-                        styles.aiJointNode,
-                        lastRepSplash && styles.aiJointNodeSplash,
-                        {
-                          borderColor: lastRepSplash ? colors.primary : '#8A2BE2',
-                          backgroundColor: lastRepSplash
-                            ? 'rgba(0, 255, 106, 0.4)'
-                            : 'rgba(138, 43, 226, 0.25)',
-                        },
+                        styles.centerDashedCircle,
+                        isBodyDetected && styles.centerDashedCircleActive,
                       ]}
-                    >
-                      <Text style={styles.aiJointNodeText}>
-                        {lastRepSplash ? '+1 REP ✓' : `${currentReps} REPS`}
-                      </Text>
-                    </View>
+                    />
                   </View>
 
-                  {/* Bottom AI Feedback Subtitle */}
-                  <View style={styles.hudBottomRow}>
-                    <View style={styles.feedbackPill}>
+                  {/* Live Feedback Floating Pill */}
+                  <View style={styles.feedbackPillWrap}>
+                    <View
+                      style={[
+                        styles.feedbackPill,
+                        isBodyDetected
+                          ? styles.feedbackPillDetected
+                          : styles.feedbackPillWarning,
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.feedbackDot,
+                          !isBodyDetected && { backgroundColor: colors.warning },
+                        ]}
+                      />
                       <Text style={styles.feedbackText}>{formFeedback}</Text>
                     </View>
                   </View>
                 </View>
-              </TouchableOpacity>
-            ) : trackingMode === 'camera' && !cameraPermission?.granted ? (
+              </View>
+            ) : (
               <View style={styles.noCameraPermissionBox}>
-                <AlertCircle size={44} color={colors.warning} />
+                <AlertCircle size={40} color={colors.warning} />
                 <Text style={styles.noCameraTitle}>Camera Access Required</Text>
                 <Text style={styles.noCameraDesc}>
-                  ARISE needs camera access to automatically count your exercise reps in real-time.
+                  ARISE requires camera access to automatically count reps.
                 </Text>
                 <TouchableOpacity
                   style={styles.grantPermBtn}
@@ -384,98 +393,72 @@ export default function ExerciseScreen() {
                   <Text style={styles.grantPermBtnText}>GRANT CAMERA PERMISSION</Text>
                 </TouchableOpacity>
               </View>
-            ) : (
-              /* Cadence Digital Tachometer Mode */
-              <View style={styles.tachometerBox}>
-                <Text style={styles.tachoRepsBig}>{currentReps}</Text>
-                <Text style={styles.tachoTargetLabel}>OF {target} REPS</Text>
-                <Text style={styles.tachoTimeLabel}>
-                  {Math.floor(elapsedSeconds / 60)}:
-                  {(elapsedSeconds % 60).toString().padStart(2, '0')}
-                </Text>
-              </View>
             )}
           </View>
 
-          {/* Real-Time Stats Bar */}
-          <MasterCard style={styles.statsCard}>
-            <View style={styles.statCol}>
-              <Text style={styles.statLabel}>CURRENT</Text>
-              <Text style={styles.statValLarge}>{currentReps}</Text>
+          {/* Large Progress Counter: 12 / 20 TARGET */}
+          <View style={styles.counterSection}>
+            <View style={styles.counterRow}>
+              <Text style={styles.counterBig}>{currentReps}</Text>
+              <Text style={styles.counterTarget}>/ {target}</Text>
             </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statCol}>
-              <Text style={styles.statLabel}>TARGET</Text>
-              <Text style={styles.statValLarge}>{target}</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statCol}>
-              <Text style={styles.statLabel}>TIME</Text>
-              <Text style={styles.statValLarge}>
+            <Text style={styles.targetLabel}>
+              {isPlank ? 'SECONDS COMPLETED' : 'REPETITIONS COMPLETED'}
+            </Text>
+          </View>
+
+          {/* Action Control Buttons (Pause / Resume & End) */}
+          <View style={styles.actionButtonsRow}>
+            <TouchableOpacity
+              style={styles.actionCircleBtn}
+              onPress={() => {
+                haptics.light();
+                setIsActive(!isActive);
+              }}
+              activeOpacity={0.8}
+            >
+              {isActive ? (
+                <Pause size={22} color={colors.textPrimary} />
+              ) : (
+                <Play size={22} color={colors.primary} />
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionCircleBtn, styles.stopCircleBtn]}
+              onPress={() => handleFinishWorkout(currentReps)}
+              activeOpacity={0.8}
+            >
+              <StopCircle size={22} color={colors.danger} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Metrics summary card */}
+          <GlowCard variant="default" style={styles.metricsCard}>
+            <View style={styles.metricItem}>
+              <Text style={styles.metricLabel}>ELAPSED</Text>
+              <Text style={styles.metricVal}>
                 {Math.floor(elapsedSeconds / 60)}:
-                {(elapsedSeconds % 60).toString().padStart(2, '0')}
+                {String(elapsedSeconds % 60).padStart(2, '0')}
               </Text>
             </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statCol}>
-              <Text style={styles.statLabel}>REWARDS</Text>
-              <Text style={[styles.statValLarge, { color: colors.accentGold }]}>
-                +{calculateRewards(validExerciseType, currentReps, target).coins}🟡
+            <View style={styles.metricDivider} />
+            <View style={styles.metricItem}>
+              <Text style={styles.metricLabel}>PACE</Text>
+              <Text style={styles.metricVal}>
+                {elapsedSeconds > 0
+                  ? `${Math.round((currentReps / (elapsedSeconds / 60)) * 10) / 10} /m`
+                  : '0 /m'}
               </Text>
             </View>
-          </MasterCard>
-
-          {/* Manual Adjust Controls */}
-          <View style={styles.manualControlsRow}>
-            <TouchableOpacity
-              style={styles.adjustBtn}
-              onPress={handleManualMinusRep}
-              activeOpacity={0.8}
-            >
-              <Minus size={20} color={colors.textSecondary} />
-              <Text style={styles.adjustBtnText}>-1 Rep</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.adjustBtn, { borderColor: `${colors.primary}50` }]}
-              onPress={handleManualAddRep}
-              activeOpacity={0.8}
-            >
-              <Plus size={20} color={colors.primary} />
-              <Text style={[styles.adjustBtnText, { color: colors.primary }]}>+1 Rep</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Action Buttons */}
-          <View style={styles.actionButtonsCol}>
-            {!isActive ? (
-              <MasterButton
-                title={currentReps > 0 ? 'RESUME EXERCISE' : 'START CAMERA TRACKING'}
-                onPress={handleStartWorkout}
-                variant="green"
-              />
-            ) : (
-              <View style={styles.activeActionsRow}>
-                <TouchableOpacity
-                  style={styles.pauseBtn}
-                  onPress={handlePauseWorkout}
-                  activeOpacity={0.8}
-                >
-                  <Pause size={20} color={colors.textPrimary} />
-                  <Text style={styles.pauseBtnText}>PAUSE</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.finishBtn}
-                  onPress={() => handleFinishWorkout(currentReps)}
-                  activeOpacity={0.8}
-                >
-                  <CheckCircle2 size={20} color="#000000" />
-                  <Text style={styles.finishBtnText}>COMPLETE</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
+            <View style={styles.metricDivider} />
+            <View style={styles.metricItem}>
+              <Text style={styles.metricLabel}>EST. COINS</Text>
+              <Text style={[styles.metricVal, { color: colors.accentGold }]}>
+                +{currentReps * config.coinsPerRep}
+              </Text>
+            </View>
+          </GlowCard>
 
           <View style={{ height: 40 }} />
         </ScrollView>
@@ -491,19 +474,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    paddingTop: 10,
+    paddingHorizontal: 20,
+    paddingTop: 8,
     paddingBottom: 10,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#161616',
-    borderWidth: 1,
-    borderColor: '#242424',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   headerTitleWrap: {
     alignItems: 'center',
@@ -512,11 +485,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '900',
     color: colors.textPrimary,
-  },
-  exerciseSubtitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.primary,
+    letterSpacing: 1.5,
   },
   headerRightActions: {
     flexDirection: 'row',
@@ -524,85 +493,58 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: '#161616',
     borderWidth: 1,
     borderColor: '#242424',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  modeToggleRow: {
-    flexDirection: 'row',
-    backgroundColor: '#141414',
-    borderRadius: 14,
-    marginHorizontal: 18,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#202020',
-    padding: 4,
-    gap: 4,
-  },
-  modeTab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  modeTabActive: {
-    backgroundColor: colors.primary,
-  },
-  modeTabText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: colors.textSecondary,
-    letterSpacing: 0.5,
-  },
-  modeTabTextActive: {
-    color: '#000000',
-  },
   scrollContent: {
-    paddingHorizontal: 18,
-    gap: 14,
-    paddingBottom: 24,
+    paddingHorizontal: 20,
+    gap: 16,
   },
   cameraBoxContainer: {
     width: '100%',
-    aspectRatio: 3 / 4,
+    height: width * 0.95,
     borderRadius: 24,
     overflow: 'hidden',
-    backgroundColor: '#121212',
+    backgroundColor: '#0A0A0A',
     borderWidth: 1,
     borderColor: '#242424',
   },
   cameraWrapper: {
     flex: 1,
+    position: 'relative',
   },
   cameraHUDOverlay: {
     ...StyleSheet.absoluteFillObject,
-    justifyContent: 'space-between',
     padding: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.15)',
+    justifyContent: 'space-between',
   },
   hudTopRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   hudBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(10, 10, 10, 0.85)',
+    gap: 8,
+    backgroundColor: 'rgba(5, 5, 5, 0.75)',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 16,
+    borderRadius: 100,
     borderWidth: 1,
-    borderColor: '#2A2A2A',
+    borderColor: '#333',
+  },
+  hudBadgeDetected: {
+    borderColor: 'rgba(209, 255, 0, 0.4)',
+  },
+  hudBadgeSearching: {
+    borderColor: 'rgba(245, 158, 11, 0.4)',
   },
   liveGreenDot: {
     width: 8,
@@ -614,109 +556,101 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '900',
     color: colors.textPrimary,
-    letterSpacing: 0.8,
+    letterSpacing: 1,
   },
   hudAngleBadge: {
-    backgroundColor: 'rgba(138, 43, 226, 0.85)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    backgroundColor: 'rgba(5, 5, 5, 0.8)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#A855F7',
+    borderColor: 'rgba(209, 255, 0, 0.3)',
   },
   hudAngleText: {
     fontSize: 13,
     fontWeight: '900',
-    color: '#FFFFFF',
-  },
-  tapInstructionBanner: {
-    alignSelf: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 255, 106, 0.4)',
-  },
-  tapInstructionText: {
-    fontSize: 10,
-    fontWeight: '900',
     color: colors.primary,
-    letterSpacing: 0.5,
   },
   reticleBox: {
-    alignSelf: 'center',
     width: '80%',
     height: '60%',
+    alignSelf: 'center',
     position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',
   },
   cornerBracket: {
     position: 'absolute',
-    width: 28,
-    height: 28,
+    width: 24,
+    height: 24,
     borderColor: colors.primary,
   },
   bracketTopLeft: {
     top: 0,
     left: 0,
-    borderTopWidth: 3,
-    borderLeftWidth: 3,
-    borderTopLeftRadius: 8,
+    borderTopWidth: 2,
+    borderLeftWidth: 2,
   },
   bracketTopRight: {
     top: 0,
     right: 0,
-    borderTopWidth: 3,
-    borderRightWidth: 3,
-    borderTopRightRadius: 8,
+    borderTopWidth: 2,
+    borderRightWidth: 2,
   },
   bracketBottomLeft: {
     bottom: 0,
     left: 0,
-    borderBottomWidth: 3,
-    borderLeftWidth: 3,
-    borderBottomLeftRadius: 8,
+    borderBottomWidth: 2,
+    borderLeftWidth: 2,
   },
   bracketBottomRight: {
     bottom: 0,
     right: 0,
-    borderBottomWidth: 3,
-    borderRightWidth: 3,
-    borderBottomRightRadius: 8,
+    borderBottomWidth: 2,
+    borderRightWidth: 2,
   },
-  aiJointNode: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 2,
+  centerDashedCircle: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderStyle: 'dashed',
   },
-  aiJointNodeSplash: {
-    transform: [{ scale: 1.15 }],
-    borderColor: colors.primary,
+  centerDashedCircleActive: {
+    borderColor: 'rgba(209, 255, 0, 0.5)',
   },
-  aiJointNodeText: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    letterSpacing: 1,
-  },
-  hudBottomRow: {
+  feedbackPillWrap: {
     alignItems: 'center',
   },
   feedbackPill: {
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 20,
+    borderRadius: 100,
+  },
+  feedbackPillDetected: {
+    backgroundColor: 'rgba(209, 255, 0, 0.15)',
     borderWidth: 1,
-    borderColor: colors.primary,
+    borderColor: 'rgba(209, 255, 0, 0.4)',
+  },
+  feedbackPillWarning: {
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+  },
+  feedbackDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.primary,
   },
   feedbackText: {
     fontSize: 12,
     fontWeight: '800',
-    color: colors.primary,
+    color: colors.textPrimary,
   },
   noCameraPermissionBox: {
     flex: 1,
@@ -726,138 +660,98 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   noCameraTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '900',
     color: colors.textPrimary,
   },
   noCameraDesc: {
-    fontSize: 13,
+    fontSize: 12,
     color: colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 16,
   },
   grantPermBtn: {
     backgroundColor: colors.primary,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderRadius: 12,
     marginTop: 8,
   },
   grantPermBtnText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '900',
     color: '#000000',
   },
-  tachometerBox: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 6,
-  },
-  tachoRepsBig: {
-    fontSize: 72,
-    fontWeight: '900',
-    color: colors.primary,
-    fontVariant: ['tabular-nums'],
-  },
-  tachoTargetLabel: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: colors.textSecondary,
-    letterSpacing: 1,
-  },
-  tachoTimeLabel: {
-    fontSize: 20,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    marginTop: 8,
-  },
-  statsCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-  },
-  statCol: {
+  counterSection: {
     alignItems: 'center',
     gap: 4,
-    flex: 1,
   },
-  statLabel: {
+  counterRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
+  },
+  counterBig: {
+    fontSize: 64,
+    fontWeight: '900',
+    color: colors.primary,
+    letterSpacing: -1,
+  },
+  counterTarget: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.textMuted,
+  },
+  targetLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.textSecondary,
+    letterSpacing: 1.5,
+  },
+  actionButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 20,
+  },
+  actionCircleBtn: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#1C1C1C',
+    borderWidth: 1,
+    borderColor: '#303030',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stopCircleBtn: {
+    borderColor: 'rgba(239, 68, 68, 0.4)',
+  },
+  metricsCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    padding: 16,
+    borderRadius: 18,
+  },
+  metricItem: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  metricLabel: {
     fontSize: 10,
     fontWeight: '800',
     color: colors.textMuted,
-    letterSpacing: 0.5,
+    letterSpacing: 1,
   },
-  statValLarge: {
-    fontSize: 18,
+  metricVal: {
+    fontSize: 16,
     fontWeight: '900',
     color: colors.textPrimary,
   },
-  statDivider: {
+  metricDivider: {
     width: 1,
     height: 28,
-    backgroundColor: '#262626',
-  },
-  manualControlsRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  adjustBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#161616',
-    borderWidth: 1,
-    borderColor: '#282828',
-    paddingVertical: 12,
-    borderRadius: 14,
-  },
-  adjustBtnText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: colors.textSecondary,
-  },
-  actionButtonsCol: {
-    marginTop: 4,
-  },
-  activeActionsRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  pauseBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#222222',
-    paddingVertical: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#333333',
-  },
-  pauseBtnText: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: colors.textPrimary,
-  },
-  finishBtn: {
-    flex: 1.5,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: colors.primary,
-    paddingVertical: 16,
-    borderRadius: 16,
-  },
-  finishBtnText: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: '#000000',
+    backgroundColor: '#282828',
   },
 });

@@ -1,129 +1,281 @@
-import { achievementRepository } from '../database/repositories/achievementRepository';
-
-export interface AchievementCheckStats {
-  totalQuestsCompleted: number;
-  totalExerciseSessions: number;
-  totalPushups: number;
-  totalSquats: number;
-  currentStreak: number;
-  level: number;
-  totalFocusSessions: number;
-  totalCoinsEarned: number;
-}
+import { db } from '../database/client';
+import { achievement, userProfile, exerciseSession, focusSession, quest } from '../database/schema';
+import { eq } from 'drizzle-orm';
+import { notificationService } from './notificationService';
 
 export interface AchievementItem {
   id: string;
   title: string;
   description: string;
+  category: 'ACHIEVEMENT' | 'BADGE';
+  target: number;
+  progress: number;
+  unlocked: boolean;
+  unlockedAt?: string;
+  rewardCoins: number;
+  rewardXP: number;
   icon: string;
-  category: 'FITNESS' | 'FOCUS' | 'STREAK' | 'LEVEL' | 'COINS' | 'GENERAL';
-  condition: (stats: AchievementCheckStats) => boolean;
 }
 
-export const ACHIEVEMENTS: AchievementItem[] = [
+export const MILESTONE_DEFINITIONS: Omit<AchievementItem, 'progress' | 'unlocked' | 'unlockedAt'>[] = [
+  // Achievements
   {
-    id: 'first_quest',
-    title: 'First Step',
-    description: 'Complete your first quest in ARISE',
-    icon: 'sword',
-    category: 'GENERAL',
-    condition: (s) => s.totalQuestsCompleted >= 1,
+    id: 'first_workout',
+    title: 'First Blood',
+    description: 'Complete your first physical workout',
+    category: 'ACHIEVEMENT',
+    target: 1,
+    rewardCoins: 100,
+    rewardXP: 250,
+    icon: 'dumbbell',
   },
   {
-    id: 'first_exercise',
-    title: 'First Exercise',
-    description: 'Complete your first physical training session',
-    icon: 'arm-flex',
-    category: 'FITNESS',
-    condition: (s) => s.totalExerciseSessions >= 1,
+    id: 'pushup_master_50',
+    title: 'Push-up Titan',
+    description: 'Log 50 total push-up reps',
+    category: 'ACHIEVEMENT',
+    target: 50,
+    rewardCoins: 250,
+    rewardXP: 500,
+    icon: 'dumbbell',
   },
   {
-    id: 'pushups_10',
-    title: 'Push-up Initiate',
-    description: 'Complete 10 total push-ups',
-    icon: 'numeric-10-circle',
-    category: 'FITNESS',
-    condition: (s) => s.totalPushups >= 10,
-  },
-  {
-    id: 'pushups_100',
-    title: 'Push-up Centurion',
-    description: 'Complete 100 total push-ups',
-    icon: 'shield-crown',
-    category: 'FITNESS',
-    condition: (s) => s.totalPushups >= 100,
-  },
-  {
-    id: 'streak_7',
-    title: 'Week Warrior',
-    description: 'Maintain a 7-day uninterrupted streak',
-    icon: 'fire',
-    category: 'STREAK',
-    condition: (s) => s.currentStreak >= 7,
-  },
-  {
-    id: 'streak_30',
-    title: 'Monthly Master',
-    description: 'Maintain a 30-day uninterrupted streak',
-    icon: 'crown',
-    category: 'STREAK',
-    condition: (s) => s.currentStreak >= 30,
-  },
-  {
-    id: 'level_10',
-    title: 'Rising Legend',
-    description: 'Reach Player Level 10',
-    icon: 'star-circle',
-    category: 'LEVEL',
-    condition: (s) => s.level >= 10,
-  },
-  {
-    id: 'focus_10',
-    title: 'Deep Mind',
-    description: 'Complete 10 deep focus sessions',
+    id: 'focused_mind_5',
+    title: 'Focused Mind',
+    description: 'Complete 5 deep focus sessions',
+    category: 'ACHIEVEMENT',
+    target: 5,
+    rewardCoins: 300,
+    rewardXP: 600,
     icon: 'brain',
-    category: 'FOCUS',
-    condition: (s) => s.totalFocusSessions >= 10,
   },
   {
-    id: 'coins_1000',
-    title: 'Coin Hoarder',
+    id: 'iron_streak_3',
+    title: 'Iron Consistency',
+    description: 'Maintain a 3-day unbroken streak',
+    category: 'ACHIEVEMENT',
+    target: 3,
+    rewardCoins: 350,
+    rewardXP: 700,
+    icon: 'flame',
+  },
+  {
+    id: 'ascension_lvl_5',
+    title: 'Ascension',
+    description: 'Reach Player Level 5 Novice rank',
+    category: 'ACHIEVEMENT',
+    target: 5,
+    rewardCoins: 500,
+    rewardXP: 1000,
+    icon: 'trophy',
+  },
+  {
+    id: 'coin_collector_1000',
+    title: 'Treasure Hoarder',
     description: 'Earn 1,000 total lifetime coins',
-    icon: 'cash-multiple',
-    category: 'COINS',
-    condition: (s) => s.totalCoinsEarned >= 1000,
+    category: 'ACHIEVEMENT',
+    target: 1000,
+    rewardCoins: 500,
+    rewardXP: 1000,
+    icon: 'coins',
+  },
+
+  // Badges
+  {
+    id: 'badge_novice',
+    title: 'Novice Recruit',
+    description: 'Complete your first discipline protocol',
+    category: 'BADGE',
+    target: 1,
+    rewardCoins: 50,
+    rewardXP: 100,
+    icon: 'sparkles',
+  },
+  {
+    id: 'badge_streak_3',
+    title: '3-Day Fire',
+    description: 'Maintain a 3-day unbroken streak',
+    category: 'BADGE',
+    target: 3,
+    rewardCoins: 150,
+    rewardXP: 300,
+    icon: 'flame',
+  },
+  {
+    id: 'badge_level_5',
+    title: 'Titan Warrior',
+    description: 'Reach Player Level 5',
+    category: 'BADGE',
+    target: 5,
+    rewardCoins: 250,
+    rewardXP: 500,
+    icon: 'trophy',
+  },
+  {
+    id: 'badge_focus_master',
+    title: 'Zen Master',
+    description: 'Log 600 total focus minutes',
+    category: 'BADGE',
+    target: 600,
+    rewardCoins: 400,
+    rewardXP: 800,
+    icon: 'brain',
+  },
+  {
+    id: 'badge_streak_7',
+    title: 'Iron Will',
+    description: 'Maintain a 7-day unbroken streak',
+    category: 'BADGE',
+    target: 7,
+    rewardCoins: 500,
+    rewardXP: 1000,
+    icon: 'zap',
+  },
+  {
+    id: 'badge_grandmaster',
+    title: 'Grandmaster',
+    description: 'Reach Player Level 10',
+    category: 'BADGE',
+    target: 10,
+    rewardCoins: 1000,
+    rewardXP: 2500,
+    icon: 'award',
   },
 ];
 
-export const achievementService = {
-  checkAchievements: async (stats: AchievementCheckStats): Promise<AchievementItem[]> => {
-    const newlyUnlocked: AchievementItem[] = [];
+class AchievementService {
+  /**
+   * Evaluate all real metrics against milestones and unlock newly qualified achievements idempotently
+   */
+  async evaluateAchievements(): Promise<AchievementItem[]> {
+    try {
+      // 1. Fetch real stats from SQLite
+      const [profiles, exercises, focuses, questsList, unlockedRows] = await Promise.all([
+        db.select().from(userProfile).limit(1),
+        db.select().from(exerciseSession),
+        db.select().from(focusSession),
+        db.select().from(quest),
+        db.select().from(achievement),
+      ]);
 
-    for (const ach of ACHIEVEMENTS) {
-      const isAlreadyUnlocked = await achievementRepository.isUnlocked(ach.id);
-      if (!isAlreadyUnlocked && ach.condition(stats)) {
-        await achievementRepository.unlockAchievement(
-          ach.id,
-          ach.title,
-          ach.description,
-          ach.icon,
-          ach.category
-        );
-        newlyUnlocked.push(ach);
+      const profile = profiles[0] || {
+        level: 1,
+        coins: 0,
+        totalCoinsEarned: 0,
+        currentStreak: 0,
+      };
+
+      const totalPushups = exercises
+        .filter((e) => e.exerciseType === 'PUSHUP')
+        .reduce((sum, e) => sum + (e.completedReps || 0), 0);
+
+      const totalWorkouts = exercises.length;
+      const totalFocusSessions = focuses.filter((f) => f.status === 'COMPLETED').length;
+      const totalFocusMinutes = focuses.reduce((sum, f) => sum + (f.completedMinutes || 0), 0);
+      const totalQuestsCompleted = questsList.filter((q) => q.completed === 1).length;
+
+      const unlockedMap = new Map<string, string>();
+      for (const u of unlockedRows) {
+        unlockedMap.set(u.achievementId, u.unlockedAt);
       }
+
+      const results: AchievementItem[] = [];
+      const newlyUnlocked: AchievementItem[] = [];
+      const now = new Date().toISOString();
+
+      for (const def of MILESTONE_DEFINITIONS) {
+        let currentMetric = 0;
+
+        switch (def.id) {
+          case 'first_workout':
+            currentMetric = totalWorkouts + totalQuestsCompleted;
+            break;
+          case 'pushup_master_50':
+            currentMetric = totalPushups;
+            break;
+          case 'focused_mind_5':
+            currentMetric = totalFocusSessions;
+            break;
+          case 'iron_streak_3':
+          case 'badge_streak_3':
+            currentMetric = profile.currentStreak || 0;
+            break;
+          case 'ascension_lvl_5':
+          case 'badge_level_5':
+            currentMetric = profile.level || 1;
+            break;
+          case 'coin_collector_1000':
+            currentMetric = profile.totalCoinsEarned || profile.coins || 0;
+            break;
+          case 'badge_novice':
+            currentMetric = totalWorkouts + totalFocusSessions + totalQuestsCompleted;
+            break;
+          case 'badge_focus_master':
+            currentMetric = totalFocusMinutes;
+            break;
+          case 'badge_streak_7':
+            currentMetric = profile.currentStreak || 0;
+            break;
+          case 'badge_grandmaster':
+            currentMetric = profile.level || 1;
+            break;
+        }
+
+        const isQualified = currentMetric >= def.target;
+        const alreadyUnlocked = unlockedMap.has(def.id);
+
+        if (isQualified && !alreadyUnlocked) {
+          // Newly qualified milestone! Persist to SQLite
+          try {
+            await db.insert(achievement).values({
+              achievementId: def.id,
+              title: def.title,
+              description: def.description,
+              icon: def.icon,
+              category: def.category,
+              unlockedAt: now,
+            });
+            unlockedMap.set(def.id, now);
+            newlyUnlocked.push({
+              ...def,
+              progress: Math.min(def.target, currentMetric),
+              unlocked: true,
+              unlockedAt: now,
+            });
+          } catch {}
+        }
+
+        results.push({
+          ...def,
+          progress: Math.min(def.target, currentMetric),
+          unlocked: alreadyUnlocked || isQualified,
+          unlockedAt: unlockedMap.get(def.id),
+        });
+      }
+
+      // Trigger notification for each newly unlocked milestone
+      for (const item of newlyUnlocked) {
+        await notificationService.createNotification(
+          'ACHIEVEMENT',
+          `Unlocked: ${item.title}!`,
+          `Congratulations! You achieved "${item.title}". +${item.rewardCoins} Coins`,
+          item.id
+        );
+      }
+
+      return results;
+    } catch (e) {
+      console.warn('Error evaluating achievements:', e);
+      return [];
     }
+  }
 
-    return newlyUnlocked;
-  },
+  /**
+   * Get list of achievements for UI
+   */
+  async getAchievements(): Promise<AchievementItem[]> {
+    return await this.evaluateAchievements();
+  }
+}
 
-  getAllAchievementsWithProgress: async (stats: AchievementCheckStats) => {
-    const unlocked = await achievementRepository.getUnlockedAchievements();
-    const unlockedSet = new Set(unlocked.map((u) => u.achievementId));
-
-    return ACHIEVEMENTS.map((ach) => ({
-      ...ach,
-      isUnlocked: unlockedSet.has(ach.id),
-      unlockedAt: unlocked.find((u) => u.achievementId === ach.id)?.unlockedAt,
-    }));
-  },
-};
+export const achievementService = new AchievementService();

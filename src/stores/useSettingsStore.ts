@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { db } from '../database/client';
 import { settings } from '../database/schema';
+import { eq } from 'drizzle-orm';
+import { ThemeMode } from '../theme/themeEngine';
 
 interface SettingsState {
   sfxEnabled: boolean;
@@ -9,7 +11,11 @@ interface SettingsState {
   notificationsEnabled: boolean;
   onboardingCompleted: boolean;
   dailyBudgetMinutes: number;
-  theme: string;
+  theme: ThemeMode;
+  bgMusicEnabled: boolean;
+  bgMusicVolume: number;
+  focusMusicTrack: string;
+  focusMusicVolume: number;
   isLoading: boolean;
 
   loadSettings: () => Promise<void>;
@@ -18,6 +24,9 @@ interface SettingsState {
   toggleHaptics: () => Promise<void>;
   toggleNotifications: () => Promise<void>;
   setOnboardingCompleted: () => Promise<void>;
+  setTheme: (theme: ThemeMode) => Promise<void>;
+  setBgMusic: (enabled: boolean, volume?: number) => Promise<void>;
+  setFocusMusic: (track: string, volume?: number) => Promise<void>;
 }
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
@@ -27,7 +36,11 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   notificationsEnabled: false,
   onboardingCompleted: false,
   dailyBudgetMinutes: 120,
-  theme: 'dark',
+  theme: 'system',
+  bgMusicEnabled: false,
+  bgMusicVolume: 0.5,
+  focusMusicTrack: 'deep_focus',
+  focusMusicVolume: 0.6,
   isLoading: false,
 
   loadSettings: async () => {
@@ -43,7 +56,11 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
           notificationsEnabled: s.notificationsEnabled === 1,
           onboardingCompleted: s.onboardingCompleted === 1,
           dailyBudgetMinutes: s.dailyBudgetMinutes,
-          theme: s.theme,
+          theme: (s.theme as ThemeMode) || 'system',
+          bgMusicEnabled: (s as any).bgMusicEnabled === 1,
+          bgMusicVolume: (s as any).bgMusicVolume ?? 0.5,
+          focusMusicTrack: (s as any).focusMusicTrack || 'deep_focus',
+          focusMusicVolume: (s as any).focusMusicVolume ?? 0.6,
           isLoading: false,
         });
       } else {
@@ -65,7 +82,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         } else {
           payload[key] = value;
         }
-        await db.update(settings).set(payload);
+        await db.update(settings).set(payload).where(eq(settings.id, current[0].id));
       }
       set({ [key]: value } as any);
     } catch (error) {
@@ -90,5 +107,23 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
   setOnboardingCompleted: async () => {
     await get().updateSetting('onboardingCompleted', true);
+  },
+
+  setTheme: async (theme: ThemeMode) => {
+    await get().updateSetting('theme', theme);
+  },
+
+  setBgMusic: async (enabled: boolean, volume?: number) => {
+    await get().updateSetting('bgMusicEnabled', enabled);
+    if (volume !== undefined) {
+      await get().updateSetting('bgMusicVolume', volume);
+    }
+  },
+
+  setFocusMusic: async (track: string, volume?: number) => {
+    await get().updateSetting('focusMusicTrack', track);
+    if (volume !== undefined) {
+      await get().updateSetting('focusMusicVolume', volume);
+    }
   },
 }));

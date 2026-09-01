@@ -1,18 +1,21 @@
 import * as schema from './schema';
 
 /**
- * Web Database In-Memory / LocalStorage Mock Client
+ * Web Database LocalStorage-Backed Client
  * 
- * Provides a clean browser fallback for web previews.
+ * Provides persistent SQLite simulation for web previews.
+ * Survives page reloads, hot reloads, and browser restarts.
  * Clean first launch: Level 1, 0 XP, 0 Coins, 0 Streaks, 0 Stats, 0 completed tasks.
  */
 
-// In-memory data store for clean initial state
-const mockState: Record<string, any[]> = {
+const STORAGE_KEY = 'arise_db_persistent_state_v1';
+
+const initialMockState: Record<string, any[]> = {
   user_profile: [
     {
       id: 1,
       displayName: 'Warrior',
+      avatarIcon: 'user',
       level: 1,
       currentXP: 0,
       totalXP: 0,
@@ -36,6 +39,7 @@ const mockState: Record<string, any[]> = {
       category: 'FITNESS',
       exerciseType: 'PUSHUP',
       questType: 'TRACKED',
+      frequency: 'DAILY',
       target: 20,
       rewardCoins: 40,
       rewardXP: 100,
@@ -50,6 +54,7 @@ const mockState: Record<string, any[]> = {
       category: 'FITNESS',
       exerciseType: 'SQUAT',
       questType: 'TRACKED',
+      frequency: 'DAILY',
       target: 30,
       rewardCoins: 50,
       rewardXP: 120,
@@ -63,6 +68,7 @@ const mockState: Record<string, any[]> = {
       description: 'Zero distractions flow state timer',
       category: 'FOCUS',
       questType: 'TIMER',
+      frequency: 'DAILY',
       target: 25,
       rewardCoins: 50,
       rewardXP: 100,
@@ -76,10 +82,26 @@ const mockState: Record<string, any[]> = {
       description: 'Organize workspace and plan day priorities',
       category: 'PRODUCTIVITY',
       questType: 'MANUAL',
+      frequency: 'DAILY',
       target: 1,
       rewardCoins: 20,
       rewardXP: 50,
       difficulty: 'EASY',
+      completed: 0,
+      date: new Date().toISOString().split('T')[0],
+    },
+    {
+      id: 5,
+      title: '100 Weekly Push-up Milestone',
+      description: 'Accumulate 100 push-ups over 7 days',
+      category: 'FITNESS',
+      exerciseType: 'PUSHUP',
+      questType: 'TRACKED',
+      frequency: 'WEEKLY',
+      target: 100,
+      rewardCoins: 150,
+      rewardXP: 300,
+      difficulty: 'HARD',
       completed: 0,
       date: new Date().toISOString().split('T')[0],
     },
@@ -90,26 +112,18 @@ const mockState: Record<string, any[]> = {
   exercise_session: [],
   focus_session: [],
   progress_photo: [],
+  notification: [],
   app_restriction: [
     {
       id: 1,
       packageName: 'com.instagram.android',
       appName: 'Instagram',
-      appIconUri: 'instagram',
       isRestricted: 1,
     },
     {
       id: 2,
       packageName: 'com.google.android.youtube',
       appName: 'YouTube',
-      appIconUri: 'youtube',
-      isRestricted: 1,
-    },
-    {
-      id: 3,
-      packageName: 'com.zhiliaoapp.musically',
-      appName: 'TikTok',
-      appIconUri: 'music-box',
       isRestricted: 1,
     },
   ],
@@ -127,6 +141,32 @@ const mockState: Record<string, any[]> = {
   ],
 };
 
+function loadWebState(): Record<string, any[]> {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    }
+  } catch (e) {
+    console.warn('Could not read persistent state from localStorage:', e);
+  }
+  return initialMockState;
+}
+
+function saveWebState(state: Record<string, any[]>) {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+  } catch (e) {
+    console.warn('Could not save persistent state to localStorage:', e);
+  }
+}
+
+const mockState: Record<string, any[]> = loadWebState();
+
 function getTableName(table: any): string {
   if (typeof table === 'string') return table;
   return (table as any)?._?.name || (table as any)?.name || 'user_profile';
@@ -143,11 +183,13 @@ function createQueryChain(tableName: string) {
     values: (vals: any) => {
       const entry = { id: (data.length || 0) + 1, ...vals };
       data.push(entry);
+      saveWebState(mockState);
       return Promise.resolve([entry]);
     },
     set: (vals: any) => ({
       where: (predicate: any) => {
         data.forEach((item) => Object.assign(item, vals));
+        saveWebState(mockState);
         return Promise.resolve(data);
       },
     }),
@@ -169,6 +211,7 @@ export const db: any = {
       const list = mockState[name] || (mockState[name] = []);
       const entry = { id: list.length + 1, ...vals };
       list.push(entry);
+      saveWebState(mockState);
       return Promise.resolve([entry]);
     },
   }),
@@ -178,18 +221,24 @@ export const db: any = {
         const name = getTableName(tbl);
         const list = mockState[name] || [];
         list.forEach((item) => Object.assign(item, vals));
+        saveWebState(mockState);
         return Promise.resolve(list);
       },
     }),
   }),
   delete: (tbl: any) => ({
-    where: () => Promise.resolve([]),
+    where: () => {
+      saveWebState(mockState);
+      return Promise.resolve([]);
+    },
   }),
   transaction: async (cb: any) => {
-    return await cb(db);
+    const res = await cb(db);
+    saveWebState(mockState);
+    return res;
   },
 };
 
 export async function initializeDatabase(): Promise<void> {
-  console.log('⚡ [ARISE] Clean Level 1 initialization verified');
+  console.log('[ARISE Persistence] Database initialized with persistent state');
 }

@@ -1,49 +1,47 @@
 import React from 'react';
-import { Tabs } from 'expo-router';
-import { View, StyleSheet, Platform } from 'react-native';
+import { Tabs, router } from 'expo-router';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  Home,
+  LayoutGrid,
   ClipboardList,
-  Grid,
-  TrendingUp,
+  Dumbbell,
+  ShoppingBag,
   User,
 } from 'lucide-react-native';
-import { colors } from '../../src/theme/colors';
+import { useTheme } from '../../src/hooks/useTheme';
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#0E0E0E',
-          borderTopColor: '#1A1A1A',
+          backgroundColor: colors.background,
+          borderTopColor: colors.border,
           borderTopWidth: 1,
           height: Platform.OS === 'ios' ? 84 : 64 + insets.bottom,
           paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
           paddingTop: 8,
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          elevation: 0,
         },
         tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: '#52525B',
-        tabBarShowLabel: false,
+        tabBarInactiveTintColor: colors.textMuted,
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '700',
+          marginTop: 2,
+        },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: 'Main',
           tabBarIcon: ({ color, focused }) => (
-            <View style={styles.tabIconWrap}>
-              <Home size={22} color={focused ? colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
-            </View>
+            <LayoutGrid size={20} color={focused ? colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
           ),
         }}
       />
@@ -52,32 +50,32 @@ export default function TabsLayout() {
         options={{
           title: 'Quests',
           tabBarIcon: ({ color, focused }) => (
-            <View style={styles.tabIconWrap}>
-              <ClipboardList size={22} color={focused ? colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
-            </View>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="rewards"
-        options={{
-          title: 'Rewards',
-          tabBarIcon: ({ color, focused }) => (
-            <View style={styles.tabIconWrap}>
-              <Grid size={22} color={focused ? colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
-            </View>
+            <ClipboardList size={20} color={focused ? colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
           ),
         }}
       />
       <Tabs.Screen
         name="progress"
         options={{
-          title: 'Progress',
+          title: 'Gym',
           tabBarIcon: ({ color, focused }) => (
-            <View style={styles.tabIconWrap}>
-              <TrendingUp size={22} color={focused ? colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
-            </View>
+            <Dumbbell size={20} color={focused ? colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="rewards"
+        options={{
+          title: 'Shop',
+          tabBarIcon: ({ color, focused }) => (
+            <ShoppingBag size={20} color={focused ? colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
+          ),
+        }}
+        listeners={{
+          tabPress: (e) => {
+            e.preventDefault();
+            router.push('/shop');
+          },
         }}
       />
       <Tabs.Screen
@@ -85,9 +83,7 @@ export default function TabsLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, focused }) => (
-            <View style={styles.tabIconWrap}>
-              <User size={22} color={focused ? colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
-            </View>
+            <User size={20} color={focused ? colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
           ),
         }}
       />
@@ -95,11 +91,4 @@ export default function TabsLayout() {
   );
 }
 
-const styles = StyleSheet.create({
-  tabIconWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 44,
-    height: 40,
-  },
-});
+const styles = StyleSheet.create({});

@@ -1,14 +1,25 @@
+import { requireNativeModule } from 'expo-modules-core';
 import { NativeModules, Platform } from 'react-native';
 
-const AppBlocker = NativeModules.AppBlocker || {
-  hasUsagePermission: async () => false,
-  hasOverlayPermission: async () => false,
-  requestUsagePermission: () => {},
-  requestOverlayPermission: () => {},
-  startMonitoring: (restrictedPackages: string[]) => {},
-  stopMonitoring: () => {},
-  setRestrictedPackages: (restrictedPackages: string[]) => {},
-};
+let AppBlocker: any = null;
+try {
+  AppBlocker = requireNativeModule('AppBlocker');
+} catch {
+  AppBlocker = NativeModules.AppBlocker || null;
+}
+
+if (!AppBlocker) {
+  AppBlocker = {
+    hasUsagePermission: async () => false,
+    hasOverlayPermission: async () => false,
+    requestUsagePermission: () => {},
+    requestOverlayPermission: () => {},
+    startMonitoring: (_restrictedPackages: string[]) => {},
+    stopMonitoring: () => {},
+    setRestrictedPackages: (_restrictedPackages: string[]) => {},
+    getInstalledApps: async () => [],
+  };
+}
 
 export async function hasUsagePermission(): Promise<boolean> {
   if (Platform.OS !== 'android') return true;

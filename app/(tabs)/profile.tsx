@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -18,26 +17,29 @@ import {
   Info,
   ChevronRight,
   Download,
-  Palette,
-  X,
+  Camera,
+  Edit3,
+  Dumbbell,
+  Moon,
+  Sparkles,
+  Flame,
+  Award,
+  Coins,
 } from 'lucide-react-native';
-import { MasterCard } from '../../src/components/master/MasterCard';
-import { MasterButton } from '../../src/components/master/MasterButton';
+import { GlowCard } from '../../src/components/design-system/GlowCard';
+import { GlowButton } from '../../src/components/design-system/GlowButton';
 import { PlayerAvatar } from '../../src/components/ui/PlayerAvatar';
-import { AvatarPicker } from '../../src/components/profile/AvatarPicker';
+import { XPBar } from '../../src/components/design-system/XPBar';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { backupService } from '../../src/services/backupService';
 import { useHaptics } from '../../src/hooks/useHaptics';
-import { colors } from '../../src/theme/colors';
+import { useTheme } from '../../src/hooks/useTheme';
 
 export default function ProfileTab() {
   const profile = usePlayerStore((s) => s.profile);
   const loadProfile = usePlayerStore((s) => s.loadProfile);
   const haptics = useHaptics();
-
-  const [isPickerVisible, setIsPickerVisible] = useState(false);
-  const [currentIconId, setCurrentIconId] = useState('user');
-  const [currentColor, setCurrentColor] = useState<string>(colors.primary);
+  const { colors } = useTheme();
 
   useEffect(() => {
     loadProfile();
@@ -46,14 +48,16 @@ export default function ProfileTab() {
   const level = profile?.level || 1;
   const displayName = profile?.displayName || 'Warrior';
   const currentXP = profile?.currentXP || 0;
-  const targetXP = level * 100;
-  const xpPercent = Math.min(100, Math.round((currentXP / targetXP) * 100));
+  const coins = profile?.coins || 0;
+  const streak = profile?.currentStreak || 0;
+  const avatarIcon = profile?.avatarIcon || 'img_pfp_01';
 
   const handleExportBackup = async () => {
     haptics.medium();
     const success = await backupService.exportBackup();
     if (success) {
       haptics.success();
+      Alert.alert('Backup Created', 'Your local ARISE database was exported successfully.');
     } else {
       Alert.alert('Export Failed', 'Could not create offline backup file.');
     }
@@ -61,104 +65,145 @@ export default function ProfileTab() {
 
   const menuItems = [
     {
-      title: 'Customize Avatar & Aura',
-      icon: Palette,
-      action: () => setIsPickerVisible(true),
+      title: 'Edit Callsign & Bio',
+      sub: 'Change display name, manifesto & avatar',
+      icon: Edit3,
+      color: colors.primary,
+      action: () => router.push('/settings/profile-edit' as any),
     },
     {
-      title: 'Settings',
-      icon: Settings,
-      action: () => router.push('/settings'),
+      title: 'Physique Transformation Photos',
+      sub: 'Private 100% on-device daily check-in photos',
+      icon: Camera,
+      color: colors.accentGold,
+      action: () => router.push('/photos' as any),
     },
     {
-      title: 'Permissions',
-      icon: Shield,
-      action: () => router.push('/permissions' as any),
+      title: 'Gym Workout Protocol',
+      sub: 'Custom splits, weekly schedules & 200+ exercises',
+      icon: Dumbbell,
+      color: colors.danger,
+      action: () => router.push('/(tabs)/progress'),
     },
     {
-      title: 'Blocked Apps',
+      title: 'Blocked Distraction Apps',
+      sub: 'Real installed Android apps locked behind focus',
       icon: Smartphone,
+      color: '#A855F7',
       action: () => router.push('/settings/apps'),
     },
     {
-      title: 'Help & Support',
-      icon: HelpCircle,
-      action: () =>
-        Alert.alert(
-          'Help & Support',
-          'ARISE is a 100% offline self-discipline engine. Perform physical exercise and focus sprints to earn screen time tokens.'
-        ),
+      title: 'Permissions Hub',
+      sub: 'Usage access, overlay shield & camera',
+      icon: Shield,
+      color: colors.secondary,
+      action: () => router.push('/permissions' as any),
     },
     {
-      title: 'About ARISE',
+      title: 'Appearance, Sound & Settings',
+      sub: 'Themes (Dark/Light/System), SFX & ambient music',
+      icon: Settings,
+      color: colors.textPrimary,
+      action: () => router.push('/settings'),
+    },
+    {
+      title: 'Export Offline Backup',
+      sub: 'Save progress, PRs and streak history to JSON',
+      icon: Download,
+      color: colors.textSecondary,
+      action: handleExportBackup,
+    },
+    {
+      title: 'About ARISE System',
+      sub: 'Architecture telemetry & engine info',
       icon: Info,
+      color: colors.textMuted,
       action: () =>
         Alert.alert(
-          'About ARISE V1',
-          'ARISE Engine v1.0.0\n100% Offline Hardware-Accelerated Discipline System.\nBuilt with Expo SDK 54 & React Native 0.81.'
+          'ARISE Engine v1.0.0',
+          'Production-grade hardware-accelerated discipline OS.\n100% Offline SQLite architecture.\nOn-device Google ML Kit Pose Detection.'
         ),
     },
   ];
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <SafeAreaView style={styles.safeArea}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Profile</Text>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>WARRIOR IDENTITY</Text>
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {/* Hero Profile Card */}
-          <MasterCard style={styles.profileHeroCard}>
+          <GlowCard variant="glow" style={styles.profileHeroCard}>
             <View style={styles.avatarRow}>
-              <TouchableOpacity
-                onPress={() => setIsPickerVisible(true)}
-                activeOpacity={0.8}
-              >
-                <PlayerAvatar
-                  iconId={currentIconId}
-                  glowColor={currentColor}
-                  size={72}
-                />
-              </TouchableOpacity>
+              <PlayerAvatar
+                iconId={avatarIcon}
+                size={80}
+                glow={true}
+                glowColor={colors.primary}
+              />
 
               <View style={styles.profileMeta}>
-                <View style={styles.levelRow}>
-                  <Text style={styles.levelTitle}>{displayName}</Text>
-                  <View style={styles.noviceBadge}>
-                    <Text style={styles.noviceBadgeText}>Level {level}</Text>
+                <View style={styles.nameBadgeRow}>
+                  <Text style={[styles.playerName, { color: colors.textPrimary }]} numberOfLines={1}>
+                    {displayName}
+                  </Text>
+                  <View style={[styles.levelBadge, { backgroundColor: 'rgba(209, 255, 0, 0.15)' }]}>
+                    <Text style={[styles.levelBadgeText, { color: colors.primary }]}>LV. {level}</Text>
                   </View>
                 </View>
 
-                {/* Progress bar */}
-                <View style={styles.xpBarTrack}>
-                  <View
-                    style={[
-                      styles.xpBarFill,
-                      { width: `${Math.max(5, xpPercent)}%`, backgroundColor: currentColor },
-                    ]}
-                  />
+                <Text style={[styles.bioText, { color: colors.textSecondary }]} numberOfLines={2}>
+                  {profile?.bio || 'Disciplined warrior in training.'}
+                </Text>
+
+                <View style={styles.statPillsRow}>
+                  <View style={[styles.statPill, { backgroundColor: colors.surfaceLight }]}>
+                    <Flame size={13} color={colors.danger} />
+                    <Text style={[styles.statPillText, { color: colors.textPrimary }]}>{streak}d Streak</Text>
+                  </View>
+                  <View style={[styles.statPill, { backgroundColor: colors.surfaceLight }]}>
+                    <Coins size={13} color={colors.accentGold} />
+                    <Text style={[styles.statPillText, { color: colors.textPrimary }]}>{coins} Coins</Text>
+                  </View>
                 </View>
-                <Text style={styles.xpLabelText}>{currentXP} / {targetXP} XP</Text>
               </View>
             </View>
-          </MasterCard>
+
+            <View style={{ width: '100%', marginTop: 6 }}>
+              <XPBar progress={Math.min(100, Math.round((currentXP / Math.max(1, level * 100)) * 100))} />
+            </View>
+
+            <GlowButton
+              title="EDIT IDENTITY & PREFERENCES"
+              onPress={() => router.push('/settings/profile-edit' as any)}
+              variant="outline"
+              size="sm"
+              icon={<Edit3 size={14} color={colors.primary} />}
+            />
+          </GlowCard>
 
           {/* Menu Items List */}
+          <Text style={[styles.sectionHeading, { color: colors.textMuted }]}>SYSTEM PROTOCOLS</Text>
           <View style={styles.menuList}>
             {menuItems.map((item) => {
               const IconComp = item.icon;
               return (
                 <TouchableOpacity
                   key={item.title}
-                  style={styles.menuRow}
+                  style={[styles.menuRow, { backgroundColor: colors.card, borderColor: colors.border }]}
                   onPress={item.action}
                   activeOpacity={0.8}
                 >
-                  <View style={styles.menuLeft}>
-                    <IconComp size={20} color={colors.textSecondary} />
-                    <Text style={styles.menuTitle}>{item.title}</Text>
+                  <View style={[styles.menuIconCircle, { backgroundColor: 'rgba(255, 255, 255, 0.05)' }]}>
+                    <IconComp size={18} color={item.color} />
+                  </View>
+
+                  <View style={styles.menuTextCol}>
+                    <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>{item.title}</Text>
+                    <Text style={[styles.menuSub, { color: colors.textSecondary }]}>{item.sub}</Text>
                   </View>
 
                   <ChevronRight size={18} color={colors.textMuted} />
@@ -167,83 +212,34 @@ export default function ProfileTab() {
             })}
           </View>
 
-          <View style={{ height: 90 }} />
+          <View style={{ height: 100 }} />
         </ScrollView>
       </SafeAreaView>
-
-      {/* Avatar Icon Selector Modal */}
-      <Modal
-        visible={isPickerVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setIsPickerVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Choose Avatar Icon & Aura</Text>
-              <TouchableOpacity
-                onPress={() => setIsPickerVisible(false)}
-                style={styles.closeBtn}
-              >
-                <X size={20} color={colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <View style={styles.modalPreview}>
-                <PlayerAvatar
-                  iconId={currentIconId}
-                  glowColor={currentColor}
-                  size={76}
-                />
-              </View>
-
-              <AvatarPicker
-                selectedIconId={currentIconId}
-                selectedColor={currentColor}
-                onSelectIcon={setCurrentIconId}
-                onSelectColor={setCurrentColor}
-              />
-
-              <MasterButton
-                title="APPLY AVATAR"
-                onPress={() => {
-                  haptics.success();
-                  setIsPickerVisible(false);
-                }}
-                variant="green"
-                style={{ marginTop: 16 }}
-              />
-              <View style={{ height: 20 }} />
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1 },
   safeArea: { flex: 1 },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingTop: 10,
     paddingBottom: 8,
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '900',
-    color: colors.textPrimary,
+    letterSpacing: 1.2,
   },
   scrollContent: {
-    paddingHorizontal: 18,
-    gap: 20,
-    paddingTop: 4,
+    paddingHorizontal: 20,
+    gap: 16,
   },
   profileHeroCard: {
     padding: 18,
+    borderRadius: 22,
+    gap: 12,
   },
   avatarRow: {
     flexDirection: 'row',
@@ -254,104 +250,78 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 4,
   },
-  levelRow: {
+  nameBadgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 8,
   },
-  levelTitle: {
+  playerName: {
     fontSize: 18,
     fontWeight: '900',
-    color: colors.textPrimary,
+    flex: 1,
   },
-  noviceBadge: {
-    backgroundColor: '#1E1E1E',
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#2A2A2A',
+  levelBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
   },
-  noviceBadgeText: {
+  levelBadgeText: {
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  bioText: {
     fontSize: 11,
-    fontWeight: '700',
-    color: colors.textSecondary,
+    lineHeight: 15,
   },
-  xpBarTrack: {
-    height: 6,
-    backgroundColor: '#262626',
-    borderRadius: 3,
-    overflow: 'hidden',
+  statPillsRow: {
+    flexDirection: 'row',
+    gap: 8,
     marginTop: 4,
   },
-  xpBarFill: {
-    height: '100%',
-    borderRadius: 3,
+  statPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
-  xpLabelText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.textMuted,
-    marginTop: 2,
+  statPillText: {
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  sectionHeading: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.2,
   },
   menuList: {
-    backgroundColor: '#141414',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#1F1F1F',
-    overflow: 'hidden',
+    gap: 8,
   },
   menuRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 18,
-    paddingHorizontal: 18,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1A1A1A',
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 12,
   },
-  menuLeft: {
-    flexDirection: 'row',
+  menuIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 14,
+  },
+  menuTextCol: {
+    flex: 1,
+    gap: 2,
   },
   menuTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800',
-    color: colors.textPrimary,
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
-    justifyContent: 'flex-end',
-  },
-  modalSheet: {
-    backgroundColor: '#141414',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    borderWidth: 1,
-    borderColor: '#262626',
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 24,
-    maxHeight: '82%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  modalTitle: {
-    fontSize: 17,
-    fontWeight: '900',
-    color: colors.textPrimary,
-  },
-  closeBtn: {
-    padding: 6,
-  },
-  modalPreview: {
-    alignItems: 'center',
-    marginVertical: 10,
+  menuSub: {
+    fontSize: 11,
   },
 });

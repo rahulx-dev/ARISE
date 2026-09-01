@@ -10,6 +10,7 @@ export interface InstalledAppItem {
   appName: string;
   isSystemApp?: boolean;
   icon?: string;
+  appIconBase64?: string;
 }
 
 export interface IAppBlockerDriver {
@@ -21,6 +22,7 @@ export interface IAppBlockerDriver {
   stopMonitoring(): void;
   setRestrictedPackages(restrictedPackages: string[]): void;
   getInstalledApps(): Promise<InstalledAppItem[]>;
+  isAppInstalled?(packageName: string): Promise<boolean>;
   simulateBlockEvent?(packageName: string): void;
 }
 

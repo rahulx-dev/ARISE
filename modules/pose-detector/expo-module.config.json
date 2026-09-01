@@ -1,0 +1,9 @@
+{
+  "name": "pose-detector",
+  "platforms": ["android"],
+  "android": {
+    "modules": [
+      "com.arise.posedetector.PoseDetectorModule"
+    ]
+  }
+}

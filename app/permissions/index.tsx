@@ -8,7 +8,7 @@ import {
   Platform,
   AppState,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Camera } from 'expo-camera';
 import * as Notifications from 'expo-notifications';
@@ -60,6 +60,12 @@ export default function PermissionsScreen() {
       console.warn('Error checking permissions:', e);
     }
   };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      checkAllPermissions();
+    }, [])
+  );
 
   useEffect(() => {
     checkAllPermissions();

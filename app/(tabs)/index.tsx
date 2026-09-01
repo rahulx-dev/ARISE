@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,56 +10,71 @@ import {
   AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import {
+  Settings as SettingsIcon,
   Bell,
-  Coins,
-  Star,
+  TrendingUp,
+  Award,
+  Calendar,
+  Plus,
+  Trophy,
   Dumbbell,
   Shield,
   Crosshair,
-  Heart,
-  BookOpen,
-  Clock,
-  ShoppingBag,
-  Triangle,
   Flame,
+  Activity,
   ChevronRight,
   X,
-  Camera,
-  Activity,
+  Sparkles,
   ShieldAlert,
+  Coins,
+  Camera,
+  ShoppingBag,
+  Zap,
+  Check,
 } from 'lucide-react-native';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { useQuestStore } from '../../src/stores/useQuestStore';
+import { useSettingsStore } from '../../src/stores/useSettingsStore';
 import { streakService } from '../../src/services/streakService';
+import { notificationService, AppNotification } from '../../src/services/notificationService';
 import { initializeDatabase } from '../../src/database/client';
 import { appBlockerService } from '../../src/native';
-import { MasterCard } from '../../src/components/master/MasterCard';
-import { MasterButton } from '../../src/components/master/MasterButton';
+import { GlowCard } from '../../src/components/design-system/GlowCard';
+import { GlowButton } from '../../src/components/design-system/GlowButton';
+import { CoinBalance } from '../../src/components/design-system/CoinBalance';
 import { PlayerAvatar } from '../../src/components/ui/PlayerAvatar';
+import { AriseLogo } from '../../src/components/ui/AriseLogo';
+import { XPBar } from '../../src/components/design-system/XPBar';
+import { DigitalClockWidget } from '../../src/components/home/DigitalClockWidget';
+import { WeatherWidget } from '../../src/components/home/WeatherWidget';
 import { useHaptics } from '../../src/hooks/useHaptics';
-import { colors } from '../../src/theme/colors';
+import { useTheme } from '../../src/hooks/useTheme';
 
 const EXERCISE_OPTIONS = [
-  { type: 'PUSHUP', name: 'Push-ups', target: '20 Reps', icon: Dumbbell, xp: '+50 XP', coins: '+25 🟡' },
-  { type: 'SQUAT', name: 'Squats', target: '25 Reps', icon: Activity, xp: '+45 XP', coins: '+20 🟡' },
-  { type: 'PLANK', name: 'Plank Hold', target: '45 Sec', icon: Shield, xp: '+40 XP', coins: '+20 🟡' },
-  { type: 'SITUP', name: 'Sit-ups', target: '20 Reps', icon: Flame, xp: '+40 XP', coins: '+20 🟡' },
-  { type: 'JUMPING_JACK', name: 'Jumping Jacks', target: '30 Reps', icon: Crosshair, xp: '+35 XP', coins: '+15 🟡' },
+  { type: 'PUSHUP', name: 'Push-ups', target: '20 Reps', icon: Dumbbell, xp: '+50 XP', coins: '+25' },
+  { type: 'SQUAT', name: 'Squats', target: '25 Reps', icon: Activity, xp: '+45 XP', coins: '+20' },
+  { type: 'PLANK', name: 'Plank Hold', target: '45 Sec', icon: Shield, xp: '+40 XP', coins: '+20' },
+  { type: 'SITUP', name: 'Sit-ups', target: '20 Reps', icon: Flame, xp: '+40 XP', coins: '+20' },
+  { type: 'JUMPING_JACK', name: 'Jumping Jacks', target: '30 Reps', icon: Crosshair, xp: '+35 XP', coins: '+15' },
 ];
 
 export default function HomeDashboard() {
+  const { colors } = useTheme();
+  const haptics = useHaptics();
+
   const profile = usePlayerStore((s) => s.profile);
   const loadProfile = usePlayerStore((s) => s.loadProfile);
-  const quests = useQuestStore((s) => s.quests);
+  const dailyQuests = useQuestStore((s) => s.dailyQuests);
   const loadQuests = useQuestStore((s) => s.loadQuests);
-  const haptics = useHaptics();
+  const completeQuest = useQuestStore((s) => s.completeQuest);
 
   const [loading, setLoading] = useState(true);
   const [isExercisePickerOpen, setIsExercisePickerOpen] = useState(false);
   const [isNotifSheetOpen, setIsNotifSheetOpen] = useState(false);
   const [hasAllPermissions, setHasAllPermissions] = useState(true);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
   const checkPermissions = async () => {
     try {
@@ -73,6 +88,20 @@ export default function HomeDashboard() {
     }
   };
 
+  const loadNotifications = async () => {
+    const notifs = await notificationService.getNotifications(20);
+    setNotifications(notifs);
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      loadProfile();
+      loadQuests();
+      checkPermissions();
+      loadNotifications();
+    }, [])
+  );
+
   useEffect(() => {
     const init = async () => {
       try {
@@ -81,6 +110,7 @@ export default function HomeDashboard() {
         await loadQuests();
         await streakService.checkAndUpdateStreak();
         await checkPermissions();
+        await loadNotifications();
       } catch (error) {
         console.error('Initialization error:', error);
       } finally {
@@ -92,6 +122,9 @@ export default function HomeDashboard() {
     const sub = AppState.addEventListener('change', (nextState) => {
       if (nextState === 'active') {
         checkPermissions();
+        loadProfile();
+        loadQuests();
+        loadNotifications();
       }
     });
     return () => sub.remove();
@@ -99,7 +132,7 @@ export default function HomeDashboard() {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.center]}>
+      <View style={[styles.container, styles.center, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
@@ -107,300 +140,343 @@ export default function HomeDashboard() {
 
   const level = profile?.level || 1;
   const currentXP = profile?.currentXP || 0;
-  const targetXP = level * 100;
   const coins = profile?.coins || 0;
   const streak = profile?.currentStreak || 0;
   const displayName = profile?.displayName || 'Warrior';
-  const completedQuestsCount = quests.filter((q) => q.completed).length;
-  const totalQuestsCount = quests.length || 5;
+  const avatarIcon = profile?.avatarIcon || 'user';
+  const completedQuestsCount = dailyQuests.filter((q) => q.completed).length;
+  const totalQuestsCount = dailyQuests.length || 1;
+  const winRate = totalQuestsCount > 0 ? Math.round((completedQuestsCount / totalQuestsCount) * 100) : 0;
 
-  const xpPercent = Math.min(100, Math.round((currentXP / targetXP) * 100));
-
-  const attributes = [
-    { name: 'Strength', val: profile?.strength || 0, icon: Dumbbell, color: colors.stats.strength },
-    { name: 'Discipline', val: profile?.discipline || 0, icon: Shield, color: colors.stats.discipline },
-    { name: 'Focus', val: profile?.focus || 0, icon: Crosshair, color: colors.stats.focus },
-    { name: 'Health', val: profile?.health || 0, icon: Heart, color: colors.stats.health },
-    { name: 'Knowledge', val: profile?.knowledge || 0, icon: BookOpen, color: colors.stats.knowledge },
-  ];
+  // 7-day capsule calendar dates
+  const today = new Date();
+  const currentDayIndex = today.getDay();
+  const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const calendarDays = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    const diff = i - (currentDayIndex === 0 ? 6 : currentDayIndex - 1);
+    d.setDate(today.getDate() + diff);
+    return {
+      dayName: daysOfWeek[d.getDay()],
+      dateNum: d.getDate(),
+      isToday: diff === 0,
+    };
+  });
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <SafeAreaView style={styles.safeArea}>
-        {/* Top Header: Triangle Logo + Bell */}
-        <View style={styles.topHeader}>
-          <View style={styles.logoRow}>
-            <Triangle size={18} color={colors.textPrimary} fill={colors.textPrimary} />
-            <Text style={styles.logoText}>ARISE</Text>
+        {/* Top Header Bar */}
+        <View style={[styles.topHeader, { borderBottomColor: colors.border }]}>
+          <View style={styles.headerLeftIcons}>
+            <AriseLogo size={34} glow={true} />
+            <TouchableOpacity
+              style={[styles.iconBtn, { backgroundColor: colors.surfaceLight, borderColor: colors.border }]}
+              onPress={() => router.push('/settings')}
+              activeOpacity={0.8}
+            >
+              <SettingsIcon size={18} color={colors.textPrimary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.iconBtn, { backgroundColor: colors.surfaceLight, borderColor: colors.border }]}
+              onPress={() => {
+                haptics.light();
+                loadNotifications();
+                setIsNotifSheetOpen(true);
+              }}
+              activeOpacity={0.8}
+            >
+              <Bell size={18} color={colors.textPrimary} />
+              {notifications.some((n) => !n.isRead) && <View style={[styles.bellDot, { backgroundColor: colors.primary }]} />}
+            </TouchableOpacity>
           </View>
 
-          <TouchableOpacity
-            style={styles.bellBtn}
-            onPress={() => {
-              haptics.light();
-              setIsNotifSheetOpen(true);
-            }}
-            activeOpacity={0.8}
-          >
-            <Bell size={20} color={colors.textSecondary} />
-          </TouchableOpacity>
+          <CoinBalance
+            amount={coins}
+            onPressAdd={() => router.push('/shop')}
+          />
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Permission Shield Alert Banner */}
+          {/* Permission Shield Alert Banner if missing */}
           {!hasAllPermissions && (
             <TouchableOpacity
-              style={styles.permAlertCard}
+              style={[styles.permAlertCard, { backgroundColor: 'rgba(209, 255, 0, 0.08)', borderColor: colors.primary }]}
               onPress={() => {
                 haptics.medium();
                 router.push('/permissions' as any);
               }}
               activeOpacity={0.8}
             >
-              <ShieldAlert size={22} color={colors.accentGold} />
+              <ShieldAlert size={22} color={colors.primary} />
               <View style={{ flex: 1, gap: 2 }}>
-                <Text style={styles.permAlertTitle}>Phone Shield Inactive</Text>
-                <Text style={styles.permAlertDesc}>
-                  Tap to grant Usage Access & Overlay so ARISE can lock apps
+                <Text style={[styles.permAlertTitle, { color: colors.textPrimary }]}>Phone Shield Inactive</Text>
+                <Text style={[styles.permAlertDesc, { color: colors.textSecondary }]}>
+                  Tap to grant Usage Access & Overlay permissions for app locking.
                 </Text>
               </View>
-              <View style={styles.permAlertBadge}>
+              <View style={[styles.permAlertBadge, { backgroundColor: colors.primary }]}>
                 <Text style={styles.permAlertBadgeText}>GRANT</Text>
               </View>
             </TouchableOpacity>
           )}
 
-          {/* Hero Player Card */}
-          <MasterCard style={styles.playerCard}>
-            <View style={styles.avatarRow}>
+          {/* Digital Clock Widget */}
+          <DigitalClockWidget />
+
+          {/* Player Identity Hero Card */}
+          <GlowCard variant="glow" style={styles.heroSection}>
+            <View style={styles.heroTopRow}>
               <TouchableOpacity
                 onPress={() => router.push('/(tabs)/profile')}
                 activeOpacity={0.8}
+                style={styles.avatarWrap}
               >
-                <PlayerAvatar size={64} glow={true} />
+                <PlayerAvatar
+                  iconId={avatarIcon}
+                  size={72}
+                  glow={true}
+                  glowColor={colors.primary}
+                />
               </TouchableOpacity>
 
-              <View style={styles.playerMeta}>
-                <View style={styles.levelRow}>
-                  <Text style={styles.levelText}>{displayName}</Text>
-                  <View style={styles.noviceBadge}>
-                    <Text style={styles.noviceBadgeText}>Level {level} Novice</Text>
+              <View style={{ flex: 1, gap: 4 }}>
+                <View style={styles.heroNameRow}>
+                  <Text style={[styles.playerName, { color: colors.textPrimary }]} numberOfLines={1}>
+                    {displayName}
+                  </Text>
+                  <View style={[styles.rankTag, { backgroundColor: 'rgba(209, 255, 0, 0.15)' }]}>
+                    <Text style={[styles.rankTagText, { color: colors.primary }]}>LV. {level}</Text>
                   </View>
                 </View>
-
-                {/* XP Progress Bar */}
-                <View style={styles.xpBarContainer}>
-                  <View style={[styles.xpBarFill, { width: `${Math.max(5, xpPercent)}%` }]} />
-                </View>
-                <Text style={styles.xpLabel}>{currentXP} / {targetXP} XP</Text>
-              </View>
-            </View>
-
-            <View style={styles.cardDivider} />
-
-            {/* Coins & Streak Row */}
-            <View style={styles.statsRow}>
-              <View style={styles.statCol}>
-                <Coins size={18} color={colors.accentGold} />
-                <Text style={styles.statLabel}>Coins</Text>
-                <Text style={styles.statValue}>{coins}</Text>
-              </View>
-
-              <View style={styles.statColDivider} />
-
-              <View style={styles.statCol}>
-                <Star size={18} color={colors.primary} />
-                <Text style={styles.statLabel}>Streak</Text>
-                <Text style={styles.statValue}>{streak} days</Text>
-              </View>
-            </View>
-          </MasterCard>
-
-          {/* Core Attributes */}
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Core Attributes</Text>
-            <TouchableOpacity onPress={() => router.push('/(tabs)/progress')} activeOpacity={0.8}>
-              <Text style={styles.viewAllText}>View all</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.attributesRow}>
-            {attributes.map((attr) => {
-              const IconComp = attr.icon;
-              return (
-                <View key={attr.name} style={styles.attributeItem}>
-                  <View style={[styles.attributeCircle, { borderColor: `${attr.color}40` }]}>
-                    <IconComp size={18} color={attr.color} />
-                  </View>
-                  <Text style={styles.attributeVal}>{attr.val}</Text>
-                  <Text style={styles.attributeName}>{attr.name}</Text>
-                </View>
-              );
-            })}
-          </View>
-
-          {/* Today's Quests Card */}
-          <MasterCard style={styles.questsCard}>
-            <View style={styles.questsCardHeader}>
-              <View>
-                <Text style={styles.questsCardTitle}>Today's Quests</Text>
-                <Text style={styles.questsCardSubtitle}>
-                  {completedQuestsCount} / {totalQuestsCount} Completed
+                <Text style={[styles.playerBioText, { color: colors.textSecondary }]} numberOfLines={2}>
+                  {profile?.bio || 'Disciplined warrior in training.'}
                 </Text>
               </View>
-              <Flame size={22} color={colors.primary} />
             </View>
 
-            <MasterButton
-              title="VIEW QUESTS"
-              onPress={() => router.push('/(tabs)/quests')}
-              variant="green"
-              showArrow
-            />
-          </MasterCard>
+            {/* XP Progress Bar */}
+            <View style={{ width: '100%', marginTop: 6 }}>
+              <XPBar progress={Math.min(100, Math.round((currentXP / Math.max(1, level * 100)) * 100))} />
+            </View>
 
-          {/* Quick Actions */}
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <View style={styles.quickActionsRow}>
-            <TouchableOpacity
-              style={styles.quickActionCard}
-              onPress={() => router.push('/focus/session')}
-              activeOpacity={0.8}
-            >
-              <Clock size={20} color={colors.primary} />
-              <Text style={styles.quickActionText}>Start Focus</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.quickActionCard}
-              onPress={() => {
-                haptics.light();
-                setIsExercisePickerOpen(true);
-              }}
-              activeOpacity={0.8}
-            >
-              <Dumbbell size={20} color={colors.stats.strength} />
-              <Text style={styles.quickActionText}>Exercise</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.quickActionCard}
-              onPress={() => router.push('/shop')}
-              activeOpacity={0.8}
-            >
-              <ShoppingBag size={20} color={colors.accentGold} />
-              <Text style={styles.quickActionText}>Time Shop</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={{ height: 90 }} />
-        </ScrollView>
-      </SafeAreaView>
-
-      {/* Exercise Selection Modal */}
-      <Modal
-        visible={isExercisePickerOpen}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setIsExercisePickerOpen(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
-            <View style={styles.modalHeader}>
-              <View>
-                <Text style={styles.modalTitle}>Choose AI Exercise</Text>
-                <Text style={styles.modalSubtitle}>Real-time camera pose tracking</Text>
+            {/* 3 Metric Columns: Streak | Win Rate | Quests */}
+            <View style={[styles.threeStatsRow, { backgroundColor: colors.surfaceLight, borderColor: colors.border }]}>
+              <View style={styles.statColumn}>
+                <Flame size={18} color={colors.danger} />
+                <Text style={[styles.statColumnValue, { color: colors.textPrimary }]}>{streak} Days</Text>
+                <Text style={[styles.statColumnLabel, { color: colors.textMuted }]}>STREAK</Text>
               </View>
-              <TouchableOpacity onPress={() => setIsExercisePickerOpen(false)} style={{ padding: 4 }}>
-                <X size={20} color={colors.textSecondary} />
+
+              <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+
+              <View style={styles.statColumn}>
+                <TrendingUp size={18} color={colors.primary} />
+                <Text style={[styles.statColumnValue, { color: colors.textPrimary }]}>{winRate}%</Text>
+                <Text style={[styles.statColumnLabel, { color: colors.textMuted }]}>COMPLETION</Text>
+              </View>
+
+              <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+
+              <View style={styles.statColumn}>
+                <Award size={18} color={colors.secondary} />
+                <Text style={[styles.statColumnValue, { color: colors.textPrimary }]}>{completedQuestsCount}</Text>
+                <Text style={[styles.statColumnLabel, { color: colors.textMuted }]}>TASKS DONE</Text>
+              </View>
+            </View>
+          </GlowCard>
+
+          {/* Quick Actions Dock */}
+          <View style={styles.quickActionsSection}>
+            <Text style={[styles.sectionHeading, { color: colors.textMuted }]}>QUICK DIRECTIVES</Text>
+            <View style={styles.quickDockRow}>
+              <TouchableOpacity
+                style={[styles.dockItem, { backgroundColor: colors.card, borderColor: colors.border }]}
+                onPress={() => router.push('/(tabs)/progress')}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.dockIconCircle, { backgroundColor: 'rgba(209, 255, 0, 0.15)' }]}>
+                  <Dumbbell size={20} color={colors.primary} />
+                </View>
+                <Text style={[styles.dockLabel, { color: colors.textPrimary }]}>Gym</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.dockItem, { backgroundColor: colors.card, borderColor: colors.border }]}
+                onPress={() => router.push('/focus/session')}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.dockIconCircle, { backgroundColor: 'rgba(0, 240, 255, 0.15)' }]}>
+                  <Crosshair size={20} color={colors.secondary} />
+                </View>
+                <Text style={[styles.dockLabel, { color: colors.textPrimary }]}>Focus</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.dockItem, { backgroundColor: colors.card, borderColor: colors.border }]}
+                onPress={() => router.push('/photos')}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.dockIconCircle, { backgroundColor: 'rgba(255, 184, 0, 0.15)' }]}>
+                  <Camera size={20} color={colors.accentGold} />
+                </View>
+                <Text style={[styles.dockLabel, { color: colors.textPrimary }]}>Photo</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.dockItem, { backgroundColor: colors.card, borderColor: colors.border }]}
+                onPress={() => router.push('/shop')}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.dockIconCircle, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
+                  <ShoppingBag size={20} color={colors.danger} />
+                </View>
+                <Text style={[styles.dockLabel, { color: colors.textPrimary }]}>Shop</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Weather Widget */}
+          <WeatherWidget />
+
+          {/* Today's Active Quests Section */}
+          <View style={styles.questsSection}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={[styles.sectionHeading, { color: colors.textMuted }]}>
+                TODAY'S QUESTS ({completedQuestsCount}/{dailyQuests.length})
+              </Text>
+              <TouchableOpacity onPress={() => router.push('/(tabs)/quests')}>
+                <Text style={[styles.seeAllText, { color: colors.primary }]}>VIEW ALL</Text>
               </TouchableOpacity>
             </View>
 
-            <View style={styles.exerciseList}>
-              {EXERCISE_OPTIONS.map((ex) => {
-                const IconComp = ex.icon;
-                return (
-                  <TouchableOpacity
-                    key={ex.type}
-                    style={styles.exerciseRow}
-                    onPress={() => {
-                      haptics.medium();
-                      setIsExercisePickerOpen(false);
-                      router.push(`/exercise/${ex.type}` as any);
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <View style={styles.exLeft}>
-                      <View style={styles.exIconCircle}>
-                        <IconComp size={20} color={colors.primary} />
-                      </View>
-                      <View>
-                        <Text style={styles.exName}>{ex.name}</Text>
-                        <Text style={styles.exTarget}>{ex.target}</Text>
-                      </View>
+            {dailyQuests.length === 0 ? (
+              <GlowCard variant="default" style={styles.emptyCard}>
+                <Sparkles size={28} color={colors.textMuted} />
+                <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>All Quests Complete</Text>
+                <Text style={[styles.emptySub, { color: colors.textSecondary }]}>
+                  New daily protocol quests regenerate tomorrow at 00:00.
+                </Text>
+              </GlowCard>
+            ) : (
+              dailyQuests.slice(0, 3).map((q) => (
+                <GlowCard key={q.id} variant={q.completed ? 'default' : 'glow'} style={styles.questCard}>
+                  <View style={styles.questCardLeft}>
+                    <View
+                      style={[
+                        styles.questCheckCircle,
+                        q.completed && { backgroundColor: colors.primary, borderColor: colors.primary },
+                      ]}
+                    >
+                      {q.completed && <Check size={14} color="#000" strokeWidth={3} />}
                     </View>
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <Text
+                        style={[
+                          styles.questTitleText,
+                          { color: colors.textPrimary },
+                          q.completed && { textDecorationLine: 'line-through', opacity: 0.6 },
+                        ]}
+                      >
+                        {q.title}
+                      </Text>
+                      <Text style={[styles.questDescText, { color: colors.textSecondary }]} numberOfLines={1}>
+                        {q.description}
+                      </Text>
+                    </View>
+                  </View>
 
-                    <View style={styles.exRight}>
-                      <Text style={styles.exRewardsText}>{ex.xp} {ex.coins}</Text>
-                      <Camera size={16} color={colors.primary} />
+                  <View style={styles.questCardRight}>
+                    <View style={[styles.rewardTag, { backgroundColor: 'rgba(209, 255, 0, 0.1)' }]}>
+                      <Text style={[styles.rewardTagText, { color: colors.primary }]}>+{q.rewardCoins} 🪙</Text>
                     </View>
-                  </TouchableOpacity>
-                );
-              })}
+                  </View>
+                </GlowCard>
+              ))
+            )}
+          </View>
+
+          {/* Weekly 7-Day Capsule Panel */}
+          <GlowCard variant="default" style={styles.weeklyPanel}>
+            <View style={styles.weeklyRow}>
+              {calendarDays.map((item, idx) => (
+                <View
+                  key={idx}
+                  style={[
+                    styles.dayItem,
+                    item.isToday && { backgroundColor: 'rgba(209, 255, 0, 0.12)', borderColor: colors.primary, borderWidth: 1 },
+                  ]}
+                >
+                  <Text style={[styles.dayText, { color: item.isToday ? colors.primary : colors.textMuted }]}>
+                    {item.dayName}
+                  </Text>
+                  <Text style={[styles.dateText, { color: item.isToday ? colors.textPrimary : colors.textSecondary }]}>
+                    {item.dateNum}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </GlowCard>
+
+          <View style={{ height: 100 }} />
+        </ScrollView>
+
+        {/* Notifications Sheet Modal */}
+        <Modal
+          visible={isNotifSheetOpen}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setIsNotifSheetOpen(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalSheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <View style={styles.modalHeader}>
+                <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>System Notifications</Text>
+                <TouchableOpacity onPress={() => setIsNotifSheetOpen(false)} style={styles.iconBtn}>
+                  <X size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={{ maxHeight: 350 }} contentContainerStyle={{ gap: 10 }}>
+                {notifications.length === 0 ? (
+                  <View style={{ padding: 30, alignItems: 'center', gap: 8 }}>
+                    <Sparkles size={28} color={colors.textMuted} />
+                    <Text style={{ color: colors.textPrimary, fontWeight: '800', fontSize: 14 }}>
+                      No notifications yet.
+                    </Text>
+                    <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>
+                      Quest completions and achievements will appear here.
+                    </Text>
+                  </View>
+                ) : (
+                  notifications.map((n) => (
+                    <GlowCard key={n.id} variant="default" style={styles.notifCard}>
+                      <Sparkles size={20} color={colors.primary} />
+                      <View style={{ flex: 1, gap: 2 }}>
+                        <Text style={[styles.notifTitle, { color: colors.textPrimary }]}>{n.title}</Text>
+                        <Text style={[styles.notifDesc, { color: colors.textSecondary }]}>{n.message}</Text>
+                        <Text style={{ fontSize: 9, color: colors.textMuted, marginTop: 2 }}>
+                          {new Date(n.timestamp).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </Text>
+                      </View>
+                    </GlowCard>
+                  ))
+                )}
+              </ScrollView>
             </View>
           </View>
-        </View>
-      </Modal>
-
-      {/* Notifications & Streak Sheet */}
-      <Modal
-        visible={isNotifSheetOpen}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setIsNotifSheetOpen(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Alerts & Status</Text>
-              <TouchableOpacity onPress={() => setIsNotifSheetOpen(false)} style={{ padding: 4 }}>
-                <X size={20} color={colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.notifBody}>
-              <MasterCard style={styles.notifCard}>
-                <Star size={24} color={colors.accentGold} />
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text style={styles.notifTitle}>{streak} Day Active Streak</Text>
-                  <Text style={styles.notifDesc}>Keep your streak alive by completing 1 quest today.</Text>
-                </View>
-              </MasterCard>
-
-              <MasterCard style={styles.notifCard}>
-                <Shield size={24} color={colors.primary} />
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text style={styles.notifTitle}>Permissions Active</Text>
-                  <Text style={styles.notifDesc}>On-device protection protocol running.</Text>
-                </View>
-              </MasterCard>
-
-              <MasterButton
-                title="CLOSE"
-                onPress={() => setIsNotifSheetOpen(false)}
-                variant="green"
-                style={{ marginTop: 8 }}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
+        </Modal>
+      </SafeAreaView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1 },
   safeArea: { flex: 1 },
   center: { justifyContent: 'center', alignItems: 'center' },
   topHeader: {
@@ -408,326 +484,280 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 8,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
   },
-  logoRow: {
+  headerLeftIcons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
-  logoText: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: colors.textPrimary,
-    letterSpacing: 1,
-  },
-  bellBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#161616',
+  iconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#242424',
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
+  },
+  bellDot: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
   },
   scrollContent: {
-    paddingHorizontal: 18,
-    gap: 20,
-    paddingTop: 8,
-  },
-  playerCard: {
-    padding: 18,
+    padding: 20,
     gap: 16,
-  },
-  avatarRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  playerMeta: {
-    flex: 1,
-    gap: 4,
-  },
-  levelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  levelText: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: colors.textPrimary,
-  },
-  noviceBadge: {
-    backgroundColor: '#1E1E1E',
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#2A2A2A',
-  },
-  noviceBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.textSecondary,
-  },
-  xpBarContainer: {
-    height: 6,
-    backgroundColor: '#262626',
-    borderRadius: 3,
-    overflow: 'hidden',
-    marginTop: 4,
-  },
-  xpBarFill: {
-    height: '100%',
-    backgroundColor: colors.primary,
-    borderRadius: 3,
-  },
-  xpLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  cardDivider: {
-    height: 1,
-    backgroundColor: '#1F1F1F',
-  },
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statCol: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  statLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textSecondary,
-  },
-  statValue: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: colors.textPrimary,
-  },
-  statColDivider: {
-    width: 1,
-    height: 20,
-    backgroundColor: '#262626',
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: colors.textPrimary,
-  },
-  viewAllText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  attributesRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  attributeItem: {
-    alignItems: 'center',
-    gap: 6,
-  },
-  attributeCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#161616',
-    borderWidth: 1.5,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  attributeVal: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: colors.textPrimary,
-  },
-  attributeName: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.textMuted,
-  },
-  questsCard: {
-    padding: 18,
-    gap: 14,
-  },
-  questsCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  questsCardTitle: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: colors.textPrimary,
-  },
-  questsCardSubtitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  quickActionsRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  quickActionCard: {
-    flex: 1,
-    backgroundColor: '#141414',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#1F1F1F',
-    paddingVertical: 18,
-    alignItems: 'center',
-    gap: 8,
-  },
-  quickActionText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: colors.textPrimary,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
-    justifyContent: 'flex-end',
-  },
-  modalSheet: {
-    backgroundColor: '#141414',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    borderWidth: 1,
-    borderColor: '#262626',
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 28,
-    gap: 16,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  modalTitle: {
-    fontSize: 17,
-    fontWeight: '900',
-    color: colors.textPrimary,
-  },
-  modalSubtitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.primary,
-    marginTop: 2,
-  },
-  exerciseList: {
-    gap: 10,
-  },
-  exerciseRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#181818',
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#242424',
-  },
-  exLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  exIconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#202020',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  exName: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: colors.textPrimary,
-  },
-  exTarget: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  exRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  exRewardsText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: colors.accentGold,
-  },
-  notifBody: {
-    gap: 12,
-  },
-  notifCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    padding: 14,
-  },
-  notifTitle: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: colors.textPrimary,
-  },
-  notifDesc: {
-    fontSize: 11,
-    color: colors.textSecondary,
   },
   permAlertCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#1E190A',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#4A3A10',
     padding: 14,
-    marginBottom: 4,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 12,
   },
   permAlertTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '900',
-    color: colors.accentGold,
   },
   permAlertDesc: {
     fontSize: 11,
-    color: colors.textMuted,
     lineHeight: 15,
   },
   permAlertBadge: {
-    backgroundColor: colors.accentGold,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
   permAlertBadgeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '900',
-    color: '#0A0A0A',
+    color: '#000',
+  },
+  heroSection: {
+    padding: 18,
+    borderRadius: 22,
+    gap: 14,
+  },
+  heroTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  avatarWrap: {
+    position: 'relative',
+  },
+  heroNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  playerName: {
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  rankTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  rankTagText: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  playerBioText: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  threeStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  statColumn: {
+    alignItems: 'center',
+    gap: 2,
+    flex: 1,
+  },
+  statColumnValue: {
+    fontSize: 14,
+    fontWeight: '900',
+    marginTop: 2,
+  },
+  statColumnLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  statDivider: {
+    width: 1,
+    height: 24,
+  },
+  quickActionsSection: {
+    gap: 8,
+  },
+  sectionHeading: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+  },
+  quickDockRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  dockItem: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    gap: 6,
+  },
+  dockIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dockLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  questsSection: {
+    gap: 10,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  seeAllText: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+  },
+  questCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+    borderRadius: 16,
+  },
+  questCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  questCheckCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: '#333',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  questTitleText: {
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  questDescText: {
+    fontSize: 11,
+  },
+  questCardRight: {
+    marginLeft: 8,
+  },
+  rewardTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  rewardTagText: {
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  emptyCard: {
+    padding: 24,
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 16,
+  },
+  emptyTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  emptySub: {
+    fontSize: 11,
+    textAlign: 'center',
+  },
+  weeklyPanel: {
+    padding: 12,
+    borderRadius: 18,
+  },
+  weeklyRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dayItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderRadius: 10,
+    gap: 4,
+  },
+  dayText: {
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  dateText: {
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    gap: 14,
+    borderWidth: 1,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  notifCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    borderRadius: 14,
+  },
+  notifTitle: {
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  notifDesc: {
+    fontSize: 11,
   },
 });

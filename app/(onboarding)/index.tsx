@@ -6,12 +6,37 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
-  Switch,
+  Image,
   ActivityIndicator,
+  Dimensions,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import {
+  Shield,
+  Zap,
+  Flame,
+  Crown,
+  Swords,
+  Brain,
+  Target,
+  Dumbbell,
+  Trophy,
+  Ghost,
+  Rocket,
+  Gem,
+  Cpu,
+  Heart,
+  Star,
+  User,
+  Check,
+  ChevronRight,
+  Sparkles,
+  Smartphone,
+  Lock,
+  ArrowLeft,
+} from 'lucide-react-native';
 import { useSettingsStore } from '../../src/stores/useSettingsStore';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { useHaptics } from '../../src/hooks/useHaptics';
@@ -19,19 +44,19 @@ import { useSound } from '../../src/hooks/useSound';
 import { appBlockerService, InstalledAppItem } from '../../src/native';
 import { db } from '../../src/database/client';
 import { appRestriction } from '../../src/database/schema';
-import { Card } from '../../src/components/ui/Card';
-import { Button } from '../../src/components/ui/Button';
-import { Badge } from '../../src/components/ui/Badge';
-import { ProgressBar } from '../../src/components/ui/ProgressBar';
-import { AriseIcon } from '../../src/components/ui/AriseIcon';
+import { GlowCard } from '../../src/components/design-system/GlowCard';
+import { GlowButton } from '../../src/components/design-system/GlowButton';
 import { AriseLogo } from '../../src/components/ui/AriseLogo';
+import { AVATAR_IMAGES, AVATAR_ICONS } from '../../src/components/profile/AvatarPicker';
 import { colors } from '../../src/theme/colors';
 
+const { width } = Dimensions.get('window');
+
 const GOALS_LIST = [
-  { id: 'fitness', title: 'Physical Strength', icon: 'dumbbell', desc: 'Push-ups, squats, calisthenics tracking' },
-  { id: 'focus', title: 'Deep Concentration', icon: 'crosshairs-gps', desc: 'Study, deep work, uninterrupted focus sprints' },
-  { id: 'screentime', title: 'Screen Time Control', icon: 'cellphone-lock', desc: 'Break doom-scrolling and earn phone passes' },
-  { id: 'discipline', title: 'Iron Discipline', icon: 'shield-sword', desc: 'Build consecutive day streaks and habits' },
+  { id: 'fitness', title: 'Physical Power', icon: Dumbbell, desc: 'Push-ups, squats, calisthenics CV tracking' },
+  { id: 'focus', title: 'Deep Concentration', icon: Brain, desc: 'Flow-state work sprints with zero distraction' },
+  { id: 'screentime', title: 'Screen Lock Protocol', icon: Lock, desc: 'Lock apps behind physical workout reps' },
+  { id: 'discipline', title: 'Iron Discipline', icon: Shield, desc: 'Build consecutive daily streaks & habits' },
 ];
 
 export default function OnboardingScreen() {
@@ -43,39 +68,41 @@ export default function OnboardingScreen() {
   const updateProfile = usePlayerStore((s) => s.updateProfile);
 
   const [step, setStep] = useState<number>(1);
-  const [userName, setUserName] = useState<string>('Warrior');
+  const [userName, setUserName] = useState<string>('Shadow Hunter');
+  const [selectedAvatar, setSelectedAvatar] = useState<string>('img_pfp_01');
+  const [avatarTab, setAvatarTab] = useState<'images' | 'icons'>('images');
   const [selectedGoals, setSelectedGoals] = useState<string[]>(['fitness', 'screentime']);
   const [selectedApps, setSelectedApps] = useState<string[]>([]);
   const [installedApps, setInstalledApps] = useState<InstalledAppItem[]>([]);
   const [loadingApps, setLoadingApps] = useState<boolean>(false);
-  const [hasUsagePerm, setHasUsagePerm] = useState<boolean>(true);
-  const [dailyBudget, setDailyBudget] = useState<number>(60);
-  const [allowNotifications, setAllowNotifications] = useState<boolean>(true);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  const totalSteps = 7;
+  const totalSteps = 3;
 
   useEffect(() => {
-    if (step === 3) {
-      loadInstalledApps();
+    if (step === 2) {
+      loadApps();
     }
   }, [step]);
 
-  const loadInstalledApps = async () => {
+  const loadApps = async () => {
     setLoadingApps(true);
     try {
-      const perm = await appBlockerService.hasUsagePermission();
-      setHasUsagePerm(perm);
-
       const apps = await appBlockerService.getInstalledApps();
       const filtered = apps.filter((a) => !a.isSystemApp);
       const appList = filtered.length > 0 ? filtered : apps;
       setInstalledApps(appList);
 
-      // Pre-select top distraction apps if found
       if (selectedApps.length === 0) {
         const topDistractions = ['instagram', 'youtube', 'tiktok', 'snapchat', 'reddit', 'twitter', 'facebook'];
         const matched = appList
-          .filter((a) => topDistractions.some((d) => a.packageName.toLowerCase().includes(d) || a.appName.toLowerCase().includes(d)))
+          .filter((a) =>
+            topDistractions.some(
+              (d) =>
+                a.packageName.toLowerCase().includes(d) ||
+                a.appName.toLowerCase().includes(d)
+            )
+          )
           .map((a) => a.packageName);
         if (matched.length > 0) {
           setSelectedApps(matched);
@@ -84,19 +111,10 @@ export default function OnboardingScreen() {
         }
       }
     } catch (e) {
-      console.warn('Error loading installed apps:', e);
+      console.warn('Error loading apps:', e);
     } finally {
       setLoadingApps(false);
     }
-  };
-
-  const handleGrantUsagePermission = () => {
-    haptics.medium();
-    appBlockerService.requestUsagePermission();
-    // After user returns, reload
-    setTimeout(() => {
-      loadInstalledApps();
-    }, 1000);
   };
 
   const toggleGoal = (id: string) => {
@@ -113,6 +131,12 @@ export default function OnboardingScreen() {
     );
   };
 
+  const getSelectedAvatarSource = () => {
+    const imgObj = AVATAR_IMAGES.find((img) => img.id === selectedAvatar);
+    if (imgObj) return { type: 'image' as const, source: imgObj.source };
+    return { type: 'icon' as const, iconName: selectedAvatar };
+  };
+
   const handleNext = () => {
     haptics.medium();
     if (step < totalSteps) {
@@ -123,459 +147,1012 @@ export default function OnboardingScreen() {
   };
 
   const finishOnboarding = async () => {
-    await updateProfile({ displayName: userName.trim() || 'Warrior' });
-
-    // Save selected restricted apps to SQLite database
-    for (const pkg of selectedApps) {
-      const appInfo = installedApps.find((a) => a.packageName === pkg);
-      try {
-        await db.insert(appRestriction).values({
-          packageName: pkg,
-          appName: appInfo?.appName || pkg,
-          isRestricted: 1,
-        });
-      } catch (e) {
-        // Ignore duplicate insert errors
-      }
-    }
-
-    // Start background app monitoring if any restricted apps selected
-    if (selectedApps.length > 0) {
-      appBlockerService.startMonitoring(selectedApps);
-    }
-
-    await setOnboardingCompleted();
-    sound.play('level_up');
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     haptics.heavy();
-    router.replace('/(tabs)');
+
+    try {
+      const finalName = userName.trim() || 'Warrior';
+
+      // 1. Authoritative SQLite user profile update
+      await updateProfile({
+        displayName: finalName,
+        avatarIcon: selectedAvatar,
+      });
+
+      // 2. Persist restricted apps
+      for (const pkg of selectedApps) {
+        const appInfo = installedApps.find((a) => a.packageName === pkg);
+        try {
+          await db.insert(appRestriction).values({
+            packageName: pkg,
+            appName: appInfo?.appName || pkg,
+            isRestricted: 1,
+          });
+        } catch {
+          // duplicate ignore
+        }
+      }
+
+      // 3. Start native background app blocker monitor
+      if (selectedApps.length > 0) {
+        appBlockerService.startMonitoring(selectedApps);
+      }
+
+      // 4. Mark onboarding completed in SQLite settings table BEFORE navigating
+      await setOnboardingCompleted();
+
+      sound.play('level_up');
+      haptics.success();
+
+      router.replace('/(tabs)');
+    } catch (e) {
+      console.error('Failed to complete onboarding:', e);
+      setIsSubmitting(false);
+    }
   };
 
+  const avatarInfo = getSelectedAvatarSource();
+
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header Progress */}
-      <View style={styles.header}>
-        <View style={styles.progressContainer}>
-          <Text style={styles.stepCounter}>STEP {step} OF {totalSteps}</Text>
-          <ProgressBar
-            progress={step / totalSteps}
-            color={colors.primary}
-            height={6}
-            animated
-            style={{ width: '100%', marginTop: 6 }}
-          />
-        </View>
-      </View>
-
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Step 1: Welcome */}
-        {step === 1 && (
-          <View style={styles.stepView}>
-            <View style={styles.brandCircle}>
-              <AriseLogo size={48} color={colors.secondary} glow />
-            </View>
-            <Text style={styles.brandTitle}>ARISE</Text>
-            <Text style={styles.brandTagline}>Earn Your Time. Build Yourself.</Text>
-            <Text style={styles.brandDescription}>
-              ARISE turns real-world discipline into unlockable screen time. Complete push-ups, squats, and deep focus sessions to earn Coins and unlock your phone.
-            </Text>
-
-            <View style={styles.nameInputContainer}>
-              <Text style={styles.inputLabel}>What should we call you?</Text>
-              <TextInput
-                style={styles.nameInput}
-                value={userName}
-                onChangeText={setUserName}
-                placeholder="Enter your callsign"
-                placeholderTextColor={colors.textMuted}
-              />
-            </View>
-          </View>
-        )}
-
-        {/* Step 2: Choose Goals */}
-        {step === 2 && (
-          <View style={styles.stepView}>
-            <Text style={styles.stepTitle}>Choose Your Primary Goals</Text>
-            <Text style={styles.stepSubtitle}>We will customize your daily quests based on your focus.</Text>
-
-            <View style={styles.optionsList}>
-              {GOALS_LIST.map((g) => {
-                const isSelected = selectedGoals.includes(g.id);
-                return (
-                  <TouchableOpacity
-                    key={g.id}
-                    activeOpacity={0.8}
-                    onPress={() => toggleGoal(g.id)}
-                  >
-                    <Card
-                      variant={isSelected ? 'glow' : 'elevated'}
-                      style={[styles.goalCard, isSelected && styles.goalCardSelected]}
-                    >
-                      <MaterialCommunityIcons
-                        name={g.icon as any}
-                        size={26}
-                        color={isSelected ? colors.secondary : colors.textMuted}
-                      />
-                      <View style={{ flex: 1, gap: 2 }}>
-                        <Text style={[styles.goalTitle, isSelected && { color: colors.secondary }]}>
-                          {g.title}
-                        </Text>
-                        <Text style={styles.goalDesc}>{g.desc}</Text>
-                      </View>
-                      {isSelected && (
-                        <MaterialCommunityIcons name="check-circle" size={20} color={colors.secondary} />
-                      )}
-                    </Card>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-        )}
-
-        {/* Step 3: Select Apps to Restrict */}
-        {step === 3 && (
-          <View style={styles.stepView}>
-            <Text style={styles.stepTitle}>Select Apps to Restrict</Text>
-            <Text style={styles.stepSubtitle}>
-              Choose which apps will require Coins earned from exercise to unlock.
-            </Text>
-
-            {!hasUsagePerm && (
+    <View style={styles.container}>
+      <SafeAreaView style={styles.safeArea}>
+        {/* Top Header Progress Bar */}
+        <View style={styles.headerBar}>
+          <View style={styles.headerLeft}>
+            {step > 1 ? (
               <TouchableOpacity
-                style={styles.permBanner}
-                onPress={handleGrantUsagePermission}
+                style={styles.iconBtn}
+                onPress={() => {
+                  haptics.light();
+                  setStep(step - 1);
+                }}
                 activeOpacity={0.8}
               >
-                <MaterialCommunityIcons name="shield-alert" size={24} color={colors.accentGold} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.permBannerTitle}>Usage Access Needed</Text>
-                  <Text style={styles.permBannerDesc}>Tap to allow ARISE to detect active apps</Text>
-                </View>
-                <Badge label="GRANT" color={colors.accentGold} size="sm" variant="filled" />
+                <ArrowLeft size={18} color={colors.textPrimary} />
               </TouchableOpacity>
+            ) : (
+              <AriseLogo size={32} glow />
             )}
+            <Text style={styles.headerStageText}>
+              PROTOCOL // PHASE 0{step}
+            </Text>
+          </View>
 
-            {selectedApps.length > 0 && (
-              <View style={styles.selectedCountBadge}>
-                <Text style={styles.selectedCountText}>
-                  {selectedApps.length} app{selectedApps.length !== 1 ? 's' : ''} restricted
+          <View style={styles.stepDotsRow}>
+            {[1, 2, 3].map((s) => (
+              <View
+                key={s}
+                style={[
+                  styles.stepDot,
+                  s <= step && styles.stepDotActive,
+                  s === step && styles.stepDotCurrent,
+                ]}
+              />
+            ))}
+          </View>
+        </View>
+
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* ================= STEP 1: IDENTITY CREATION ================= */}
+          {step === 1 && (
+            <View style={styles.stepContainer}>
+              <View style={styles.heroBadge}>
+                <Sparkles size={16} color={colors.primary} />
+                <Text style={styles.heroBadgeText}>NEURAL IDENTITY FORGE</Text>
+              </View>
+
+              <Text style={styles.heroTitle}>CREATE YOUR IDENTITY</Text>
+              <Text style={styles.heroSubtitle}>
+                Welcome to ARISE. Forge your warrior callsign and choose your visual avatar.
+              </Text>
+
+              {/* Holographic Identity Card Live Preview */}
+              <GlowCard variant="glow" style={styles.holographicCard}>
+                <View style={styles.holoTopRow}>
+                  <View style={styles.holoAvatarWrapper}>
+                    {avatarInfo.type === 'image' ? (
+                      <Image source={avatarInfo.source} style={styles.holoAvatarImg} />
+                    ) : (
+                      <View style={styles.holoAvatarFallback}>
+                        <User size={34} color={colors.primary} />
+                      </View>
+                    )}
+                    <View style={styles.onlinePill} />
+                  </View>
+
+                  <View style={styles.holoMeta}>
+                    <View style={styles.tagRow}>
+                      <Text style={styles.holoRankTag}>LEVEL 1 • RECRUIT</Text>
+                    </View>
+                    <Text style={styles.holoCallsignText} numberOfLines={1}>
+                      {userName || 'UNKNOWN WARRIOR'}
+                    </Text>
+                    <Text style={styles.holoIdText}>ID: ARISE-001 • STATUS: ACTIVE</Text>
+                  </View>
+                </View>
+
+                {/* RPG Attributes Preview */}
+                <View style={styles.holoStatsGrid}>
+                  <View style={styles.holoStatBox}>
+                    <Text style={styles.holoStatLabel}>STRENGTH</Text>
+                    <Text style={[styles.holoStatVal, { color: colors.danger }]}>0</Text>
+                  </View>
+                  <View style={styles.holoStatBox}>
+                    <Text style={styles.holoStatLabel}>FOCUS</Text>
+                    <Text style={[styles.holoStatVal, { color: colors.secondary }]}>0</Text>
+                  </View>
+                  <View style={styles.holoStatBox}>
+                    <Text style={styles.holoStatLabel}>DISCIPLINE</Text>
+                    <Text style={[styles.holoStatVal, { color: colors.primary }]}>0</Text>
+                  </View>
+                </View>
+              </GlowCard>
+
+              {/* Callsign Input */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputHeaderLabel}>WARRIOR CALLSIGN</Text>
+                <View style={styles.textInputBox}>
+                  <User size={18} color={colors.primary} />
+                  <TextInput
+                    style={styles.textInputField}
+                    placeholder="Enter your warrior name..."
+                    placeholderTextColor={colors.textMuted}
+                    value={userName}
+                    onChangeText={setUserName}
+                    maxLength={24}
+                  />
+                </View>
+              </View>
+
+              {/* Avatar Selector Tabs */}
+              <View style={styles.avatarPickerSection}>
+                <View style={styles.avatarTabsHeader}>
+                  <Text style={styles.inputHeaderLabel}>CHOOSE AVATAR</Text>
+                  <View style={styles.tabToggleRow}>
+                    <TouchableOpacity
+                      style={[styles.tabBtn, avatarTab === 'images' && styles.tabBtnActive]}
+                      onPress={() => setAvatarTab('images')}
+                    >
+                      <Text
+                        style={[
+                          styles.tabBtnText,
+                          avatarTab === 'images' && styles.tabBtnTextActive,
+                        ]}
+                      >
+                        CYBER PFPs ({AVATAR_IMAGES.length})
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.tabBtn, avatarTab === 'icons' && styles.tabBtnActive]}
+                      onPress={() => setAvatarTab('icons')}
+                    >
+                      <Text
+                        style={[
+                          styles.tabBtnText,
+                          avatarTab === 'icons' && styles.tabBtnTextActive,
+                        ]}
+                      >
+                        INSIGNIAS
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Avatar Grid */}
+                {avatarTab === 'images' ? (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.avatarScrollRow}
+                  >
+                    {AVATAR_IMAGES.map((item) => {
+                      const isSelected = selectedAvatar === item.id;
+                      return (
+                        <TouchableOpacity
+                          key={item.id}
+                          onPress={() => {
+                            haptics.light();
+                            setSelectedAvatar(item.id);
+                          }}
+                          style={[
+                            styles.avatarItemWrap,
+                            isSelected && styles.avatarItemWrapSelected,
+                          ]}
+                          activeOpacity={0.8}
+                        >
+                          <Image source={item.source} style={styles.avatarGridImg} />
+                          {isSelected && (
+                            <View style={styles.selectedCheckOverlay}>
+                              <Check size={14} color="#000000" strokeWidth={3} />
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                ) : (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.avatarScrollRow}
+                  >
+                    {AVATAR_ICONS.map((item) => {
+                      const isSelected = selectedAvatar === item.id;
+                      const IconComponent = item.component;
+                      return (
+                        <TouchableOpacity
+                          key={item.id}
+                          onPress={() => {
+                            haptics.light();
+                            setSelectedAvatar(item.id);
+                          }}
+                          style={[
+                            styles.avatarItemWrap,
+                            styles.avatarIconItemWrap,
+                            isSelected && styles.avatarItemWrapSelected,
+                          ]}
+                          activeOpacity={0.8}
+                        >
+                          <IconComponent
+                            size={24}
+                            color={isSelected ? colors.primary : colors.textSecondary}
+                          />
+                          {isSelected && (
+                            <View style={styles.selectedCheckOverlay}>
+                              <Check size={14} color="#000000" strokeWidth={3} />
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                )}
+              </View>
+            </View>
+          )}
+
+          {/* ================= STEP 2: PROTOCOL OBJECTIVES & APPS ================= */}
+          {step === 2 && (
+            <View style={styles.stepContainer}>
+              <View style={styles.heroBadge}>
+                <Target size={16} color={colors.secondary} />
+                <Text style={[styles.heroBadgeText, { color: colors.secondary }]}>
+                  PROTOCOL DIRECTIVES
                 </Text>
               </View>
-            )}
 
-            <ScrollView
-              style={{ width: '100%', maxHeight: 340 }}
-              contentContainerStyle={{ gap: 10, paddingBottom: 10 }}
-              showsVerticalScrollIndicator={false}
-              nestedScrollEnabled={true}
-            >
-              {loadingApps ? (
-                <View style={{ paddingVertical: 40, alignItems: 'center', gap: 10 }}>
-                  <ActivityIndicator size="small" color={colors.primary} />
-                  <Text style={{ color: colors.textMuted, fontSize: 13 }}>Reading installed apps...</Text>
-                </View>
-              ) : installedApps.length === 0 ? (
-                <View style={{ paddingVertical: 30, alignItems: 'center', gap: 6 }}>
-                  <Text style={{ color: colors.textMuted, fontSize: 13 }}>No launcher apps found.</Text>
-                </View>
-              ) : (
-                installedApps.map((app) => {
-                  const isSelected = selectedApps.includes(app.packageName);
+              <Text style={styles.heroTitle}>SELECT YOUR GOALS</Text>
+              <Text style={styles.heroSubtitle}>
+                Choose your focus areas. ARISE will customize your daily missions and screen-time unlock costs.
+              </Text>
+
+              {/* Goals Cards */}
+              <View style={styles.goalsListWrap}>
+                {GOALS_LIST.map((goal) => {
+                  const isSelected = selectedGoals.includes(goal.id);
+                  const IconC = goal.icon;
                   return (
                     <TouchableOpacity
-                      key={app.packageName}
+                      key={goal.id}
+                      onPress={() => toggleGoal(goal.id)}
                       activeOpacity={0.8}
-                      onPress={() => toggleApp(app.packageName)}
                     >
-                      <Card
-                        variant={isSelected ? 'glow' : 'elevated'}
-                        style={[styles.appCard, isSelected && styles.appCardSelected]}
+                      <GlowCard
+                        variant={isSelected ? 'glow' : 'default'}
+                        style={[styles.goalCard, isSelected && styles.goalCardSelected]}
                       >
-                        <View style={styles.appIconCircle}>
-                          <MaterialCommunityIcons
-                            name="cellphone"
+                        <View
+                          style={[
+                            styles.goalIconCircle,
+                            isSelected && styles.goalIconCircleSelected,
+                          ]}
+                        >
+                          <IconC
                             size={20}
                             color={isSelected ? colors.primary : colors.textMuted}
                           />
                         </View>
                         <View style={{ flex: 1, gap: 2 }}>
-                          <Text style={styles.appNameText}>{app.appName}</Text>
-                          <Text style={styles.appPkgText} numberOfLines={1}>
-                            {app.packageName}
+                          <Text
+                            style={[
+                              styles.goalTitle,
+                              isSelected && { color: colors.primary },
+                            ]}
+                          >
+                            {goal.title}
                           </Text>
+                          <Text style={styles.goalDesc}>{goal.desc}</Text>
                         </View>
-                        <Switch
-                          value={isSelected}
-                          onValueChange={() => toggleApp(app.packageName)}
-                          trackColor={{ false: colors.surfaceLight, true: colors.primary }}
-                          thumbColor={isSelected ? colors.background : colors.textMuted}
-                        />
-                      </Card>
+                        <View
+                          style={[
+                            styles.checkboxCircle,
+                            isSelected && styles.checkboxCircleSelected,
+                          ]}
+                        >
+                          {isSelected && <Check size={14} color="#000" strokeWidth={3} />}
+                        </View>
+                      </GlowCard>
                     </TouchableOpacity>
                   );
-                })
-              )}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* Step 4: Daily Budget */}
-        {step === 4 && (
-          <View style={styles.stepView}>
-            <Text style={styles.stepTitle}>Set Daily Screen-Time Target</Text>
-            <Text style={styles.stepSubtitle}>
-              Maximum entertaining screen time you aim to earn each day.
-            </Text>
-
-            <Card variant="glow" style={styles.budgetCard}>
-              <Text style={styles.budgetAmount}>{dailyBudget} MIN</Text>
-              <Text style={styles.budgetSub}>Daily Unlocked Time Target</Text>
-
-              <View style={styles.budgetButtonsRow}>
-                {[30, 45, 60, 90, 120].map((mins) => (
-                  <TouchableOpacity
-                    key={mins}
-                    style={[styles.budgetBtn, dailyBudget === mins && styles.budgetBtnActive]}
-                    onPress={() => {
-                      setDailyBudget(mins);
-                      haptics.light();
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.budgetBtnText,
-                        dailyBudget === mins && { color: colors.background, fontWeight: '800' },
-                      ]}
-                    >
-                      {mins}m
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                })}
               </View>
-            </Card>
-          </View>
-        )}
 
-        {/* Step 5: Default Challenges */}
-        {step === 5 && (
-          <View style={styles.stepView}>
-            <Text style={styles.stepTitle}>Your Starting Quests</Text>
-            <Text style={styles.stepSubtitle}>
-              We have generated your first set of RPG daily quests based on your goals.
-            </Text>
-
-            <View style={styles.questsList}>
-              <Card variant="elevated" style={styles.questPreviewCard}>
-                <AriseIcon name="strength" size={24} color={colors.danger} glowIntensity="none" />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.questPreviewTitle}>Push-up Initiate</Text>
-                  <Text style={styles.questPreviewDesc}>Complete 15 camera-tracked push-ups</Text>
+              {/* Apps to Restrict Section */}
+              <View style={styles.appsToRestrictSection}>
+                <View style={styles.appsHeaderRow}>
+                  <View style={{ gap: 2, flex: 1 }}>
+                    <Text style={styles.inputHeaderLabel}>DISTRACTION APPS TO LOCK</Text>
+                    <Text style={styles.appsSubdesc}>
+                      These apps will require coins earned from exercise to unlock.
+                    </Text>
+                  </View>
+                  {selectedApps.length > 0 && (
+                    <View style={styles.appCountBadge}>
+                      <Text style={styles.appCountBadgeText}>
+                        {selectedApps.length} LOCKED
+                      </Text>
+                    </View>
+                  )}
                 </View>
-                <Badge label="+30 Coins" color={colors.accentGold} size="sm" variant="filled" />
-              </Card>
 
-              <Card variant="elevated" style={styles.questPreviewCard}>
-                <AriseIcon name="focus" size={24} color={colors.primaryLight} glowIntensity="none" />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.questPreviewTitle}>Deep Focus Primer</Text>
-                  <Text style={styles.questPreviewDesc}>Complete a 25-minute focus sprint</Text>
-                </View>
-                <Badge label="+50 Coins" color={colors.accentGold} size="sm" variant="filled" />
-              </Card>
-
-              <Card variant="elevated" style={styles.questPreviewCard}>
-                <AriseIcon name="discipline" size={24} color={colors.secondary} glowIntensity="none" />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.questPreviewTitle}>Iron Plank</Text>
-                  <Text style={styles.questPreviewDesc}>Hold 45 seconds of perfect form plank</Text>
-                </View>
-                <Badge label="+45 Coins" color={colors.accentGold} size="sm" variant="filled" />
-              </Card>
+                {loadingApps ? (
+                  <View style={styles.appsLoadingBox}>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                    <Text style={styles.appsLoadingText}>Scanning device for apps...</Text>
+                  </View>
+                ) : installedApps.length === 0 ? (
+                  <View style={styles.noAppsBox}>
+                    <Smartphone size={28} color={colors.textMuted} />
+                    <Text style={styles.noAppsText}>
+                      No third-party apps detected. You can configure locked apps in Settings anytime.
+                    </Text>
+                  </View>
+                ) : (
+                  <ScrollView
+                    style={{ maxHeight: 220, width: '100%' }}
+                    contentContainerStyle={{ gap: 8 }}
+                    nestedScrollEnabled
+                    showsVerticalScrollIndicator={false}
+                  >
+                    {installedApps.slice(0, 15).map((app) => {
+                      const isSelected = selectedApps.includes(app.packageName);
+                      return (
+                        <TouchableOpacity
+                          key={app.packageName}
+                          onPress={() => toggleApp(app.packageName)}
+                          activeOpacity={0.8}
+                        >
+                          <GlowCard
+                            variant={isSelected ? 'glow' : 'default'}
+                            style={styles.miniAppCard}
+                          >
+                            <View style={styles.miniAppIcon}>
+                              {app.appIconBase64 ? (
+                                <Image
+                                  source={{ uri: app.appIconBase64 }}
+                                  style={{ width: 28, height: 28, borderRadius: 6 }}
+                                />
+                              ) : (
+                                <Smartphone
+                                  size={18}
+                                  color={isSelected ? colors.primary : colors.textMuted}
+                                />
+                              )}
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.miniAppName}>{app.appName}</Text>
+                              <Text style={styles.miniAppPkg} numberOfLines={1}>
+                                {app.packageName}
+                              </Text>
+                            </View>
+                            <View
+                              style={[
+                                styles.lockIndicator,
+                                isSelected && styles.lockIndicatorActive,
+                              ]}
+                            >
+                              <Lock
+                                size={14}
+                                color={isSelected ? colors.primary : colors.textMuted}
+                              />
+                            </View>
+                          </GlowCard>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                )}
+              </View>
             </View>
-          </View>
-        )}
+          )}
 
-        {/* Step 6: Notifications */}
-        {step === 6 && (
-          <View style={styles.stepView}>
-            <Text style={styles.stepTitle}>Streak Protection & Alerts</Text>
-            <Text style={styles.stepSubtitle}>
-              Receive silent reminders before your streak resets at midnight.
-            </Text>
+          {/* ================= STEP 3: ACTIVATION & DEPLOYMENT ================= */}
+          {step === 3 && (
+            <View style={styles.stepContainer}>
+              <View style={styles.heroBadge}>
+                <Crown size={16} color={colors.primary} />
+                <Text style={styles.heroBadgeText}>SYSTEM ARMED</Text>
+              </View>
 
-            <Card variant="glow" style={styles.notifCard}>
-              <MaterialCommunityIcons name="bell-ring-outline" size={48} color={colors.primary} />
-              <Text style={styles.notifCardTitle}>Enable Local Notifications</Text>
-              <Text style={styles.notifCardDesc}>
-                100% on-device alerts. No cloud notifications or spam.
+              <Text style={styles.heroTitle}>READY TO ARISE</Text>
+              <Text style={styles.heroSubtitle}>
+                Your protocol is initialized. Passive doom-scrolling ends now. Every minute of entertainment is earned through real discipline.
               </Text>
-              <Switch
-                value={allowNotifications}
-                onValueChange={(val) => {
-                  setAllowNotifications(val);
-                  haptics.light();
-                }}
-                trackColor={{ false: colors.surfaceLight, true: colors.primary }}
-                thumbColor={allowNotifications ? colors.background : colors.textMuted}
-              />
-            </Card>
-          </View>
-        )}
 
-        {/* Step 7: Ready to ARISE */}
-        {step === 7 && (
-          <View style={styles.stepView}>
-            <View style={styles.readyCircle}>
-              <AriseLogo size={60} color={colors.secondary} glow />
+              {/* Final Identity Hologram */}
+              <GlowCard variant="glow" style={styles.deploymentCard}>
+                <View style={styles.deploymentAvatarWrap}>
+                  {avatarInfo.type === 'image' ? (
+                    <Image source={avatarInfo.source} style={styles.deployAvatarImg} />
+                  ) : (
+                    <User size={60} color={colors.primary} />
+                  )}
+                  <View style={styles.deployGlowRing} />
+                </View>
+
+                <Text style={styles.deployWarriorName}>{userName}</Text>
+                <Text style={styles.deployRank}>LEVEL 1 • DISCIPLINE INITIATE</Text>
+
+                <View style={styles.protocolDetailsBox}>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>GOALS CONFIGURED</Text>
+                    <Text style={styles.detailValue}>{selectedGoals.length} DIRECTIVES</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>LOCKED APPS</Text>
+                    <Text style={styles.detailValue}>{selectedApps.length} APPS</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>AI POSE TRACKER</Text>
+                    <Text style={[styles.detailValue, { color: colors.primary }]}>
+                      ON-DEVICE ML KIT
+                    </Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>STARTING BALANCE</Text>
+                    <Text style={[styles.detailValue, { color: colors.accentGold }]}>
+                      0 COINS • 0 XP
+                    </Text>
+                  </View>
+                </View>
+              </GlowCard>
             </View>
-            <Text style={styles.readyTitle}>You Are Ready, {userName}.</Text>
-            <Text style={styles.readyTagline}>The Era of Passive Scrolling is Over.</Text>
-            <Text style={styles.readyDesc}>
-              Every minute of screen time is now earned through strength, discipline, and focus.
-            </Text>
-          </View>
-        )}
-      </ScrollView>
+          )}
 
-      {/* Bottom Navigation Controls */}
-      <View style={styles.footer}>
-        <Button
-          title={step === totalSteps ? 'Enter ARISE' : 'Continue'}
-          variant="primary"
-          size="lg"
-          fullWidth
-          onPress={handleNext}
-        />
-      </View>
-    </SafeAreaView>
+          <View style={{ height: 20 }} />
+        </ScrollView>
+
+        {/* Bottom CTA Button */}
+        <View style={styles.footerContainer}>
+          <GlowButton
+            title={
+              isSubmitting
+                ? 'INITIALIZING PROTOCOL...'
+                : step === totalSteps
+                ? 'ENTER ARISE'
+                : 'CONTINUE PROTOCOL'
+            }
+            onPress={handleNext}
+            variant="primary"
+            size="lg"
+            loading={isSubmitting}
+            disabled={isSubmitting}
+            style={{ width: '100%' }}
+          />
+        </View>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  header: { paddingHorizontal: 20, paddingVertical: 12 },
-  progressContainer: { alignItems: 'center' },
-  stepCounter: { fontSize: 10, fontWeight: '800', color: colors.textMuted, letterSpacing: 1.5 },
-  scrollContent: { padding: 20, flexGrow: 1 },
-  stepView: { alignItems: 'center', gap: 14 },
-  brandCircle: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: 'rgba(0, 240, 255, 0.1)',
-    justifyContent: 'center',
+  safeArea: { flex: 1 },
+  headerBar: {
+    flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.secondary,
-    marginBottom: 8,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1A1A1A',
   },
-  brandTitle: { fontSize: 32, fontWeight: '900', color: colors.textPrimary, letterSpacing: 3 },
-  brandTagline: { fontSize: 14, fontWeight: '700', color: colors.secondary, textAlign: 'center' },
-  brandDescription: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginTop: 4,
-  },
-  nameInputContainer: { width: '100%', marginTop: 16, gap: 6 },
-  inputLabel: { fontSize: 11, fontWeight: '800', color: colors.textMuted, letterSpacing: 1 },
-  nameInput: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 14,
-    color: colors.textPrimary,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: colors.surfaceBorder,
-  },
-  stepTitle: { fontSize: 20, fontWeight: '900', color: colors.textPrimary, textAlign: 'center' },
-  stepSubtitle: { fontSize: 13, color: colors.textSecondary, textAlign: 'center', lineHeight: 18 },
-  optionsList: { width: '100%', gap: 10, marginTop: 8 },
-  goalCard: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14 },
-  goalCardSelected: { borderColor: colors.secondary },
-  goalTitle: { fontSize: 15, fontWeight: '800', color: colors.textPrimary },
-  goalDesc: { fontSize: 11, color: colors.textSecondary },
-  appCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
-  appCardSelected: { borderColor: colors.primary },
-  appNameText: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
-  appPkgText: { fontSize: 11, color: colors.textMuted },
-  budgetCard: { width: '100%', padding: 24, alignItems: 'center', gap: 12, marginTop: 12 },
-  budgetAmount: { fontSize: 44, fontWeight: '900', color: colors.primary, fontVariant: ['tabular-nums'] },
-  budgetSub: { fontSize: 12, color: colors.textSecondary },
-  budgetButtonsRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
-  budgetBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: colors.surfaceLight,
-    borderWidth: 1,
-    borderColor: colors.surfaceBorder,
-  },
-  budgetBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  budgetBtnText: { fontSize: 13, fontWeight: '700', color: colors.textSecondary },
-  questsList: { width: '100%', gap: 10, marginTop: 8 },
-  questPreviewCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
-  questPreviewTitle: { fontSize: 14, fontWeight: '800', color: colors.textPrimary },
-  questPreviewDesc: { fontSize: 11, color: colors.textSecondary },
-  notifCard: { width: '100%', padding: 28, alignItems: 'center', gap: 14, marginTop: 16 },
-  notifCardTitle: { fontSize: 17, fontWeight: '800', color: colors.textPrimary },
-  notifCardDesc: { fontSize: 13, color: colors.textSecondary, textAlign: 'center', lineHeight: 18 },
-  readyCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(0, 240, 255, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.secondary,
-    marginVertical: 12,
-  },
-  readyTitle: { fontSize: 24, fontWeight: '900', color: colors.textPrimary, textAlign: 'center' },
-  readyTagline: { fontSize: 14, fontWeight: '700', color: colors.secondary, textAlign: 'center' },
-  readyDesc: { fontSize: 13, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 },
-  footer: { padding: 20, borderTopWidth: 1, borderTopColor: colors.surfaceBorder },
-  permBanner: {
+  headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#1E1A0F',
+  },
+  iconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#161616',
+    borderWidth: 1,
+    borderColor: '#242424',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerStageText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: colors.primary,
+    letterSpacing: 1.5,
+  },
+  stepDotsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  stepDot: {
+    width: 20,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#222222',
+  },
+  stepDotActive: {
+    backgroundColor: colors.primary,
+  },
+  stepDotCurrent: {
+    width: 28,
+    backgroundColor: colors.primary,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
+  },
+  scrollContent: {
+    padding: 20,
+    gap: 16,
+  },
+  stepContainer: {
+    gap: 16,
+    alignItems: 'center',
+  },
+  heroBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(209, 255, 0, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(209, 255, 0, 0.3)',
+    borderRadius: 100,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+  heroBadgeText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: colors.primary,
+    letterSpacing: 1.5,
+  },
+  heroTitle: {
+    fontSize: 26,
+    fontWeight: '900',
+    color: colors.textPrimary,
+    letterSpacing: 1,
+    textAlign: 'center',
+  },
+  heroSubtitle: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 18,
+    paddingHorizontal: 10,
+  },
+  holographicCard: {
+    width: '100%',
+    padding: 18,
+    borderRadius: 20,
+    gap: 14,
+    backgroundColor: '#121212',
+    borderColor: 'rgba(209, 255, 0, 0.25)',
+  },
+  holoTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  holoAvatarWrapper: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#1E1E1E',
+  },
+  holoAvatarImg: {
+    width: '100%',
+    height: '100%',
+  },
+  holoAvatarFallback: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  onlinePill: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: colors.primary,
+    borderWidth: 2,
+    borderColor: '#121212',
+  },
+  holoMeta: {
+    flex: 1,
+    gap: 3,
+  },
+  tagRow: {
+    flexDirection: 'row',
+  },
+  holoRankTag: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: colors.primary,
+    backgroundColor: 'rgba(209, 255, 0, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    letterSpacing: 1,
+  },
+  holoCallsignText: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: colors.textPrimary,
+  },
+  holoIdText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.textMuted,
+    letterSpacing: 0.5,
+  },
+  holoStatsGrid: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#181818',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#262626',
+  },
+  holoStatBox: {
+    alignItems: 'center',
+    gap: 2,
+  },
+  holoStatLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: colors.textMuted,
+    letterSpacing: 1,
+  },
+  holoStatVal: {
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  inputGroup: {
+    width: '100%',
+    gap: 8,
+  },
+  inputHeaderLabel: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: colors.textSecondary,
+    letterSpacing: 1.2,
+  },
+  textInputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#161616',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#4A3B18',
-    padding: 12,
+    borderColor: '#282828',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  textInputField: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  avatarPickerSection: {
     width: '100%',
+    gap: 10,
   },
-  permBannerTitle: {
-    fontSize: 13,
+  avatarTabsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  tabToggleRow: {
+    flexDirection: 'row',
+    backgroundColor: '#161616',
+    borderRadius: 8,
+    padding: 2,
+  },
+  tabBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  tabBtnActive: {
+    backgroundColor: '#262626',
+  },
+  tabBtnText: {
+    fontSize: 10,
     fontWeight: '800',
-    color: colors.accentGold,
+    color: colors.textMuted,
   },
-  permBannerDesc: {
+  tabBtnTextActive: {
+    color: colors.primary,
+  },
+  avatarScrollRow: {
+    gap: 12,
+    paddingVertical: 4,
+  },
+  avatarItemWrap: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 2,
+    borderColor: '#242424',
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#1E1E1E',
+  },
+  avatarIconItemWrap: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarItemWrapSelected: {
+    borderColor: colors.primary,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 8,
+    transform: [{ scale: 1.05 }],
+  },
+  avatarGridImg: {
+    width: '100%',
+    height: '100%',
+  },
+  selectedCheckOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(209, 255, 0, 0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  goalsListWrap: {
+    width: '100%',
+    gap: 10,
+  },
+  goalCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    padding: 14,
+    borderRadius: 16,
+  },
+  goalCardSelected: {
+    borderColor: 'rgba(209, 255, 0, 0.35)',
+  },
+  goalIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#1E1E1E',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  goalIconCircleSelected: {
+    backgroundColor: 'rgba(209, 255, 0, 0.15)',
+  },
+  goalTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: colors.textPrimary,
+  },
+  goalDesc: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    lineHeight: 15,
+  },
+  checkboxCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: '#333333',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxCircleSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  appsToRestrictSection: {
+    width: '100%',
+    gap: 10,
+    marginTop: 8,
+  },
+  appsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  appsSubdesc: {
     fontSize: 11,
     color: colors.textMuted,
   },
-  selectedCountBadge: {
-    backgroundColor: 'rgba(0, 255, 106, 0.1)',
+  appCountBadge: {
+    backgroundColor: 'rgba(209, 255, 0, 0.1)',
     borderWidth: 1,
     borderColor: colors.primary,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
-  selectedCountText: {
-    fontSize: 12,
-    fontWeight: '800',
+  appCountBadgeText: {
+    fontSize: 10,
+    fontWeight: '900',
     color: colors.primary,
   },
-  appIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+  appsLoadingBox: {
+    paddingVertical: 24,
+    alignItems: 'center',
+    gap: 8,
+  },
+  appsLoadingText: {
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  noAppsBox: {
+    paddingVertical: 24,
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#121212',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+  },
+  noAppsText: {
+    fontSize: 11,
+    color: colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 16,
+  },
+  miniAppCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 10,
+    borderRadius: 12,
+  },
+  miniAppIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#1E1E1E',
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
+  },
+  miniAppName: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.textPrimary,
+  },
+  miniAppPkg: {
+    fontSize: 10,
+    color: colors.textMuted,
+  },
+  lockIndicator: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#1C1C1C',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  lockIndicatorActive: {
+    backgroundColor: 'rgba(209, 255, 0, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(209, 255, 0, 0.3)',
+  },
+  deploymentCard: {
+    width: '100%',
+    padding: 24,
+    alignItems: 'center',
+    borderRadius: 24,
+    gap: 12,
+    backgroundColor: '#121212',
+    borderColor: 'rgba(209, 255, 0, 0.3)',
+  },
+  deploymentAvatarWrap: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    borderWidth: 3,
+    borderColor: colors.primary,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+    backgroundColor: '#1E1E1E',
+  },
+  deployAvatarImg: {
+    width: '100%',
+    height: '100%',
+  },
+  deployGlowRing: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 48,
+    borderWidth: 1,
+    borderColor: 'rgba(209, 255, 0, 0.5)',
+  },
+  deployWarriorName: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: colors.textPrimary,
+    letterSpacing: 0.5,
+  },
+  deployRank: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: colors.primary,
+    letterSpacing: 1.5,
+  },
+  protocolDetailsBox: {
+    width: '100%',
+    backgroundColor: '#181818',
+    borderRadius: 14,
+    padding: 14,
+    gap: 10,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#242424',
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  detailLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.textMuted,
+    letterSpacing: 1,
+  },
+  detailValue: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: colors.textPrimary,
+  },
+  footerContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#1A1A1A',
   },
 });

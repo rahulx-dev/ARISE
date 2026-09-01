@@ -1,10 +1,20 @@
+import { requireNativeModule } from 'expo-modules-core';
 import { NativeModules, Platform } from 'react-native';
 
-const ScreenTimer = NativeModules.ScreenTimer || {
-  startSessionTimer: (durationMs: number, label: string) => {},
-  cancelSessionTimer: () => {},
-  getRemainingMillis: async () => 0,
-};
+let ScreenTimer: any = null;
+try {
+  ScreenTimer = requireNativeModule('ScreenTimer');
+} catch {
+  ScreenTimer = NativeModules.ScreenTimer || null;
+}
+
+if (!ScreenTimer) {
+  ScreenTimer = {
+    startSessionTimer: (_durationMs: number, _label: string) => {},
+    cancelSessionTimer: () => {},
+    getRemainingMillis: async () => 0,
+  };
+}
 
 export function startSessionTimer(durationMs: number, label: string): void {
   if (Platform.OS === 'android') {

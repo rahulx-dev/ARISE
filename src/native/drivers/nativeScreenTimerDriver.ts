@@ -1,7 +1,13 @@
+import { requireNativeModule } from 'expo-modules-core';
 import { NativeModules, Platform } from 'react-native';
 import { IScreenTimerDriver } from '../types';
 
-const NativeScreenTimer = NativeModules.ScreenTimer;
+let NativeScreenTimer: any = null;
+try {
+  NativeScreenTimer = requireNativeModule('ScreenTimer');
+} catch {
+  NativeScreenTimer = NativeModules.ScreenTimer || null;
+}
 
 export class NativeScreenTimerDriver implements IScreenTimerDriver {
   startSessionTimer(durationMs: number, label: string): void {
