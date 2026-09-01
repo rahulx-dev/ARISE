@@ -47,7 +47,15 @@ export const WatchClockWidget = React.memo(function WatchClockWidget() {
           <Text style={[styles.mainDigits, { color: colors.textPrimary }]}>
             {hours}:{minutes}
           </Text>
-          <View style={styles.secondsBadge}>
+          <View
+            style={[
+              styles.secondsBadge,
+              {
+                backgroundColor: isDark ? 'rgba(209, 255, 0, 0.08)' : 'rgba(16, 185, 129, 0.1)',
+                borderColor: isDark ? 'rgba(209, 255, 0, 0.25)' : 'rgba(16, 185, 129, 0.3)',
+              },
+            ]}
+          >
             <Text style={[styles.secondsDigits, { color: colors.primary }]}>{seconds}</Text>
             <Text style={[styles.secLabel, { color: colors.textMuted }]}>SEC</Text>
           </View>

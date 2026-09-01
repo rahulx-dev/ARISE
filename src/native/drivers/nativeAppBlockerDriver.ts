@@ -91,4 +91,39 @@ export class NativeAppBlockerDriver implements IAppBlockerDriver {
       return [];
     }
   }
+
+  temporaryUnlock(durationMs: number): boolean {
+    if (Platform.OS === 'android' && NativeAppBlocker?.temporaryUnlock) {
+      try {
+        return NativeAppBlocker.temporaryUnlock(durationMs);
+      } catch (e) {
+        console.warn('[NativeAppBlocker] temporaryUnlock error:', e);
+        return false;
+      }
+    }
+    return true;
+  }
+
+  unlockUntil(epochMs: number): boolean {
+    if (Platform.OS === 'android' && NativeAppBlocker?.unlockUntil) {
+      try {
+        return NativeAppBlocker.unlockUntil(epochMs);
+      } catch (e) {
+        console.warn('[NativeAppBlocker] unlockUntil error:', e);
+        return false;
+      }
+    }
+    return true;
+  }
+
+  isCurrentlyUnlocked(): boolean {
+    if (Platform.OS === 'android' && NativeAppBlocker?.isCurrentlyUnlocked) {
+      try {
+        return NativeAppBlocker.isCurrentlyUnlocked();
+      } catch (e) {
+        return false;
+      }
+    }
+    return false;
+  }
 }

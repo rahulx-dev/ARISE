@@ -59,13 +59,17 @@ export class MockAppBlockerDriver implements IAppBlockerDriver {
     return MOCK_INSTALLED_APPS;
   }
 
-  setBlockSimulationListener(cb: (pkg: string) => void): void {
-    this.onBlockSimulatedCallback = cb;
+  temporaryUnlock(durationMs: number): boolean {
+    console.log(`⚡ [PREVIEW MODE] temporaryUnlock for ${durationMs}ms`);
+    return true;
   }
 
-  simulateBlockEvent(packageName: string): void {
-    if (this.onBlockSimulatedCallback) {
-      this.onBlockSimulatedCallback(packageName);
-    }
+  unlockUntil(epochMs: number): boolean {
+    console.log(`⚡ [PREVIEW MODE] unlockUntil ${epochMs}`);
+    return true;
+  }
+
+  isCurrentlyUnlocked(): boolean {
+    return false;
   }
 }

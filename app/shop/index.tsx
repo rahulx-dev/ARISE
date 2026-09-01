@@ -31,7 +31,7 @@ import { GlowButton } from '../../src/components/design-system/GlowButton';
 import { CoinBalance } from '../../src/components/design-system/CoinBalance';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { userRepository } from '../../src/database/repositories/userRepository';
-import { screenTimerService } from '../../src/native';
+import { screenTimerService, appBlockerService } from '../../src/native';
 import { voiceCoach } from '../../src/services/voiceCoach';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useSound } from '../../src/hooks/useSound';
@@ -175,7 +175,10 @@ export default function ShopScreen() {
           return;
         }
 
+        // 1. Start UI countdown timer
         screenTimerService.startSessionTimer(durationMs, `Screen Time (${item.minutes}m)`);
+        // 2. Temporarily unblock native monitor overlay for duration
+        appBlockerService.temporaryUnlock?.(durationMs);
       } else {
         const success = await userRepository.spendCoins(item.cost, `Purchased ${item.name}`);
         if (!success) {

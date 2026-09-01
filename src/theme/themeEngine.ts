@@ -103,32 +103,32 @@ export const darkThemeColors: ThemeColors = {
 };
 
 export const lightThemeColors: ThemeColors = {
-  primary: '#10B981', // Refined Emerald Volt for clean light contrast
+  primary: '#10B981', // Clean Emerald Volt with high light contrast
   primaryLime: '#84CC16',
   primaryLight: '#10B981',
-  primaryGlow: 'rgba(16, 185, 129, 0.25)',
+  primaryGlow: 'rgba(16, 185, 129, 0.2)',
   primaryDark: '#064E3B',
   tertiary: '#ECFDF5',
 
   primaryPurple: '#7C3AED',
-  purpleGlow: 'rgba(124, 58, 237, 0.2)',
+  purpleGlow: 'rgba(124, 58, 237, 0.15)',
 
-  background: '#F8FAFC',
+  background: '#F2F2F7', // Apple iOS System Background
   backgroundElevated: '#FFFFFF',
   backgroundGradientTop: '#FFFFFF',
-  backgroundGradientBottom: '#F1F5F9',
+  backgroundGradientBottom: '#E5E5EA',
 
   card: '#FFFFFF',
   surface: '#FFFFFF',
-  surfaceLight: '#F1F5F9',
-  surfaceElevated: '#E2E8F0',
-  surfaceBorder: '#E2E8F0',
-  border: '#CBD5E1',
+  surfaceLight: '#F2F2F7',
+  surfaceElevated: '#FFFFFF',
+  surfaceBorder: 'rgba(0, 0, 0, 0.08)',
+  border: 'rgba(0, 0, 0, 0.08)',
   borderGlow: 'rgba(16, 185, 129, 0.2)',
 
-  textPrimary: '#0F172A',
-  textSecondary: '#475569',
-  textMuted: '#94A3B8',
+  textPrimary: '#000000',
+  textSecondary: '#3C3C43',
+  textMuted: '#8E8E93',
 
   accent: '#10B981',
   accentGold: '#D97706',
@@ -148,8 +148,8 @@ export const lightThemeColors: ThemeColors = {
     knowledge: '#D97706',
   },
 
-  overlay: 'rgba(15, 23, 42, 0.75)',
-  glassCard: 'rgba(255, 255, 255, 0.95)',
+  overlay: 'rgba(0, 0, 0, 0.45)',
+  glassCard: 'rgba(255, 255, 255, 0.90)',
   isDark: false,
 };
 

@@ -20,6 +20,7 @@ import {
   Dumbbell,
   Shield,
   Check,
+  Camera,
 } from 'lucide-react-native';
 import { GlassCard } from '../../src/components/ios/GlassCard';
 import { GlassButton } from '../../src/components/ios/GlassButton';
@@ -137,33 +138,76 @@ export default function QuestsTab() {
               </GlassCard>
             ) : (
               filteredQuests.map((q) => {
-                const IconComp = CATEGORY_ICONS[q.category] || Zap;
                 const isDone = q.completed === true;
+                const titleLower = q.title.toLowerCase();
+                const isExercise =
+                  q.category === 'strength' ||
+                  q.category === 'fitness' ||
+                  titleLower.includes('push') ||
+                  titleLower.includes('squat') ||
+                  titleLower.includes('pull') ||
+                  titleLower.includes('plank') ||
+                  titleLower.includes('jack') ||
+                  titleLower.includes('lunge') ||
+                  titleLower.includes('crunch');
+
+                const isFocus = q.category === 'focus' || titleLower.includes('focus') || titleLower.includes('study');
+
+                let exerciseType = 'PUSHUP';
+                if (titleLower.includes('squat')) exerciseType = 'SQUAT';
+                else if (titleLower.includes('pull')) exerciseType = 'PULLUP';
+                else if (titleLower.includes('plank')) exerciseType = 'PLANK';
+                else if (titleLower.includes('jack')) exerciseType = 'JUMPING_JACK';
+                else if (titleLower.includes('lunge')) exerciseType = 'LUNGE';
+                else if (titleLower.includes('crunch')) exerciseType = 'CRUNCH';
+
+                const IconComp = isExercise ? Dumbbell : isFocus ? Brain : (CATEGORY_ICONS[q.category] || Zap);
+
+                const handleCardPress = () => {
+                  if (isDone) return;
+                  haptics.medium();
+                  if (isExercise) {
+                    router.push({
+                      pathname: '/exercise/[type]',
+                      params: {
+                        type: exerciseType,
+                        target: q.target || 20,
+                        questId: String(q.id),
+                      },
+                    } as any);
+                  } else if (isFocus) {
+                    router.push('/focus/session');
+                  } else {
+                    handleComplete(q.id);
+                  }
+                };
 
                 return (
                   <GlassCard key={q.id} variant={isDone ? 'default' : 'elevated'} style={styles.questCard}>
                     <TouchableOpacity
-                      onPress={() => !isDone && handleComplete(q.id)}
+                      onPress={handleCardPress}
                       style={styles.questCardInner}
                       activeOpacity={0.8}
                     >
                       {/* Checkbox button */}
-                      <View
+                      <TouchableOpacity
+                        onPress={() => !isDone && handleComplete(q.id)}
                         style={[
                           styles.checkboxBtn,
                           { borderColor: isDone ? colors.primary : colors.border },
                           isDone && { backgroundColor: colors.primary },
                         ]}
+                        activeOpacity={0.7}
                       >
                         {isDone && <Check size={14} color="#000" strokeWidth={3} />}
-                      </View>
+                      </TouchableOpacity>
 
                       {/* Content */}
                       <View style={styles.questContentCol}>
                         <View style={styles.questCategoryRow}>
                           <IconComp size={12} color={colors.primary} />
                           <Text style={[styles.questCategoryText, { color: colors.primary }]}>
-                            {q.category.toUpperCase()} PROTOCOL
+                            {isExercise ? 'AI TRACKED PROTOCOL' : `${q.category.toUpperCase()} PROTOCOL`}
                           </Text>
                         </View>
 
@@ -180,6 +224,35 @@ export default function QuestsTab() {
                         <Text style={[styles.questDesc, { color: colors.textSecondary }]} numberOfLines={2}>
                           {q.description}
                         </Text>
+
+                        {/* AI Camera Tracker Pill Button for uncompleted exercise quests */}
+                        {!isDone && isExercise && (
+                          <TouchableOpacity
+                            style={[
+                              styles.aiTrackerBtn,
+                              { backgroundColor: isDark ? 'rgba(209, 255, 0, 0.12)' : 'rgba(16, 185, 129, 0.12)', borderColor: colors.primary },
+                            ]}
+                            onPress={handleCardPress}
+                            activeOpacity={0.8}
+                          >
+                            <Camera size={13} color={colors.primary} />
+                            <Text style={[styles.aiTrackerBtnText, { color: colors.primary }]}>START AI CAMERA</Text>
+                          </TouchableOpacity>
+                        )}
+
+                        {!isDone && isFocus && (
+                          <TouchableOpacity
+                            style={[
+                              styles.aiTrackerBtn,
+                              { backgroundColor: isDark ? 'rgba(0, 240, 255, 0.12)' : 'rgba(2, 132, 199, 0.12)', borderColor: colors.secondary },
+                            ]}
+                            onPress={handleCardPress}
+                            activeOpacity={0.8}
+                          >
+                            <Brain size={13} color={colors.secondary} />
+                            <Text style={[styles.aiTrackerBtnText, { color: colors.secondary }]}>START FOCUS SESSION</Text>
+                          </TouchableOpacity>
+                        )}
                       </View>
 
                       {/* Rewards Column */}
@@ -362,5 +435,21 @@ const styles = StyleSheet.create({
   emptySub: {
     fontSize: 11,
     textAlign: 'center',
+  },
+  aiTrackerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignSelf: 'flex-start',
+    marginTop: 6,
+  },
+  aiTrackerBtnText: {
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.5,
   },
 });

@@ -18,6 +18,9 @@ if (!AppBlocker) {
     stopMonitoring: () => {},
     setRestrictedPackages: (_restrictedPackages: string[]) => {},
     getInstalledApps: async () => [],
+    temporaryUnlock: (_durationMs: number) => true,
+    unlockUntil: (_epochMs: number) => true,
+    isCurrentlyUnlocked: () => false,
   };
 }
 
@@ -69,6 +72,39 @@ export function setRestrictedPackages(restrictedPackages: string[]): void {
   }
 }
 
+export function temporaryUnlock(durationMs: number): boolean {
+  if (Platform.OS === 'android' && AppBlocker?.temporaryUnlock) {
+    try {
+      return AppBlocker.temporaryUnlock(durationMs);
+    } catch {
+      return false;
+    }
+  }
+  return true;
+}
+
+export function unlockUntil(epochMs: number): boolean {
+  if (Platform.OS === 'android' && AppBlocker?.unlockUntil) {
+    try {
+      return AppBlocker.unlockUntil(epochMs);
+    } catch {
+      return false;
+    }
+  }
+  return true;
+}
+
+export function isCurrentlyUnlocked(): boolean {
+  if (Platform.OS === 'android' && AppBlocker?.isCurrentlyUnlocked) {
+    try {
+      return AppBlocker.isCurrentlyUnlocked();
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
+
 export default {
   hasUsagePermission,
   hasOverlayPermission,
@@ -77,4 +113,7 @@ export default {
   startMonitoring,
   stopMonitoring,
   setRestrictedPackages,
+  temporaryUnlock,
+  unlockUntil,
+  isCurrentlyUnlocked,
 };

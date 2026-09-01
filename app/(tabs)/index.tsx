@@ -356,40 +356,84 @@ export default function HomeDashboard() {
                 </Text>
               </GlassCard>
             ) : (
-              dailyQuests.slice(0, 3).map((q) => (
-                <GlassCard key={q.id} variant={q.completed ? 'default' : 'glow'} style={styles.questCard}>
-                  <View style={styles.questCardLeft}>
-                    <View
-                      style={[
-                        styles.questCheckCircle,
-                        q.completed && { backgroundColor: colors.primary, borderColor: colors.primary },
-                      ]}
-                    >
-                      {q.completed && <Check size={12} color="#000" strokeWidth={3} />}
-                    </View>
-                    <View style={{ flex: 1, gap: 2 }}>
-                      <Text
-                        style={[
-                          styles.questTitleText,
-                          { color: colors.textPrimary },
-                          q.completed && { textDecorationLine: 'line-through', opacity: 0.6 },
-                        ]}
-                      >
-                        {q.title}
-                      </Text>
-                      <Text style={[styles.questDescText, { color: colors.textSecondary }]} numberOfLines={1}>
-                        {q.description}
-                      </Text>
-                    </View>
-                  </View>
+              dailyQuests.slice(0, 3).map((q) => {
+                const isDone = q.completed === true;
+                const titleLower = q.title.toLowerCase();
+                const isExercise =
+                  q.category === 'strength' ||
+                  q.category === 'fitness' ||
+                  titleLower.includes('push') ||
+                  titleLower.includes('squat') ||
+                  titleLower.includes('pull') ||
+                  titleLower.includes('plank') ||
+                  titleLower.includes('jack') ||
+                  titleLower.includes('lunge') ||
+                  titleLower.includes('crunch');
 
-                  <View style={styles.questCardRight}>
-                    <View style={[styles.rewardTag, { backgroundColor: isDark ? 'rgba(209, 255, 0, 0.1)' : 'rgba(16, 185, 129, 0.1)' }]}>
-                      <Text style={[styles.rewardTagText, { color: colors.primary }]}>+{q.rewardCoins} 🪙</Text>
-                    </View>
-                  </View>
-                </GlassCard>
-              ))
+                let exerciseType = 'PUSHUP';
+                if (titleLower.includes('squat')) exerciseType = 'SQUAT';
+                else if (titleLower.includes('pull')) exerciseType = 'PULLUP';
+                else if (titleLower.includes('plank')) exerciseType = 'PLANK';
+                else if (titleLower.includes('jack')) exerciseType = 'JUMPING_JACK';
+
+                const handlePress = () => {
+                  if (isDone) return;
+                  haptics.medium();
+                  if (isExercise) {
+                    router.push({
+                      pathname: '/exercise/[type]',
+                      params: {
+                        type: exerciseType,
+                        target: q.target || 20,
+                        questId: String(q.id),
+                      },
+                    } as any);
+                  } else if (q.category === 'focus') {
+                    router.push('/focus/session');
+                  } else {
+                    completeQuest(q.id);
+                  }
+                };
+
+                return (
+                  <TouchableOpacity key={q.id} onPress={handlePress} activeOpacity={0.8}>
+                    <GlassCard variant={isDone ? 'default' : 'glow'} style={styles.questCard}>
+                      <View style={styles.questCardLeft}>
+                        <TouchableOpacity
+                          onPress={() => !isDone && completeQuest(q.id)}
+                          style={[
+                            styles.questCheckCircle,
+                            isDone && { backgroundColor: colors.primary, borderColor: colors.primary },
+                          ]}
+                          activeOpacity={0.7}
+                        >
+                          {isDone && <Check size={12} color="#000" strokeWidth={3} />}
+                        </TouchableOpacity>
+                        <View style={{ flex: 1, gap: 2 }}>
+                          <Text
+                            style={[
+                              styles.questTitleText,
+                              { color: colors.textPrimary },
+                              isDone && { textDecorationLine: 'line-through', opacity: 0.6 },
+                            ]}
+                          >
+                            {q.title}
+                          </Text>
+                          <Text style={[styles.questDescText, { color: colors.textSecondary }]} numberOfLines={1}>
+                            {q.description}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.questCardRight}>
+                        <View style={[styles.rewardTag, { backgroundColor: isDark ? 'rgba(209, 255, 0, 0.1)' : 'rgba(16, 185, 129, 0.1)' }]}>
+                          <Text style={[styles.rewardTagText, { color: colors.primary }]}>+{q.rewardCoins} 🪙</Text>
+                        </View>
+                      </View>
+                    </GlassCard>
+                  </TouchableOpacity>
+                );
+              })
             )}
           </View>
 

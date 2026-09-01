@@ -159,6 +159,56 @@ class AppBlockerModule : Module() {
             Unit
         }
 
+        Function("temporaryUnlock") { durationMs: Double ->
+            val epochTarget = System.currentTimeMillis() + durationMs.toLong()
+            AppMonitorService.setUnlockUntil(epochTarget)
+            val context = appContext.reactContext ?: appContext.currentActivity
+            if (context != null) {
+                val intent = Intent(context, AppMonitorService::class.java).apply {
+                    putExtra("UNLOCKED_UNTIL_EPOCH", epochTarget)
+                }
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        context.startForegroundService(intent)
+                    } else {
+                        context.startService(intent)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error sending unlock to service", e)
+                }
+            }
+            Log.d(TAG, "temporaryUnlock for $durationMs ms, target epoch: $epochTarget")
+            true
+        }
+
+        Function("unlockUntil") { epochMs: Double ->
+            val epochTarget = epochMs.toLong()
+            AppMonitorService.setUnlockUntil(epochTarget)
+            val context = appContext.reactContext ?: appContext.currentActivity
+            if (context != null) {
+                val intent = Intent(context, AppMonitorService::class.java).apply {
+                    putExtra("UNLOCKED_UNTIL_EPOCH", epochTarget)
+                }
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        context.startForegroundService(intent)
+                    } else {
+                        context.startService(intent)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error sending unlock to service", e)
+                }
+            }
+            Log.d(TAG, "unlockUntil epoch: $epochTarget")
+            true
+        }
+
+        Function("isCurrentlyUnlocked") {
+            val isUnlocked = System.currentTimeMillis() < AppMonitorService.unlockedUntilEpochMs
+            Log.d(TAG, "isCurrentlyUnlocked: $isUnlocked")
+            isUnlocked
+        }
+
         Function("isAppInstalled") { packageName: String ->
             val context = appContext.reactContext ?: appContext.currentActivity
             if (context == null) return@Function false
