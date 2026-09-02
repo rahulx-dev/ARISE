@@ -9,7 +9,7 @@ import {
   ScrollView,
   Dimensions,
 } from 'react-native';
-import { X, CheckCircle2, AlertCircle, Info, Flame } from 'lucide-react-native';
+import { X, CheckCircle, WarningCircle, Info, Fire } from 'phosphor-react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { GlassCard } from '../ios/GlassCard';
 
@@ -25,7 +25,7 @@ interface ARISEModalProps {
 }
 
 /**
- * Standard ARISE v2 Frosted Glass Modal
+ * Standard ARISE Solid Dark Modal (No Glassmorphism, No Translucency)
  */
 export function ARISEModal({
   visible,
@@ -71,13 +71,13 @@ export function ARISEModal({
                     style={[
                       styles.closeBtn,
                       {
-                        backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.05)',
+                        backgroundColor: isDark ? '#1C1E27' : '#F3F4F6',
                       },
                     ]}
                     onPress={onClose}
                     activeOpacity={0.7}
                   >
-                    <X size={16} color={colors.textSecondary} />
+                    <X size={16} color={colors.textSecondary} weight="bold" />
                   </TouchableOpacity>
                 </View>
 
@@ -102,7 +102,7 @@ interface ARISEBottomSheetProps {
 }
 
 /**
- * ARISE v2 Bottom Sheet (iOS-style slide up)
+ * ARISE Solid Dark Bottom Sheet
  */
 export function ARISEBottomSheet({
   visible,
@@ -133,7 +133,7 @@ export function ARISEBottomSheet({
             <View
               style={[
                 styles.dragHandle,
-                { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.15)' },
+                { backgroundColor: isDark ? '#2B2D3A' : '#D1D5DB' },
               ]}
             />
           </View>
@@ -160,13 +160,13 @@ export function ARISEBottomSheet({
                 style={[
                   styles.closeBtn,
                   {
-                    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.05)',
+                    backgroundColor: isDark ? '#1C1E27' : '#F3F4F6',
                   },
                 ]}
                 onPress={onClose}
                 activeOpacity={0.7}
               >
-                <X size={16} color={colors.textSecondary} />
+                <X size={16} color={colors.textSecondary} weight="bold" />
               </TouchableOpacity>
             </View>
           )}
@@ -183,7 +183,7 @@ export function ARISEBottomSheet({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 16,
@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     padding: 20,
-    borderRadius: 24,
+    borderRadius: 22,
     gap: 16,
   },
   modalHeader: {
@@ -236,12 +236,12 @@ const styles = StyleSheet.create({
   },
   sheetOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'flex-end',
   },
   sheetCard: {
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
     paddingHorizontal: 20,
     paddingBottom: 32,
     paddingTop: 12,

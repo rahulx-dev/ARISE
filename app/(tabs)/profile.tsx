@@ -5,31 +5,26 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import {
-  Settings,
+  Gear,
   Shield,
-  Smartphone,
-  HelpCircle,
+  DeviceMobile,
   Info,
-  ChevronRight,
-  Download,
+  CaretRight,
+  DownloadSimple,
   Camera,
-  Edit3,
-  Dumbbell,
-  Moon,
-  Sparkles,
-  Flame,
-  Award,
+  PencilSimple,
+  Barbell,
+  Fire,
   Coins,
-  Code2,
-  ExternalLink,
+  Code,
+  ArrowSquareOut,
   ShieldCheck,
-} from 'lucide-react-native';
+} from 'phosphor-react-native';
 import { GlassCard } from '../../src/components/ios/GlassCard';
 import { GlassButton } from '../../src/components/ios/GlassButton';
 import { PlayerAvatar } from '../../src/components/ui/PlayerAvatar';
@@ -84,14 +79,14 @@ export default function ProfileTab() {
     {
       title: 'Edit Callsign & Bio',
       sub: 'Change display name, manifesto & avatar',
-      icon: Edit3,
+      icon: PencilSimple,
       color: colors.primary,
       action: () => router.push('/settings/profile-edit' as any),
     },
     {
       title: 'Open Source Source Code',
       sub: 'Inspect privacy, SQLite schema & contribute on GitHub',
-      icon: Code2,
+      icon: Code,
       color: colors.secondary,
       action: handleOpenGitHub,
     },
@@ -105,14 +100,14 @@ export default function ProfileTab() {
     {
       title: 'Gym Workout Protocol',
       sub: 'Custom splits, weekly schedules & 200+ exercises',
-      icon: Dumbbell,
+      icon: Barbell,
       color: colors.danger,
       action: () => router.push('/(tabs)/progress'),
     },
     {
       title: 'Blocked Distraction Apps',
       sub: 'Real installed Android apps locked behind focus',
-      icon: Smartphone,
+      icon: DeviceMobile,
       color: '#A855F7',
       action: () => router.push('/settings/apps'),
     },
@@ -126,14 +121,14 @@ export default function ProfileTab() {
     {
       title: 'Appearance, Sound & Settings',
       sub: 'Themes (Dark/Light/System), SFX & ambient music',
-      icon: Settings,
+      icon: Gear,
       color: colors.textPrimary,
       action: () => router.push('/settings'),
     },
     {
       title: 'Export Offline Backup',
       sub: 'Save progress, PRs and streak history to JSON',
-      icon: Download,
+      icon: DownloadSimple,
       color: colors.textSecondary,
       action: handleExportBackup,
     },
@@ -173,7 +168,7 @@ export default function ProfileTab() {
                   <Text style={[styles.playerName, { color: colors.textPrimary }]} numberOfLines={1}>
                     {displayName}
                   </Text>
-                  <View style={[styles.levelBadge, { backgroundColor: isDark ? 'rgba(209, 255, 0, 0.15)' : 'rgba(16, 185, 129, 0.15)' }]}>
+                  <View style={[styles.levelBadge, { backgroundColor: isDark ? 'rgba(204, 255, 0, 0.15)' : 'rgba(16, 185, 129, 0.15)' }]}>
                     <Text style={[styles.levelBadgeText, { color: colors.primary }]}>LV. {level}</Text>
                   </View>
                 </View>
@@ -184,11 +179,11 @@ export default function ProfileTab() {
 
                 <View style={styles.statPillsRow}>
                   <View style={[styles.statPill, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0,0,0,0.04)' }]}>
-                    <Flame size={13} color={colors.danger} />
+                    <Fire size={13} color={colors.danger} weight="fill" />
                     <Text style={[styles.statPillText, { color: colors.textPrimary }]}>{streak}d Streak</Text>
                   </View>
                   <View style={[styles.statPill, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0,0,0,0.04)' }]}>
-                    <Coins size={13} color={colors.accentGold} />
+                    <Coins size={13} color={colors.accentGold} weight="fill" />
                     <Text style={[styles.statPillText, { color: colors.textPrimary }]}>{coins} Coins</Text>
                   </View>
                 </View>
@@ -204,7 +199,7 @@ export default function ProfileTab() {
               onPress={() => router.push('/settings/profile-edit' as any)}
               variant="outline"
               size="sm"
-              icon={<Edit3 size={14} color={colors.primary} />}
+              icon={<PencilSimple size={14} color={colors.primary} weight="bold" />}
             />
           </GlassCard>
 
@@ -212,7 +207,7 @@ export default function ProfileTab() {
           <GlassCard variant="accent" style={styles.privacyVerificationCard}>
             <View style={styles.privacyTopRow}>
               <View style={[styles.shieldBadge, { backgroundColor: isDark ? 'rgba(0, 240, 255, 0.15)' : 'rgba(2, 132, 199, 0.15)' }]}>
-                <ShieldCheck size={20} color={colors.secondary} />
+                <ShieldCheck size={20} color={colors.secondary} weight="duotone" />
               </View>
               <View style={{ flex: 1, gap: 2 }}>
                 <Text style={[styles.privacyTitle, { color: colors.textPrimary }]}>
@@ -239,11 +234,11 @@ export default function ProfileTab() {
               ]}
               activeOpacity={0.8}
             >
-              <Code2 size={16} color={colors.primary} />
+              <Code size={16} color={colors.primary} weight="bold" />
               <Text style={[styles.githubBtnText, { color: colors.textPrimary }]}>
                 github.com/rahulx-dev/ARISE
               </Text>
-              <ExternalLink size={14} color={colors.textMuted} />
+              <ArrowSquareOut size={14} color={colors.textMuted} weight="bold" />
             </TouchableOpacity>
           </GlassCard>
 
@@ -260,7 +255,7 @@ export default function ProfileTab() {
                   activeOpacity={0.8}
                 >
                   <View style={[styles.menuIconCircle, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0,0,0,0.04)' }]}>
-                    <IconComp size={18} color={item.color} />
+                    <IconComp size={18} color={item.color} weight="duotone" />
                   </View>
 
                   <View style={styles.menuTextCol}>
@@ -268,7 +263,7 @@ export default function ProfileTab() {
                     <Text style={[styles.menuSub, { color: colors.textSecondary }]}>{item.sub}</Text>
                   </View>
 
-                  <ChevronRight size={18} color={colors.textMuted} />
+                  <CaretRight size={18} color={colors.textMuted} weight="bold" />
                 </TouchableOpacity>
               );
             })}
@@ -371,16 +366,17 @@ const styles = StyleSheet.create({
   shieldBadge: {
     width: 38,
     height: 38,
-    borderRadius: 19,
-    justifyContent: 'center',
+    borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   privacyTitle: {
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '800',
   },
   privacySubtitle: {
     fontSize: 10,
+    lineHeight: 14,
   },
   privacyDesc: {
     fontSize: 11,
@@ -390,24 +386,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1,
-    marginTop: 2,
   },
   githubBtnText: {
     fontSize: 11,
-    fontWeight: '800',
-    flex: 1,
-    marginLeft: 8,
-    fontFamily: 'monospace',
+    fontWeight: '700',
   },
   sectionHeading: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '900',
     letterSpacing: 1.2,
-    marginTop: 2,
+    marginTop: 6,
+    marginLeft: 2,
   },
   menuList: {
     gap: 8,
@@ -423,9 +416,9 @@ const styles = StyleSheet.create({
   menuIconCircle: {
     width: 36,
     height: 36,
-    borderRadius: 12,
-    justifyContent: 'center',
+    borderRadius: 18,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   menuTextCol: {
     flex: 1,
@@ -436,6 +429,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   menuSub: {
-    fontSize: 10,
+    fontSize: 11,
   },
 });

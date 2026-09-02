@@ -12,22 +12,22 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import {
-  Settings as SettingsIcon,
+  Gear,
   Bell,
-  ChevronRight,
+  CaretRight,
   ArrowRight,
-  Flame,
+  Fire,
   X,
-  Sparkles,
-  ShieldAlert,
+  Sparkle,
+  ShieldWarning,
   Coins,
   Camera,
   Check,
-  Zap,
-  Dumbbell,
+  Lightning,
+  Barbell,
   Brain,
   Timer,
-} from 'lucide-react-native';
+} from 'phosphor-react-native';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { useQuestStore } from '../../src/stores/useQuestStore';
 import { streakService } from '../../src/services/streakService';
@@ -181,7 +181,7 @@ export default function HomeDashboard() {
               onPress={() => router.push('/settings')}
               activeOpacity={0.8}
             >
-              <SettingsIcon size={18} color={colors.textPrimary} />
+              <Gear size={20} color={colors.textPrimary} weight="regular" />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -193,7 +193,7 @@ export default function HomeDashboard() {
               }}
               activeOpacity={0.8}
             >
-              <Bell size={18} color={colors.textPrimary} />
+              <Bell size={20} color={colors.textPrimary} weight="regular" />
               {notifications.some((n) => !n.isRead) && (
                 <View style={[styles.bellDot, { backgroundColor: colors.primary }]} />
               )}
@@ -212,7 +212,7 @@ export default function HomeDashboard() {
               }}
               activeOpacity={0.8}
             >
-              <ShieldAlert size={20} color={colors.primary} />
+              <ShieldWarning size={22} color={colors.primary} weight="duotone" />
               <View style={{ flex: 1, gap: 2 }}>
                 <Text style={[styles.permAlertTitle, { color: colors.textPrimary }]}>Phone Shield Inactive</Text>
                 <Text style={[styles.permAlertDesc, { color: colors.textSecondary }]}>
@@ -235,7 +235,7 @@ export default function HomeDashboard() {
           <GlassCard variant="glow" style={styles.nextUpCard}>
             <View style={styles.nextUpTopRow}>
               <Text style={[styles.nextUpLabel, { color: colors.textMuted }]}>NEXT UP</Text>
-              <ChevronRight size={18} color={colors.primary} />
+              <CaretRight size={18} color={colors.primary} weight="bold" />
             </View>
 
             <Text style={[styles.nextUpHeading, { color: colors.textPrimary }]}>Complete your</Text>
@@ -250,7 +250,7 @@ export default function HomeDashboard() {
               activeOpacity={0.8}
             >
               <Text style={styles.startPillBtnText}>Start</Text>
-              <ArrowRight size={15} color="#000000" strokeWidth={3} />
+              <ArrowRight size={15} color="#000000" weight="bold" />
             </TouchableOpacity>
           </GlassCard>
 
@@ -258,19 +258,28 @@ export default function HomeDashboard() {
           <View style={styles.metricsGridRow}>
             {/* Focus */}
             <GlassCard variant="default" style={styles.metricGridItem}>
-              <Text style={[styles.metricGridLabel, { color: colors.textMuted }]}>FOCUS</Text>
+              <View style={styles.metricIconHeader}>
+                <Timer size={14} color={colors.textMuted} weight="duotone" />
+                <Text style={[styles.metricGridLabel, { color: colors.textMuted }]}>FOCUS</Text>
+              </View>
               <Text style={[styles.metricGridVal, { color: colors.textPrimary }]}>32m</Text>
             </GlassCard>
 
             {/* Workout */}
             <GlassCard variant="default" style={styles.metricGridItem}>
-              <Text style={[styles.metricGridLabel, { color: colors.textMuted }]}>WORKOUT</Text>
+              <View style={styles.metricIconHeader}>
+                <Barbell size={14} color={colors.primary} weight="duotone" />
+                <Text style={[styles.metricGridLabel, { color: colors.textMuted }]}>WORKOUT</Text>
+              </View>
               <Text style={[styles.metricGridVal, { color: colors.primary }]}>45m</Text>
             </GlassCard>
 
             {/* Quests */}
             <GlassCard variant="default" style={styles.metricGridItem}>
-              <Text style={[styles.metricGridLabel, { color: colors.textMuted }]}>QUESTS</Text>
+              <View style={styles.metricIconHeader}>
+                <Sparkle size={14} color={colors.textMuted} weight="duotone" />
+                <Text style={[styles.metricGridLabel, { color: colors.textMuted }]}>QUESTS</Text>
+              </View>
               <Text style={[styles.metricGridVal, { color: colors.textPrimary }]}>
                 {completedQuestsCount}/{dailyQuests.length}
               </Text>
@@ -278,7 +287,10 @@ export default function HomeDashboard() {
 
             {/* Coins */}
             <GlassCard variant="default" style={styles.metricGridItem}>
-              <Text style={[styles.metricGridLabel, { color: colors.secondary }]}>COINS</Text>
+              <View style={styles.metricIconHeader}>
+                <Coins size={14} color={colors.secondary} weight="duotone" />
+                <Text style={[styles.metricGridLabel, { color: colors.secondary }]}>COINS</Text>
+              </View>
               <Text style={[styles.metricGridVal, { color: colors.secondary }]}>
                 {coins.toLocaleString()}
               </Text>
@@ -318,152 +330,112 @@ export default function HomeDashboard() {
 
             {dailyQuests.length === 0 ? (
               <GlassCard variant="default" style={styles.emptyCard}>
-                <Sparkles size={24} color={colors.textMuted} />
-                <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>All Quests Completed</Text>
-                <Text style={[styles.emptySub, { color: colors.textSecondary }]}>
-                  New daily protocol quests regenerate tomorrow at 00:00.
-                </Text>
+                <Sparkle size={24} color={colors.textMuted} weight="duotone" />
+                <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>All clear for today</Text>
+                <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>New quests arrive at midnight</Text>
               </GlassCard>
             ) : (
               dailyQuests.slice(0, 3).map((q) => {
-                const isDone = q.completed === true;
-                const titleLower = q.title.toLowerCase();
                 const isExercise =
                   q.category === 'strength' ||
                   q.category === 'fitness' ||
-                  titleLower.includes('push') ||
-                  titleLower.includes('squat') ||
-                  titleLower.includes('pull') ||
-                  titleLower.includes('plank') ||
-                  titleLower.includes('jack') ||
-                  titleLower.includes('lunge') ||
-                  titleLower.includes('crunch');
-
-                let exerciseType = 'PUSHUP';
-                if (titleLower.includes('squat')) exerciseType = 'SQUAT';
-                else if (titleLower.includes('pull')) exerciseType = 'PULLUP';
-                else if (titleLower.includes('plank')) exerciseType = 'PLANK';
-                else if (titleLower.includes('jack')) exerciseType = 'JUMPING_JACK';
-
-                const handlePress = () => {
-                  if (isDone) return;
-                  haptics.medium();
-                  if (isExercise) {
-                    router.push({
-                      pathname: '/exercise/[type]',
-                      params: {
-                        type: exerciseType,
-                        target: q.target || 20,
-                        questId: String(q.id),
-                      },
-                    } as any);
-                  } else if (q.category === 'focus') {
-                    router.push('/focus/session');
-                  } else {
-                    completeQuest(q.id);
-                  }
-                };
+                  q.title.toLowerCase().includes('push') ||
+                  q.title.toLowerCase().includes('squat');
 
                 return (
-                  <TouchableOpacity key={q.id} onPress={handlePress} activeOpacity={0.8}>
-                    <GlassCard variant={isDone ? 'default' : 'elevated'} style={styles.questCard}>
-                      <View style={styles.questCardLeft}>
-                        <TouchableOpacity
-                          onPress={() => !isDone && completeQuest(q.id)}
-                          style={[
-                            styles.questCheckCircle,
-                            isDone && { backgroundColor: colors.primary, borderColor: colors.primary },
-                          ]}
-                          activeOpacity={0.7}
-                        >
-                          {isDone && <Check size={12} color="#000" strokeWidth={3} />}
-                        </TouchableOpacity>
-                        <View style={{ flex: 1, gap: 2 }}>
-                          <Text
-                            style={[
-                              styles.questTitleText,
-                              { color: colors.textPrimary },
-                              isDone && { textDecorationLine: 'line-through', opacity: 0.6 },
-                            ]}
-                          >
-                            {q.title}
-                          </Text>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                            {isExercise && (
-                              <View style={[styles.aiBadge, { backgroundColor: isDark ? 'rgba(204, 255, 0, 0.12)' : 'rgba(16, 185, 129, 0.12)' }]}>
-                                <Text style={[styles.aiBadgeText, { color: colors.primary }]}>AI Tracked</Text>
-                              </View>
-                            )}
-                            <Text style={[styles.questDescText, { color: colors.textSecondary }]} numberOfLines={1}>
-                              {q.description}
-                            </Text>
-                          </View>
-                        </View>
+                  <GlassCard key={q.id} variant="default" style={styles.questPreviewCard}>
+                    <TouchableOpacity
+                      style={styles.questPreviewRow}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        if (isExercise) {
+                          haptics.medium();
+                          const type = q.title.toLowerCase().includes('squat') ? 'SQUAT' : 'PUSHUP';
+                          router.push({
+                            pathname: '/exercise/[type]',
+                            params: { type, target: q.target || 20, questId: String(q.id) },
+                          } as any);
+                        } else {
+                          router.push('/(tabs)/quests');
+                        }
+                      }}
+                    >
+                      <View
+                        style={[
+                          styles.questIconBox,
+                          {
+                            backgroundColor: isExercise
+                              ? isDark
+                                ? 'rgba(204, 255, 0, 0.12)'
+                                : 'rgba(16, 185, 129, 0.12)'
+                              : isDark
+                              ? 'rgba(221, 183, 255, 0.12)'
+                              : 'rgba(124, 58, 237, 0.1)',
+                          },
+                        ]}
+                      >
+                        {isExercise ? (
+                          <Barbell size={18} color={colors.primary} weight="duotone" />
+                        ) : (
+                          <Brain size={18} color={colors.secondary} weight="duotone" />
+                        )}
                       </View>
 
-                      <View style={styles.questCardRight}>
-                        <Text style={[styles.xpText, { color: colors.primary }]}>+{q.rewardXP} XP</Text>
-                        <Text style={[styles.coinText, { color: colors.secondary }]}>+{q.rewardCoins} 🪙</Text>
+                      <View style={{ flex: 1, gap: 2 }}>
+                        <Text style={[styles.questTitleText, { color: colors.textPrimary }]}>{q.title}</Text>
+                        <Text style={[styles.questSubText, { color: colors.textMuted }]}>
+                          +{q.rewardCoins} coins • +{q.rewardXP} XP
+                        </Text>
                       </View>
-                    </GlassCard>
-                  </TouchableOpacity>
+
+                      {isExercise ? (
+                        <View style={[styles.aiTrackPill, { backgroundColor: isDark ? 'rgba(204, 255, 0, 0.15)' : 'rgba(16, 185, 129, 0.15)' }]}>
+                          <Camera size={12} color={colors.primary} weight="bold" />
+                          <Text style={[styles.aiTrackPillText, { color: colors.primary }]}>AI TRACK</Text>
+                        </View>
+                      ) : (
+                        <CaretRight size={16} color={colors.textMuted} weight="bold" />
+                      )}
+                    </TouchableOpacity>
+                  </GlassCard>
                 );
               })
             )}
           </View>
 
-          <View style={{ height: 110 }} />
+          <View style={{ height: 100 }} />
         </ScrollView>
 
-        {/* Notifications Sheet Modal */}
+        {/* Notifications Modal */}
         <Modal
           visible={isNotifSheetOpen}
+          transparent
           animationType="slide"
-          transparent={true}
+          statusBarTranslucent
           onRequestClose={() => setIsNotifSheetOpen(false)}
         >
           <View style={styles.modalOverlay}>
-            <GlassCard variant="elevated" style={styles.modalSheet}>
+            <View style={[styles.modalContent, { backgroundColor: isDark ? '#0A141E' : '#FFFFFF', borderColor: colors.border }]}>
               <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>System Notifications</Text>
-                <TouchableOpacity onPress={() => setIsNotifSheetOpen(false)} style={styles.headerIconBtn}>
-                  <X size={18} color={colors.textSecondary} />
+                <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Activity Alerts</Text>
+                <TouchableOpacity onPress={() => setIsNotifSheetOpen(false)}>
+                  <X size={20} color={colors.textSecondary} weight="bold" />
                 </TouchableOpacity>
               </View>
 
-              <ScrollView style={{ maxHeight: 360 }} contentContainerStyle={{ gap: 10 }}>
+              <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
                 {notifications.length === 0 ? (
-                  <View style={{ padding: 28, alignItems: 'center', gap: 8 }}>
-                    <Sparkles size={24} color={colors.textMuted} />
-                    <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 13 }}>
-                      No notifications yet.
-                    </Text>
-                    <Text style={{ color: colors.textMuted, fontSize: 11, textAlign: 'center' }}>
-                      Quest completions and achievements will appear here.
-                    </Text>
-                  </View>
+                  <Text style={[styles.emptyNotifText, { color: colors.textMuted }]}>No recent notifications.</Text>
                 ) : (
                   notifications.map((n) => (
-                    <View
-                      key={n.id}
-                      style={[styles.notifCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}
-                    >
-                      <Sparkles size={18} color={colors.primary} />
-                      <View style={{ flex: 1, gap: 2 }}>
-                        <Text style={[styles.notifTitle, { color: colors.textPrimary }]}>{n.title}</Text>
-                        <Text style={[styles.notifDesc, { color: colors.textSecondary }]}>{n.message}</Text>
-                        <Text style={{ fontSize: 9, color: colors.textMuted, marginTop: 2 }}>
-                          {new Date(n.timestamp).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </Text>
-                      </View>
+                    <View key={n.id} style={[styles.notifRow, { borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }]}>
+                      <Text style={[styles.notifTitle, { color: colors.textPrimary }]}>{n.title}</Text>
+                      <Text style={[styles.notifBody, { color: colors.textSecondary }]}>{n.message}</Text>
                     </View>
                   ))
                 )}
               </ScrollView>
-            </GlassCard>
+            </View>
           </View>
         </Modal>
       </SafeAreaView>
@@ -473,8 +445,8 @@ export default function HomeDashboard() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  safeArea: { flex: 1 },
   center: { justifyContent: 'center', alignItems: 'center' },
+  safeArea: { flex: 1 },
   topHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -489,12 +461,12 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   greetingSub: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '500',
   },
   greetingTitle: {
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '800',
     letterSpacing: -0.3,
   },
   headerRightActions: {
@@ -511,117 +483,146 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   bellDot: {
+    position: 'absolute',
+    top: 9,
+    right: 9,
     width: 7,
     height: 7,
     borderRadius: 3.5,
-    position: 'absolute',
-    top: 8,
-    right: 8,
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: 14,
     gap: 16,
   },
+  permAlertCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  permAlertTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  permAlertDesc: {
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  permAlertBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  permAlertBadgeText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#000000',
+  },
   timeHeroSection: {
-    paddingVertical: 4,
-    gap: 2,
+    paddingVertical: 6,
   },
   timeHeroDisplay: {
-    fontSize: 44,
+    fontSize: 48,
     fontWeight: '800',
     letterSpacing: -1.5,
-    fontVariant: ['tabular-nums'],
+    lineHeight: 52,
   },
   dateHeroDisplay: {
-    fontSize: 16,
-    fontWeight: '500',
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 2,
   },
   nextUpCard: {
-    padding: 18,
+    padding: 20,
     borderRadius: 22,
     gap: 6,
   },
   nextUpTopRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 4,
   },
   nextUpLabel: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '800',
     letterSpacing: 1,
   },
   nextUpHeading: {
-    fontSize: 20,
+    fontSize: 14,
     fontWeight: '600',
-    letterSpacing: -0.3,
   },
   nextUpHighlight: {
     fontSize: 22,
-    fontWeight: '800',
+    fontWeight: '900',
     letterSpacing: -0.5,
     marginBottom: 10,
   },
   startPillBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 100,
     alignSelf: 'flex-start',
+    paddingVertical: 8,
+    paddingHorizontal: 18,
+    borderRadius: 100,
   },
   startPillBtnText: {
+    fontSize: 12,
+    fontWeight: '900',
     color: '#000000',
-    fontSize: 14,
-    fontWeight: '800',
-    letterSpacing: -0.2,
+    letterSpacing: 0.3,
   },
   metricsGridRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     gap: 8,
   },
   metricGridItem: {
     flex: 1,
     paddingVertical: 12,
-    paddingHorizontal: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: 8,
     borderRadius: 16,
+    alignItems: 'center',
+    gap: 4,
+  },
+  metricIconHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 4,
   },
   metricGridLabel: {
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 9,
+    fontWeight: '800',
     letterSpacing: 0.5,
   },
   metricGridVal: {
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: 15,
+    fontWeight: '900',
     letterSpacing: -0.3,
   },
   activityRingsCard: {
-    padding: 16,
+    padding: 18,
     borderRadius: 22,
-    gap: 12,
+    gap: 14,
   },
   ringsHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 4,
   },
   ringsCardTitle: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.8,
   },
   ringsCardDate: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+    fontSize: 11,
+    fontWeight: '600',
   },
   questsSection: {
     gap: 10,
@@ -633,115 +634,75 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   sectionHeading: {
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '800',
     letterSpacing: -0.3,
   },
   seeAllText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  questCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 14,
-    borderRadius: 18,
-  },
-  questCardLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  questCheckCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  questTitleText: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  questDescText: {
-    fontSize: 11,
-    flex: 1,
-  },
-  aiBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  aiBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 0.3,
-  },
-  questCardRight: {
-    alignItems: 'flex-end',
-    gap: 2,
-  },
-  xpText: {
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  coinText: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '700',
   },
   emptyCard: {
     padding: 24,
-    alignItems: 'center',
-    gap: 8,
     borderRadius: 18,
+    alignItems: 'center',
+    gap: 6,
   },
   emptyTitle: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '800',
   },
-  emptySub: {
-    fontSize: 11,
-    textAlign: 'center',
+  emptySubtitle: {
+    fontSize: 12,
   },
-  permAlertCard: {
+  questPreviewCard: {
+    borderRadius: 18,
+  },
+  questPreviewRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
   },
-  permAlertTitle: {
+  questIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  questTitleText: {
     fontSize: 13,
     fontWeight: '700',
   },
-  permAlertDesc: {
-    fontSize: 10,
+  questSubText: {
+    fontSize: 11,
+    fontWeight: '500',
   },
-  permAlertBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+  aiTrackPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 100,
   },
-  permAlertBadgeText: {
-    fontSize: 10,
+  aiTrackPillText: {
+    fontSize: 9,
     fontWeight: '900',
-    color: '#000000',
+    letterSpacing: 0.5,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: 'rgba(0,0,0,0.65)',
     justifyContent: 'flex-end',
   },
-  modalSheet: {
+  modalContent: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    padding: 18,
-    gap: 12,
+    borderWidth: 1,
+    padding: 20,
+    gap: 14,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -749,21 +710,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalTitle: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 17,
+    fontWeight: '800',
   },
-  notifCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    padding: 10,
-    borderRadius: 12,
+  emptyNotifText: {
+    textAlign: 'center',
+    paddingVertical: 24,
+    fontSize: 13,
+  },
+  notifRow: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    gap: 3,
   },
   notifTitle: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
   },
-  notifDesc: {
-    fontSize: 10,
+  notifBody: {
+    fontSize: 11,
+    lineHeight: 16,
   },
 });

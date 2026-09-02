@@ -337,15 +337,16 @@ function ExerciseTrackerInner() {
             onPress={toggleVoice}
             activeOpacity={0.8}
           >
+            {/* Volume */}
             {voiceMuted ? (
               <VolumeX size={18} color="#8E8E93" />
             ) : (
-              <Volume2 size={18} color="#CCFF00" />
+              <Volume2 size={18} color="#FF5500" />
             )}
           </TouchableOpacity>
         </View>
 
-        {/* Stitch v2 Metrics Header */}
+        {/* Metrics Header */}
         <View style={styles.metricsHeader}>
           <View style={styles.repsCol}>
             <Text style={styles.repsLabel}>{isPlank ? 'SECONDS' : 'REPS'}</Text>
@@ -359,14 +360,14 @@ function ExerciseTrackerInner() {
 
           <View style={styles.statusCol}>
             {/* Good Form Pill */}
-            <View style={styles.goodFormPill}>
-              <View style={styles.goodFormDot} />
-              <Text style={styles.goodFormText}>{formFeedback}</Text>
+            <View style={[styles.goodFormPill, { backgroundColor: 'rgba(16, 185, 129, 0.15)', borderColor: '#10B981' }]}>
+              <View style={[styles.goodFormDot, { backgroundColor: '#10B981' }]} />
+              <Text style={[styles.goodFormText, { color: '#10B981' }]}>{formFeedback}</Text>
             </View>
 
             {/* Body Detected Chip */}
-            <View style={styles.bodyDetectedChip}>
-              <Text style={styles.bodyDetectedText}>
+            <View style={[styles.bodyDetectedChip, { backgroundColor: isBodyDetected ? 'rgba(139, 92, 246, 0.2)' : 'rgba(255, 255, 255, 0.08)', borderColor: isBodyDetected ? '#8B5CF6' : 'rgba(255, 255, 255, 0.15)' }]}>
+              <Text style={[styles.bodyDetectedText, { color: isBodyDetected ? '#A78BFA' : '#94A3B8' }]}>
                 {isBodyDetected ? 'BODY LOCKED' : 'SEARCHING BODY...'}
               </Text>
             </View>
@@ -375,7 +376,7 @@ function ExerciseTrackerInner() {
 
         <View style={{ flex: 1 }} />
 
-        {/* Stitch v2 Bottom Floating Controls */}
+        {/* Bottom Floating Controls */}
         <View style={styles.bottomControlsRow}>
           {/* Flash Toggle */}
           <TouchableOpacity
@@ -383,7 +384,7 @@ function ExerciseTrackerInner() {
             onPress={toggleTorch}
             activeOpacity={0.8}
           >
-            <Flashlight size={20} color={torch ? '#CCFF00' : '#FFFFFF'} />
+            <Flashlight size={20} color={torch ? '#FF5500' : '#FFFFFF'} />
           </TouchableOpacity>
 
           {/* End Set / Action Button with Circular Progress Arc */}
@@ -398,8 +399,8 @@ function ExerciseTrackerInner() {
                 cx="50"
                 cy="50"
                 r="46"
-                stroke="rgba(204, 255, 0, 0.2)"
-                strokeWidth="3"
+                stroke="rgba(255, 85, 0, 0.2)"
+                strokeWidth="3.5"
                 fill="none"
               />
               {/* Active Progress Arc */}
@@ -407,8 +408,8 @@ function ExerciseTrackerInner() {
                 cx="50"
                 cy="50"
                 r="46"
-                stroke="#CCFF00"
-                strokeWidth="3"
+                stroke="#FF5500"
+                strokeWidth="3.5"
                 strokeDasharray={`${circleCircumference} ${circleCircumference}`}
                 strokeDashoffset={strokeDashoffset}
                 strokeLinecap="round"

@@ -2,10 +2,9 @@ export type ThemeMode = 'dark' | 'light' | 'system';
 
 export interface ThemeColors {
   primary: string;
-  primaryLime: string;
   primaryLight: string;
-  primaryGlow: string;
   primaryDark: string;
+  primaryGlow: string;
   tertiary: string;
 
   primaryPurple: string;
@@ -52,88 +51,97 @@ export interface ThemeColors {
 }
 
 export const darkThemeColors: ThemeColors = {
-  primary: '#CCFF00',          // Electric Lime (Stitch SSOT: #C3F400 / #CCFF00)
-  primaryLime: '#C3F400',
-  primaryLight: '#D6FF33',
-  primaryGlow: 'rgba(204, 255, 0, 0.45)',
-  primaryDark: '#283500',
-  tertiary: '#FFDDB8',         // Amber Reward (Stitch SSOT)
+  // Main Accent: Vibrant Orange
+  primary: '#FF5500',
+  primaryLight: '#FF7733',
+  primaryDark: '#CC4400',
+  primaryGlow: 'rgba(255, 85, 0, 0.25)',
+  tertiary: '#F59E0B',
 
-  primaryPurple: '#6F00BE',    // Deep Focus Purple (Stitch SSOT)
-  purpleGlow: 'rgba(111, 0, 190, 0.45)',
+  // Secondary Accent: Deep Focus Purple
+  primaryPurple: '#7C3AED',
+  purpleGlow: 'rgba(124, 58, 237, 0.25)',
 
-  background: '#051424',       // Obsidian Void (Stitch SSOT)
-  backgroundElevated: '#0D1C2D',
-  backgroundGradientTop: '#122131',
-  backgroundGradientBottom: '#051424',
+  // Deep Solid Dark Backgrounds
+  background: '#090A0F',
+  backgroundElevated: '#111218',
+  backgroundGradientTop: '#111218',
+  backgroundGradientBottom: '#090A0F',
 
-  card: '#122131',             // Glass Surface Container
-  surface: '#051424',
-  surfaceLight: '#0D1C2D',
-  surfaceElevated: '#1C2B3C',
-  surfaceBorder: 'rgba(255, 255, 255, 0.1)',
-  border: 'rgba(255, 255, 255, 0.1)',
-  borderGlow: 'rgba(195, 244, 0, 0.35)',
+  // Solid Surfaces (No blur, no transparency)
+  card: '#14151C',
+  surface: '#090A0F',
+  surfaceLight: '#14151C',
+  surfaceElevated: '#1C1E27',
+  surfaceBorder: '#232532',
+  border: '#232532',
+  borderGlow: 'rgba(255, 85, 0, 0.3)',
 
+  // Typography
   textPrimary: '#FFFFFF',
-  textSecondary: '#D4E4FA',
-  textMuted: '#C4C9AC',
+  textSecondary: '#94A3B8',
+  textMuted: '#64748B',
 
-  accent: '#CCFF00',
-  accentGold: '#FFB95F',
-  accentGlow: 'rgba(255, 185, 95, 0.35)',
-  secondary: '#DDB7FF',        // Focus Light Purple
-  danger: '#FFB4AB',
-  dangerGlow: 'rgba(255, 180, 171, 0.4)',
-  warning: '#FFDDB8',
-  success: '#CCFF00',
-  neonGreen: '#CCFF00',
+  // Supporting Colors
+  accent: '#FF5500',
+  accentGold: '#F59E0B',
+  accentGlow: 'rgba(245, 158, 11, 0.25)',
+  secondary: '#8B5CF6',
+  danger: '#EF4444',
+  dangerGlow: 'rgba(239, 68, 68, 0.25)',
+  warning: '#F59E0B',
+  success: '#10B981', // Supporting Green
+  neonGreen: '#10B981',
 
   stats: {
-    strength: '#FF453A',
-    discipline: '#CCFF00',
-    focus: '#DDB7FF',
-    health: '#FF3B30',
-    knowledge: '#FFB95F',
+    strength: '#EF4444',
+    discipline: '#FF5500',
+    focus: '#8B5CF6',
+    health: '#10B981',
+    knowledge: '#38BDF8',
   },
 
-  overlay: 'rgba(5, 20, 36, 0.92)',
-  glassCard: 'rgba(39, 54, 71, 0.4)',
+  overlay: 'rgba(0, 0, 0, 0.75)',
+  glassCard: '#14151C',
   isDark: true,
 };
 
 export const lightThemeColors: ThemeColors = {
-  primary: '#10B981', // Clean Emerald Volt with high light contrast
-  primaryLime: '#84CC16',
-  primaryLight: '#10B981',
-  primaryGlow: 'rgba(16, 185, 129, 0.2)',
-  primaryDark: '#064E3B',
-  tertiary: '#ECFDF5',
+  // Main Accent: Vibrant Orange
+  primary: '#FF5500',
+  primaryLight: '#FF7733',
+  primaryDark: '#CC4400',
+  primaryGlow: 'rgba(255, 85, 0, 0.15)',
+  tertiary: '#F59E0B',
 
+  // Secondary Accent: Deep Purple
   primaryPurple: '#7C3AED',
   purpleGlow: 'rgba(124, 58, 237, 0.15)',
 
-  background: '#F2F2F7', // Apple iOS System Background
+  // Clean Light Backgrounds
+  background: '#F8F9FA',
   backgroundElevated: '#FFFFFF',
   backgroundGradientTop: '#FFFFFF',
-  backgroundGradientBottom: '#E5E5EA',
+  backgroundGradientBottom: '#F1F3F5',
 
+  // Solid White Cards & Surfaces
   card: '#FFFFFF',
   surface: '#FFFFFF',
-  surfaceLight: '#F2F2F7',
+  surfaceLight: '#F1F3F5',
   surfaceElevated: '#FFFFFF',
-  surfaceBorder: 'rgba(0, 0, 0, 0.08)',
-  border: 'rgba(0, 0, 0, 0.08)',
-  borderGlow: 'rgba(16, 185, 129, 0.2)',
+  surfaceBorder: '#E5E7EB',
+  border: '#E5E7EB',
+  borderGlow: 'rgba(255, 85, 0, 0.2)',
 
-  textPrimary: '#000000',
-  textSecondary: '#3C3C43',
-  textMuted: '#8E8E93',
+  // Typography
+  textPrimary: '#111827',
+  textSecondary: '#4B5563',
+  textMuted: '#9CA3AF',
 
-  accent: '#10B981',
+  accent: '#FF5500',
   accentGold: '#D97706',
   accentGlow: 'rgba(217, 119, 6, 0.2)',
-  secondary: '#0284C7',
+  secondary: '#7C3AED',
   danger: '#DC2626',
   dangerGlow: 'rgba(220, 38, 38, 0.2)',
   warning: '#D97706',
@@ -142,14 +150,14 @@ export const lightThemeColors: ThemeColors = {
 
   stats: {
     strength: '#DC2626',
-    discipline: '#10B981',
-    focus: '#0284C7',
-    health: '#E11D48',
-    knowledge: '#D97706',
+    discipline: '#FF5500',
+    focus: '#7C3AED',
+    health: '#10B981',
+    knowledge: '#0284C7',
   },
 
-  overlay: 'rgba(0, 0, 0, 0.45)',
-  glassCard: 'rgba(255, 255, 255, 0.90)',
+  overlay: 'rgba(0, 0, 0, 0.5)',
+  glassCard: '#FFFFFF',
   isDark: false,
 };
 

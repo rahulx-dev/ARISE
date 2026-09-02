@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useRef } from 'react';
 import {
   TouchableOpacity,
   Text,
@@ -7,6 +7,7 @@ import {
   ViewStyle,
   TextStyle,
   StyleProp,
+  Animated,
 } from 'react-native';
 import { useHaptics } from '../../hooks/useHaptics';
 import { useTheme } from '../../hooks/useTheme';
@@ -14,7 +15,7 @@ import { useTheme } from '../../hooks/useTheme';
 interface GlassButtonProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'outline' | 'danger' | 'glass';
+  variant?: 'primary' | 'secondary' | 'outline' | 'danger' | 'success' | 'glass';
   size?: 'sm' | 'md' | 'lg';
   loading?: boolean;
   disabled?: boolean;
@@ -23,6 +24,9 @@ interface GlassButtonProps {
   textStyle?: StyleProp<TextStyle>;
 }
 
+/**
+ * Solid Modern Action Button with Smooth Spring Press Animation
+ */
 export const GlassButton = React.memo(function GlassButton({
   title,
   onPress,
@@ -36,6 +40,25 @@ export const GlassButton = React.memo(function GlassButton({
 }: GlassButtonProps) {
   const { colors, isDark } = useTheme();
   const haptics = useHaptics();
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.97,
+      useNativeDriver: true,
+      speed: 40,
+      bounciness: 4,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 40,
+      bounciness: 6,
+    }).start();
+  };
 
   const handlePress = () => {
     if (disabled || loading) return;
@@ -48,11 +71,16 @@ export const GlassButton = React.memo(function GlassButton({
       case 'primary':
         return {
           btn: {
-            backgroundColor: colors.primary,
-            borderColor: colors.primary,
+            backgroundColor: '#FF5500',
+            borderColor: '#FF5500',
+            shadowColor: '#FF5500',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.25,
+            shadowRadius: 6,
+            elevation: 3,
           },
           text: {
-            color: '#000000',
+            color: '#FFFFFF',
             fontWeight: '900',
           },
         };
@@ -60,20 +88,32 @@ export const GlassButton = React.memo(function GlassButton({
       case 'secondary':
         return {
           btn: {
-            backgroundColor: isDark ? 'rgba(0, 240, 255, 0.15)' : 'rgba(2, 132, 199, 0.15)',
-            borderColor: colors.secondary,
+            backgroundColor: isDark ? '#2E1065' : '#EDE9FE',
+            borderColor: isDark ? '#4C1D95' : '#DDD6FE',
           },
           text: {
-            color: colors.secondary,
+            color: isDark ? '#C4B5FD' : '#6D28D9',
             fontWeight: '800',
+          },
+        };
+
+      case 'success':
+        return {
+          btn: {
+            backgroundColor: '#10B981',
+            borderColor: '#10B981',
+          },
+          text: {
+            color: '#FFFFFF',
+            fontWeight: '900',
           },
         };
 
       case 'outline':
         return {
           btn: {
-            backgroundColor: 'transparent',
-            borderColor: colors.border,
+            backgroundColor: isDark ? '#14151C' : '#FFFFFF',
+            borderColor: isDark ? '#282A36' : '#E5E7EB',
           },
           text: {
             color: colors.textPrimary,
@@ -84,11 +124,11 @@ export const GlassButton = React.memo(function GlassButton({
       case 'danger':
         return {
           btn: {
-            backgroundColor: 'rgba(239, 68, 68, 0.15)',
-            borderColor: colors.danger,
+            backgroundColor: isDark ? '#450A0A' : '#FEE2E2',
+            borderColor: isDark ? '#7F1D1D' : '#FECACA',
           },
           text: {
-            color: colors.danger,
+            color: isDark ? '#FCA5A5' : '#DC2626',
             fontWeight: '900',
           },
         };
@@ -97,8 +137,8 @@ export const GlassButton = React.memo(function GlassButton({
       default:
         return {
           btn: {
-            backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
-            borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
+            backgroundColor: isDark ? '#1C1E27' : '#F3F4F6',
+            borderColor: isDark ? '#2B2D3A' : '#E5E7EB',
           },
           text: {
             color: colors.textPrimary,
@@ -112,19 +152,19 @@ export const GlassButton = React.memo(function GlassButton({
     switch (size) {
       case 'sm':
         return {
-          btn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12 },
-          text: { fontSize: 11, letterSpacing: 0.5 },
+          btn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10 },
+          text: { fontSize: 11, letterSpacing: 0.4 },
         };
       case 'lg':
         return {
-          btn: { paddingVertical: 16, paddingHorizontal: 24, borderRadius: 18 },
-          text: { fontSize: 14, letterSpacing: 1 },
+          btn: { paddingVertical: 16, paddingHorizontal: 24, borderRadius: 16 },
+          text: { fontSize: 14, letterSpacing: 0.8 },
         };
       case 'md':
       default:
         return {
           btn: { paddingVertical: 12, paddingHorizontal: 18, borderRadius: 14 },
-          text: { fontSize: 12, letterSpacing: 0.8 },
+          text: { fontSize: 12, letterSpacing: 0.6 },
         };
     }
   };
@@ -133,29 +173,33 @@ export const GlassButton = React.memo(function GlassButton({
   const sStyles = getSizeStyles();
 
   return (
-    <TouchableOpacity
-      onPress={handlePress}
-      disabled={disabled || loading}
-      activeOpacity={0.75}
-      style={[
-        styles.buttonBase,
-        vStyles.btn,
-        sStyles.btn,
-        disabled && styles.disabled,
-        style,
-      ]}
-    >
-      {loading ? (
-        <ActivityIndicator size="small" color={vStyles.text.color} />
-      ) : (
-        <>
-          {icon}
-          <Text style={[styles.textBase, vStyles.text, sStyles.text, textStyle]}>
-            {title}
-          </Text>
-        </>
-      )}
-    </TouchableOpacity>
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <TouchableOpacity
+        onPress={handlePress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        disabled={disabled || loading}
+        activeOpacity={0.85}
+        style={[
+          styles.buttonBase,
+          vStyles.btn,
+          sStyles.btn,
+          disabled && styles.disabled,
+          style,
+        ]}
+      >
+        {loading ? (
+          <ActivityIndicator size="small" color={vStyles.text.color} />
+        ) : (
+          <>
+            {icon}
+            <Text style={[styles.textBase, vStyles.text, sStyles.text, textStyle]}>
+              {title}
+            </Text>
+          </>
+        )}
+      </TouchableOpacity>
+    </Animated.View>
   );
 });
 

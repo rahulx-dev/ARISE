@@ -10,18 +10,18 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import {
-  ClipboardList,
-  CheckCircle2,
+  CheckSquare,
+  CheckCircle,
   Coins,
-  Sparkles,
-  Zap,
-  Flame,
+  Sparkle,
+  Lightning,
+  Fire,
   Brain,
-  Dumbbell,
+  Barbell,
   Shield,
   Check,
   Camera,
-} from 'lucide-react-native';
+} from 'phosphor-react-native';
 import { GlassCard } from '../../src/components/ios/GlassCard';
 import { GlassButton } from '../../src/components/ios/GlassButton';
 import { IOSSegmentedControl } from '../../src/components/ios/IOSSegmentedControl';
@@ -32,12 +32,12 @@ import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTheme } from '../../src/hooks/useTheme';
 
 const CATEGORY_ICONS: Record<string, any> = {
-  strength: Dumbbell,
-  fitness: Dumbbell,
+  strength: Barbell,
+  fitness: Barbell,
   focus: Brain,
-  discipline: Flame,
+  discipline: Fire,
   health: Shield,
-  general: Zap,
+  general: Lightning,
 };
 
 export default function QuestsTab() {
@@ -79,9 +79,9 @@ export default function QuestsTab() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <SafeAreaView style={styles.safeArea}>
         {/* Top Header */}
-        <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <View style={[styles.header, { borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)' }]}>
           <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>MISSION DIRECTIVES</Text>
-          <View style={[styles.completionBadge, { backgroundColor: isDark ? 'rgba(209, 255, 0, 0.15)' : 'rgba(16, 185, 129, 0.15)' }]}>
+          <View style={[styles.completionBadge, { backgroundColor: isDark ? 'rgba(204, 255, 0, 0.15)' : 'rgba(16, 185, 129, 0.15)' }]}>
             <Text style={[styles.completionBadgeText, { color: colors.primary }]}>
               {completedCount}/{dailyQuests.length} DONE
             </Text>
@@ -93,7 +93,7 @@ export default function QuestsTab() {
           <GlassCard variant="glow" style={styles.heroCard}>
             <View style={styles.heroTopRow}>
               <View style={styles.heroLeftCol}>
-                <Text style={[styles.heroSubTitle, { color: colors.textSecondary }]}>DAILY PROTOCOL PROGRESS</Text>
+                <Text style={[styles.heroSubTitle, { color: colors.textMuted }]}>DAILY PROTOCOL PROGRESS</Text>
                 <Text style={[styles.heroMainTitle, { color: colors.textPrimary }]}>
                   {completedCount === dailyQuests.length && dailyQuests.length > 0
                     ? 'ALL MISSIONS COMPLETE'
@@ -130,7 +130,7 @@ export default function QuestsTab() {
           <View style={styles.questsList}>
             {filteredQuests.length === 0 ? (
               <GlassCard variant="default" style={styles.emptyCard}>
-                <Sparkles size={28} color={colors.textMuted} />
+                <Sparkle size={28} color={colors.textMuted} weight="duotone" />
                 <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>No Missions Found</Text>
                 <Text style={[styles.emptySub, { color: colors.textSecondary }]}>
                   Check back tomorrow for newly calibrated daily missions.
@@ -161,7 +161,7 @@ export default function QuestsTab() {
                 else if (titleLower.includes('lunge')) exerciseType = 'LUNGE';
                 else if (titleLower.includes('crunch')) exerciseType = 'CRUNCH';
 
-                const IconComp = isExercise ? Dumbbell : isFocus ? Brain : (CATEGORY_ICONS[q.category] || Zap);
+                const IconComp = isExercise ? Barbell : isFocus ? Brain : (CATEGORY_ICONS[q.category] || Lightning);
 
                 const handleCardPress = () => {
                   if (isDone) return;
@@ -206,13 +206,13 @@ export default function QuestsTab() {
                         ]}
                         activeOpacity={0.7}
                       >
-                        {isDone && <Check size={13} color="#000" strokeWidth={3} />}
+                        {isDone && <Check size={13} color="#000" weight="bold" />}
                       </TouchableOpacity>
 
                       {/* Content */}
                       <View style={styles.questContentCol}>
                         <View style={styles.questCategoryRow}>
-                          <IconComp size={12} color={colors.primary} />
+                          <IconComp size={12} color={colors.primary} weight="duotone" />
                           <Text style={[styles.questCategoryText, { color: colors.primary }]}>
                             {isExercise ? 'AI TRACKED PROTOCOL' : `${q.category.toUpperCase()} PROTOCOL`}
                           </Text>
@@ -224,6 +224,7 @@ export default function QuestsTab() {
                             { color: colors.textPrimary },
                             isDone && { textDecorationLine: 'line-through', opacity: 0.6 },
                           ]}
+                          numberOfLines={1}
                         >
                           {q.title}
                         </Text>
@@ -232,42 +233,24 @@ export default function QuestsTab() {
                           {q.description}
                         </Text>
 
-                        {/* AI Camera Tracker Pill Button for uncompleted exercise quests */}
-                        {!isDone && isExercise && (
-                          <TouchableOpacity
-                            style={[
-                              styles.aiTrackerBtn,
-                              { backgroundColor: isDark ? 'rgba(209, 255, 0, 0.12)' : 'rgba(16, 185, 129, 0.12)', borderColor: colors.primary },
-                            ]}
-                            onPress={handleCardPress}
-                            activeOpacity={0.8}
-                          >
-                            <Camera size={13} color={colors.primary} />
-                            <Text style={[styles.aiTrackerBtnText, { color: colors.primary }]}>START AI CAMERA</Text>
-                          </TouchableOpacity>
-                        )}
+                        <View style={styles.questFooterRow}>
+                          <View style={styles.rewardPill}>
+                            <Coins size={12} color={colors.accentGold} weight="fill" />
+                            <Text style={[styles.rewardText, { color: colors.textPrimary }]}>+{q.rewardCoins}</Text>
+                          </View>
 
-                        {!isDone && isFocus && (
-                          <TouchableOpacity
-                            style={[
-                              styles.aiTrackerBtn,
-                              { backgroundColor: isDark ? 'rgba(0, 240, 255, 0.12)' : 'rgba(2, 132, 199, 0.12)', borderColor: colors.secondary },
-                            ]}
-                            onPress={handleCardPress}
-                            activeOpacity={0.8}
-                          >
-                            <Brain size={13} color={colors.secondary} />
-                            <Text style={[styles.aiTrackerBtnText, { color: colors.secondary }]}>START FOCUS SESSION</Text>
-                          </TouchableOpacity>
-                        )}
-                      </View>
+                          <View style={styles.rewardPill}>
+                            <Sparkle size={12} color={colors.secondary} weight="fill" />
+                            <Text style={[styles.rewardText, { color: colors.textPrimary }]}>+{q.rewardXP} XP</Text>
+                          </View>
 
-                      {/* Rewards Column */}
-                      <View style={styles.rewardsCol}>
-                        <View style={[styles.rewardBadge, { backgroundColor: isDark ? 'rgba(209, 255, 0, 0.12)' : 'rgba(16, 185, 129, 0.12)' }]}>
-                          <Text style={[styles.rewardBadgeText, { color: colors.primary }]}>+{q.rewardCoins} 🪙</Text>
+                          {isExercise && !isDone && (
+                            <View style={[styles.aiBadge, { backgroundColor: isDark ? 'rgba(204, 255, 0, 0.15)' : 'rgba(16, 185, 129, 0.15)' }]}>
+                              <Camera size={11} color={colors.primary} weight="bold" />
+                              <Text style={[styles.aiBadgeText, { color: colors.primary }]}>AI CAMERA</Text>
+                            </View>
+                          )}
                         </View>
-                        <Text style={[styles.xpRewardText, { color: colors.secondary }]}>+{q.rewardXP} XP</Text>
                       </View>
                     </TouchableOpacity>
                   </GlassCard>
@@ -290,17 +273,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    paddingVertical: 10,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 12,
     borderBottomWidth: 1,
   },
   headerTitle: {
-    fontSize: 14,
+    fontSize: 18,
     fontWeight: '900',
-    letterSpacing: 1.2,
+    letterSpacing: 1,
   },
   completionBadge: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
   },
@@ -310,12 +294,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   scrollContent: {
-    padding: 18,
-    gap: 14,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    gap: 16,
   },
   heroCard: {
-    padding: 16,
-    borderRadius: 20,
+    padding: 18,
+    borderRadius: 22,
     gap: 12,
   },
   heroTopRow: {
@@ -324,28 +309,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   heroLeftCol: {
-    gap: 2,
-    flex: 1,
+    gap: 4,
   },
   heroSubTitle: {
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.8,
   },
   heroMainTitle: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '900',
+    letterSpacing: -0.3,
   },
   heroRightCol: {
     alignItems: 'flex-end',
   },
   heroPercentText: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '900',
-    fontVariant: ['tabular-nums'],
   },
   progressTrack: {
-    width: '100%',
     height: 6,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 3,
@@ -355,108 +338,95 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 3,
   },
-  filterRow: {
-    gap: 8,
-    paddingVertical: 2,
-  },
-  filterPill: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  filterPillText: {
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
   questsList: {
-    gap: 10,
+    gap: 12,
   },
   questCard: {
-    borderRadius: 18,
+    borderRadius: 20,
   },
   questCardInner: {
     flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    gap: 12,
+    alignItems: 'flex-start',
+    padding: 16,
+    gap: 14,
   },
   checkboxBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    borderWidth: 2,
-    justifyContent: 'center',
+    width: 24,
+    height: 24,
+    borderRadius: 8,
+    borderWidth: 1.5,
     alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
   },
   questContentCol: {
     flex: 1,
-    gap: 3,
+    gap: 6,
   },
   questCategoryRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
   },
   questCategoryText: {
-    fontSize: 8,
+    fontSize: 9,
     fontWeight: '900',
     letterSpacing: 0.8,
   },
   questTitle: {
-    fontSize: 14,
-    fontWeight: '900',
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: -0.2,
   },
   questDesc: {
-    fontSize: 11,
-    lineHeight: 15,
+    fontSize: 12,
+    lineHeight: 16,
   },
-  rewardsCol: {
-    alignItems: 'flex-end',
-    gap: 3,
-  },
-  rewardBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  rewardBadgeText: {
-    fontSize: 11,
-    fontWeight: '900',
-  },
-  xpRewardText: {
-    fontSize: 9,
-    fontWeight: '800',
-  },
-  emptyCard: {
-    padding: 28,
-    alignItems: 'center',
-    gap: 8,
-    borderRadius: 18,
-  },
-  emptyTitle: {
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  emptySub: {
-    fontSize: 11,
-    textAlign: 'center',
-  },
-  aiTrackerBtn: {
+  questFooterRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-    borderWidth: 1,
-    alignSelf: 'flex-start',
-    marginTop: 6,
+    gap: 8,
+    marginTop: 4,
   },
-  aiTrackerBtnText: {
+  rewardPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  rewardText: {
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  aiBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginLeft: 'auto',
+  },
+  aiBadgeText: {
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 0.5,
+  },
+  emptyCard: {
+    padding: 24,
+    alignItems: 'center',
+    borderRadius: 20,
+    gap: 8,
+  },
+  emptyTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  emptySub: {
+    fontSize: 12,
+    textAlign: 'center',
   },
 });

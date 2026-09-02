@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native';
-import { Shield, FileText, Scale, ExternalLink, Code2 } from 'lucide-react-native';
+import { Shield, FileText, Scales, ArrowSquareOut, Code } from 'phosphor-react-native';
 import { ARISEBottomSheet } from './ARISEModal';
 import { AriseLogo } from './AriseLogo';
 import { useTheme } from '../../hooks/useTheme';
@@ -13,7 +13,7 @@ interface AboutAriseSheetProps {
 }
 
 /**
- * Stitch v2 Kinetic Glass "About ARISE" Bottom Sheet
+ * Stitch v2 Kinetic Glass "About ARISE" Bottom Sheet with Phosphor Icons
  */
 export function AboutAriseSheet({ visible, onClose }: AboutAriseSheetProps) {
   const { colors, isDark } = useTheme();
@@ -54,9 +54,9 @@ export function AboutAriseSheet({ visible, onClose }: AboutAriseSheetProps) {
             onPress={() => handleOpenLink('https://github.com/rahulx-dev/ARISE/blob/main/PRIVACY.md')}
             activeOpacity={0.7}
           >
-            <Shield size={18} color={colors.secondary} />
+            <Shield size={18} color={colors.secondary} weight="duotone" />
             <Text style={[styles.linkText, { color: colors.textPrimary }]}>Privacy Policy</Text>
-            <ExternalLink size={14} color={colors.textMuted} />
+            <ArrowSquareOut size={14} color={colors.textMuted} weight="bold" />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -64,9 +64,9 @@ export function AboutAriseSheet({ visible, onClose }: AboutAriseSheetProps) {
             onPress={() => handleOpenLink('https://github.com/rahulx-dev/ARISE/blob/main/TERMS.md')}
             activeOpacity={0.7}
           >
-            <FileText size={18} color={colors.primary} />
+            <FileText size={18} color={colors.primary} weight="duotone" />
             <Text style={[styles.linkText, { color: colors.textPrimary }]}>Terms of Service</Text>
-            <ExternalLink size={14} color={colors.textMuted} />
+            <ArrowSquareOut size={14} color={colors.textMuted} weight="bold" />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -74,9 +74,9 @@ export function AboutAriseSheet({ visible, onClose }: AboutAriseSheetProps) {
             onPress={() => handleOpenLink('https://github.com/rahulx-dev/ARISE/blob/main/LICENSE')}
             activeOpacity={0.7}
           >
-            <Scale size={18} color={colors.textSecondary} />
+            <Scales size={18} color={colors.textSecondary} weight="duotone" />
             <Text style={[styles.linkText, { color: colors.textPrimary }]}>Open Source Licenses</Text>
-            <ExternalLink size={14} color={colors.textMuted} />
+            <ArrowSquareOut size={14} color={colors.textMuted} weight="bold" />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -84,9 +84,9 @@ export function AboutAriseSheet({ visible, onClose }: AboutAriseSheetProps) {
             onPress={() => handleOpenLink('https://github.com/rahulx-dev/ARISE')}
             activeOpacity={0.7}
           >
-            <Code2 size={18} color={colors.primary} />
+            <Code size={18} color={colors.primary} weight="bold" />
             <Text style={[styles.linkText, { color: colors.textPrimary }]}>GitHub Repository</Text>
-            <ExternalLink size={14} color={colors.textMuted} />
+            <ArrowSquareOut size={14} color={colors.textMuted} weight="bold" />
           </TouchableOpacity>
         </View>
 

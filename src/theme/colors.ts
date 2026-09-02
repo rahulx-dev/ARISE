@@ -1,57 +1,70 @@
 export const colors = {
-  // Master ARISE v2 "Kinetic Glass" Stitch Specification Palette
-  primary: '#CCFF00',          // Primary Electric Lime (Stitch SSOT: #C3F400 / #CCFF00)
-  primaryLime: '#C3F400',
-  primaryLight: '#D6FF33',
-  primaryGlow: 'rgba(204, 255, 0, 0.45)',
-  primaryDark: '#283500',
-  tertiary: '#FFDDB8',         // Amber Reward (Stitch SSOT)
-  tertiaryDim: '#FFB95F',
+  // ARISE v2 Modern Solid Palette (Black + Orange + Purple + Supporting Green)
+  
+  // Main Accent: Vibrant Energy Orange
+  primary: '#FF5500',
+  primaryOrange: '#FF5500',
+  primaryLight: '#FF7733',
+  primaryDark: '#CC4400',
+  primaryGlow: 'rgba(255, 85, 0, 0.25)',
 
-  primaryPurple: '#6F00BE',    // Secondary Deep Focus Purple (Stitch SSOT)
-  secondary: '#DDB7FF',        // Focus Light Purple
-  purpleGlow: 'rgba(111, 0, 190, 0.45)',
+  // Secondary Accent: Deep Focus Purple / Violet
+  secondary: '#8B5CF6',
+  primaryPurple: '#7C3AED',
+  purpleLight: '#A78BFA',
+  purpleDark: '#5B21B6',
+  purpleGlow: 'rgba(124, 58, 237, 0.25)',
 
-  background: '#051424',       // Obsidian Void (Stitch SSOT: #051424 / #0A0A0A)
-  backgroundElevated: '#0D1C2D',
-  backgroundGradientTop: '#122131',
-  backgroundGradientBottom: '#051424',
+  // Supporting Accent: Discipline Green (For success, completed, streaks, PRs)
+  success: '#10B981',
+  successLight: '#34D399',
+  successDark: '#059669',
+  green: '#10B981',
+  neonGreen: '#10B981',
 
-  card: '#122131',             // Glass Surface Container
-  surface: '#051424',
-  surfaceLight: '#0D1C2D',
-  surfaceElevated: '#1C2B3C',
-  surfaceBorder: 'rgba(255, 255, 255, 0.1)',
-  border: 'rgba(255, 255, 255, 0.1)',
-  borderGlow: 'rgba(195, 244, 0, 0.35)',
+  // Amber Reward
+  tertiary: '#F59E0B',
+  tertiaryDim: '#D97706',
+  accentGold: '#F59E0B',
 
-  // Typography
+  // Deep Solid Dark Backgrounds
+  background: '#090A0F',
+  backgroundElevated: '#111218',
+  backgroundGradientTop: '#111218',
+  backgroundGradientBottom: '#090A0F',
+
+  // Solid Cards & Surfaces (No blur, no translucency)
+  card: '#14151C',
+  surface: '#090A0F',
+  surfaceLight: '#14151C',
+  surfaceElevated: '#1C1E27',
+  surfaceBorder: '#232532',
+  border: '#232532',
+  borderGlow: 'rgba(255, 85, 0, 0.3)',
+
+  // Clean Typography
   textPrimary: '#FFFFFF',
-  textSecondary: '#D4E4FA',
-  textMuted: '#C4C9AC',
+  textSecondary: '#94A3B8',
+  textMuted: '#64748B',
 
-  // Status & Accents
-  accent: '#CCFF00',
-  accentGold: '#FFB95F',
-  accentGlow: 'rgba(255, 185, 95, 0.35)',
-  danger: '#FFB4AB',
-  dangerGlow: 'rgba(255, 180, 171, 0.4)',
-  warning: '#FFDDB8',
-  success: '#CCFF00',
-  neonGreen: '#CCFF00',
+  // Status Colors
+  accent: '#FF5500',
+  danger: '#EF4444',
+  dangerGlow: 'rgba(239, 68, 68, 0.25)',
+  warning: '#F59E0B',
 
   // RPG Attributes
   stats: {
-    strength: '#FF453A',
-    discipline: '#CCFF00',
-    focus: '#DDB7FF',
-    health: '#FF3B30',
-    knowledge: '#FFB95F',
+    strength: '#EF4444',
+    discipline: '#FF5500',
+    focus: '#8B5CF6',
+    health: '#10B981',
+    knowledge: '#38BDF8',
   },
 
-  // Frosted & Overlay
-  overlay: 'rgba(5, 20, 36, 0.92)',
-  glassCard: 'rgba(39, 54, 71, 0.4)',
+  // Modal Backdrop
+  overlay: 'rgba(0, 0, 0, 0.75)',
+  glassCard: '#14151C',
 } as const;
 
 export type Colors = typeof colors;

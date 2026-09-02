@@ -11,17 +11,17 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle as SvgCircle, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import {
-  ArrowLeft,
+  CaretLeft,
   Play,
   Pause,
-  RotateCcw,
-  Music,
+  ArrowCounterClockwise,
+  Headphones,
   Plus,
-  ChevronDown,
+  CaretDown,
   X,
-  Volume2,
-  VolumeX,
-} from 'lucide-react-native';
+  SpeakerHigh,
+  SpeakerSlash,
+} from 'phosphor-react-native';
 import { GlassCard } from '../../src/components/ios/GlassCard';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { audioService, AUDIO_TRACKS } from '../../src/services/audioService';
@@ -40,7 +40,6 @@ export default function FocusModeScreen() {
   const sound = useSound();
   const haptics = useHaptics();
   const { colors, isDark } = useTheme();
-  const loadProfile = usePlayerStore((s) => s.loadProfile);
 
   const [targetMinutes, setTargetMinutes] = useState<number>(25);
   const [remainingMs, setRemainingMs] = useState<number>(25 * 60 * 1000);
@@ -135,7 +134,7 @@ export default function FocusModeScreen() {
         rewardXP: xpEarned,
       });
 
-      await loadProfile();
+      await usePlayerStore.getState().loadProfile();
     } catch (e) {
       console.warn('Failed to record focus session:', e);
     }
@@ -158,84 +157,81 @@ export default function FocusModeScreen() {
   const minutes = Math.floor(remainingMs / 60000);
   const seconds = Math.floor((remainingMs % 60000) / 1000);
 
-  const ringRadius = 125;
+  const ringRadius = 120;
   const ringCircumference = 2 * Math.PI * ringRadius;
   const strokeDashoffset = ringCircumference * (1 - progressFraction);
 
   const currentTrack = AUDIO_TRACKS.find((t) => t.id === selectedTrackId) || AUDIO_TRACKS[0];
 
   return (
-    <View style={[styles.container, { backgroundColor: isDark ? '#051424' : '#F2F2F7' }]}>
-      {/* Stitch v2 Ambient Glow */}
-      <View style={[styles.ambientGlow, { backgroundColor: isDark ? 'rgba(111, 0, 190, 0.25)' : 'rgba(124, 58, 237, 0.08)' }]} />
-
+    <View style={[styles.container, { backgroundColor: isDark ? '#090A0F' : '#F8F9FA' }]}>
       <SafeAreaView style={styles.safeArea}>
-        {/* Stitch v2 Mobile Header */}
+        {/* Top Header */}
         <View style={styles.topHeader}>
           <TouchableOpacity
-            style={[styles.circleBtn, { backgroundColor: isDark ? 'rgba(39, 54, 71, 0.45)' : 'rgba(0, 0, 0, 0.04)', borderColor: colors.border }]}
+            style={[styles.circleBtn, { backgroundColor: isDark ? '#14151C' : '#FFFFFF', borderColor: colors.border }]}
             onPress={() => router.back()}
             activeOpacity={0.8}
           >
-            <ArrowLeft size={18} color={colors.textPrimary} />
+            <CaretLeft size={20} color={colors.textPrimary} weight="bold" />
           </TouchableOpacity>
 
-          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Focus</Text>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Deep Focus</Text>
 
           <TouchableOpacity
-            style={[styles.circleBtn, { backgroundColor: isDark ? 'rgba(39, 54, 71, 0.45)' : 'rgba(0, 0, 0, 0.04)', borderColor: colors.border }]}
+            style={[styles.circleBtn, { backgroundColor: isDark ? '#14151C' : '#FFFFFF', borderColor: colors.border }]}
             onPress={() => setIsAudioSheetOpen(true)}
             activeOpacity={0.8}
           >
-            <Music size={18} color={colors.primary} />
+            <Headphones size={20} color={colors.secondary} weight="duotone" />
           </TouchableOpacity>
         </View>
 
         <View style={styles.mainContent}>
-          {/* Deep Focus Mode Dropdown Badge */}
+          {/* Mode Dropdown Badge */}
           <TouchableOpacity
-            style={[styles.modeBadge, { backgroundColor: isDark ? 'rgba(39, 54, 71, 0.45)' : 'rgba(255, 255, 255, 0.9)', borderColor: colors.border }]}
+            style={[styles.modeBadge, { backgroundColor: isDark ? '#14151C' : '#FFFFFF', borderColor: colors.border }]}
             onPress={() => setIsPresetSheetOpen(true)}
             activeOpacity={0.8}
           >
             <Text style={[styles.modeBadgeText, { color: colors.textPrimary }]}>
-              Deep Focus ({targetMinutes}m)
+              Session Length ({targetMinutes}m)
             </Text>
-            <ChevronDown size={14} color={colors.textMuted} />
+            <CaretDown size={14} color={colors.textMuted} weight="bold" />
           </TouchableOpacity>
 
-          {/* Stitch v2 300px Circular Timer Display */}
+          {/* Solid 280px Circular Timer Display */}
           <View style={styles.timerWrap}>
-            <Svg width={280} height={280} viewBox="0 0 280 280">
+            <Svg width={270} height={270} viewBox="0 0 270 270">
               <Defs>
                 <SvgLinearGradient id="focusGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <Stop offset="0%" stopColor="#CCFF00" />
-                  <Stop offset="100%" stopColor="#6F00BE" />
+                  <Stop offset="0%" stopColor="#8B5CF6" />
+                  <Stop offset="100%" stopColor="#7C3AED" />
                 </SvgLinearGradient>
               </Defs>
 
-              {/* Track */}
+              {/* Background Track */}
               <SvgCircle
-                cx="140"
-                cy="140"
+                cx="135"
+                cy="135"
                 r={ringRadius}
-                stroke={isDark ? 'rgba(204, 255, 0, 0.1)' : 'rgba(0, 0, 0, 0.06)'}
-                strokeWidth="8"
+                stroke={isDark ? '#181922' : '#E5E7EB'}
+                strokeWidth="10"
                 fill="none"
               />
 
-              {/* Gradient Progress Ring */}
+              {/* Progress Ring */}
               <SvgCircle
-                cx="140"
-                cy="140"
+                cx="135"
+                cy="135"
                 r={ringRadius}
                 stroke="url(#focusGradient)"
-                strokeWidth="8"
+                strokeWidth="10"
                 strokeDasharray={`${ringCircumference} ${ringCircumference}`}
                 strokeDashoffset={strokeDashoffset}
                 strokeLinecap="round"
                 fill="none"
-                transform="rotate(-90 140 140)"
+                transform="rotate(-90 135 135)"
               />
             </Svg>
 
@@ -244,46 +240,46 @@ export default function FocusModeScreen() {
                 {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
               </Text>
               <Text style={[styles.timerSubLabel, { color: colors.textMuted }]}>
-                {isActive ? 'Shield Active' : 'Time left'}
+                {isActive ? 'Shield Active' : 'Time Remaining'}
               </Text>
             </View>
           </View>
 
-          {/* Stitch v2 Controls Row */}
+          {/* Controls Row */}
           <View style={styles.controlsRow}>
             {/* Reset */}
             <TouchableOpacity
-              style={[styles.secondaryControlBtn, { backgroundColor: isDark ? 'rgba(39, 54, 71, 0.45)' : 'rgba(0, 0, 0, 0.04)', borderColor: colors.border }]}
+              style={[styles.secondaryControlBtn, { backgroundColor: isDark ? '#14151C' : '#FFFFFF', borderColor: colors.border }]}
               onPress={handleReset}
               activeOpacity={0.8}
             >
-              <RotateCcw size={20} color={colors.textMuted} />
+              <ArrowCounterClockwise size={20} color={colors.textMuted} weight="bold" />
             </TouchableOpacity>
 
-            {/* Play/Pause Button in Solid Electric Lime */}
+            {/* Play/Pause Button in Solid Vibrant Orange */}
             <TouchableOpacity
-              style={[styles.primaryPlayBtn, { backgroundColor: colors.primary }]}
+              style={[styles.primaryPlayBtn, { backgroundColor: '#FF5500' }]}
               onPress={handleStartPause}
               activeOpacity={0.85}
             >
               {isActive ? (
-                <Pause size={28} color="#000000" fill="#000000" />
+                <Pause size={28} color="#FFFFFF" weight="fill" />
               ) : (
-                <Play size={28} color="#000000" fill="#000000" style={{ marginLeft: 3 }} />
+                <Play size={28} color="#FFFFFF" weight="fill" style={{ marginLeft: 3 }} />
               )}
             </TouchableOpacity>
 
             {/* Add 5 Minutes */}
             <TouchableOpacity
-              style={[styles.secondaryControlBtn, { backgroundColor: isDark ? 'rgba(39, 54, 71, 0.45)' : 'rgba(0, 0, 0, 0.04)', borderColor: colors.border }]}
+              style={[styles.secondaryControlBtn, { backgroundColor: isDark ? '#14151C' : '#FFFFFF', borderColor: colors.border }]}
               onPress={handleAddFiveMinutes}
               activeOpacity={0.8}
             >
-              <Plus size={20} color={colors.textMuted} />
+              <Plus size={20} color={colors.textMuted} weight="bold" />
             </TouchableOpacity>
           </View>
 
-          {/* Stitch v2 Bottom Stats Row */}
+          {/* Bottom Stats Row */}
           <GlassCard variant="default" style={styles.statsCard}>
             <View style={styles.statCol}>
               <Text style={[styles.statVal, { color: colors.textPrimary }]}>32m</Text>
@@ -296,7 +292,7 @@ export default function FocusModeScreen() {
             </View>
             <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.statCol}>
-              <Text style={[styles.statVal, { color: colors.secondary }]}>12d</Text>
+              <Text style={[styles.statVal, { color: colors.success }]}>12d</Text>
               <Text style={[styles.statLabel, { color: colors.textMuted }]}>STREAK</Text>
             </View>
           </GlassCard>
@@ -307,9 +303,9 @@ export default function FocusModeScreen() {
           <View style={styles.modalOverlay}>
             <GlassCard variant="elevated" style={styles.modalSheet}>
               <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Choose Ambient Soundscape</Text>
+                <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Ambient Soundscapes</Text>
                 <TouchableOpacity onPress={() => setIsAudioSheetOpen(false)} style={styles.circleBtn}>
-                  <X size={18} color={colors.textSecondary} />
+                  <X size={18} color={colors.textSecondary} weight="bold" />
                 </TouchableOpacity>
               </View>
 
@@ -328,18 +324,30 @@ export default function FocusModeScreen() {
                       style={[
                         styles.trackCard,
                         {
-                          backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
-                          borderColor: isSelected ? colors.primary : colors.border,
+                          backgroundColor: isSelected
+                            ? isDark
+                              ? '#2E1065'
+                              : '#EDE9FE'
+                            : isDark
+                            ? '#14151C'
+                            : '#F9FAFB',
+                          borderColor: isSelected ? colors.secondary : colors.border,
                         },
                       ]}
                     >
                       <View style={{ flex: 1, gap: 2 }}>
-                        <Text style={[styles.trackName, { color: colors.textPrimary }]}>{t.name}</Text>
-                        <Text style={[styles.trackCategory, { color: colors.textSecondary }]}>
+                        <Text style={[styles.trackName, { color: isSelected ? '#FFFFFF' : colors.textPrimary }]}>
+                          {t.name}
+                        </Text>
+                        <Text style={[styles.trackCategory, { color: isSelected ? '#C4B5FD' : colors.textSecondary }]}>
                           {t.category} • Offline WAV
                         </Text>
                       </View>
-                      {isSelected && <Text style={{ color: colors.primary, fontWeight: '800' }}>ACTIVE</Text>}
+                      {isSelected && (
+                        <View style={styles.activeBadge}>
+                          <Text style={styles.activeBadgeText}>ACTIVE</Text>
+                        </View>
+                      )}
                     </TouchableOpacity>
                   );
                 })}
@@ -348,18 +356,18 @@ export default function FocusModeScreen() {
           </View>
         </Modal>
 
-        {/* Duration Preset Selector Sheet Modal */}
+        {/* Duration Preset Selector Sheet */}
         <Modal visible={isPresetSheetOpen} transparent animationType="slide">
           <View style={styles.modalOverlay}>
             <GlassCard variant="elevated" style={styles.modalSheet}>
               <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Select Focus Duration</Text>
+                <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Select Duration</Text>
                 <TouchableOpacity onPress={() => setIsPresetSheetOpen(false)} style={styles.circleBtn}>
-                  <X size={18} color={colors.textSecondary} />
+                  <X size={18} color={colors.textSecondary} weight="bold" />
                 </TouchableOpacity>
               </View>
 
-              <View style={styles.presetOptionsGrid}>
+              <View style={styles.presetsRow}>
                 {DURATION_PRESETS.map((mins) => {
                   const isSelected = targetMinutes === mins;
                   return (
@@ -367,22 +375,18 @@ export default function FocusModeScreen() {
                       key={mins}
                       onPress={() => handleSelectPreset(mins)}
                       style={[
-                        styles.presetOptionBtn,
+                        styles.presetCard,
                         {
-                          backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-                          borderColor: isSelected ? colors.primary : colors.border,
+                          backgroundColor: isSelected ? '#FF5500' : isDark ? '#14151C' : '#F3F4F6',
+                          borderColor: isSelected ? '#FF5500' : colors.border,
                         },
-                        isSelected && { backgroundColor: colors.primary },
                       ]}
                     >
-                      <Text
-                        style={[
-                          styles.presetOptionText,
-                          { color: colors.textPrimary },
-                          isSelected && { color: '#000000', fontWeight: '900' },
-                        ]}
-                      >
-                        {mins} min
+                      <Text style={[styles.presetNumber, { color: isSelected ? '#FFFFFF' : colors.textPrimary }]}>
+                        {mins}
+                      </Text>
+                      <Text style={[styles.presetUnit, { color: isSelected ? '#FFFFFF' : colors.textMuted }]}>
+                        min
                       </Text>
                     </TouchableOpacity>
                   );
@@ -398,21 +402,18 @@ export default function FocusModeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  safeArea: { flex: 1, justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 24 },
-  ambientGlow: {
-    position: 'absolute',
-    top: '30%',
-    left: '20%',
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    opacity: 0.6,
-  },
+  safeArea: { flex: 1 },
   topHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 20,
     paddingVertical: 12,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.3,
   },
   circleBtn: {
     width: 38,
@@ -422,16 +423,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-  },
   mainContent: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 24,
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
   },
   modeBadge: {
     flexDirection: 'row',
@@ -443,16 +440,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   modeBadgeText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
-    letterSpacing: 0.3,
   },
   timerWrap: {
-    width: 280,
-    height: 280,
+    width: 270,
+    height: 270,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
+    marginVertical: 10,
   },
   timerCenterContent: {
     position: 'absolute',
@@ -460,58 +457,59 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   timerDigits: {
-    fontSize: 54,
-    fontWeight: '800',
-    letterSpacing: -2,
+    fontSize: 48,
+    fontWeight: '900',
+    letterSpacing: -1,
     fontVariant: ['tabular-nums'],
   },
   timerSubLabel: {
-    fontSize: 13,
-    fontWeight: '500',
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.5,
   },
   controlsRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 24,
+    marginVertical: 8,
   },
   secondaryControlBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   primaryPlayBtn: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#CCFF00',
+    shadowColor: '#FF5500',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
     elevation: 6,
   },
   statsCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 18,
+    justifyContent: 'space-around',
     width: '100%',
-    maxWidth: 320,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 18,
   },
   statCol: {
-    flex: 1,
     alignItems: 'center',
-    gap: 2,
+    gap: 3,
   },
   statVal: {
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: 17,
+    fontWeight: '900',
   },
   statLabel: {
     fontSize: 9,
@@ -524,14 +522,14 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: 'rgba(0,0,0,0.75)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 20,
-    gap: 14,
+    gap: 16,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -539,39 +537,56 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '800',
   },
   trackCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 12,
+    padding: 14,
     borderRadius: 14,
     borderWidth: 1,
   },
   trackName: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
   },
   trackCategory: {
-    fontSize: 10,
+    fontSize: 11,
   },
-  presetOptionsGrid: {
+  activeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: '#8B5CF6',
+  },
+  activeBadgeText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  presetsRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     gap: 10,
-    marginTop: 6,
+    paddingVertical: 8,
   },
-  presetOptionBtn: {
+  presetCard: {
     flex: 1,
-    paddingVertical: 14,
-    borderRadius: 14,
+    paddingVertical: 18,
+    borderRadius: 16,
     borderWidth: 1,
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 2,
   },
-  presetOptionText: {
-    fontSize: 14,
-    fontWeight: '700',
+  presetNumber: {
+    fontSize: 22,
+    fontWeight: '900',
+  },
+  presetUnit: {
+    fontSize: 11,
+    fontWeight: '600',
   },
 });

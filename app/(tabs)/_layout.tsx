@@ -1,6 +1,5 @@
 import React from 'react';
 import { Tabs, router } from 'expo-router';
-import { View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   House,
@@ -12,7 +11,7 @@ import {
 import { useTheme } from '../../src/hooks/useTheme';
 
 /**
- * Stitch v2 Kinetic Glass Floating Navigation Bar with Phosphor Icons
+ * Modern Solid Dark Floating Navigation Bar (No Glassmorphism, No Blur)
  */
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
@@ -23,25 +22,25 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: isDark ? 'rgba(18, 33, 49, 0.85)' : 'rgba(255, 255, 255, 0.95)',
+          backgroundColor: isDark ? '#14151C' : '#FFFFFF',
           borderTopWidth: 0,
           borderWidth: 1,
-          borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)',
-          borderRadius: 32,
+          borderColor: isDark ? '#232532' : '#E5E7EB',
+          borderRadius: 24,
           marginHorizontal: 16,
           marginBottom: insets.bottom > 0 ? insets.bottom + 4 : 14,
-          height: 64,
+          height: 62,
           paddingBottom: 8,
           paddingTop: 8,
           position: 'absolute',
-          shadowColor: isDark ? '#CCFF00' : '#000',
+          shadowColor: '#000000',
           shadowOffset: { width: 0, height: 6 },
-          shadowOpacity: isDark ? 0.15 : 0.1,
-          shadowRadius: 16,
-          elevation: 12,
+          shadowOpacity: isDark ? 0.35 : 0.08,
+          shadowRadius: 14,
+          elevation: 10,
         },
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: isDark ? '#C4C9AC' : '#687076',
+        tabBarActiveTintColor: '#FF5500', // Orange Accent
+        tabBarInactiveTintColor: isDark ? '#64748B' : '#9CA3AF',
         tabBarLabelStyle: {
           fontSize: 10,
           fontWeight: '700',
@@ -57,7 +56,7 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, focused }) => (
             <House
               size={22}
-              color={focused ? colors.primary : color}
+              color={focused ? '#FF5500' : color}
               weight={focused ? 'fill' : 'regular'}
             />
           ),
@@ -70,7 +69,7 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, focused }) => (
             <Lightning
               size={22}
-              color={focused ? colors.primary : color}
+              color={focused ? '#FF5500' : color}
               weight={focused ? 'fill' : 'regular'}
             />
           ),
@@ -83,7 +82,7 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, focused }) => (
             <Timer
               size={22}
-              color={focused ? colors.primary : color}
+              color={focused ? '#8B5CF6' : color} // Deep Purple for Focus Tab
               weight={focused ? 'fill' : 'regular'}
             />
           ),
@@ -102,7 +101,7 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, focused }) => (
             <Barbell
               size={22}
-              color={focused ? colors.primary : color}
+              color={focused ? '#FF5500' : color}
               weight={focused ? 'fill' : 'regular'}
             />
           ),
@@ -115,7 +114,7 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, focused }) => (
             <User
               size={22}
-              color={focused ? colors.primary : color}
+              color={focused ? '#FF5500' : color}
               weight={focused ? 'fill' : 'regular'}
             />
           ),

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Sun, Cloud, ArrowRight } from 'lucide-react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { Sun, Moon, CaretRight } from 'phosphor-react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { GlassCard } from '../ios/GlassCard';
 
@@ -13,7 +13,7 @@ interface WeatherInfo {
 }
 
 /**
- * Stitch v2 Weather Widget
+ * Modern Solid Weather Widget
  */
 export const WeatherWidget = React.memo(function WeatherWidget() {
   const { colors, isDark } = useTheme();
@@ -32,7 +32,6 @@ export const WeatherWidget = React.memo(function WeatherWidget() {
 
   const fetchLiveWeather = async () => {
     try {
-      // Free open-meteo API for real Indian coordinates (Dhanbad: 23.7957, 86.4304)
       const res = await fetch(
         'https://api.open-meteo.com/v1/forecast?latitude=23.7957&longitude=86.4304&current_weather=true',
         { signal: AbortSignal.timeout(3000) }
@@ -73,15 +72,15 @@ export const WeatherWidget = React.memo(function WeatherWidget() {
         <View style={styles.tempRow}>
           <Text style={[styles.tempNumber, { color: colors.textPrimary }]}>{weather.tempC}°</Text>
           {weather.isDay ? (
-            <Sun size={22} color={isDark ? '#FFB95F' : '#D97706'} fill={isDark ? '#FFB95F' : '#D97706'} />
+            <Sun size={24} color="#FF5500" weight="fill" />
           ) : (
-            <Cloud size={22} color={colors.secondary} />
+            <Moon size={24} color="#8B5CF6" weight="fill" />
           )}
         </View>
       </View>
 
       <View style={styles.rightCol}>
-        <ArrowRight size={16} color={colors.primary} />
+        <CaretRight size={18} color={colors.primary} weight="bold" />
         <Text style={[styles.cityText, { color: colors.textMuted }]}>{weather.city}</Text>
       </View>
     </GlassCard>
@@ -91,7 +90,7 @@ export const WeatherWidget = React.memo(function WeatherWidget() {
 const styles = StyleSheet.create({
   card: {
     padding: 16,
-    borderRadius: 20,
+    borderRadius: 18,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -101,8 +100,8 @@ const styles = StyleSheet.create({
   },
   weatherLabel: {
     fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+    fontWeight: '800',
+    letterSpacing: 0.6,
   },
   tempRow: {
     flexDirection: 'row',
@@ -111,7 +110,7 @@ const styles = StyleSheet.create({
   },
   tempNumber: {
     fontSize: 26,
-    fontWeight: '800',
+    fontWeight: '900',
     letterSpacing: -0.5,
   },
   rightCol: {

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Circle, G } from 'react-native-svg';
-import { Flame, Brain, CheckCircle2 } from 'lucide-react-native';
+import { useTheme } from '../../hooks/useTheme';
 
 interface ActivityRingsProps {
   workoutProgress: number; // 0 to 100
@@ -11,10 +11,10 @@ interface ActivityRingsProps {
 }
 
 /**
- * Authentic Apple Fitness Style 3-Concentric Activity Rings
- * - Red Ring (Outer): Workout & Physical Power
- * - Neon/Green Ring (Middle): Focus & Mind Discipline
- * - Cyan/Blue Ring (Inner): Quests & Daily Tasks
+ * Modern 3-Concentric Activity Rings
+ * - Outer Ring (Orange #FF5500): Workout & Physical Power
+ * - Middle Ring (Purple #8B5CF6): Deep Focus & Mental Clarity
+ * - Inner Ring (Green #10B981): Quests & Daily Discipline
  */
 export function IOSActivityRings({
   workoutProgress = 65,
@@ -22,24 +22,25 @@ export function IOSActivityRings({
   questProgress = 50,
   size = 140,
 }: ActivityRingsProps) {
+  const { colors, isDark } = useTheme();
   const strokeWidth = 11;
   const gap = 3;
 
   const center = size / 2;
 
-  // Outer Ring (Red - Move / Workout)
+  // Outer Ring (Orange - Workout)
   const r1 = center - strokeWidth / 2 - 2;
   const c1 = 2 * Math.PI * r1;
   const pct1 = Math.min(100, Math.max(0, workoutProgress)) / 100;
   const offset1 = c1 * (1 - pct1);
 
-  // Middle Ring (Green / Neon - Exercise / Focus)
+  // Middle Ring (Purple - Focus)
   const r2 = r1 - strokeWidth - gap;
   const c2 = 2 * Math.PI * r2;
   const pct2 = Math.min(100, Math.max(0, focusProgress)) / 100;
   const offset2 = c2 * (1 - pct2);
 
-  // Inner Ring (Cyan / Blue - Quests / Tasks)
+  // Inner Ring (Green - Quests)
   const r3 = r2 - strokeWidth - gap;
   const c3 = 2 * Math.PI * r3;
   const pct3 = Math.min(100, Math.max(0, questProgress)) / 100;
@@ -56,7 +57,7 @@ export function IOSActivityRings({
               cx={center}
               cy={center}
               r={r1}
-              stroke="rgba(255, 69, 58, 0.2)"
+              stroke="rgba(255, 85, 0, 0.15)"
               strokeWidth={strokeWidth}
               fill="none"
             />
@@ -64,7 +65,7 @@ export function IOSActivityRings({
               cx={center}
               cy={center}
               r={r2}
-              stroke="rgba(48, 209, 88, 0.2)"
+              stroke="rgba(139, 92, 246, 0.15)"
               strokeWidth={strokeWidth}
               fill="none"
             />
@@ -72,7 +73,7 @@ export function IOSActivityRings({
               cx={center}
               cy={center}
               r={r3}
-              stroke="rgba(10, 132, 255, 0.2)"
+              stroke="rgba(16, 185, 129, 0.15)"
               strokeWidth={strokeWidth}
               fill="none"
             />
@@ -82,7 +83,7 @@ export function IOSActivityRings({
               cx={center}
               cy={center}
               r={r1}
-              stroke="#FF453A"
+              stroke="#FF5500"
               strokeWidth={strokeWidth}
               strokeDasharray={`${c1} ${c1}`}
               strokeDashoffset={offset1}
@@ -93,7 +94,7 @@ export function IOSActivityRings({
               cx={center}
               cy={center}
               r={r2}
-              stroke="#30D158"
+              stroke="#8B5CF6"
               strokeWidth={strokeWidth}
               strokeDasharray={`${c2} ${c2}`}
               strokeDashoffset={offset2}
@@ -104,7 +105,7 @@ export function IOSActivityRings({
               cx={center}
               cy={center}
               r={r3}
-              stroke="#0A84FF"
+              stroke="#10B981"
               strokeWidth={strokeWidth}
               strokeDasharray={`${c3} ${c3}`}
               strokeDashoffset={offset3}
@@ -117,12 +118,12 @@ export function IOSActivityRings({
 
       {/* Ring Metric Details (Apple Fitness Legend) */}
       <View style={styles.legendContainer}>
-        {/* Move / Workout */}
+        {/* Workout */}
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#FF453A' }]} />
+          <View style={[styles.legendDot, { backgroundColor: '#FF5500' }]} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.legendLabel}>WORKOUT</Text>
-            <Text style={[styles.legendVal, { color: '#FF453A' }]}>
+            <Text style={[styles.legendLabel, { color: colors.textMuted }]}>WORKOUT</Text>
+            <Text style={[styles.legendVal, { color: '#FF5500' }]}>
               {Math.round(workoutProgress)}%
             </Text>
           </View>
@@ -130,10 +131,10 @@ export function IOSActivityRings({
 
         {/* Focus */}
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#30D158' }]} />
+          <View style={[styles.legendDot, { backgroundColor: '#8B5CF6' }]} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.legendLabel}>FOCUS</Text>
-            <Text style={[styles.legendVal, { color: '#30D158' }]}>
+            <Text style={[styles.legendLabel, { color: colors.textMuted }]}>FOCUS</Text>
+            <Text style={[styles.legendVal, { color: '#8B5CF6' }]}>
               {Math.round(focusProgress)}%
             </Text>
           </View>
@@ -141,10 +142,10 @@ export function IOSActivityRings({
 
         {/* Quests */}
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#0A84FF' }]} />
+          <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.legendLabel}>QUESTS</Text>
-            <Text style={[styles.legendVal, { color: '#0A84FF' }]}>
+            <Text style={[styles.legendLabel, { color: colors.textMuted }]}>QUESTS</Text>
+            <Text style={[styles.legendVal, { color: '#10B981' }]}>
               {Math.round(questProgress)}%
             </Text>
           </View>
@@ -177,13 +178,12 @@ const styles = StyleSheet.create({
   },
   legendLabel: {
     fontSize: 10,
-    fontWeight: '700',
-    color: '#8E8E93',
+    fontWeight: '800',
     letterSpacing: 0.8,
   },
   legendVal: {
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '900',
     letterSpacing: -0.3,
   },
 });

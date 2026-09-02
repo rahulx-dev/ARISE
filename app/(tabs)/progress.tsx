@@ -10,17 +10,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
-  Dumbbell,
+  Barbell,
   Play,
-  Flame,
-  Sliders,
-  CheckCircle2,
-  ChevronRight,
+  SlidersHorizontal,
+  CheckCircle,
+  CaretRight,
   Camera,
   X,
-  Award,
-  Zap,
-} from 'lucide-react-native';
+  Trophy,
+  Lightning,
+} from 'phosphor-react-native';
 import { GlassCard } from '../../src/components/ios/GlassCard';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { useGymStore } from '../../src/stores/useGymStore';
@@ -105,7 +104,7 @@ export default function GymWorkoutScreen() {
               setIsPrefModalOpen(true);
             }}
           >
-            <Sliders size={18} color={colors.primary} />
+            <SlidersHorizontal size={18} color={colors.primary} weight="bold" />
           </TouchableOpacity>
         </View>
 
@@ -114,7 +113,7 @@ export default function GymWorkoutScreen() {
           <GlassCard variant="elevated" style={styles.heroCard}>
             <View style={styles.heroTopRow}>
               <Text style={[styles.heroLabel, { color: colors.primary }]}>TODAY'S WORKOUT</Text>
-              <Dumbbell size={18} color={colors.primary} />
+              <Barbell size={20} color={colors.primary} weight="duotone" />
             </View>
 
             <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>Upper Body</Text>
@@ -142,7 +141,7 @@ export default function GymWorkoutScreen() {
               activeOpacity={0.85}
             >
               <Text style={styles.continueBtnText}>Continue</Text>
-              <Play size={16} color="#000000" fill="#000000" />
+              <Play size={16} color="#000000" weight="fill" />
             </TouchableOpacity>
           </GlassCard>
 
@@ -171,16 +170,16 @@ export default function GymWorkoutScreen() {
                         {
                           backgroundColor: isToday
                             ? colors.primary
-                            : isCompleted
-                            ? isDark
-                              ? 'rgba(39, 54, 71, 0.7)'
-                              : 'rgba(0, 0, 0, 0.06)'
+                              : isCompleted
+                              ? isDark
+                                ? 'rgba(39, 54, 71, 0.7)'
+                                : 'rgba(0, 0, 0, 0.06)'
                             : 'transparent',
                           borderColor: isToday ? colors.primary : colors.border,
                         },
                       ]}
                     >
-                      {isCompleted && <CheckCircle2 size={12} color={colors.primary} />}
+                      {isCompleted && <CheckCircle size={14} color={colors.primary} weight="fill" />}
                       {isToday && <Text style={styles.todayDayNum}>{new Date().getDate()}</Text>}
                     </View>
                   </View>
@@ -209,7 +208,7 @@ export default function GymWorkoutScreen() {
                   onPress={() => handleStartExercise(ex.type, parseInt(ex.reps, 10) || 20)}
                   activeOpacity={0.8}
                 >
-                  <Camera size={14} color={colors.primary} />
+                  <Camera size={14} color={colors.primary} weight="bold" />
                   <Text style={[styles.aiCamBtnText, { color: colors.primary }]}>AI TRACK</Text>
                 </TouchableOpacity>
               </GlassCard>
@@ -226,7 +225,7 @@ export default function GymWorkoutScreen() {
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Training Settings</Text>
                 <TouchableOpacity onPress={() => setIsPrefModalOpen(false)} style={styles.circleBtn}>
-                  <X size={18} color={colors.textSecondary} />
+                  <X size={18} color={colors.textSecondary} weight="bold" />
                 </TouchableOpacity>
               </View>
 
@@ -265,13 +264,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '800',
-    letterSpacing: -0.3,
+    letterSpacing: -0.5,
   },
   headerSub: {
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: 11,
+    marginTop: 2,
   },
   circleBtn: {
     width: 38,
@@ -289,21 +288,21 @@ const styles = StyleSheet.create({
   heroCard: {
     padding: 20,
     borderRadius: 22,
-    gap: 10,
+    gap: 12,
   },
   heroTopRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   heroLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '800',
-    letterSpacing: 1.2,
+    letterSpacing: 1,
   },
   heroTitle: {
-    fontSize: 26,
-    fontWeight: '800',
+    fontSize: 28,
+    fontWeight: '900',
     letterSpacing: -0.5,
   },
   heroSubtitle: {
@@ -312,43 +311,46 @@ const styles = StyleSheet.create({
   },
   heroProgressWrap: {
     gap: 6,
-    marginTop: 6,
+    marginTop: 4,
   },
   heroProgressLabels: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
   heroProgressCount: {
     fontSize: 12,
     fontWeight: '600',
   },
   heroProgressPercent: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '800',
   },
   progressBarTrack: {
-    height: 8,
-    borderRadius: 4,
+    height: 6,
+    borderRadius: 3,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
-    borderRadius: 4,
+    borderRadius: 3,
   },
   continueBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 14,
-    borderRadius: 14,
-    marginTop: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 100,
+    alignSelf: 'flex-start',
+    marginTop: 4,
   },
   continueBtnText: {
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 13,
+    fontWeight: '900',
     color: '#000000',
-    letterSpacing: -0.2,
+    letterSpacing: 0.3,
   },
   weeklyTrackerCard: {
     padding: 16,
@@ -357,12 +359,12 @@ const styles = StyleSheet.create({
   },
   weeklyTitle: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   weekDaysRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 4,
   },
   dayCol: {
     alignItems: 'center',
@@ -389,35 +391,37 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   sectionTitle: {
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '800',
     letterSpacing: -0.3,
+    paddingHorizontal: 2,
   },
   exerciseCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 14,
+    padding: 16,
     borderRadius: 18,
   },
   exerciseInfoCol: {
-    gap: 3,
     flex: 1,
+    gap: 4,
   },
   exerciseName: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
   },
   exerciseCategory: {
     fontSize: 11,
+    fontWeight: '500',
   },
   aiCamBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
+    paddingVertical: 7,
+    borderRadius: 100,
     borderWidth: 1,
   },
   aiCamBtnText: {
@@ -427,14 +431,14 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: 'rgba(0,0,0,0.65)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 20,
-    gap: 14,
+    gap: 16,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -442,11 +446,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '800',
   },
   modalSub: {
-    fontSize: 12,
+    fontSize: 13,
+    lineHeight: 18,
   },
   savePrefBtn: {
     paddingVertical: 14,
@@ -455,8 +460,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   savePrefBtnText: {
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: 13,
+    fontWeight: '900',
     color: '#000000',
   },
 });

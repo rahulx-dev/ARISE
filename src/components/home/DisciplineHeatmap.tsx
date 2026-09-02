@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Flame, Brain, Dumbbell, Sparkles, Coins, Zap, Calendar } from 'lucide-react-native';
+import { Fire, Brain, Barbell, Sparkle, Coins, Lightning, Calendar } from 'phosphor-react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { GlassCard } from '../ios/GlassCard';
 import { ARISEBottomSheet } from '../ui/ARISEModal';
@@ -41,22 +41,22 @@ export const DisciplineHeatmap = React.memo(function DisciplineHeatmap() {
 
   const getBlockColor = (intensity: number) => {
     if (intensity === 0) {
-      return isDark ? 'rgba(39, 54, 71, 0.4)' : 'rgba(0, 0, 0, 0.05)';
+      return isDark ? '#1C1E27' : '#F3F4F6';
     }
     if (intensity === 1) {
-      return isDark ? 'rgba(195, 244, 0, 0.2)' : 'rgba(16, 185, 129, 0.2)';
+      return isDark ? '#064E3B' : '#A7F3D0';
     }
     if (intensity === 2) {
-      return isDark ? 'rgba(195, 244, 0, 0.5)' : 'rgba(16, 185, 129, 0.45)';
+      return isDark ? '#047857' : '#6EE7B7';
     }
     if (intensity === 3) {
-      return isDark ? 'rgba(195, 244, 0, 0.8)' : 'rgba(16, 185, 129, 0.75)';
+      return isDark ? '#059669' : '#34D399';
     }
-    return isDark ? '#CCFF00' : '#10B981';
+    return '#10B981';
   };
 
   const getTextColor = (intensity: number) => {
-    if (intensity >= 2) return '#000000';
+    if (intensity >= 2) return '#FFFFFF';
     return isDark ? colors.textPrimary : colors.textPrimary;
   };
 
@@ -72,7 +72,7 @@ export const DisciplineHeatmap = React.memo(function DisciplineHeatmap() {
     <GlassCard variant="default" style={styles.card}>
       <View style={styles.headerRow}>
         <Text style={[styles.title, { color: colors.textPrimary }]}>{streak} Day Streak</Text>
-        <Flame size={18} color={colors.primary} />
+        <Fire size={20} color={colors.primary} weight="fill" />
       </View>
 
       <View style={styles.gridContainer}>
@@ -166,7 +166,7 @@ export const DisciplineHeatmap = React.memo(function DisciplineHeatmap() {
             <View style={styles.sheetGrid}>
               {/* Focus Minutes */}
               <GlassCard variant="default" style={styles.sheetStatItem}>
-                <Brain size={18} color={colors.secondary} />
+                <Brain size={18} color={colors.secondary} weight="duotone" />
                 <Text style={[styles.sheetStatVal, { color: colors.textPrimary }]}>
                   {selectedDay.focusMinutes}m
                 </Text>
@@ -177,7 +177,7 @@ export const DisciplineHeatmap = React.memo(function DisciplineHeatmap() {
 
               {/* Workouts */}
               <GlassCard variant="default" style={styles.sheetStatItem}>
-                <Dumbbell size={18} color={colors.primary} />
+                <Barbell size={18} color={colors.primary} weight="duotone" />
                 <Text style={[styles.sheetStatVal, { color: colors.primary }]}>
                   {selectedDay.workoutCount}
                 </Text>
@@ -188,7 +188,7 @@ export const DisciplineHeatmap = React.memo(function DisciplineHeatmap() {
 
               {/* Quests */}
               <GlassCard variant="default" style={styles.sheetStatItem}>
-                <Sparkles size={18} color={colors.accentGold} />
+                <Sparkle size={18} color={colors.accentGold} weight="fill" />
                 <Text style={[styles.sheetStatVal, { color: colors.textPrimary }]}>
                   {selectedDay.questsCount}
                 </Text>
@@ -199,7 +199,7 @@ export const DisciplineHeatmap = React.memo(function DisciplineHeatmap() {
 
               {/* XP & Coins */}
               <GlassCard variant="default" style={styles.sheetStatItem}>
-                <Coins size={18} color={colors.secondary} />
+                <Coins size={18} color={colors.secondary} weight="fill" />
                 <Text style={[styles.sheetStatVal, { color: colors.secondary }]}>
                   +{selectedDay.coinsEarned}
                 </Text>
@@ -210,7 +210,7 @@ export const DisciplineHeatmap = React.memo(function DisciplineHeatmap() {
             </View>
 
             <View style={[styles.totalXpBanner, { backgroundColor: isDark ? 'rgba(204, 255, 0, 0.08)' : 'rgba(16, 185, 129, 0.08)', borderColor: colors.primary }]}>
-              <Zap size={18} color={colors.primary} />
+              <Lightning size={18} color={colors.primary} weight="fill" />
               <Text style={[styles.totalXpText, { color: colors.textPrimary }]}>
                 Total XP Earned: <Text style={{ color: colors.primary, fontWeight: '900' }}>+{selectedDay.xpEarned} XP</Text>
               </Text>
