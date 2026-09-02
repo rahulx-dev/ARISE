@@ -14,19 +14,19 @@ import { router, useFocusEffect } from 'expo-router';
 import {
   Settings as SettingsIcon,
   Bell,
-  TrendingUp,
-  Award,
-  Dumbbell,
-  Crosshair,
+  ChevronRight,
+  ArrowRight,
   Flame,
   X,
   Sparkles,
   ShieldAlert,
   Coins,
   Camera,
-  ShoppingBag,
   Check,
   Zap,
+  Dumbbell,
+  Brain,
+  Timer,
 } from 'lucide-react-native';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { useQuestStore } from '../../src/stores/useQuestStore';
@@ -35,15 +35,9 @@ import { notificationService, AppNotification } from '../../src/services/notific
 import { initializeDatabase } from '../../src/database/client';
 import { appBlockerService } from '../../src/native';
 import { GlassCard } from '../../src/components/ios/GlassCard';
-import { GlassButton } from '../../src/components/ios/GlassButton';
-import { CoinBalance } from '../../src/components/design-system/CoinBalance';
 import { PlayerAvatar } from '../../src/components/ui/PlayerAvatar';
-import { AriseLogo } from '../../src/components/ui/AriseLogo';
-import { XPBar } from '../../src/components/design-system/XPBar';
-import { WatchClockWidget } from '../../src/components/ios/WatchClockWidget';
 import { WeatherWidget } from '../../src/components/home/WeatherWidget';
-import { StreakHeatmap } from '../../src/components/home/StreakHeatmap';
-import { ActivityMetricGraph } from '../../src/components/home/ActivityMetricGraph';
+import { DisciplineHeatmap } from '../../src/components/home/DisciplineHeatmap';
 import { IOSActivityRings } from '../../src/components/ios/IOSActivityRings';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTheme } from '../../src/hooks/useTheme';
@@ -62,6 +56,28 @@ export default function HomeDashboard() {
   const [isNotifSheetOpen, setIsNotifSheetOpen] = useState(false);
   const [hasAllPermissions, setHasAllPermissions] = useState(true);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
+
+  // Live time ticker
+  const [timeStr, setTimeStr] = useState('09:41');
+  const [dateStr, setDateStr] = useState('Wednesday, 2 September');
+
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      setTimeStr(`${hh}:${mm}`);
+
+      const weekday = now.toLocaleDateString('en-US', { weekday: 'long' });
+      const day = now.getDate();
+      const month = now.toLocaleDateString('en-US', { month: 'long' });
+      setDateStr(`${weekday}, ${day} ${month}`);
+    };
+
+    updateTime();
+    const timer = setInterval(updateTime, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const checkPermissions = async () => {
     try {
@@ -129,7 +145,7 @@ export default function HomeDashboard() {
   const currentXP = profile?.currentXP || 0;
   const coins = profile?.coins || 0;
   const streak = profile?.currentStreak || 0;
-  const displayName = profile?.displayName || 'Warrior';
+  const displayName = profile?.displayName || 'Alex';
   const avatarIcon = profile?.avatarIcon || 'img_pfp_01';
   const completedQuestsCount = dailyQuests.filter((q) => q.completed).length;
   const totalQuestsCount = dailyQuests.length || 1;
@@ -138,12 +154,30 @@ export default function HomeDashboard() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <SafeAreaView style={styles.safeArea}>
-        {/* Top Header Bar */}
-        <View style={[styles.topHeader, { borderBottomColor: colors.border }]}>
-          <View style={styles.headerLeftIcons}>
-            <AriseLogo size={32} glow={true} />
+        {/* Stitch v2 Top App Bar */}
+        <View style={[styles.topHeader, { borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)' }]}>
+          <TouchableOpacity
+            style={styles.headerLeftCol}
+            onPress={() => router.push('/(tabs)/profile')}
+            activeOpacity={0.8}
+          >
+            <PlayerAvatar
+              iconId={avatarIcon}
+              size={40}
+              glow={true}
+              glowColor={colors.primary}
+            />
+            <View style={{ gap: 1 }}>
+              <Text style={[styles.greetingSub, { color: colors.textMuted }]}>Good morning,</Text>
+              <Text style={[styles.greetingTitle, { color: colors.textPrimary }]}>
+                {displayName} <Text style={{ fontSize: 16 }}>👋</Text>
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          <View style={styles.headerRightActions}>
             <TouchableOpacity
-              style={[styles.iconBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderColor: colors.border }]}
+              style={[styles.headerIconBtn, { backgroundColor: isDark ? 'rgba(39, 54, 71, 0.45)' : 'rgba(0, 0, 0, 0.04)', borderColor: colors.border }]}
               onPress={() => router.push('/settings')}
               activeOpacity={0.8}
             >
@@ -151,7 +185,7 @@ export default function HomeDashboard() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.iconBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderColor: colors.border }]}
+              style={[styles.headerIconBtn, { backgroundColor: isDark ? 'rgba(39, 54, 71, 0.45)' : 'rgba(0, 0, 0, 0.04)', borderColor: colors.border }]}
               onPress={() => {
                 haptics.light();
                 loadNotifications();
@@ -165,18 +199,13 @@ export default function HomeDashboard() {
               )}
             </TouchableOpacity>
           </View>
-
-          <CoinBalance
-            amount={coins}
-            onPressAdd={() => router.push('/shop')}
-          />
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Permission Shield Alert Banner if missing */}
+          {/* Missing Permissions Banner */}
           {!hasAllPermissions && (
             <TouchableOpacity
-              style={[styles.permAlertCard, { backgroundColor: 'rgba(209, 255, 0, 0.08)', borderColor: colors.primary }]}
+              style={[styles.permAlertCard, { backgroundColor: 'rgba(204, 255, 0, 0.08)', borderColor: colors.primary }]}
               onPress={() => {
                 haptics.medium();
                 router.push('/permissions' as any);
@@ -196,72 +225,67 @@ export default function HomeDashboard() {
             </TouchableOpacity>
           )}
 
-          {/* Watch-Style Chronometer Widget */}
-          <WatchClockWidget />
+          {/* Stitch v2 Big Display Time & Date */}
+          <View style={styles.timeHeroSection}>
+            <Text style={[styles.timeHeroDisplay, { color: colors.textPrimary }]}>{timeStr}</Text>
+            <Text style={[styles.dateHeroDisplay, { color: colors.textMuted }]}>{dateStr}</Text>
+          </View>
 
-          {/* Player Identity Hero Card */}
-          <GlassCard variant="glow" style={styles.heroCard}>
-            <View style={styles.heroTopRow}>
-              <TouchableOpacity
-                onPress={() => router.push('/(tabs)/profile')}
-                activeOpacity={0.8}
-                style={styles.avatarWrap}
-              >
-                <PlayerAvatar
-                  iconId={avatarIcon}
-                  size={68}
-                  glow={true}
-                  glowColor={colors.primary}
-                />
-              </TouchableOpacity>
-
-              <View style={{ flex: 1, gap: 4 }}>
-                <View style={styles.heroNameRow}>
-                  <Text style={[styles.playerName, { color: colors.textPrimary }]} numberOfLines={1}>
-                    {displayName}
-                  </Text>
-                  <View style={[styles.rankTag, { backgroundColor: isDark ? 'rgba(209, 255, 0, 0.15)' : 'rgba(16, 185, 129, 0.15)' }]}>
-                    <Text style={[styles.rankTagText, { color: colors.primary }]}>LV. {level}</Text>
-                  </View>
-                </View>
-                <Text style={[styles.playerBioText, { color: colors.textSecondary }]} numberOfLines={1}>
-                  {profile?.bio || 'Disciplined warrior in training.'}
-                </Text>
-              </View>
+          {/* Stitch v2 "Next Up" Card */}
+          <GlassCard variant="glow" style={styles.nextUpCard}>
+            <View style={styles.nextUpTopRow}>
+              <Text style={[styles.nextUpLabel, { color: colors.textMuted }]}>NEXT UP</Text>
+              <ChevronRight size={18} color={colors.primary} />
             </View>
 
-            {/* XP Progress Bar */}
-            <View style={{ width: '100%', marginTop: 2 }}>
-              <XPBar progress={Math.min(100, Math.round((currentXP / Math.max(1, level * 100)) * 100))} />
-            </View>
+            <Text style={[styles.nextUpHeading, { color: colors.textPrimary }]}>Complete your</Text>
+            <Text style={[styles.nextUpHighlight, { color: colors.primary }]}>25 min Focus Session</Text>
 
-            {/* 3 Metric Columns: Streak | Win Rate | Quests */}
-            <View style={[styles.threeStatsRow, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.03)', borderColor: colors.border }]}>
-              <View style={styles.statColumn}>
-                <Flame size={16} color={colors.danger} />
-                <Text style={[styles.statColumnValue, { color: colors.textPrimary }]}>{streak} Days</Text>
-                <Text style={[styles.statColumnLabel, { color: colors.textMuted }]}>STREAK</Text>
-              </View>
-
-              <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-
-              <View style={styles.statColumn}>
-                <TrendingUp size={16} color={colors.primary} />
-                <Text style={[styles.statColumnValue, { color: colors.textPrimary }]}>{winRate}%</Text>
-                <Text style={[styles.statColumnLabel, { color: colors.textMuted }]}>WIN RATE</Text>
-              </View>
-
-              <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-
-              <View style={styles.statColumn}>
-                <Award size={16} color={colors.secondary} />
-                <Text style={[styles.statColumnValue, { color: colors.textPrimary }]}>{completedQuestsCount}</Text>
-                <Text style={[styles.statColumnLabel, { color: colors.textMuted }]}>TASKS DONE</Text>
-              </View>
-            </View>
+            <TouchableOpacity
+              style={[styles.startPillBtn, { backgroundColor: colors.primary }]}
+              onPress={() => {
+                haptics.heavy();
+                router.push('/focus/session');
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.startPillBtnText}>Start</Text>
+              <ArrowRight size={15} color="#000000" strokeWidth={3} />
+            </TouchableOpacity>
           </GlassCard>
 
-          {/* Apple Fitness Activity Rings Card */}
+          {/* Stitch v2 4-Column Quick Metrics Grid */}
+          <View style={styles.metricsGridRow}>
+            {/* Focus */}
+            <GlassCard variant="default" style={styles.metricGridItem}>
+              <Text style={[styles.metricGridLabel, { color: colors.textMuted }]}>FOCUS</Text>
+              <Text style={[styles.metricGridVal, { color: colors.textPrimary }]}>32m</Text>
+            </GlassCard>
+
+            {/* Workout */}
+            <GlassCard variant="default" style={styles.metricGridItem}>
+              <Text style={[styles.metricGridLabel, { color: colors.textMuted }]}>WORKOUT</Text>
+              <Text style={[styles.metricGridVal, { color: colors.primary }]}>45m</Text>
+            </GlassCard>
+
+            {/* Quests */}
+            <GlassCard variant="default" style={styles.metricGridItem}>
+              <Text style={[styles.metricGridLabel, { color: colors.textMuted }]}>QUESTS</Text>
+              <Text style={[styles.metricGridVal, { color: colors.textPrimary }]}>
+                {completedQuestsCount}/{dailyQuests.length}
+              </Text>
+            </GlassCard>
+
+            {/* Coins */}
+            <GlassCard variant="default" style={styles.metricGridItem}>
+              <Text style={[styles.metricGridLabel, { color: colors.secondary }]}>COINS</Text>
+              <Text style={[styles.metricGridVal, { color: colors.secondary }]}>
+                {coins.toLocaleString()}
+              </Text>
+            </GlassCard>
+          </View>
+
+          {/* Apple Fitness 3-Ring Activity Component */}
           <GlassCard variant="elevated" style={styles.activityRingsCard}>
             <View style={styles.ringsHeaderRow}>
               <Text style={[styles.ringsCardTitle, { color: colors.textPrimary }]}>ACTIVITY RINGS</Text>
@@ -277,73 +301,18 @@ export default function HomeDashboard() {
             />
           </GlassCard>
 
-          {/* Quick Actions Dock */}
-          <View style={styles.quickActionsSection}>
-            <Text style={[styles.sectionHeading, { color: colors.textMuted }]}>QUICK DIRECTIVES</Text>
-            <View style={styles.quickDockRow}>
-              <TouchableOpacity
-                style={[styles.dockItem, { backgroundColor: isDark ? 'rgba(22, 22, 26, 0.75)' : 'rgba(255, 255, 255, 0.85)', borderColor: colors.border }]}
-                onPress={() => router.push('/(tabs)/progress')}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.dockIconCircle, { backgroundColor: 'rgba(209, 255, 0, 0.15)' }]}>
-                  <Dumbbell size={18} color={colors.primary} />
-                </View>
-                <Text style={[styles.dockLabel, { color: colors.textPrimary }]}>Gym</Text>
-              </TouchableOpacity>
+          {/* Stitch v2 14-Day Discipline Heatmap */}
+          <DisciplineHeatmap />
 
-              <TouchableOpacity
-                style={[styles.dockItem, { backgroundColor: isDark ? 'rgba(22, 22, 26, 0.75)' : 'rgba(255, 255, 255, 0.85)', borderColor: colors.border }]}
-                onPress={() => router.push('/focus/session')}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.dockIconCircle, { backgroundColor: 'rgba(0, 240, 255, 0.15)' }]}>
-                  <Crosshair size={18} color={colors.secondary} />
-                </View>
-                <Text style={[styles.dockLabel, { color: colors.textPrimary }]}>Focus</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.dockItem, { backgroundColor: isDark ? 'rgba(22, 22, 26, 0.75)' : 'rgba(255, 255, 255, 0.85)', borderColor: colors.border }]}
-                onPress={() => router.push('/photos')}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.dockIconCircle, { backgroundColor: 'rgba(255, 184, 0, 0.15)' }]}>
-                  <Camera size={18} color={colors.accentGold} />
-                </View>
-                <Text style={[styles.dockLabel, { color: colors.textPrimary }]}>Photo</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.dockItem, { backgroundColor: isDark ? 'rgba(22, 22, 26, 0.75)' : 'rgba(255, 255, 255, 0.85)', borderColor: colors.border }]}
-                onPress={() => router.push('/shop')}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.dockIconCircle, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
-                  <ShoppingBag size={18} color={colors.danger} />
-                </View>
-                <Text style={[styles.dockLabel, { color: colors.textPrimary }]}>Shop</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* GitHub-Style 12-Week Streak Heatmap */}
-          <StreakHeatmap />
-
-          {/* 7-Day Switchable Activity Metric Graph */}
-          <ActivityMetricGraph />
-
-          {/* Real/Cached Weather Card */}
+          {/* Weather Widget */}
           <WeatherWidget />
 
-          {/* Today's Active Quests Section */}
+          {/* Today's Quests Section with AI Camera triggers */}
           <View style={styles.questsSection}>
             <View style={styles.sectionHeaderRow}>
-              <Text style={[styles.sectionHeading, { color: colors.textMuted }]}>
-                TODAY'S MISSION ({completedQuestsCount}/{dailyQuests.length})
-              </Text>
+              <Text style={[styles.sectionHeading, { color: colors.textPrimary }]}>Today's Quests</Text>
               <TouchableOpacity onPress={() => router.push('/(tabs)/quests')}>
-                <Text style={[styles.seeAllText, { color: colors.primary }]}>VIEW ALL</Text>
+                <Text style={[styles.seeAllText, { color: colors.primary }]}>See All</Text>
               </TouchableOpacity>
             </View>
 
@@ -397,7 +366,7 @@ export default function HomeDashboard() {
 
                 return (
                   <TouchableOpacity key={q.id} onPress={handlePress} activeOpacity={0.8}>
-                    <GlassCard variant={isDone ? 'default' : 'glow'} style={styles.questCard}>
+                    <GlassCard variant={isDone ? 'default' : 'elevated'} style={styles.questCard}>
                       <View style={styles.questCardLeft}>
                         <TouchableOpacity
                           onPress={() => !isDone && completeQuest(q.id)}
@@ -419,16 +388,22 @@ export default function HomeDashboard() {
                           >
                             {q.title}
                           </Text>
-                          <Text style={[styles.questDescText, { color: colors.textSecondary }]} numberOfLines={1}>
-                            {q.description}
-                          </Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                            {isExercise && (
+                              <View style={[styles.aiBadge, { backgroundColor: isDark ? 'rgba(204, 255, 0, 0.12)' : 'rgba(16, 185, 129, 0.12)' }]}>
+                                <Text style={[styles.aiBadgeText, { color: colors.primary }]}>AI Tracked</Text>
+                              </View>
+                            )}
+                            <Text style={[styles.questDescText, { color: colors.textSecondary }]} numberOfLines={1}>
+                              {q.description}
+                            </Text>
+                          </View>
                         </View>
                       </View>
 
                       <View style={styles.questCardRight}>
-                        <View style={[styles.rewardTag, { backgroundColor: isDark ? 'rgba(209, 255, 0, 0.1)' : 'rgba(16, 185, 129, 0.1)' }]}>
-                          <Text style={[styles.rewardTagText, { color: colors.primary }]}>+{q.rewardCoins} 🪙</Text>
-                        </View>
+                        <Text style={[styles.xpText, { color: colors.primary }]}>+{q.rewardXP} XP</Text>
+                        <Text style={[styles.coinText, { color: colors.secondary }]}>+{q.rewardCoins} 🪙</Text>
                       </View>
                     </GlassCard>
                   </TouchableOpacity>
@@ -437,7 +412,7 @@ export default function HomeDashboard() {
             )}
           </View>
 
-          <View style={{ height: 100 }} />
+          <View style={{ height: 110 }} />
         </ScrollView>
 
         {/* Notifications Sheet Modal */}
@@ -451,7 +426,7 @@ export default function HomeDashboard() {
             <GlassCard variant="elevated" style={styles.modalSheet}>
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>System Notifications</Text>
-                <TouchableOpacity onPress={() => setIsNotifSheetOpen(false)} style={styles.iconBtn}>
+                <TouchableOpacity onPress={() => setIsNotifSheetOpen(false)} style={styles.headerIconBtn}>
                   <X size={18} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
@@ -460,7 +435,7 @@ export default function HomeDashboard() {
                 {notifications.length === 0 ? (
                   <View style={{ padding: 28, alignItems: 'center', gap: 8 }}>
                     <Sparkles size={24} color={colors.textMuted} />
-                    <Text style={{ color: colors.textPrimary, fontWeight: '800', fontSize: 13 }}>
+                    <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 13 }}>
                       No notifications yet.
                     </Text>
                     <Text style={{ color: colors.textMuted, fontSize: 11, textAlign: 'center' }}>
@@ -504,257 +479,128 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    paddingVertical: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
     borderBottomWidth: 1,
   },
-  headerLeftIcons: {
+  headerLeftCol: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  greetingSub: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  greetingTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
+  headerRightActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  headerIconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     borderWidth: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    position: 'relative',
+    justifyContent: 'center',
   },
   bellDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
     position: 'absolute',
-    top: 7,
-    right: 7,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    top: 8,
+    right: 8,
   },
   scrollContent: {
-    padding: 16,
-    gap: 14,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    gap: 16,
   },
-  permAlertCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    gap: 10,
-  },
-  permAlertTitle: {
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  permAlertDesc: {
-    fontSize: 10,
-    lineHeight: 14,
-  },
-  permAlertBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  permAlertBadgeText: {
-    fontSize: 9,
-    fontWeight: '900',
-    color: '#000',
-  },
-  heroCard: {
-    padding: 16,
-    borderRadius: 22,
-    gap: 12,
-  },
-  heroTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  avatarWrap: {
-    position: 'relative',
-  },
-  heroNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  playerName: {
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  rankTag: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  rankTagText: {
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
-  playerBioText: {
-    fontSize: 11,
-    lineHeight: 14,
-  },
-  threeStatsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingVertical: 10,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  statColumn: {
-    alignItems: 'center',
+  timeHeroSection: {
+    paddingVertical: 4,
     gap: 2,
-    flex: 1,
   },
-  statColumnValue: {
-    fontSize: 13,
-    fontWeight: '900',
-    marginTop: 2,
-  },
-  statColumnLabel: {
-    fontSize: 8,
+  timeHeroDisplay: {
+    fontSize: 44,
     fontWeight: '800',
-    letterSpacing: 0.8,
+    letterSpacing: -1.5,
+    fontVariant: ['tabular-nums'],
   },
-  statDivider: {
-    width: 1,
-    height: 20,
+  dateHeroDisplay: {
+    fontSize: 16,
+    fontWeight: '500',
   },
-  quickActionsSection: {
-    gap: 8,
+  nextUpCard: {
+    padding: 18,
+    borderRadius: 22,
+    gap: 6,
   },
-  sectionHeading: {
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1.2,
-  },
-  quickDockRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  dockItem: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    alignItems: 'center',
-    gap: 5,
-  },
-  dockIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  dockLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  questsSection: {
-    gap: 10,
-  },
-  sectionHeaderRow: {
+  nextUpTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 4,
   },
-  seeAllText: {
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 0.8,
+  nextUpLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1,
   },
-  questCard: {
+  nextUpHeading: {
+    fontSize: 20,
+    fontWeight: '600',
+    letterSpacing: -0.3,
+  },
+  nextUpHighlight: {
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    marginBottom: 10,
+  },
+  startPillBtn: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 12,
-    borderRadius: 16,
-  },
-  questCardLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-  },
-  questCheckCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: '#333',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  questTitleText: {
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  questDescText: {
-    fontSize: 10,
-  },
-  questCardRight: {
-    marginLeft: 6,
-  },
-  rewardTag: {
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  rewardTagText: {
-    fontSize: 9,
-    fontWeight: '900',
-  },
-  emptyCard: {
-    padding: 20,
     alignItems: 'center',
     gap: 6,
-    borderRadius: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 100,
+    alignSelf: 'flex-start',
   },
-  emptyTitle: {
-    fontSize: 13,
-    fontWeight: '900',
+  startPillBtnText: {
+    color: '#000000',
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: -0.2,
   },
-  emptySub: {
-    fontSize: 10,
-    textAlign: 'center',
+  metricsGridRow: {
+    flexDirection: 'row',
+    gap: 8,
   },
-  modalOverlay: {
+  metricGridItem: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    justifyContent: 'flex-end',
-  },
-  modalSheet: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 18,
-    gap: 12,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 6,
     alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 16,
+    gap: 4,
   },
-  modalTitle: {
-    fontSize: 15,
-    fontWeight: '900',
-  },
-  notifCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    padding: 10,
-    borderRadius: 12,
-  },
-  notifTitle: {
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  notifDesc: {
+  metricGridLabel: {
     fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  metricGridVal: {
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: -0.3,
   },
   activityRingsCard: {
     padding: 16,
@@ -776,5 +622,148 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.5,
+  },
+  questsSection: {
+    gap: 10,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 2,
+  },
+  sectionHeading: {
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
+  seeAllText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  questCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+    borderRadius: 18,
+  },
+  questCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  questCheckCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  questTitleText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  questDescText: {
+    fontSize: 11,
+    flex: 1,
+  },
+  aiBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  aiBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  questCardRight: {
+    alignItems: 'flex-end',
+    gap: 2,
+  },
+  xpText: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  coinText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  emptyCard: {
+    padding: 24,
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 18,
+  },
+  emptyTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  emptySub: {
+    fontSize: 11,
+    textAlign: 'center',
+  },
+  permAlertCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  permAlertTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  permAlertDesc: {
+    fontSize: 10,
+  },
+  permAlertBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  permAlertBadgeText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#000000',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 18,
+    gap: 12,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  notifCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 10,
+    borderRadius: 12,
+  },
+  notifTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  notifDesc: {
+    fontSize: 10,
   },
 });

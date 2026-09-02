@@ -23,6 +23,7 @@ import {
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { photoRepository } from '../../src/database/repositories/photoRepository';
+import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
 import { photoService } from '../../src/services/photoService';
 import { GlowCard } from '../../src/components/design-system/GlowCard';
 import { GlowButton } from '../../src/components/design-system/GlowButton';
@@ -57,7 +58,7 @@ export default function PhotosScreen() {
   const handleCapturePhoto = async () => {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert(
+      showIOSAlert(
         'Camera Permission Required',
         'Please grant camera permission in system settings to log your daily progress photo.'
       );
@@ -94,7 +95,7 @@ export default function PhotosScreen() {
   };
 
   const handleDeletePhoto = (photoId: number) => {
-    Alert.alert(
+    showIOSAlert(
       'Delete Progress Photo?',
       'Are you sure you want to permanently delete this progress record?',
       [

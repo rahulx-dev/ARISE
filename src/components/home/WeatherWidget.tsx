@@ -1,124 +1,125 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Sun, Cloud, CloudRain, Wind, AlertCircle } from 'lucide-react-native';
+import { Sun, Cloud, ArrowRight } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
+import { GlassCard } from '../ios/GlassCard';
 
-interface WeatherData {
+interface WeatherInfo {
   tempC: number;
   condition: string;
-  location: string;
+  city: string;
   isDay: boolean;
+  isLoading: boolean;
 }
 
-const CACHED_FALLBACK: WeatherData = {
-  tempC: 24,
-  condition: 'Clear Skies',
-  location: 'Local Sector',
-  isDay: true,
-};
-
+/**
+ * Stitch v2 Weather Widget
+ */
 export const WeatherWidget = React.memo(function WeatherWidget() {
-  const { colors } = useTheme();
-  const [weather, setWeather] = useState<WeatherData>(CACHED_FALLBACK);
-  const [isAvailable, setIsAvailable] = useState<boolean>(true);
+  const { colors, isDark } = useTheme();
+
+  const [weather, setWeather] = useState<WeatherInfo>({
+    tempC: 24,
+    condition: 'Sunny',
+    city: 'Dhanbad',
+    isDay: true,
+    isLoading: true,
+  });
 
   useEffect(() => {
-    // Determine condition based on time of day for offline robustness
-    const hour = new Date().getHours();
-    const isDay = hour >= 6 && hour < 19;
-    setWeather({
-      tempC: isDay ? 26 : 21,
-      condition: isDay ? 'Optimal Climate' : 'Cool Atmospheric',
-      location: 'Local Sector',
-      isDay,
-    });
+    fetchLiveWeather();
   }, []);
 
+  const fetchLiveWeather = async () => {
+    try {
+      // Free open-meteo API for real Indian coordinates (Dhanbad: 23.7957, 86.4304)
+      const res = await fetch(
+        'https://api.open-meteo.com/v1/forecast?latitude=23.7957&longitude=86.4304&current_weather=true',
+        { signal: AbortSignal.timeout(3000) }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const current = data.current_weather;
+        if (current && typeof current.temperature === 'number') {
+          setWeather({
+            tempC: Math.round(current.temperature),
+            condition: current.is_day === 1 ? 'Clear' : 'Night',
+            city: 'Dhanbad',
+            isDay: current.is_day === 1,
+            isLoading: false,
+          });
+          return;
+        }
+      }
+    } catch {
+      // Graceful offline fallback
+    }
+
+    const hour = new Date().getHours();
+    const isDay = hour >= 6 && hour < 19;
+    setWeather((prev) => ({
+      ...prev,
+      tempC: isDay ? 24 : 20,
+      condition: isDay ? 'Sunny' : 'Clear',
+      isDay,
+      isLoading: false,
+    }));
+  };
+
   return (
-    <View style={[styles.container, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    <GlassCard variant="default" style={styles.card}>
       <View style={styles.leftCol}>
-        <View style={styles.weatherIconCircle}>
+        <Text style={[styles.weatherLabel, { color: colors.textMuted }]}>WEATHER</Text>
+        <View style={styles.tempRow}>
+          <Text style={[styles.tempNumber, { color: colors.textPrimary }]}>{weather.tempC}°</Text>
           {weather.isDay ? (
-            <Sun size={20} color={colors.accentGold} />
+            <Sun size={22} color={isDark ? '#FFB95F' : '#D97706'} fill={isDark ? '#FFB95F' : '#D97706'} />
           ) : (
-            <Cloud size={20} color={colors.secondary} />
+            <Cloud size={22} color={colors.secondary} />
           )}
-        </View>
-        <View>
-          <Text style={[styles.tempText, { color: colors.textPrimary }]}>{weather.tempC}°C</Text>
-          <Text style={[styles.conditionText, { color: colors.textSecondary }]}>
-            {weather.condition}
-          </Text>
         </View>
       </View>
 
       <View style={styles.rightCol}>
-        <Text style={[styles.locationText, { color: colors.textMuted }]}>{weather.location}</Text>
-        <View style={styles.statusPill}>
-          <View style={[styles.statusDot, { backgroundColor: colors.primary }]} />
-          <Text style={[styles.statusText, { color: colors.primary }]}>ENVIRONMENT STABLE</Text>
-        </View>
+        <ArrowRight size={16} color={colors.primary} />
+        <Text style={[styles.cityText, { color: colors.textMuted }]}>{weather.city}</Text>
       </View>
-    </View>
+    </GlassCard>
   );
 });
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 14,
-    borderRadius: 18,
-    borderWidth: 1,
+  card: {
+    padding: 16,
+    borderRadius: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   leftCol: {
+    gap: 4,
+  },
+  weatherLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  tempRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
   },
-  weatherIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  tempText: {
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  conditionText: {
-    fontSize: 11,
-    fontWeight: '700',
+  tempNumber: {
+    fontSize: 26,
+    fontWeight: '800',
+    letterSpacing: -0.5,
   },
   rightCol: {
     alignItems: 'flex-end',
     gap: 4,
   },
-  locationText: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1,
-  },
-  statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(209, 255, 0, 0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  statusDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-  },
-  statusText: {
-    fontSize: 8,
-    fontWeight: '900',
-    letterSpacing: 0.8,
+  cityText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

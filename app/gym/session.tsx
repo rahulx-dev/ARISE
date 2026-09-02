@@ -28,6 +28,7 @@ import {
   Zap,
 } from 'lucide-react-native';
 import { useGymStore } from '../../src/stores/useGymStore';
+import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
 import { WorkoutExerciseItem, WorkoutSetLog } from '../../src/types/gym';
 import { GlowCard } from '../../src/components/design-system/GlowCard';
 import { GlowButton } from '../../src/components/design-system/GlowButton';
@@ -157,14 +158,14 @@ export default function ActiveGymSessionScreen() {
   };
 
   const handleFinishWorkout = async () => {
-    Alert.alert(
+    showIOSAlert(
       'Finish Workout?',
       'Are you ready to submit your workout session and claim your rewards?',
       [
         { text: 'Keep Training', style: 'cancel' },
         {
           text: 'Finish & Claim',
-          style: 'default',
+          style: 'primary',
           onPress: async () => {
             haptics.success();
             sound.play('quest_complete');

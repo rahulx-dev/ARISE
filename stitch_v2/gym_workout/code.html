@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>ARISE - Gym</title>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Configuration -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-surface-variant": "#c4c9ac",
+                        "secondary-container": "#6f00be",
+                        "inverse-primary": "#506600",
+                        "surface-dim": "#051424",
+                        "primary-fixed-dim": "#abd600",
+                        "on-surface": "#d4e4fa",
+                        "on-error": "#690005",
+                        "inverse-on-surface": "#233143",
+                        "error": "#ffb4ab",
+                        "tertiary": "#ffffff",
+                        "surface-container-lowest": "#010f1f",
+                        "outline": "#8e9379",
+                        "surface-container-low": "#0d1c2d",
+                        "surface-container-highest": "#273647",
+                        "on-secondary-fixed": "#2c0051",
+                        "secondary-fixed": "#f0dbff",
+                        "on-secondary-container": "#d6a9ff",
+                        "on-tertiary-fixed-variant": "#653e00",
+                        "on-error-container": "#ffdad6",
+                        "on-primary": "#283500",
+                        "primary-fixed": "#c3f400",
+                        "on-tertiary": "#472a00",
+                        "on-tertiary-container": "#8d5900",
+                        "primary-container": "#c3f400",
+                        "secondary-fixed-dim": "#ddb7ff",
+                        "tertiary-fixed": "#ffddb8",
+                        "tertiary-fixed-dim": "#ffb95f",
+                        "surface-container-high": "#1c2b3c",
+                        "inverse-surface": "#d4e4fa",
+                        "surface": "#051424",
+                        "outline-variant": "#444933",
+                        "surface-container": "#122131",
+                        "on-secondary-fixed-variant": "#6900b3",
+                        "surface-variant": "#273647",
+                        "surface-bright": "#2c3a4c",
+                        "on-primary-container": "#556d00",
+                        "tertiary-container": "#ffddb8",
+                        "primary": "#ffffff",
+                        "on-secondary": "#490080",
+                        "on-background": "#d4e4fa",
+                        "background": "#051424",
+                        "surface-tint": "#abd600",
+                        "on-tertiary-fixed": "#2a1700",
+                        "on-primary-fixed-variant": "#3c4d00",
+                        "error-container": "#93000a",
+                        "on-primary-fixed": "#161e00",
+                        "secondary": "#ddb7ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "stack-gap": "16px",
+                        "section-margin": "32px",
+                        "glass-padding": "16px",
+                        "element-gap": "8px",
+                        "container-margin": "20px"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Hanken Grotesk"],
+                        "metric-xl": ["Hanken Grotesk"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "display-lg-mobile": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "label-md": ["JetBrains Mono"],
+                        "body-md": ["Hanken Grotesk"],
+                        "display-lg": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "metric-xl": ["40px", { "lineHeight": "40px", "letterSpacing": "-0.03em", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "display-lg-mobile": ["36px", { "lineHeight": "42px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "500" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        /* Custom utilities for inner glow and glass borders */
+        .glass-panel {
+            background-color: rgba(5, 20, 36, 0.4); /* surface/40 */
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 0.5px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .glass-panel-heavy {
+            background-color: rgba(18, 33, 49, 0.8); /* surface-container/80 */
+            backdrop-filter: blur(80px);
+            -webkit-backdrop-filter: blur(80px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        /* Spring physics animation class */
+        .spring-hover:hover {
+            transform: scale(1.02);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen flex flex-col overflow-hidden selection:bg-primary-fixed/30">
+<!-- TopAppBar -->
+<header class="bg-surface/40 backdrop-blur-3xl border-b border-white/10 flat no shadows flex justify-between items-center w-full px-container-margin py-4 top-0 z-40">
+<!-- Leading: Avatar -->
+<div class="w-10 h-10 rounded-full overflow-hidden border border-white/20">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="A cinematic, high-contrast headshot of a fit young man with dark hair in a moody, dark environment with subtle electric lime rim lighting. Minimalist premium aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDC8c_kluhCO9V_U6efdOK0wG7bD3feTFTl5kzcU36Ij5hRwyCHLObymG48Qh3tTqGZVfO_QQCmffLXcBybRa3BZX7_m6ndOElHWjY3vunnxDDUKL9gtahnCoGMLXSQ9ux2F9GYxpT-bmAXUF82P2lp-e5nGC91yZ675FYlGGoKo2stUXb42WtWW9vMBZbrGrLbptjbGpIdwDD0aW0gCgcHPSI0xVFDX1mK2LUF9CHa8afY7RRvTjLs"/>
+</div>
+<!-- Headline -->
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile font-bold tracking-tighter text-primary-container">ARISE</h1>
+<!-- Trailing: Icon -->
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/5 transition-colors text-primary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">notifications</span>
+</button>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-1 overflow-y-auto px-container-margin pt-6 pb-[120px] flex flex-col gap-section-margin">
+<!-- Hero Workout Card -->
+<section class="glass-panel rounded-xl overflow-hidden relative group">
+<!-- Background Image -->
+<div class="absolute inset-0 bg-cover bg-center opacity-40 mix-blend-luminosity group-hover:scale-105 transition-transform duration-700" data-alt="A striking, moody fitness photography shot of a muscular male athlete at the peak of a push-up position in a dark, industrial gym. High-key dramatic lighting highlights sweat and muscle definition against a deep obsidian background, with very subtle hints of electric lime light bleeding in from the edge." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuA5ZeZfaXXzbBGZvw2tJj4hjdQ8S7MEZigCmx8yZ829C05YQyE2Y8-bI8w7MfV9G8Cbj5jeuyTkrxz_HlsOT24f5FXxOvm7cOil314rHq8AGF1Nh1AXfj-0WHcPoWbDI3CHdACEbt9kz3b_8OUBPGtmNY1QJI22V1Pm9OLsZrPKr0cCEhUmONUqtPW78NFcFe__XeMj4LUeQB9l8PnHrbBcuZAtHPw8DHfdr_cD5r_VfcRsal5XJP0Z')"></div>
+<!-- Gradient Overlay for readability -->
+<div class="absolute inset-0 bg-gradient-to-t from-surface via-surface/80 to-transparent"></div>
+<div class="relative z-10 p-glass-padding flex flex-col gap-element-gap">
+<div class="flex justify-between items-start mb-2">
+<span class="font-label-md text-label-md text-primary-fixed uppercase tracking-widest">Today's Workout</span>
+<button class="text-on-surface-variant hover:text-primary-fixed transition-colors">
+<span class="material-symbols-outlined">more_horiz</span>
+</button>
+</div>
+<h2 class="font-headline-lg text-headline-lg text-white">Upper Body</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">45 min • 6 exercises</p>
+<!-- Progress Indicator -->
+<div class="mt-6 flex flex-col gap-2">
+<div class="flex justify-between items-end">
+<span class="font-label-md text-label-md text-on-surface-variant">3 / 6 Completed</span>
+</div>
+<div class="w-full h-2 bg-primary-fixed/10 rounded-full overflow-hidden">
+<div class="h-full bg-primary-fixed w-1/2 rounded-full shadow-[0_0_10px_rgba(195,244,0,0.5)]"></div>
+</div>
+</div>
+<!-- Action Button -->
+<button class="mt-6 w-full bg-primary-fixed text-black font-headline-md text-[18px] py-4 rounded-xl spring-hover shadow-[0_4px_20px_rgba(195,244,0,0.2)] flex items-center justify-center gap-2">
+                    Continue
+                    <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</button>
+</div>
+</section>
+<!-- Weekly Tracker -->
+<section class="flex flex-col gap-stack-gap">
+<h3 class="font-body-md text-body-md text-on-surface-variant">This Week</h3>
+<div class="flex justify-between items-center px-2">
+<!-- Days M-S -->
+<div class="flex flex-col items-center gap-2">
+<span class="font-label-md text-[12px] text-on-surface-variant/60">M</span>
+<div class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant font-label-md text-sm border border-white/5"></div>
+</div>
+<div class="flex flex-col items-center gap-2">
+<span class="font-label-md text-[12px] text-on-surface-variant/60">T</span>
+<div class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant font-label-md text-sm border border-white/5"></div>
+</div>
+<div class="flex flex-col items-center gap-2">
+<span class="font-label-md text-[12px] text-primary-fixed">W</span>
+<div class="w-8 h-8 rounded-full bg-primary-fixed text-black flex items-center justify-center font-label-md text-sm shadow-[0_0_12px_rgba(195,244,0,0.4)]"></div>
+</div>
+<div class="flex flex-col items-center gap-2">
+<span class="font-label-md text-[12px] text-on-surface-variant/60">T</span>
+<div class="w-8 h-8 rounded-full bg-transparent flex items-center justify-center text-on-surface-variant font-label-md text-sm border border-white/10"></div>
+</div>
+<div class="flex flex-col items-center gap-2">
+<span class="font-label-md text-[12px] text-on-surface-variant/60">F</span>
+<div class="w-8 h-8 rounded-full bg-transparent flex items-center justify-center text-on-surface-variant font-label-md text-sm border border-white/10"></div>
+</div>
+<div class="flex flex-col items-center gap-2">
+<span class="font-label-md text-[12px] text-on-surface-variant/60">S</span>
+<div class="w-8 h-8 rounded-full bg-transparent flex items-center justify-center text-on-surface-variant font-label-md text-sm border border-white/10"></div>
+</div>
+<div class="flex flex-col items-center gap-2">
+<span class="font-label-md text-[12px] text-on-surface-variant/60">S</span>
+<div class="w-8 h-8 rounded-full bg-transparent flex items-center justify-center text-on-surface-variant font-label-md text-sm border border-white/10"></div>
+</div>
+</div>
+</section>
+<!-- Exercise List -->
+<section class="glass-panel rounded-xl flex flex-col">
+<!-- Item 1: Completed -->
+<div class="flex justify-between items-center p-glass-padding border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer">
+<span class="font-body-md text-body-md text-on-surface">Bench Press</span>
+<div class="flex items-center gap-4">
+<span class="font-label-md text-label-md text-on-surface-variant">3 x 10</span>
+<span class="material-symbols-outlined text-primary-fixed" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+</div>
+<!-- Item 2: Completed -->
+<div class="flex justify-between items-center p-glass-padding border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer">
+<span class="font-body-md text-body-md text-on-surface">Lat Pulldown</span>
+<div class="flex items-center gap-4">
+<span class="font-label-md text-label-md text-on-surface-variant">3 x 12</span>
+<span class="material-symbols-outlined text-primary-fixed" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+</div>
+<!-- Item 3: Pending -->
+<div class="flex justify-between items-center p-glass-padding border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer group">
+<span class="font-body-md text-body-md text-on-surface">Shoulder Press</span>
+<div class="flex items-center gap-4">
+<span class="font-label-md text-label-md text-on-surface-variant">3 x 10</span>
+<span class="material-symbols-outlined text-on-surface-variant/50 group-hover:text-primary-fixed/50 transition-colors">radio_button_unchecked</span>
+</div>
+</div>
+<!-- Item 4: Pending -->
+<div class="flex justify-between items-center p-glass-padding border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer group">
+<span class="font-body-md text-body-md text-on-surface">Bicep Curls</span>
+<div class="flex items-center gap-4">
+<span class="font-label-md text-label-md text-on-surface-variant">3 x 12</span>
+<span class="material-symbols-outlined text-on-surface-variant/50 group-hover:text-primary-fixed/50 transition-colors">radio_button_unchecked</span>
+</div>
+</div>
+<!-- Item 5: Pending -->
+<div class="flex justify-between items-center p-glass-padding hover:bg-white/5 transition-colors cursor-pointer group rounded-b-xl">
+<span class="font-body-md text-body-md text-on-surface">Tricep Pushdown</span>
+<div class="flex items-center gap-4">
+<span class="font-label-md text-label-md text-on-surface-variant">3 x 15</span>
+<span class="material-symbols-outlined text-on-surface-variant/50 group-hover:text-primary-fixed/50 transition-colors">radio_button_unchecked</span>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="glass-panel-heavy shadow-2xl shadow-primary-fixed/10 fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex justify-around items-center px-6 py-3 w-[92%] max-w-[400px] rounded-full md:hidden">
+<!-- Home (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant/60 hover:text-primary-fixed/80 transition-colors gap-1" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label-md text-[10px] uppercase">Home</span>
+</a>
+<!-- Quests (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant/60 hover:text-primary-fixed/80 transition-colors gap-1" href="#">
+<span class="material-symbols-outlined">rocket_launch</span>
+<span class="font-label-md text-[10px] uppercase">Quests</span>
+</a>
+<!-- Focus (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant/60 hover:text-primary-fixed/80 transition-colors gap-1" href="#">
+<span class="material-symbols-outlined">timer</span>
+<span class="font-label-md text-[10px] uppercase">Focus</span>
+</a>
+<!-- Gym (Active) -->
+<a class="flex flex-col items-center justify-center text-primary-fixed drop-shadow-[0_0_8px_rgba(195,244,0,0.5)] transform -translate-y-1 transition-all duration-300 gap-1" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">fitness_center</span>
+<span class="font-label-md text-[10px] uppercase">Gym</span>
+</a>
+<!-- Profile (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant/60 hover:text-primary-fixed/80 transition-colors gap-1" href="#">
+<span class="material-symbols-outlined">person</span>
+<span class="font-label-md text-[10px] uppercase">Profile</span>
+</a>
+</nav>
+</body></html>

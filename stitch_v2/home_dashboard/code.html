@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>ARISE - Home</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-surface-variant": "#c4c9ac",
+                        "secondary-container": "#6f00be",
+                        "inverse-primary": "#506600",
+                        "surface-dim": "#051424",
+                        "primary-fixed-dim": "#abd600",
+                        "on-surface": "#d4e4fa",
+                        "on-error": "#690005",
+                        "inverse-on-surface": "#233143",
+                        "error": "#ffb4ab",
+                        "tertiary": "#ffffff",
+                        "surface-container-lowest": "#010f1f",
+                        "outline": "#8e9379",
+                        "surface-container-low": "#0d1c2d",
+                        "surface-container-highest": "#273647",
+                        "on-secondary-fixed": "#2c0051",
+                        "secondary-fixed": "#f0dbff",
+                        "on-secondary-container": "#d6a9ff",
+                        "on-tertiary-fixed-variant": "#653e00",
+                        "on-error-container": "#ffdad6",
+                        "on-primary": "#283500",
+                        "primary-fixed": "#c3f400",
+                        "on-tertiary": "#472a00",
+                        "on-tertiary-container": "#8d5900",
+                        "primary-container": "#c3f400",
+                        "secondary-fixed-dim": "#ddb7ff",
+                        "tertiary-fixed": "#ffddb8",
+                        "tertiary-fixed-dim": "#ffb95f",
+                        "surface-container-high": "#1c2b3c",
+                        "inverse-surface": "#d4e4fa",
+                        "surface": "#051424",
+                        "outline-variant": "#444933",
+                        "surface-container": "#122131",
+                        "on-secondary-fixed-variant": "#6900b3",
+                        "surface-variant": "#273647",
+                        "surface-bright": "#2c3a4c",
+                        "on-primary-container": "#556d00",
+                        "tertiary-container": "#ffddb8",
+                        "primary": "#ffffff",
+                        "on-secondary": "#490080",
+                        "on-background": "#d4e4fa",
+                        "background": "#051424",
+                        "surface-tint": "#abd600",
+                        "on-tertiary-fixed": "#2a1700",
+                        "on-primary-fixed-variant": "#3c4d00",
+                        "error-container": "#93000a",
+                        "on-primary-fixed": "#161e00",
+                        "secondary": "#ddb7ff"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        "stack-gap": "16px",
+                        "section-margin": "32px",
+                        "glass-padding": "16px",
+                        "element-gap": "8px",
+                        "container-margin": "20px"
+                    },
+                    fontFamily: {
+                        "headline-lg": ["Hanken Grotesk"],
+                        "metric-xl": ["Hanken Grotesk"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "display-lg-mobile": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "label-md": ["JetBrains Mono"],
+                        "body-md": ["Hanken Grotesk"],
+                        "display-lg": ["Hanken Grotesk"]
+                    },
+                    fontSize: {
+                        "headline-lg": ["32px", { lineHeight: "40px", letterSpacing: "-0.01em", fontWeight: "600" }],
+                        "metric-xl": ["40px", { lineHeight: "40px", letterSpacing: "-0.03em", fontWeight: "700" }],
+                        "body-lg": ["18px", { lineHeight: "28px", fontWeight: "400" }],
+                        "display-lg-mobile": ["36px", { lineHeight: "42px", letterSpacing: "-0.02em", fontWeight: "700" }],
+                        "headline-md": ["24px", { lineHeight: "32px", fontWeight: "600" }],
+                        "label-md": ["14px", { lineHeight: "20px", letterSpacing: "0.05em", fontWeight: "500" }],
+                        "body-md": ["16px", { lineHeight: "24px", fontWeight: "400" }],
+                        "display-lg": ["48px", { lineHeight: "56px", letterSpacing: "-0.02em", fontWeight: "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: #0A0A0A; /* Level 0 base */
+            background-image: radial-gradient(circle at 50% 20%, rgba(195, 244, 0, 0.05) 0%, transparent 60%);
+            color: #d4e4fa;
+        }
+        
+        .glass-panel {
+            background: rgba(39, 54, 71, 0.4); /* Level 1 approx */
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 0.5px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .glass-panel-inner-glow {
+            border: 0.5px solid transparent;
+            background: linear-gradient(rgba(39, 54, 71, 0.4), rgba(39, 54, 71, 0.4)) padding-box,
+                        linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.05) 100%) border-box;
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+        }
+
+        .metric-glow {
+            text-shadow: 0 0 16px rgba(195, 244, 0, 0.3);
+        }
+        
+        /* Heatmap blocks */
+        .hm-0 { background-color: rgba(39, 54, 71, 0.4); }
+        .hm-1 { background-color: rgba(195, 244, 0, 0.2); }
+        .hm-2 { background-color: rgba(195, 244, 0, 0.5); }
+        .hm-3 { background-color: rgba(195, 244, 0, 0.8); }
+        .hm-4 { background-color: rgba(195, 244, 0, 1); box-shadow: 0 0 8px rgba(195, 244, 0, 0.4); }
+        
+        /* Hide scrollbar for clean UI */
+        ::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+</head>
+<body class="antialiased min-h-screen pb-32">
+<!-- TopAppBar -->
+<header class="sticky top-0 z-40 bg-surface/40 backdrop-blur-3xl border-b border-white/10 w-full px-container-margin py-4 flex justify-between items-center flat no shadows">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full overflow-hidden border border-white/20">
+<img alt="Alex" class="w-full h-full object-cover" data-alt="A detailed headshot portrait of a young professional named Alex, looking determined in a high-tech gym setting, moody lighting with a subtle electric lime edge light." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDmCVcbyyhKKy4_g7IkVoyjXjfn7X0Uhu3sDmlrKVJOInc0Hj4E31S8KNfl6TBkha0Z4OlNT8oawywNASmJjM99LnWsbwlVrcYNmycQ05Je44oaRAlvIAx6XWmeStskqJ47tjMcD9u2129OVCNx0woRGIeL_MSyExE9JGJFI64zIuckYlv4Gl7htaHMcJmfiL3mX3ziro5WT8_XRGjhMYqqfjcMyAQ2jm5X3VXYYSIwYxON7nmw4y-y"/>
+</div>
+<div>
+<p class="font-body-md text-body-md text-on-surface-variant leading-tight">Good morning,</p>
+<h1 class="font-headline-md text-headline-md text-primary leading-tight">Alex <span class="text-xl">👋</span></h1>
+</div>
+</div>
+<button class="w-10 h-10 rounded-full glass-panel-inner-glow flex items-center justify-center text-primary hover:bg-white/5 transition-colors active:scale-95 duration-200">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">notifications</span>
+</button>
+</header>
+<main class="px-container-margin pt-6 flex flex-col gap-stack-gap max-w-md mx-auto md:max-w-4xl md:grid md:grid-cols-12 md:gap-6">
+<!-- Left/Main Column on Desktop -->
+<div class="md:col-span-8 flex flex-col gap-stack-gap">
+<!-- Time & Date -->
+<section class="py-2">
+<h2 class="font-display-lg-mobile text-display-lg-mobile md:font-display-lg md:text-display-lg text-primary tracking-tighter">09:41</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant">Wednesday, 2 September</p>
+</section>
+<!-- Next Up Card -->
+<section class="glass-panel-inner-glow rounded-xl p-glass-padding relative overflow-hidden group cursor-pointer">
+<!-- Subtle background glow indicator -->
+<div class="absolute -right-10 -bottom-10 w-32 h-32 bg-primary-fixed/20 rounded-full blur-2xl"></div>
+<div class="flex justify-between items-start mb-4">
+<span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-widest text-xs">Next Up</span>
+<span class="material-symbols-outlined text-primary-fixed group-hover:translate-x-1 transition-transform">chevron_right</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-primary mb-1">Complete your</h3>
+<p class="font-headline-md text-headline-md text-primary-fixed mb-6">25 min Focus Session</p>
+<button class="bg-primary-fixed text-black font-label-md text-label-md px-6 py-2 rounded-full hover:scale-105 transition-transform duration-300 ease-out flex items-center gap-2">
+                    Start
+                    <span class="material-symbols-outlined text-sm font-bold">arrow_forward</span>
+</button>
+</section>
+<!-- Metrics Grid -->
+<section class="grid grid-cols-4 gap-2">
+<!-- Focus -->
+<div class="glass-panel-inner-glow rounded-lg p-3 flex flex-col items-center justify-center text-center">
+<span class="font-label-md text-[10px] text-on-surface-variant uppercase mb-1">Focus</span>
+<span class="font-headline-md text-xl text-primary font-bold">32m</span>
+</div>
+<!-- Workout -->
+<div class="glass-panel-inner-glow rounded-lg p-3 flex flex-col items-center justify-center text-center">
+<span class="font-label-md text-[10px] text-on-surface-variant uppercase mb-1">Workout</span>
+<span class="font-headline-md text-xl text-primary-fixed font-bold">45m</span>
+</div>
+<!-- Quests -->
+<div class="glass-panel-inner-glow rounded-lg p-3 flex flex-col items-center justify-center text-center">
+<span class="font-label-md text-[10px] text-on-surface-variant uppercase mb-1">Quests</span>
+<span class="font-headline-md text-xl text-primary font-bold">3/5</span>
+</div>
+<!-- Coins -->
+<div class="glass-panel-inner-glow rounded-lg p-3 flex flex-col items-center justify-center text-center relative overflow-hidden">
+<div class="absolute inset-0 bg-secondary-fixed/5"></div>
+<span class="font-label-md text-[10px] text-secondary-fixed-dim uppercase mb-1">Coins</span>
+<span class="font-headline-md text-xl text-secondary-fixed font-bold">1,250</span>
+</div>
+</section>
+<!-- Discipline Heatmap -->
+<section class="glass-panel-inner-glow rounded-xl p-glass-padding">
+<div class="flex justify-between items-center mb-4">
+<h3 class="font-body-md text-sm text-primary">12 Day Streak</h3>
+<span class="material-symbols-outlined text-primary-fixed text-sm">local_fire_department</span>
+</div>
+<!-- Simplified Heatmap visualization -->
+<div class="flex flex-col gap-2">
+<!-- Days row -->
+<div class="flex justify-between px-1">
+<span class="font-label-md text-[10px] text-on-surface-variant">M</span>
+<span class="font-label-md text-[10px] text-on-surface-variant">T</span>
+<span class="font-label-md text-[10px] text-on-surface-variant">W</span>
+<span class="font-label-md text-[10px] text-on-surface-variant">T</span>
+<span class="font-label-md text-[10px] text-on-surface-variant">F</span>
+<span class="font-label-md text-[10px] text-on-surface-variant">S</span>
+<span class="font-label-md text-[10px] text-on-surface-variant">S</span>
+</div>
+<!-- Week 1 (Past) -->
+<div class="flex justify-between gap-1">
+<div class="w-full aspect-square rounded-sm hm-4 flex items-center justify-center"><span class="text-[8px] text-black font-bold">4</span></div>
+<div class="w-full aspect-square rounded-sm hm-3 flex items-center justify-center"><span class="text-[8px] text-black font-bold">3</span></div>
+<div class="w-full aspect-square rounded-sm hm-4 flex items-center justify-center"><span class="text-[8px] text-black font-bold">5</span></div>
+<div class="w-full aspect-square rounded-sm hm-1 flex items-center justify-center"><span class="text-[8px] text-primary">1</span></div>
+<div class="w-full aspect-square rounded-sm hm-2 flex items-center justify-center"><span class="text-[8px] text-black">2</span></div>
+<div class="w-full aspect-square rounded-sm hm-0"></div>
+<div class="w-full aspect-square rounded-sm hm-4 flex items-center justify-center"><span class="text-[8px] text-black font-bold">4</span></div>
+</div>
+<!-- Week 2 (Current) -->
+<div class="flex justify-between gap-1 relative">
+<!-- Current day highlight -->
+<div class="absolute left-[28.5%] top-1/2 -translate-y-1/2 -translate-x-1/2 w-8 h-8 border border-primary-fixed/50 rounded-md pointer-events-none"></div>
+<div class="w-full aspect-square rounded-sm hm-3 flex items-center justify-center"><span class="text-[8px] text-black font-bold">3</span></div>
+<div class="w-full aspect-square rounded-sm hm-4 flex items-center justify-center"><span class="text-[8px] text-black font-bold">4</span></div>
+<div class="w-full aspect-square rounded-sm hm-2 flex items-center justify-center"><span class="text-[8px] text-black">2</span></div>
+<div class="w-full aspect-square rounded-sm hm-0"></div>
+<div class="w-full aspect-square rounded-sm hm-0"></div>
+<div class="w-full aspect-square rounded-sm hm-0"></div>
+<div class="w-full aspect-square rounded-sm hm-0"></div>
+</div>
+</div>
+</section>
+</div>
+<!-- Right Column on Desktop (Stacked on Mobile) -->
+<div class="md:col-span-4 flex flex-col gap-stack-gap">
+<!-- Weather Widget -->
+<section class="glass-panel-inner-glow rounded-xl p-glass-padding flex justify-between items-center cursor-pointer hover:bg-white/5 transition-colors">
+<div>
+<span class="font-label-md text-xs text-on-surface-variant block mb-1">Weather</span>
+<div class="flex items-center gap-2">
+<span class="font-headline-md text-headline-md text-primary">24°</span>
+<span class="material-symbols-outlined text-tertiary-fixed-dim" style="font-variation-settings: 'FILL' 1;">light_mode</span>
+</div>
+</div>
+<div class="text-right">
+<span class="material-symbols-outlined text-primary-fixed text-sm mb-1">arrow_forward</span>
+<p class="font-label-md text-xs text-on-surface-variant">Dhanbad</p>
+</div>
+</section>
+<!-- Quests List Preview -->
+<section class="flex-1 min-h-[300px]">
+<div class="flex justify-between items-center mb-4">
+<h3 class="font-headline-md text-lg text-primary">Today's Quests</h3>
+<span class="font-label-md text-xs text-primary-fixed">See All</span>
+</div>
+<div class="flex flex-col gap-3">
+<!-- Quest 1 -->
+<div class="glass-panel-inner-glow rounded-xl p-3 flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-secondary-fixed/10 flex items-center justify-center border border-secondary-fixed/20 shrink-0">
+<span class="material-symbols-outlined text-secondary-fixed text-lg" style="font-variation-settings: 'FILL' 1;">fitness_center</span>
+</div>
+<div class="flex-1">
+<h4 class="font-body-md text-sm text-primary font-semibold">Push-ups</h4>
+<div class="flex items-center gap-2 mt-1">
+<span class="font-label-md text-[10px] text-primary-fixed bg-primary-fixed/10 px-2 py-0.5 rounded-sm">AI Tracked</span>
+<span class="font-label-md text-[10px] text-on-surface-variant">8 / 20 reps</span>
+</div>
+</div>
+<div class="text-right shrink-0">
+<span class="font-label-md text-xs text-primary-fixed block">+50 XP</span>
+<span class="font-label-md text-xs text-secondary-fixed flex items-center justify-end gap-1">+25 <span class="material-symbols-outlined text-[10px]" style="font-variation-settings: 'FILL' 1;">monetization_on</span></span>
+</div>
+</div>
+<!-- Quest 2 -->
+<div class="glass-panel-inner-glow rounded-xl p-3 flex items-center gap-4 border-l-2 border-l-primary-fixed">
+<div class="w-10 h-10 rounded-full bg-primary-fixed/10 flex items-center justify-center border border-primary-fixed/20 shrink-0">
+<span class="material-symbols-outlined text-primary-fixed text-lg" style="font-variation-settings: 'FILL' 1;">timer</span>
+</div>
+<div class="flex-1">
+<h4 class="font-body-md text-sm text-primary font-semibold">Focus 25 min</h4>
+<div class="flex items-center gap-2 mt-1">
+<span class="font-label-md text-[10px] text-on-surface-variant border border-white/10 px-2 py-0.5 rounded-sm">Timer</span>
+<span class="font-label-md text-[10px] text-primary-fixed">12 / 25 min</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- BottomNavBar (Semantic Match: Home) -->
+<nav class="md:hidden fixed bottom-8 left-1/2 -translate-x-1/2 w-[90%] rounded-full max-w-md bg-surface-container/80 backdrop-blur-[80px] border border-white/20 shadow-2xl shadow-primary-fixed/10 z-50 flex justify-around items-center px-6 py-3">
+<!-- Home (Active) -->
+<a class="flex flex-col items-center justify-center text-primary-fixed drop-shadow-[0_0_8px_rgba(171,214,0,0.5)] transform -translate-y-1 transition-all duration-300 hover:text-primary-fixed/80" href="#">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 1;">home</span>
+<span class="font-label-md-mobile text-[10px] font-label-md">Home</span>
+</a>
+<!-- Quests -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant/60 hover:text-primary-fixed/80 transition-colors" href="#">
+<span class="material-symbols-outlined mb-1">rocket_launch</span>
+<span class="font-label-md-mobile text-[10px] font-label-md">Quests</span>
+</a>
+<!-- Focus -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant/60 hover:text-primary-fixed/80 transition-colors" href="#">
+<span class="material-symbols-outlined mb-1">timer</span>
+<span class="font-label-md-mobile text-[10px] font-label-md">Focus</span>
+</a>
+<!-- Gym -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant/60 hover:text-primary-fixed/80 transition-colors" href="#">
+<span class="material-symbols-outlined mb-1">fitness_center</span>
+<span class="font-label-md-mobile text-[10px] font-label-md">Gym</span>
+</a>
+<!-- Profile -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant/60 hover:text-primary-fixed/80 transition-colors" href="#">
+<span class="material-symbols-outlined mb-1">person</span>
+<span class="font-label-md-mobile text-[10px] font-label-md">Profile</span>
+</a>
+</nav>
+<!-- Desktop SideNav (Hidden on Mobile, placeholder for structural intent) -->
+<nav class="hidden md:flex flex-col fixed left-0 top-0 h-full w-20 bg-surface/40 backdrop-blur-3xl border-r border-white/10 pt-24 pb-8 items-center justify-between z-30">
+<div class="flex flex-col gap-8">
+<a class="flex flex-col items-center justify-center text-primary-fixed drop-shadow-[0_0_8px_rgba(171,214,0,0.5)]" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant/60 hover:text-primary-fixed" href="#">
+<span class="material-symbols-outlined">rocket_launch</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant/60 hover:text-primary-fixed" href="#">
+<span class="material-symbols-outlined">timer</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant/60 hover:text-primary-fixed" href="#">
+<span class="material-symbols-outlined">fitness_center</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant/60 hover:text-primary-fixed" href="#">
+<span class="material-symbols-outlined">person</span>
+</a>
+</div>
+</nav>
+</body></html>

@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>ARISE - Focus</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-surface-variant": "#c4c9ac",
+                        "secondary-container": "#6f00be",
+                        "inverse-primary": "#506600",
+                        "surface-dim": "#051424",
+                        "primary-fixed-dim": "#abd600",
+                        "on-surface": "#d4e4fa",
+                        "on-error": "#690005",
+                        "inverse-on-surface": "#233143",
+                        "error": "#ffb4ab",
+                        "tertiary": "#ffffff",
+                        "surface-container-lowest": "#010f1f",
+                        "outline": "#8e9379",
+                        "surface-container-low": "#0d1c2d",
+                        "surface-container-highest": "#273647",
+                        "on-secondary-fixed": "#2c0051",
+                        "secondary-fixed": "#f0dbff",
+                        "on-secondary-container": "#d6a9ff",
+                        "on-tertiary-fixed-variant": "#653e00",
+                        "on-error-container": "#ffdad6",
+                        "on-primary": "#283500",
+                        "primary-fixed": "#c3f400",
+                        "on-tertiary": "#472a00",
+                        "on-tertiary-container": "#8d5900",
+                        "primary-container": "#c3f400",
+                        "secondary-fixed-dim": "#ddb7ff",
+                        "tertiary-fixed": "#ffddb8",
+                        "tertiary-fixed-dim": "#ffb95f",
+                        "surface-container-high": "#1c2b3c",
+                        "inverse-surface": "#d4e4fa",
+                        "surface": "#051424",
+                        "outline-variant": "#444933",
+                        "surface-container": "#122131",
+                        "on-secondary-fixed-variant": "#6900b3",
+                        "surface-variant": "#273647",
+                        "surface-bright": "#2c3a4c",
+                        "on-primary-container": "#556d00",
+                        "tertiary-container": "#ffddb8",
+                        "primary": "#ffffff",
+                        "on-secondary": "#490080",
+                        "on-background": "#d4e4fa",
+                        "background": "#0A0A0A",
+                        "surface-tint": "#abd600",
+                        "on-tertiary-fixed": "#2a1700",
+                        "on-primary-fixed-variant": "#3c4d00",
+                        "error-container": "#93000a",
+                        "on-primary-fixed": "#161e00",
+                        "secondary": "#ddb7ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "stack-gap": "16px",
+                        "section-margin": "32px",
+                        "glass-padding": "16px",
+                        "element-gap": "8px",
+                        "container-margin": "20px"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Hanken Grotesk"],
+                        "metric-xl": ["Hanken Grotesk"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "display-lg-mobile": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "label-md": ["JetBrains Mono"],
+                        "body-md": ["Hanken Grotesk"],
+                        "display-lg": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "metric-xl": ["40px", { "lineHeight": "40px", "letterSpacing": "-0.03em", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "display-lg-mobile": ["36px", { "lineHeight": "42px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "500" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.fill {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        .ambient-glow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(111, 0, 190, 0.4) 0%, rgba(111, 0, 190, 0) 70%);
+            z-index: 0;
+            pointer-events: none;
+        }
+        
+        .glass-panel {
+            background: rgba(5, 20, 36, 0.4);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 0.5px solid rgba(255, 255, 255, 0.1);
+            box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.05);
+        }
+
+        .timer-ring {
+            stroke-dasharray: 879; /* 2 * pi * 140 */
+            stroke-dashoffset: 200;
+            transition: stroke-dashoffset 1s linear;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen flex flex-col font-body-md overflow-hidden relative">
+<!-- Ambient Background Glow -->
+<div class="ambient-glow"></div>
+<!-- TopAppBar -->
+<header class="flex justify-between items-center w-full px-container-margin py-4 bg-surface/40 backdrop-blur-3xl z-10 hidden md:flex">
+<div class="flex items-center gap-element-gap">
+<img alt="Avatar" class="w-10 h-10 rounded-full object-cover border border-white/10" data-alt="A detailed headshot portrait of an individual in a high-tech athletic environment, stark lighting, dark mode aesthetic, vibrant energetic undertones, highly detailed texture, realistic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA_7yp8pdD4LyclNrcPsEaeUWICpTwigFIRC46-PiK_Mv08rnmlbOu5oPmxHmH57sFAAUhtTzK8j3BqHEprsgSrILjucnX9ZAy2rWNXPzzNaXjtqaTMXbzosffIa57aFh1eumJhQ9ZbVwOJDVb5SB1-XD_XtyaPKf6oDwiQHgzJOT1xd3ka5n-fA2D7874BQ3ePLr9QOdRaW_I4p_H54YpqYSV1_RXt6bsBjyVuJrQbcy3F6fMq3BnJ"/>
+</div>
+<div class="font-headline-lg font-bold tracking-tighter text-primary-container">ARISE</div>
+<div>
+<span class="material-symbols-outlined text-primary text-2xl hover:bg-white/5 transition-colors p-2 rounded-full cursor-pointer">notifications</span>
+</div>
+</header>
+<!-- Mobile Header Replacement for pure Focus layout -->
+<div class="md:hidden flex justify-between items-center px-container-margin pt-6 pb-2 z-10 relative">
+<h1 class="font-headline-md text-on-surface">Focus</h1>
+<div class="flex gap-element-gap">
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer">music_note</span>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer">settings</span>
+</div>
+</div>
+<!-- Main Content Canvas -->
+<main class="flex-grow flex flex-col items-center justify-center px-container-margin relative z-10">
+<!-- Deep Focus Badge -->
+<div class="glass-panel px-4 py-1.5 rounded-full flex items-center gap-2 mb-8 cursor-pointer hover:bg-white/5 transition-colors">
+<span class="font-label-md text-on-surface text-xs uppercase tracking-wider">Deep Focus</span>
+<span class="material-symbols-outlined text-on-surface-variant text-sm">expand_more</span>
+</div>
+<!-- Timer Display -->
+<div class="relative w-[300px] h-[300px] flex items-center justify-center mb-12">
+<!-- Progress Ring SVG -->
+<svg class="absolute inset-0 w-full h-full transform -rotate-90" viewbox="0 0 300 300">
+<!-- Track -->
+<circle cx="150" cy="150" fill="none" r="140" stroke="rgba(204, 255, 0, 0.1)" stroke-width="8"></circle>
+<!-- Progress -->
+<circle class="timer-ring" cx="150" cy="150" fill="none" r="140" stroke="url(#gradient)" stroke-linecap="round" stroke-width="8"></circle>
+<defs>
+<lineargradient id="gradient" x1="0%" x2="100%" y1="0%" y2="100%">
+<stop offset="0%" stop-color="#CCFF00"></stop>
+<stop offset="100%" stop-color="#6f00be"></stop>
+</lineargradient>
+</defs>
+</svg>
+<div class="flex flex-col items-center">
+<div class="font-metric-xl text-6xl tracking-tighter text-white mb-2" style="font-feature-settings: 'tnum';">24:58</div>
+<div class="font-body-md text-on-surface-variant text-sm">Time left</div>
+</div>
+</div>
+<!-- Controls -->
+<div class="flex items-center gap-8 mb-12">
+<button class="w-12 h-12 rounded-full flex items-center justify-center text-on-surface-variant hover:text-white transition-colors">
+<span class="material-symbols-outlined text-2xl">refresh</span>
+</button>
+<button class="w-16 h-16 rounded-full bg-primary-fixed text-background flex items-center justify-center hover:scale-105 transition-transform duration-300 shadow-[0_0_20px_rgba(204,255,0,0.3)]">
+<span class="material-symbols-outlined fill text-3xl">pause</span>
+</button>
+<button class="w-12 h-12 rounded-full flex items-center justify-center text-on-surface-variant hover:text-white transition-colors">
+<span class="material-symbols-outlined text-2xl">update</span>
+</button>
+</div>
+<!-- Stats Row -->
+<div class="w-full max-w-sm grid grid-cols-3 gap-element-gap glass-panel rounded-xl p-4">
+<div class="flex flex-col items-center">
+<span class="font-headline-md text-white">32m</span>
+<span class="font-label-md text-on-surface-variant text-xs">Focus</span>
+</div>
+<div class="flex flex-col items-center border-l border-r border-white/5">
+<span class="font-headline-md text-white">2</span>
+<span class="font-label-md text-on-surface-variant text-xs">Sessions</span>
+</div>
+<div class="flex flex-col items-center">
+<span class="font-headline-md text-white">12</span>
+<span class="font-label-md text-on-surface-variant text-xs">Streak</span>
+</div>
+</div>
+</main>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] rounded-full max-w-md bg-surface-container/80 backdrop-blur-[80px] border border-white/20 shadow-2xl shadow-primary-fixed/10 z-50 flex justify-around items-center px-6 py-3 pb-8">
+<!-- Inactive -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant/60 hover:text-primary-fixed/80 transition-colors gap-1" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label-md text-[10px]">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant/60 hover:text-primary-fixed/80 transition-colors gap-1" href="#">
+<span class="material-symbols-outlined">rocket_launch</span>
+<span class="font-label-md text-[10px]">Quests</span>
+</a>
+<!-- Active -->
+<a class="flex flex-col items-center justify-center text-primary-fixed drop-shadow-[0_0_8px_rgba(171,214,0,0.5)] transform -translate-y-1 transition-all duration-300 gap-1" href="#">
+<span class="material-symbols-outlined fill">timer</span>
+<span class="font-label-md text-[10px]">Focus</span>
+</a>
+<!-- Inactive -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant/60 hover:text-primary-fixed/80 transition-colors gap-1" href="#">
+<span class="material-symbols-outlined">fitness_center</span>
+<span class="font-label-md text-[10px]">Gym</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant/60 hover:text-primary-fixed/80 transition-colors gap-1" href="#">
+<span class="material-symbols-outlined">person</span>
+<span class="font-label-md text-[10px]">Profile</span>
+</a>
+</nav>
+</body></html>

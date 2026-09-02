@@ -35,6 +35,7 @@ import { screenTimerService, appBlockerService } from '../../src/native';
 import { voiceCoach } from '../../src/services/voiceCoach';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useSound } from '../../src/hooks/useSound';
+import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
 import { colors } from '../../src/theme/colors';
 
 interface ShopItem {
@@ -197,7 +198,7 @@ export default function ShopScreen() {
       setSuccessItem(item);
     } catch (e) {
       console.warn('Purchase error:', e);
-      Alert.alert('Purchase Error', 'Could not complete transaction.');
+      showIOSAlert('Purchase Error', 'Could not complete transaction.');
     } finally {
       setPurchasingId(null);
     }

@@ -191,7 +191,14 @@ export default function QuestsTab() {
                     >
                       {/* Checkbox button */}
                       <TouchableOpacity
-                        onPress={() => !isDone && handleComplete(q.id)}
+                        onPress={() => {
+                          if (isDone) return;
+                          if (isExercise) {
+                            handleCardPress();
+                          } else {
+                            handleComplete(q.id);
+                          }
+                        }}
                         style={[
                           styles.checkboxBtn,
                           { borderColor: isDone ? colors.primary : colors.border },
@@ -199,7 +206,7 @@ export default function QuestsTab() {
                         ]}
                         activeOpacity={0.7}
                       >
-                        {isDone && <Check size={14} color="#000" strokeWidth={3} />}
+                        {isDone && <Check size={13} color="#000" strokeWidth={3} />}
                       </TouchableOpacity>
 
                       {/* Content */}

@@ -5,74 +5,62 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
   Dumbbell,
-  Clock,
-  Coins,
-  Trophy,
   Play,
-  Calendar,
   Flame,
-  Brain,
-  Shield,
-  BookOpen,
-  Sparkles,
   Sliders,
   CheckCircle2,
   ChevronRight,
-  HelpCircle,
+  Camera,
+  X,
+  Award,
+  Zap,
 } from 'lucide-react-native';
-import { GlowCard } from '../../src/components/design-system/GlowCard';
-import { GlowButton } from '../../src/components/design-system/GlowButton';
+import { GlassCard } from '../../src/components/ios/GlassCard';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
-import { useQuestStore } from '../../src/stores/useQuestStore';
 import { useGymStore } from '../../src/stores/useGymStore';
-import { historyService, HistoryEntry } from '../../src/services/historyService';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTheme } from '../../src/hooks/useTheme';
 
-export default function GymAndTelemetryScreen() {
+const DAYS_OF_WEEK = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+const EXERCISES_LIST = [
+  { id: '1', name: 'Push-ups', type: 'PUSHUP', sets: '4 Sets', reps: '20 Reps', category: 'Chest & Triceps' },
+  { id: '2', name: 'Bodyweight Squats', type: 'SQUAT', sets: '4 Sets', reps: '25 Reps', category: 'Quads & Glutes' },
+  { id: '3', name: 'Pull-ups', type: 'PULLUP', sets: '3 Sets', reps: '10 Reps', category: 'Back & Lats' },
+  { id: '4', name: 'Plank Hold', type: 'PLANK', sets: '3 Sets', reps: '60 Sec', category: 'Core & Stability' },
+  { id: '5', name: 'Jumping Jacks', type: 'JUMPING_JACK', sets: '3 Sets', reps: '30 Reps', category: 'Cardio & Stamina' },
+];
+
+export default function GymWorkoutScreen() {
   const router = useRouter();
   const haptics = useHaptics();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
 
-  const [activeTab, setActiveTab] = useState<'gym' | 'telemetry' | 'history'>('gym');
+  const [activeTab, setActiveTab] = useState<'workout' | 'telemetry' | 'prs'>('workout');
   const [isPrefModalOpen, setIsPrefModalOpen] = useState<boolean>(false);
 
   const profile = usePlayerStore((s) => s.profile);
   const loadProfile = usePlayerStore((s) => s.loadProfile);
-  const dailyQuests = useQuestStore((s) => s.dailyQuests);
-  const loadQuests = useQuestStore((s) => s.loadQuests);
-
-  const preferences = useGymStore((s) => s.preferences);
-  const activePlan = useGymStore((s) => s.activePlan);
-  const todayWorkout = useGymStore((s) => s.todayWorkout);
-  const personalRecords = useGymStore((s) => s.personalRecords);
-  const workoutHistory = useGymStore((s) => s.workoutHistory);
   const loadGymData = useGymStore((s) => s.loadGymData);
+  const preferences = useGymStore((s) => s.preferences);
   const savePreferences = useGymStore((s) => s.savePreferences);
 
-  // Preference form state
   const [prefGoal, setPrefGoal] = useState<any>('strength');
-  const [prefExp, setPrefExp] = useState<any>('beginner');
-  const [prefEquip, setPrefEquip] = useState<any>('full_gym');
   const [prefDays, setPrefDays] = useState<number>(4);
   const [prefDuration, setPrefDuration] = useState<number>(45);
 
-  const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
+  const todayDayIndex = (new Date().getDay() + 6) % 7; // Monday = 0
 
   const loadAll = async () => {
     try {
       await loadProfile();
-      await loadQuests();
       await loadGymData();
-      const hist = await historyService.getActivityHistory(30);
-      setHistoryEntries(hist);
     } catch (e) {
       console.warn('Error loading gym tab data:', e);
     }
@@ -88,53 +76,30 @@ export default function GymAndTelemetryScreen() {
     loadAll();
   }, []);
 
-  useEffect(() => {
-    if (preferences) {
-      setPrefGoal(preferences.goal);
-      setPrefExp(preferences.experience);
-      setPrefEquip(preferences.equipment);
-      setPrefDays(preferences.daysPerWeek);
-      setPrefDuration(preferences.workoutDurationMinutes);
-    }
-  }, [preferences]);
-
-  const handleSavePreferences = async () => {
+  const handleStartExercise = (exerciseType: string, targetReps: number) => {
     haptics.heavy();
-    await savePreferences({
-      goal: prefGoal,
-      experience: prefExp,
-      equipment: prefEquip,
-      daysPerWeek: prefDays,
-      workoutDurationMinutes: prefDuration,
-    });
-    setIsPrefModalOpen(false);
+    router.push({
+      pathname: '/exercise/[type]',
+      params: {
+        type: exerciseType,
+        target: targetReps,
+      },
+    } as any);
   };
-
-  const handleStartWorkout = () => {
-    haptics.heavy();
-    router.push('/gym/session' as any);
-  };
-
-  const todayDayOfWeek = new Date().getDay();
-  const strength = profile?.strength || 0;
-  const discipline = profile?.discipline || 0;
-  const focusAttr = profile?.focus || 0;
-  const health = profile?.health || 0;
-  const knowledge = profile?.knowledge || 0;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: isDark ? '#051424' : '#F2F2F7' }]}>
       <SafeAreaView style={styles.safeArea}>
-        {/* Header */}
-        <View style={styles.header}>
+        {/* Top App Bar */}
+        <View style={[styles.topHeader, { borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)' }]}>
           <View>
-            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>GYM & PROTOCOL</Text>
-            <Text style={[styles.headerSub, { color: colors.textSecondary }]}>
-              Physical power, muscle hypertrophy & training logs
+            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Gym</Text>
+            <Text style={[styles.headerSub, { color: colors.textMuted }]}>
+              Physical power & AI pose tracking
             </Text>
           </View>
           <TouchableOpacity
-            style={[styles.configIconBtn, { backgroundColor: colors.surfaceLight, borderColor: colors.border }]}
+            style={[styles.circleBtn, { backgroundColor: isDark ? 'rgba(39, 54, 71, 0.45)' : 'rgba(0, 0, 0, 0.04)', borderColor: colors.border }]}
             onPress={() => {
               haptics.light();
               setIsPrefModalOpen(true);
@@ -144,376 +109,143 @@ export default function GymAndTelemetryScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Tab Filters */}
-        <View style={[styles.tabBar, { borderBottomColor: colors.border }]}>
-          {(['gym', 'telemetry', 'history'] as const).map((tab) => {
-            const isActive = activeTab === tab;
-            return (
-              <TouchableOpacity
-                key={tab}
-                style={[styles.tabBtn, isActive && styles.tabBtnActive]}
-                onPress={() => {
-                  haptics.light();
-                  setActiveTab(tab);
-                }}
-              >
-                <Text
-                  style={[
-                    styles.tabText,
-                    { color: isActive ? colors.primary : colors.textMuted },
-                    isActive && { fontWeight: '900' },
-                  ]}
-                >
-                  {tab === 'gym' ? 'WORKOUT PROTOCOL' : tab === 'telemetry' ? 'ATTRIBUTES' : 'LOGS'}
-                </Text>
-                {isActive && <View style={[styles.tabIndicator, { backgroundColor: colors.primary }]} />}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* ================= 1. GYM PROTOCOL TAB ================= */}
-          {activeTab === 'gym' && (
-            <View style={{ gap: 16 }}>
-              {/* Today's Workout Hero Card */}
-              <GlowCard variant="glow" style={styles.todayHeroCard}>
-                <View style={styles.heroTopBadgeRow}>
-                  <View style={styles.todayBadge}>
-                    <View style={[styles.liveDot, { backgroundColor: colors.primary }]} />
-                    <Text style={[styles.todayBadgeText, { color: colors.primary }]}>TODAY'S MISSION</Text>
-                  </View>
-                  <Text style={[styles.heroPlanTitle, { color: colors.textSecondary }]}>
-                    {activePlan?.splitType.toUpperCase() || 'PPL'} PROTOCOL
-                  </Text>
-                </View>
+          {/* Stitch v2 Hero Workout Card */}
+          <GlassCard variant="elevated" style={styles.heroCard}>
+            <View style={styles.heroTopRow}>
+              <Text style={[styles.heroLabel, { color: colors.primary }]}>TODAY'S WORKOUT</Text>
+              <Dumbbell size={18} color={colors.primary} />
+            </View>
 
-                <Text style={[styles.todayWorkoutName, { color: colors.textPrimary }]}>
-                  {todayWorkout?.dayName || 'Rest & Restoration'}
+            <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>Upper Body</Text>
+            <Text style={[styles.heroSubtitle, { color: colors.textMuted }]}>
+              45 min • 5 exercises
+            </Text>
+
+            {/* Progress Indicator */}
+            <View style={styles.heroProgressWrap}>
+              <View style={styles.heroProgressLabels}>
+                <Text style={[styles.heroProgressCount, { color: colors.textSecondary }]}>
+                  2 / 5 Completed
                 </Text>
-
-                {todayWorkout?.isRestDay ? (
-                  <View style={styles.restDayInfoBox}>
-                    <Sparkles size={20} color={colors.secondary} />
-                    <Text style={[styles.restDayText, { color: colors.textSecondary }]}>
-                      Scheduled active recovery day. Focus on hydration, mobility, and recovery.
-                    </Text>
-                  </View>
-                ) : (
-                  <>
-                    <Text style={[styles.targetMusclesText, { color: colors.secondary }]}>
-                      Focus: {todayWorkout?.targetMuscleGroups.join(' • ') || 'Full Body'}
-                    </Text>
-
-                    {/* Quick Exercise Preview */}
-                    <View style={styles.exercisesPreviewList}>
-                      {todayWorkout?.exercises.slice(0, 4).map((ex, idx) => (
-                        <View key={ex.id} style={styles.exPreviewRow}>
-                          <Text style={[styles.exPreviewNum, { color: colors.textMuted }]}>0{idx + 1}</Text>
-                          <Text style={[styles.exPreviewName, { color: colors.textPrimary }]}>{ex.exerciseName}</Text>
-                          <Text style={[styles.exPreviewSets, { color: colors.primary }]}>
-                            {ex.targetSets} × {ex.targetReps}
-                          </Text>
-                        </View>
-                      ))}
-                    </View>
-
-                    <GlowButton
-                      title="START WORKOUT SESSION"
-                      onPress={handleStartWorkout}
-                      variant="primary"
-                      size="lg"
-                      icon={<Play size={18} color="#000" />}
-                      style={{ marginTop: 6 }}
-                    />
-                  </>
-                )}
-              </GlowCard>
-
-              {/* Weekly Split Capsule Timeline */}
-              <View style={styles.weeklyTimelineSection}>
-                <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>7-DAY PROTOCOL SCHEDULE</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scheduleRow}>
-                  {activePlan?.days.map((d) => {
-                    const isToday = d.dayOfWeek === todayDayOfWeek;
-                    const daysMap = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-
-                    return (
-                      <View
-                        key={d.id}
-                        style={[
-                          styles.dayCapsule,
-                          { backgroundColor: colors.card, borderColor: colors.border },
-                          isToday && { borderColor: colors.primary, backgroundColor: 'rgba(209, 255, 0, 0.1)' },
-                        ]}
-                      >
-                        <Text style={[styles.dayCapsuleDay, { color: isToday ? colors.primary : colors.textMuted }]}>
-                          {daysMap[d.dayOfWeek]}
-                        </Text>
-                        <Text style={[styles.dayCapsuleTitle, { color: colors.textPrimary }]} numberOfLines={2}>
-                          {d.isRestDay ? 'Rest' : d.dayName.split(' ')[0]}
-                        </Text>
-                        <View
-                          style={[
-                            styles.dayCapsuleIndicator,
-                            { backgroundColor: d.isRestDay ? colors.textMuted : colors.primary },
-                          ]}
-                        />
-                      </View>
-                    );
-                  })}
-                </ScrollView>
+                <Text style={[styles.heroProgressPercent, { color: colors.primary }]}>40%</Text>
               </View>
-
-              {/* Personal Records Showcase */}
-              <View style={styles.prSection}>
-                <View style={styles.prHeaderRow}>
-                  <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>PERSONAL RECORDS (PRs)</Text>
-                  <Trophy size={16} color={colors.accentGold} />
-                </View>
-
-                {personalRecords.length === 0 ? (
-                  <GlowCard variant="default" style={styles.emptyPrCard}>
-                    <Trophy size={28} color={colors.textMuted} />
-                    <Text style={[styles.emptyPrTitle, { color: colors.textPrimary }]}>No Records Logged Yet</Text>
-                    <Text style={[styles.emptyPrSub, { color: colors.textSecondary }]}>
-                      Log sets with heavy weights to automatically establish your personal records.
-                    </Text>
-                  </GlowCard>
-                ) : (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
-                    {personalRecords.map((pr) => (
-                      <GlowCard key={pr.id} variant="default" style={styles.prCard}>
-                        <View style={styles.prCardTop}>
-                          <Trophy size={16} color={colors.accentGold} />
-                          <Text style={[styles.prRecordVal, { color: colors.primary }]}>{pr.weightKg} KG</Text>
-                        </View>
-                        <Text style={[styles.prExName, { color: colors.textPrimary }]}>{pr.exerciseName}</Text>
-                        <Text style={[styles.prDate, { color: colors.textMuted }]}>
-                          {new Date(pr.achievedAt).toLocaleDateString()}
-                        </Text>
-                      </GlowCard>
-                    ))}
-                  </ScrollView>
-                )}
-              </View>
-
-              {/* Workout History */}
-              <View style={{ gap: 10 }}>
-                <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>
-                  WORKOUT SESSIONS LOG ({workoutHistory.length})
-                </Text>
-
-                {workoutHistory.length === 0 ? (
-                  <GlowCard variant="default" style={styles.emptyHistoryCard}>
-                    <Dumbbell size={28} color={colors.textMuted} />
-                    <Text style={[styles.emptyHistoryTitle, { color: colors.textPrimary }]}>
-                      No Workouts Completed Yet
-                    </Text>
-                    <Text style={[styles.emptyHistorySub, { color: colors.textSecondary }]}>
-                      Complete your first workout session to earn Coins, XP, and record your lifting volume.
-                    </Text>
-                  </GlowCard>
-                ) : (
-                  workoutHistory.map((s) => (
-                    <GlowCard key={s.id} variant="default" style={styles.sessionHistoryCard}>
-                      <View style={[styles.sessionIconCircle, { backgroundColor: colors.surfaceLight }]}>
-                        <Dumbbell size={18} color={colors.primary} />
-                      </View>
-                      <View style={{ flex: 1, gap: 2 }}>
-                        <Text style={[styles.sessionHistoryTitle, { color: colors.textPrimary }]}>{s.title}</Text>
-                        <Text style={[styles.sessionHistoryMeta, { color: colors.textSecondary }]}>
-                          {Math.round(s.durationSeconds / 60)} mins • {s.totalSets} sets • {Math.round(s.totalVolumeKg)}kg volume
-                        </Text>
-                        <Text style={[styles.sessionHistoryDate, { color: colors.textMuted }]}>
-                          {new Date(s.startTime).toLocaleDateString()}
-                        </Text>
-                      </View>
-                      <View style={[styles.rewardPill, { backgroundColor: 'rgba(209, 255, 0, 0.15)' }]}>
-                        <Text style={[styles.rewardPillText, { color: colors.primary }]}>+{s.rewardCoins} 🪙</Text>
-                      </View>
-                    </GlowCard>
-                  ))
-                )}
+              <View style={[styles.progressBarTrack, { backgroundColor: isDark ? 'rgba(204, 255, 0, 0.12)' : 'rgba(0, 0, 0, 0.06)' }]}>
+                <View style={[styles.progressBarFill, { width: '40%', backgroundColor: colors.primary }]} />
               </View>
             </View>
-          )}
 
-          {/* ================= 2. ATTRIBUTES TELEMETRY TAB ================= */}
-          {activeTab === 'telemetry' && (
-            <View style={{ gap: 14 }}>
-              <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>WARRIOR ATTRIBUTES MATRIX</Text>
+            {/* Continue Button in Solid Electric Lime */}
+            <TouchableOpacity
+              style={[styles.continueBtn, { backgroundColor: colors.primary }]}
+              onPress={() => handleStartExercise('PUSHUP', 20)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.continueBtnText}>Continue</Text>
+              <Play size={16} color="#000000" fill="#000000" />
+            </TouchableOpacity>
+          </GlassCard>
 
-              {[
-                { name: 'Strength', desc: 'Workout volume, max load & calisthenics', lv: strength, icon: Dumbbell, color: colors.danger },
-                { name: 'Discipline', desc: 'Daily quests, habits & consecutive streaks', lv: discipline, icon: Flame, color: colors.primary },
-                { name: 'Focus', desc: 'Deep concentration sprints & app locking', lv: focusAttr, icon: Brain, color: colors.secondary },
-                { name: 'Health', desc: 'Recovery, mobility & physical vitality', lv: health, icon: Shield, color: colors.danger },
-                { name: 'Knowledge', desc: 'Mindful execution & technical discipline', lv: knowledge, icon: BookOpen, color: colors.accentGold },
-              ].map((attr) => {
-                const IconC = attr.icon;
+          {/* Stitch v2 Weekly Tracker ("This Week") */}
+          <GlassCard variant="default" style={styles.weeklyTrackerCard}>
+            <Text style={[styles.weeklyTitle, { color: colors.textMuted }]}>This Week</Text>
+            <View style={styles.weekDaysRow}>
+              {DAYS_OF_WEEK.map((day, idx) => {
+                const isToday = idx === todayDayIndex;
+                const isCompleted = idx < todayDayIndex;
+
                 return (
-                  <GlowCard key={attr.name} variant="default" style={styles.attrCard}>
-                    <View style={[styles.attrIconCircle, { backgroundColor: 'rgba(255, 255, 255, 0.05)' }]}>
-                      <IconC size={20} color={attr.color} />
+                  <View key={idx} style={styles.dayCol}>
+                    <Text
+                      style={[
+                        styles.dayText,
+                        { color: isToday ? colors.primary : colors.textMuted },
+                        isToday && { fontWeight: '800' },
+                      ]}
+                    >
+                      {day}
+                    </Text>
+                    <View
+                      style={[
+                        styles.dayCircle,
+                        {
+                          backgroundColor: isToday
+                            ? colors.primary
+                            : isCompleted
+                            ? isDark
+                              ? 'rgba(39, 54, 71, 0.7)'
+                              : 'rgba(0, 0, 0, 0.06)'
+                            : 'transparent',
+                          borderColor: isToday ? colors.primary : colors.border,
+                        },
+                      ]}
+                    >
+                      {isCompleted && <CheckCircle2 size={12} color={colors.primary} />}
+                      {isToday && <Text style={styles.todayDayNum}>{new Date().getDate()}</Text>}
                     </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.attrName, { color: colors.textPrimary }]}>{attr.name}</Text>
-                      <Text style={[styles.attrDesc, { color: colors.textSecondary }]}>{attr.desc}</Text>
-                    </View>
-                    <Text style={[styles.attrLv, { color: attr.color }]}>Lv. {attr.lv}</Text>
-                  </GlowCard>
+                  </View>
                 );
               })}
             </View>
-          )}
+          </GlassCard>
 
-          {/* ================= 3. LOGS TIMELINE TAB ================= */}
-          {activeTab === 'history' && (
-            <View style={{ gap: 12 }}>
-              <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>ACTIVITY FEED</Text>
+          {/* Exercises Routine List with Direct AI Camera Buttons */}
+          <View style={styles.exerciseSection}>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+              Workout Exercises
+            </Text>
 
-              {historyEntries.length === 0 ? (
-                <GlowCard variant="default" style={styles.emptyHistoryCard}>
-                  <Sparkles size={32} color={colors.textMuted} />
-                  <Text style={[styles.emptyHistoryTitle, { color: colors.textPrimary }]}>No Activity Logged</Text>
-                  <Text style={[styles.emptyHistorySub, { color: colors.textSecondary }]}>
-                    All workouts, focus sprints, and coin transactions will appear here chronologically.
+            {EXERCISES_LIST.map((ex) => (
+              <GlassCard key={ex.id} variant="default" style={styles.exerciseCard}>
+                <View style={styles.exerciseInfoCol}>
+                  <Text style={[styles.exerciseName, { color: colors.textPrimary }]}>{ex.name}</Text>
+                  <Text style={[styles.exerciseCategory, { color: colors.textMuted }]}>
+                    {ex.category} • {ex.sets} × {ex.reps}
                   </Text>
-                </GlowCard>
-              ) : (
-                historyEntries.map((entry) => (
-                  <GlowCard key={entry.id} variant="default" style={styles.sessionHistoryCard}>
-                    <View style={[styles.sessionIconCircle, { backgroundColor: colors.surfaceLight }]}>
-                      <Coins size={16} color={colors.primary} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.sessionHistoryTitle, { color: colors.textPrimary }]}>{entry.title}</Text>
-                      <Text style={[styles.sessionHistoryMeta, { color: colors.textSecondary }]}>{entry.subtitle}</Text>
-                    </View>
-                    {entry.rewardCoins ? (
-                      <View style={[styles.rewardPill, { backgroundColor: 'rgba(209, 255, 0, 0.1)' }]}>
-                        <Text style={[styles.rewardPillText, { color: colors.primary }]}>
-                          {entry.rewardCoins > 0 ? `+${entry.rewardCoins}` : `${entry.rewardCoins}`} 🪙
-                        </Text>
-                      </View>
-                    ) : null}
-                  </GlowCard>
-                ))
-              )}
-            </View>
-          )}
+                </View>
 
-          <View style={{ height: 100 }} />
+                <TouchableOpacity
+                  style={[styles.aiCamBtn, { backgroundColor: isDark ? 'rgba(204, 255, 0, 0.12)' : 'rgba(16, 185, 129, 0.12)', borderColor: colors.primary }]}
+                  onPress={() => handleStartExercise(ex.type, parseInt(ex.reps, 10) || 20)}
+                  activeOpacity={0.8}
+                >
+                  <Camera size={14} color={colors.primary} />
+                  <Text style={[styles.aiCamBtnText, { color: colors.primary }]}>AI TRACK</Text>
+                </TouchableOpacity>
+              </GlassCard>
+            ))}
+          </View>
+
+          <View style={{ height: 110 }} />
         </ScrollView>
 
-        {/* Workout Plan Preferences Modal */}
+        {/* Preferences Modal */}
         <Modal visible={isPrefModalOpen} transparent animationType="slide">
           <View style={styles.modalOverlay}>
-            <View style={[styles.prefModalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Text style={[styles.prefModalTitle, { color: colors.textPrimary }]}>CONFIG WORKOUT PROTOCOL</Text>
-
-              {/* Goal */}
-              <View style={styles.prefGroup}>
-                <Text style={[styles.prefLabel, { color: colors.textMuted }]}>PRIMARY FITNESS GOAL</Text>
-                <View style={styles.prefOptionsRow}>
-                  {['strength', 'muscle_gain', 'fat_loss', 'general_fitness'].map((g) => (
-                    <TouchableOpacity
-                      key={g}
-                      onPress={() => setPrefGoal(g)}
-                      style={[
-                        styles.prefOptionPill,
-                        { backgroundColor: colors.surfaceLight, borderColor: colors.border },
-                        prefGoal === g && { backgroundColor: colors.primary, borderColor: colors.primary },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.prefOptionText,
-                          { color: colors.textSecondary },
-                          prefGoal === g && { color: '#000', fontWeight: '900' },
-                        ]}
-                      >
-                        {g.replace('_', ' ').toUpperCase()}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+            <GlassCard variant="elevated" style={styles.modalSheet}>
+              <View style={styles.modalHeader}>
+                <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Training Settings</Text>
+                <TouchableOpacity onPress={() => setIsPrefModalOpen(false)} style={styles.circleBtn}>
+                  <X size={18} color={colors.textSecondary} />
+                </TouchableOpacity>
               </View>
 
-              {/* Equipment */}
-              <View style={styles.prefGroup}>
-                <Text style={[styles.prefLabel, { color: colors.textMuted }]}>EQUIPMENT AVAILABLE</Text>
-                <View style={styles.prefOptionsRow}>
-                  {['full_gym', 'dumbbells', 'home', 'bodyweight'].map((eq) => (
-                    <TouchableOpacity
-                      key={eq}
-                      onPress={() => setPrefEquip(eq)}
-                      style={[
-                        styles.prefOptionPill,
-                        { backgroundColor: colors.surfaceLight, borderColor: colors.border },
-                        prefEquip === eq && { backgroundColor: colors.primary, borderColor: colors.primary },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.prefOptionText,
-                          { color: colors.textSecondary },
-                          prefEquip === eq && { color: '#000', fontWeight: '900' },
-                        ]}
-                      >
-                        {eq.replace('_', ' ').toUpperCase()}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
+              <View style={{ gap: 14 }}>
+                <Text style={[styles.modalSub, { color: colors.textMuted }]}>
+                  Customize your weekly workout schedule and AI target difficulty.
+                </Text>
 
-              {/* Days / Week */}
-              <View style={styles.prefGroup}>
-                <Text style={[styles.prefLabel, { color: colors.textMuted }]}>DAYS PER WEEK</Text>
-                <View style={styles.prefOptionsRow}>
-                  {[3, 4, 5, 6].map((days) => (
-                    <TouchableOpacity
-                      key={days}
-                      onPress={() => setPrefDays(days)}
-                      style={[
-                        styles.prefOptionPill,
-                        { backgroundColor: colors.surfaceLight, borderColor: colors.border },
-                        prefDays === days && { backgroundColor: colors.primary, borderColor: colors.primary },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.prefOptionText,
-                          { color: colors.textSecondary },
-                          prefDays === days && { color: '#000', fontWeight: '900' },
-                        ]}
-                      >
-                        {days} DAYS
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                <TouchableOpacity
+                  style={[styles.savePrefBtn, { backgroundColor: colors.primary }]}
+                  onPress={() => {
+                    haptics.heavy();
+                    setIsPrefModalOpen(false);
+                  }}
+                >
+                  <Text style={styles.savePrefBtnText}>Save Preferences</Text>
+                </TouchableOpacity>
               </View>
-
-              <View style={styles.modalActionsRow}>
-                <GlowButton
-                  title="CANCEL"
-                  onPress={() => setIsPrefModalOpen(false)}
-                  variant="outline"
-                  size="md"
-                  style={{ flex: 1 }}
-                />
-                <GlowButton
-                  title="GENERATE PLAN"
-                  onPress={handleSavePreferences}
-                  variant="primary"
-                  size="md"
-                  style={{ flex: 1.5 }}
-                />
-              </View>
-            </View>
+            </GlassCard>
           </View>
         </Modal>
       </SafeAreaView>
@@ -524,336 +256,207 @@ export default function GymAndTelemetryScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   safeArea: { flex: 1 },
-  header: {
+  topHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 8,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '900',
-    letterSpacing: 1,
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.3,
   },
   headerSub: {
-    fontSize: 11,
-    marginTop: 2,
+    fontSize: 12,
+    fontWeight: '500',
   },
-  configIconBtn: {
+  circleBtn: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    justifyContent: 'center',
-    alignItems: 'center',
     borderWidth: 1,
-  },
-  tabBar: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    paddingHorizontal: 20,
-    marginTop: 6,
-  },
-  tabBtn: {
-    flex: 1,
-    paddingVertical: 10,
     alignItems: 'center',
-    position: 'relative',
-  },
-  tabBtnActive: {},
-  tabText: {
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-  },
-  tabIndicator: {
-    position: 'absolute',
-    bottom: -1,
-    height: 2,
-    width: '80%',
-    borderRadius: 1,
+    justifyContent: 'center',
   },
   scrollContent: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 16,
     gap: 16,
   },
-  todayHeroCard: {
+  heroCard: {
     padding: 20,
-    gap: 12,
     borderRadius: 22,
+    gap: 10,
   },
-  heroTopBadgeRow: {
+  heroTopRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  todayBadge: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(209, 255, 0, 0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
   },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  todayBadgeText: {
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
-  heroPlanTitle: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-  },
-  todayWorkoutName: {
-    fontSize: 24,
-    fontWeight: '900',
-    letterSpacing: -0.5,
-  },
-  targetMusclesText: {
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  exercisesPreviewList: {
-    gap: 6,
-    paddingVertical: 4,
-  },
-  exPreviewRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  exPreviewNum: {
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  exPreviewName: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  exPreviewSets: {
+  heroLabel: {
     fontSize: 11,
-    fontWeight: '900',
-  },
-  restDayInfoBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 12,
-  },
-  restDayText: {
-    flex: 1,
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  weeklyTimelineSection: {
-    gap: 8,
-  },
-  sectionTitle: {
-    fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '800',
     letterSpacing: 1.2,
   },
-  scheduleRow: {
-    gap: 8,
-    paddingVertical: 4,
-  },
-  dayCapsule: {
-    width: 72,
-    paddingVertical: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    alignItems: 'center',
-    gap: 6,
-  },
-  dayCapsuleDay: {
-    fontSize: 10,
-    fontWeight: '900',
-  },
-  dayCapsuleTitle: {
-    fontSize: 11,
+  heroTitle: {
+    fontSize: 26,
     fontWeight: '800',
-    textAlign: 'center',
-    height: 28,
+    letterSpacing: -0.5,
   },
-  dayCapsuleIndicator: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+  heroSubtitle: {
+    fontSize: 13,
+    fontWeight: '500',
   },
-  prSection: {
-    gap: 8,
+  heroProgressWrap: {
+    gap: 6,
+    marginTop: 6,
   },
-  prHeaderRow: {
+  heroProgressLabels: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
   },
-  prCard: {
-    width: 140,
-    padding: 12,
-    borderRadius: 14,
-    gap: 4,
+  heroProgressCount: {
+    fontSize: 12,
+    fontWeight: '600',
   },
-  prCardTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  prRecordVal: {
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  prExName: {
+  heroProgressPercent: {
     fontSize: 12,
     fontWeight: '800',
   },
-  prDate: {
-    fontSize: 9,
-    fontWeight: '700',
+  progressBarTrack: {
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
   },
-  emptyPrCard: {
-    padding: 24,
-    alignItems: 'center',
-    gap: 6,
-    borderRadius: 16,
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 4,
   },
-  emptyPrTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  emptyPrSub: {
-    fontSize: 11,
-    textAlign: 'center',
-    lineHeight: 15,
-  },
-  emptyHistoryCard: {
-    padding: 28,
-    alignItems: 'center',
-    gap: 8,
-    borderRadius: 16,
-  },
-  emptyHistoryTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  emptyHistorySub: {
-    fontSize: 11,
-    textAlign: 'center',
-    lineHeight: 15,
-  },
-  sessionHistoryCard: {
+  continueBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
-    borderRadius: 16,
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 14,
+    marginTop: 8,
+  },
+  continueBtnText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#000000',
+    letterSpacing: -0.2,
+  },
+  weeklyTrackerCard: {
+    padding: 16,
+    borderRadius: 20,
     gap: 12,
   },
-  sessionIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
+  weeklyTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  weekDaysRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+  },
+  dayCol: {
     alignItems: 'center',
+    gap: 6,
   },
-  sessionHistoryTitle: {
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  sessionHistoryMeta: {
+  dayText: {
     fontSize: 11,
+    fontWeight: '600',
   },
-  sessionHistoryDate: {
-    fontSize: 9,
+  dayCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  rewardPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  rewardPillText: {
-    fontSize: 10,
+  todayDayNum: {
+    fontSize: 11,
     fontWeight: '900',
+    color: '#000000',
   },
-  attrCard: {
+  exerciseSection: {
+    gap: 10,
+  },
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
+  exerciseCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    justifyContent: 'space-between',
+    padding: 14,
     borderRadius: 18,
-    gap: 14,
   },
-  attrIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+  exerciseInfoCol: {
+    gap: 3,
+    flex: 1,
   },
-  attrName: {
+  exerciseName: {
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
   },
-  attrDesc: {
+  exerciseCategory: {
+    fontSize: 11,
+  },
+  aiCamBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  aiCamBtnText: {
     fontSize: 10,
-    marginTop: 2,
-  },
-  attrLv: {
-    fontSize: 15,
     fontWeight: '900',
+    letterSpacing: 0.5,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     padding: 20,
+    gap: 14,
   },
-  prefModalCard: {
-    width: '100%',
-    padding: 20,
-    borderRadius: 22,
-    borderWidth: 1,
-    gap: 16,
-  },
-  prefModalTitle: {
-    fontSize: 14,
-    fontWeight: '900',
-    letterSpacing: 1.2,
-  },
-  prefGroup: {
-    gap: 8,
-  },
-  prefLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1,
-  },
-  prefOptionsRow: {
+  modalHeader: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  prefOptionPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  prefOptionText: {
-    fontSize: 11,
+  modalTitle: {
+    fontSize: 16,
     fontWeight: '700',
   },
-  modalActionsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 8,
+  modalSub: {
+    fontSize: 12,
+  },
+  savePrefBtn: {
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  savePrefBtnText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#000000',
   },
 });

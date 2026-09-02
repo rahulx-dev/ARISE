@@ -25,6 +25,7 @@ import { screenTimerService } from '../../src/native';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { useSound } from '../../src/hooks/useSound';
 import { useHaptics } from '../../src/hooks/useHaptics';
+import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
 import { colors } from '../../src/theme/colors';
 
 export default function EmergencyOverrideScreen() {
@@ -102,10 +103,10 @@ export default function EmergencyOverrideScreen() {
       screenTimerService.startSessionTimer(durationMs, 'Emergency 5m Pass');
       await loadProfile();
 
-      Alert.alert(
+      showIOSAlert(
         'Emergency Pass Unlocked!',
         'You completed 20 verified push-ups. 5 minutes of unrestricted screen time is now active!',
-        [{ text: 'Return to Apps', onPress: () => router.replace('/(tabs)') }]
+        [{ text: 'Return to Apps', style: 'primary', onPress: () => router.replace('/(tabs)') }]
       );
     } catch (e) {
       console.warn('Emergency unlock failed:', e);

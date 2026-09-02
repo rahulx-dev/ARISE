@@ -27,6 +27,7 @@ import {
   Save,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { useSettingsStore } from '../../src/stores/useSettingsStore';
 import { GlowCard } from '../../src/components/design-system/GlowCard';
@@ -58,7 +59,7 @@ export default function ProfileEditScreen() {
   const handleCaptureCameraAvatar = async () => {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert('Permission Required', 'Camera permission is required to capture an avatar.');
+      showIOSAlert('Permission Required', 'Camera permission is required to capture an avatar.');
       return;
     }
 

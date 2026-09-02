@@ -1,16 +1,19 @@
 import React from 'react';
 import { Tabs, router } from 'expo-router';
-import { View, StyleSheet, Platform } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  LayoutGrid,
-  ClipboardList,
-  Crosshair,
+  Home,
+  Rocket,
+  Timer,
   Dumbbell,
   User,
 } from 'lucide-react-native';
 import { useTheme } from '../../src/hooks/useTheme';
 
+/**
+ * Stitch v2 Kinetic Glass Floating Navigation Bar
+ */
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
@@ -20,25 +23,25 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: isDark ? 'rgba(20, 22, 28, 0.92)' : 'rgba(255, 255, 255, 0.94)',
+          backgroundColor: isDark ? 'rgba(18, 33, 49, 0.85)' : 'rgba(255, 255, 255, 0.95)',
           borderTopWidth: 0,
           borderWidth: 1,
-          borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
+          borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)',
           borderRadius: 32,
           marginHorizontal: 16,
-          marginBottom: insets.bottom > 0 ? insets.bottom + 4 : 12,
+          marginBottom: insets.bottom > 0 ? insets.bottom + 4 : 14,
           height: 64,
           paddingBottom: 8,
           paddingTop: 8,
           position: 'absolute',
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: isDark ? 0.5 : 0.12,
+          shadowColor: isDark ? '#CCFF00' : '#000',
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: isDark ? 0.15 : 0.1,
           shadowRadius: 16,
           elevation: 12,
         },
         tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: isDark ? '#8E8E93' : '#687076',
+        tabBarInactiveTintColor: isDark ? '#C4C9AC' : '#687076',
         tabBarLabelStyle: {
           fontSize: 10,
           fontWeight: '700',
@@ -52,7 +55,7 @@ export default function TabsLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color, focused }) => (
-            <LayoutGrid size={20} color={focused ? colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
+            <Home size={20} color={focused ? colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
           ),
         }}
       />
@@ -61,7 +64,7 @@ export default function TabsLayout() {
         options={{
           title: 'Quests',
           tabBarIcon: ({ color, focused }) => (
-            <ClipboardList size={20} color={focused ? colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
+            <Rocket size={20} color={focused ? colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
           ),
         }}
       />
@@ -70,7 +73,7 @@ export default function TabsLayout() {
         options={{
           title: 'Focus',
           tabBarIcon: ({ color, focused }) => (
-            <Crosshair size={20} color={focused ? colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
+            <Timer size={20} color={focused ? colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
           ),
         }}
         listeners={{

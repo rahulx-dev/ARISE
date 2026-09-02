@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,17 +10,15 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import Svg, { Polyline, Circle as SvgCircle } from 'react-native-svg';
 import {
-  X,
+  ArrowLeft,
   Camera as CameraIcon,
   SwitchCamera,
-  Play,
-  Pause,
-  AlertCircle,
-  Activity,
   Volume2,
   VolumeX,
   Zap,
+  Flashlight,
   Check,
 } from 'lucide-react-native';
 import {
@@ -37,17 +35,13 @@ import {
   initialize as initPoseDetector,
   processBase64Frame,
   release as releasePoseDetector,
-  convertToMoveNetKeypoints,
 } from '../../modules/pose-detector';
 import { ExerciseErrorBoundary } from '../../src/components/exercise/ExerciseErrorBoundary';
-import { GlowCard } from '../../src/components/design-system/GlowCard';
-import { GlowButton } from '../../src/components/design-system/GlowButton';
 import { useSound } from '../../src/hooks/useSound';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { voiceCoach } from '../../src/services/voiceCoach';
-import { colors } from '../../src/theme/colors';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 function ExerciseTrackerInner() {
   const { type, questId, target: paramTarget } = useLocalSearchParams<{
@@ -61,6 +55,7 @@ function ExerciseTrackerInner() {
 
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [facing, setFacing] = useState<'front' | 'back'>('front');
+  const [torch, setTorch] = useState<boolean>(false);
 
   const validExerciseType: ExerciseType = (
     type && type.toUpperCase() in EXERCISE_REGISTRY
@@ -77,10 +72,9 @@ function ExerciseTrackerInner() {
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
   const [voiceMuted, setVoiceMuted] = useState<boolean>(false);
 
-  // Controlled UI states updated ONLY on meaningful events
+  // Controlled UI states
   const [isBodyDetected, setIsBodyDetected] = useState<boolean>(false);
-  const [formFeedback, setFormFeedback] = useState<string>('Ready! Position body in camera view');
-  const [currentAngle, setCurrentAngle] = useState<number>(180);
+  const [formFeedback, setFormFeedback] = useState<string>('Good Form');
 
   const cameraRef = useRef<any>(null);
   const timerRef = useRef<any>(null);
@@ -93,7 +87,6 @@ function ExerciseTrackerInner() {
   // Lifecycle Initialization & Cleanup
   useEffect(() => {
     isMountedRef.current = true;
-    if (__DEV__) console.log('[ARISE TRACKER] TRACKER_SCREEN_MOUNT');
 
     if (!cameraPermission?.granted) {
       requestCameraPermission();
@@ -131,7 +124,6 @@ function ExerciseTrackerInner() {
     }, 1000);
 
     return () => {
-      if (__DEV__) console.log('[ARISE TRACKER] TRACKER_CLEANUP');
       isMountedRef.current = false;
       if (timerRef.current) clearInterval(timerRef.current);
       voiceCoach.stop();
@@ -139,7 +131,7 @@ function ExerciseTrackerInner() {
     };
   }, []);
 
-  // Frame Processing Loop (Hardware-Safe without Screen Shutter Flash)
+  // Frame Processing Loop
   useEffect(() => {
     if (!isActive || isPlank) return;
 
@@ -156,26 +148,19 @@ function ExerciseTrackerInner() {
       isProcessingRef.current = true;
 
       try {
-        // High-speed simulated frame sampling with MoveNet / ML Kit bridge
         const now = Date.now();
         const nextState = processFrame(repStateRef.current, [], config, now);
         repStateRef.current = nextState;
 
-        // Controlled event-based React updates
         if (nextState.isBodyDetected !== lastBodyDetectedRef.current) {
           lastBodyDetectedRef.current = nextState.isBodyDetected;
           setIsBodyDetected(nextState.isBodyDetected);
-        }
-
-        if (nextState.lastAngle && Math.abs(nextState.lastAngle - currentAngle) > 8) {
-          setCurrentAngle(Math.round(nextState.lastAngle));
         }
 
         if (nextState.feedback.message && nextState.feedback.message !== formFeedback) {
           setFormFeedback(nextState.feedback.message);
         }
 
-        // Rep completed event
         if (nextState.count > repsRef.current) {
           handleCountRep(nextState.count);
         }
@@ -251,6 +236,11 @@ function ExerciseTrackerInner() {
     setFacing((prev) => (prev === 'front' ? 'back' : 'front'));
   };
 
+  const toggleTorch = () => {
+    haptics.light();
+    setTorch((prev) => !prev);
+  };
+
   const toggleVoice = () => {
     haptics.light();
     setVoiceMuted((prev) => {
@@ -261,160 +251,182 @@ function ExerciseTrackerInner() {
   };
 
   const progressPercent = Math.min(100, Math.round((currentReps / target) * 100));
+  const circleCircumference = 2 * Math.PI * 46;
+  const strokeDashoffset = circleCircumference * (1 - progressPercent / 100);
 
   return (
     <View style={styles.container}>
+      {/* Fullscreen Camera Background */}
+      <View style={StyleSheet.absoluteFill}>
+        {cameraPermission?.granted ? (
+          <CameraView
+            ref={cameraRef}
+            style={StyleSheet.absoluteFill}
+            facing={facing}
+            enableTorch={torch}
+            animateShutter={false}
+          />
+        ) : (
+          <View style={styles.noCameraFallback}>
+            <CameraIcon size={48} color="#555" />
+            <Text style={styles.noCameraText}>Camera Permission Required</Text>
+          </View>
+        )}
+
+        {/* Dark Vignette Gradients */}
+        <View style={styles.topVignette} />
+        <View style={styles.bottomVignette} />
+
+        {/* Stitch v2 Simulated AI Skeletal Tracking Overlay */}
+        <Svg style={StyleSheet.absoluteFill} viewBox="0 0 100 100">
+          <Polyline
+            points="30,45 50,40 70,45"
+            fill="none"
+            stroke="#CCFF00"
+            strokeWidth="0.6"
+            strokeOpacity="0.8"
+          />
+          <Polyline
+            points="50,40 50,70"
+            fill="none"
+            stroke="#CCFF00"
+            strokeWidth="0.6"
+            strokeOpacity="0.8"
+          />
+          <Polyline
+            points="50,70 35,90"
+            fill="none"
+            stroke="#CCFF00"
+            strokeWidth="0.6"
+            strokeOpacity="0.8"
+          />
+          <Polyline
+            points="50,70 65,90"
+            fill="none"
+            stroke="#CCFF00"
+            strokeWidth="0.6"
+            strokeOpacity="0.8"
+          />
+
+          <SvgCircle cx="30" cy="45" r="1.5" fill="#CCFF00" />
+          <SvgCircle cx="50" cy="40" r="1.5" fill="#CCFF00" />
+          <SvgCircle cx="70" cy="45" r="1.5" fill="#CCFF00" />
+          <SvgCircle cx="50" cy="70" r="1.5" fill="#CCFF00" />
+          <SvgCircle cx="35" cy="90" r="1.5" fill="#CCFF00" />
+          <SvgCircle cx="65" cy="90" r="1.5" fill="#CCFF00" />
+        </Svg>
+      </View>
+
       <SafeAreaView style={styles.safeArea}>
-        {/* Top Header Bar */}
-        <View style={styles.header}>
+        {/* Stitch v2 Top Navigation Overlay */}
+        <View style={styles.topNav}>
           <TouchableOpacity
+            style={styles.navCircleBtn}
             onPress={() => router.back()}
-            style={styles.headerIconBtn}
             activeOpacity={0.8}
           >
-            <X size={20} color="#FFFFFF" />
+            <ArrowLeft size={20} color="#FFFFFF" />
           </TouchableOpacity>
 
-          <View style={styles.headerTitleWrap}>
-            <Text style={styles.exerciseNameText}>{config.displayName.toUpperCase()}</Text>
-            <View style={styles.statusPill}>
-              <View
-                style={[
-                  styles.statusDot,
-                  { backgroundColor: isBodyDetected ? '#D1FF00' : '#FF9500' },
-                ]}
-              />
-              <Text
-                style={[
-                  styles.statusText,
-                  { color: isBodyDetected ? '#D1FF00' : '#FF9500' },
-                ]}
-              >
+          <Text style={styles.screenTitle}>{config.displayName}</Text>
+
+          <TouchableOpacity
+            style={styles.navCircleBtn}
+            onPress={toggleVoice}
+            activeOpacity={0.8}
+          >
+            {voiceMuted ? (
+              <VolumeX size={18} color="#8E8E93" />
+            ) : (
+              <Volume2 size={18} color="#CCFF00" />
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Stitch v2 Metrics Header */}
+        <View style={styles.metricsHeader}>
+          <View style={styles.repsCol}>
+            <Text style={styles.repsLabel}>{isPlank ? 'SECONDS' : 'REPS'}</Text>
+            <View style={styles.repsCountRow}>
+              <Text style={styles.currentRepsText}>
+                {String(currentReps).padStart(2, '0')}
+              </Text>
+              <Text style={styles.targetRepsText}>/ {target}</Text>
+            </View>
+          </View>
+
+          <View style={styles.statusCol}>
+            {/* Good Form Pill */}
+            <View style={styles.goodFormPill}>
+              <View style={styles.goodFormDot} />
+              <Text style={styles.goodFormText}>{formFeedback}</Text>
+            </View>
+
+            {/* Body Detected Chip */}
+            <View style={styles.bodyDetectedChip}>
+              <Text style={styles.bodyDetectedText}>
                 {isBodyDetected ? 'BODY LOCKED' : 'SEARCHING BODY...'}
               </Text>
             </View>
           </View>
-
-          <View style={styles.headerRightIcons}>
-            <TouchableOpacity
-              onPress={toggleVoice}
-              style={styles.headerIconBtn}
-              activeOpacity={0.8}
-            >
-              {voiceMuted ? (
-                <VolumeX size={20} color="#8E8E93" />
-              ) : (
-                <Volume2 size={20} color="#D1FF00" />
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={toggleCameraFacing}
-              style={styles.headerIconBtn}
-              activeOpacity={0.8}
-            >
-              <SwitchCamera size={20} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
         </View>
 
-        {/* Camera Viewfinder & HUD Layer */}
-        <View style={styles.cameraBox}>
-          {cameraPermission?.granted ? (
-            <CameraView
-              ref={cameraRef}
-              style={styles.cameraView}
-              facing={facing}
-              animateShutter={false}
-            />
-          ) : (
-            <View style={styles.noCameraFallback}>
-              <CameraIcon size={48} color="#555" />
-              <Text style={styles.noCameraText}>Camera Permission Required</Text>
-              <GlowButton
-                title="GRANT PERMISSION"
-                onPress={requestCameraPermission}
-                variant="primary"
-                size="sm"
-                style={{ marginTop: 8 }}
+        <View style={{ flex: 1 }} />
+
+        {/* Stitch v2 Bottom Floating Controls */}
+        <View style={styles.bottomControlsRow}>
+          {/* Flash Toggle */}
+          <TouchableOpacity
+            style={[styles.smallControlBtn, torch && styles.smallControlBtnActive]}
+            onPress={toggleTorch}
+            activeOpacity={0.8}
+          >
+            <Flashlight size={20} color={torch ? '#CCFF00' : '#FFFFFF'} />
+          </TouchableOpacity>
+
+          {/* End Set / Action Button with Circular Progress Arc */}
+          <TouchableOpacity
+            style={styles.endSetBtn}
+            onPress={() => handleFinishWorkout(currentReps)}
+            activeOpacity={0.85}
+          >
+            <Svg style={StyleSheet.absoluteFill} viewBox="0 0 100 100">
+              {/* Background Track */}
+              <SvgCircle
+                cx="50"
+                cy="50"
+                r="46"
+                stroke="rgba(204, 255, 0, 0.2)"
+                strokeWidth="3"
+                fill="none"
               />
-            </View>
-          )}
+              {/* Active Progress Arc */}
+              <SvgCircle
+                cx="50"
+                cy="50"
+                r="46"
+                stroke="#CCFF00"
+                strokeWidth="3"
+                strokeDasharray={`${circleCircumference} ${circleCircumference}`}
+                strokeDashoffset={strokeDashoffset}
+                strokeLinecap="round"
+                fill="none"
+                transform="rotate(-90 50 50)"
+              />
+            </Svg>
 
-          {/* Holographic HUD Overlays */}
-          <View style={styles.hudOverlay} pointerEvents="none">
-            {/* Corner Alignment Brackets */}
-            <View style={[styles.cornerBracket, styles.bracketTopLeft]} />
-            <View style={[styles.cornerBracket, styles.bracketTopRight]} />
-            <View style={[styles.cornerBracket, styles.bracketBottomLeft]} />
-            <View style={[styles.cornerBracket, styles.bracketBottomRight]} />
+            <Text style={styles.endSetTitle}>End</Text>
+            <Text style={styles.endSetSub}>SET</Text>
+          </TouchableOpacity>
 
-            {/* Top Feedback Badge */}
-            <View style={styles.feedbackBadgeWrap}>
-              <View style={styles.feedbackBadge}>
-                <Zap size={14} color="#D1FF00" />
-                <Text style={styles.feedbackText}>{formFeedback}</Text>
-              </View>
-            </View>
-
-            {/* Joint Angle Telemetry */}
-            <View style={styles.angleBadge}>
-              <Activity size={14} color="#00F0FF" />
-              <Text style={styles.angleText}>{currentAngle}° ANGLE</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Bottom Reps & Controls Panel */}
-        <View style={styles.bottomPanel}>
-          <View style={styles.repMetricsRow}>
-            <View style={styles.metricColumn}>
-              <Text style={styles.metricLabel}>COMPLETED</Text>
-              <Text style={styles.repBigNumber}>{currentReps}</Text>
-            </View>
-
-            <View style={styles.metricDivider} />
-
-            <View style={styles.metricColumn}>
-              <Text style={styles.metricLabel}>TARGET</Text>
-              <Text style={styles.targetBigNumber}>{target}</Text>
-            </View>
-
-            <View style={styles.metricDivider} />
-
-            <View style={styles.metricColumn}>
-              <Text style={styles.metricLabel}>TIME</Text>
-              <Text style={styles.timeBigNumber}>
-                {Math.floor(elapsedSeconds / 60)}:
-                {String(elapsedSeconds % 60).padStart(2, '0')}
-              </Text>
-            </View>
-          </View>
-
-          {/* Progress Bar */}
-          <View style={styles.progressBarTrack}>
-            <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
-          </View>
-
-          {/* Action Buttons */}
-          <View style={styles.controlsRow}>
-            <TouchableOpacity
-              onPress={() => handleCountRep(currentReps + 1)}
-              style={styles.manualRepBtn}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.manualRepBtnText}>+1 MANUAL REP</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => handleFinishWorkout(currentReps)}
-              style={styles.finishWorkoutBtn}
-              activeOpacity={0.8}
-            >
-              <Check size={18} color="#000" strokeWidth={3} />
-              <Text style={styles.finishWorkoutBtnText}>FINISH</Text>
-            </TouchableOpacity>
-          </View>
+          {/* Camera Switch */}
+          <TouchableOpacity
+            style={styles.smallControlBtn}
+            onPress={toggleCameraFacing}
+            activeOpacity={0.8}
+          >
+            <SwitchCamera size={20} color="#FFFFFF" />
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     </View>
@@ -430,255 +442,183 @@ export default function ExerciseScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#050505' },
-  safeArea: { flex: 1 },
-  header: {
+  container: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
+  safeArea: {
+    flex: 1,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+  },
+  noCameraFallback: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#051424',
+    gap: 12,
+  },
+  noCameraText: {
+    color: '#8E8E93',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  topVignette: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 160,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+  },
+  bottomVignette: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 200,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+  },
+  topNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 12,
+  },
+  navCircleBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(28, 43, 60, 0.65)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  screenTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: -0.3,
+  },
+  metricsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginTop: 16,
+  },
+  repsCol: {
+    gap: 2,
+  },
+  repsLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#C4C9AC',
+    letterSpacing: 1.2,
+  },
+  repsCountRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 4,
+  },
+  currentRepsText: {
+    fontSize: 44,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -1,
+    fontVariant: ['tabular-nums'],
+  },
+  targetRepsText: {
+    fontSize: 22,
+    fontWeight: '600',
+    color: '#C4C9AC',
+  },
+  statusCol: {
+    alignItems: 'flex-end',
+    gap: 8,
+  },
+  goodFormPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 100,
+    backgroundColor: 'rgba(204, 255, 0, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(204, 255, 0, 0.35)',
+  },
+  goodFormDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#CCFF00',
+  },
+  goodFormText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#CCFF00',
+    letterSpacing: 0.5,
+  },
+  bodyDetectedChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 100,
+    backgroundColor: 'rgba(28, 43, 60, 0.65)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  bodyDetectedText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#D4E4FA',
+    letterSpacing: 0.5,
+  },
+  bottomControlsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1A1A1A',
+    paddingBottom: 12,
   },
-  headerIconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#161616',
+  smallControlBtn: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(5, 20, 36, 0.6)',
     borderWidth: 1,
-    borderColor: '#262626',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
     justifyContent: 'center',
+  },
+  smallControlBtnActive: {
+    borderColor: '#CCFF00',
+    backgroundColor: 'rgba(204, 255, 0, 0.15)',
+  },
+  endSetBtn: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: 'rgba(18, 33, 49, 0.85)',
     alignItems: 'center',
-  },
-  headerTitleWrap: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  exerciseNameText: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    letterSpacing: 1.2,
-  },
-  statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  statusText: {
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 0.8,
-  },
-  headerRightIcons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  cameraBox: {
-    flex: 1,
-    margin: 16,
-    borderRadius: 24,
-    overflow: 'hidden',
-    position: 'relative',
-    backgroundColor: '#0F0F12',
-    borderWidth: 1,
-    borderColor: '#262626',
-  },
-  cameraView: {
-    width: '100%',
-    height: '100%',
-  },
-  noCameraFallback: {
-    flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-    gap: 12,
-    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.6,
+    shadowRadius: 16,
+    elevation: 8,
   },
-  noCameraText: {
-    fontSize: 14,
+  endSetTitle: {
+    fontSize: 18,
     fontWeight: '800',
-    color: '#8E8E93',
-  },
-  hudOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    padding: 16,
-    justifyContent: 'space-between',
-  },
-  cornerBracket: {
-    position: 'absolute',
-    width: 24,
-    height: 24,
-    borderColor: '#D1FF00',
-  },
-  bracketTopLeft: {
-    top: 16,
-    left: 16,
-    borderTopWidth: 2,
-    borderLeftWidth: 2,
-  },
-  bracketTopRight: {
-    top: 16,
-    right: 16,
-    borderTopWidth: 2,
-    borderRightWidth: 2,
-  },
-  bracketBottomLeft: {
-    bottom: 16,
-    left: 16,
-    borderBottomWidth: 2,
-    borderLeftWidth: 2,
-  },
-  bracketBottomRight: {
-    bottom: 16,
-    right: 16,
-    borderBottomWidth: 2,
-    borderRightWidth: 2,
-  },
-  feedbackBadgeWrap: {
-    alignItems: 'center',
-  },
-  feedbackBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(5, 5, 5, 0.85)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#D1FF00',
-  },
-  feedbackText: {
-    fontSize: 11,
-    fontWeight: '900',
     color: '#FFFFFF',
-    letterSpacing: 0.5,
+    letterSpacing: -0.3,
   },
-  angleBadge: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(5, 5, 5, 0.85)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#00F0FF',
-  },
-  angleText: {
+  endSetSub: {
     fontSize: 10,
-    fontWeight: '900',
-    color: '#00F0FF',
-    fontVariant: ['tabular-nums'],
-  },
-  bottomPanel: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    gap: 14,
-  },
-  repMetricsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    backgroundColor: '#161616',
-    borderRadius: 18,
-    paddingVertical: 14,
-    borderWidth: 1,
-    borderColor: '#262626',
-  },
-  metricColumn: {
-    alignItems: 'center',
-    gap: 2,
-    flex: 1,
-  },
-  metricLabel: {
-    fontSize: 9,
     fontWeight: '800',
-    color: '#8E8E93',
-    letterSpacing: 1,
-  },
-  repBigNumber: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#D1FF00',
-    fontVariant: ['tabular-nums'],
-  },
-  targetBigNumber: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    fontVariant: ['tabular-nums'],
-  },
-  timeBigNumber: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#00F0FF',
-    fontVariant: ['tabular-nums'],
-  },
-  metricDivider: {
-    width: 1,
-    height: 32,
-    backgroundColor: '#262626',
-  },
-  progressBarTrack: {
-    width: '100%',
-    height: 6,
-    backgroundColor: '#1E1E1E',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: '#D1FF00',
-    borderRadius: 3,
-  },
-  controlsRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  manualRepBtn: {
-    flex: 1,
-    backgroundColor: '#1E1E1E',
-    paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#2D2D2D',
-  },
-  manualRepBtnText: {
-    fontSize: 12,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    letterSpacing: 0.8,
-  },
-  finishWorkoutBtn: {
-    flex: 1.2,
-    backgroundColor: '#D1FF00',
-    paddingVertical: 14,
-    borderRadius: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  finishWorkoutBtnText: {
-    fontSize: 12,
-    fontWeight: '900',
-    color: '#000000',
-    letterSpacing: 1,
+    color: '#C4C9AC',
+    letterSpacing: 1.2,
   },
 });

@@ -34,6 +34,8 @@ import { GlassCard } from '../../src/components/ios/GlassCard';
 import { GlassButton } from '../../src/components/ios/GlassButton';
 import { PlayerAvatar } from '../../src/components/ui/PlayerAvatar';
 import { XPBar } from '../../src/components/design-system/XPBar';
+import { AboutAriseSheet } from '../../src/components/ui/AboutAriseSheet';
+import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { backupService } from '../../src/services/backupService';
 import { useHaptics } from '../../src/hooks/useHaptics';
@@ -52,6 +54,8 @@ export default function ProfileTab() {
   const level = profile?.level || 1;
   const displayName = profile?.displayName || 'Warrior';
   const currentXP = profile?.currentXP || 0;
+  const [isAboutSheetOpen, setIsAboutSheetOpen] = useState(false);
+
   const coins = profile?.coins || 0;
   const streak = profile?.currentStreak || 0;
   const avatarIcon = profile?.avatarIcon || 'img_pfp_01';
@@ -61,7 +65,7 @@ export default function ProfileTab() {
     try {
       await Linking.openURL('https://github.com/rahulx-dev/ARISE');
     } catch {
-      Alert.alert('Link Error', 'Could not open GitHub repository URL.');
+      showIOSAlert('Link Error', 'Could not open GitHub repository URL.');
     }
   };
 
@@ -70,9 +74,9 @@ export default function ProfileTab() {
     const success = await backupService.exportBackup();
     if (success) {
       haptics.success();
-      Alert.alert('Backup Created', 'Your local ARISE database was exported successfully.');
+      showIOSAlert('Backup Created', 'Your local ARISE database was exported successfully.');
     } else {
-      Alert.alert('Export Failed', 'Could not create offline backup file.');
+      showIOSAlert('Export Failed', 'Could not create offline backup file.');
     }
   };
 
@@ -135,14 +139,13 @@ export default function ProfileTab() {
     },
     {
       title: 'About ARISE System',
-      sub: 'Architecture telemetry & engine info',
+      sub: 'Architecture telemetry, version & policies',
       icon: Info,
       color: colors.textMuted,
-      action: () =>
-        Alert.alert(
-          'ARISE Engine v1.0.0',
-          'Production-grade hardware-accelerated discipline OS.\n100% Offline SQLite architecture.\nOn-device Google ML Kit Pose Detection.\nAuthor: Rahul (github.com/rahulx-dev)'
-        ),
+      action: () => {
+        haptics.light();
+        setIsAboutSheetOpen(true);
+      },
     },
   ];
 
@@ -273,6 +276,12 @@ export default function ProfileTab() {
 
           <View style={{ height: 100 }} />
         </ScrollView>
+
+        {/* Stitch v2 Custom About ARISE Bottom Sheet */}
+        <AboutAriseSheet
+          visible={isAboutSheetOpen}
+          onClose={() => setIsAboutSheetOpen(false)}
+        />
       </SafeAreaView>
     </View>
   );
