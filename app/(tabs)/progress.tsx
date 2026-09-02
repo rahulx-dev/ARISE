@@ -295,9 +295,9 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   heroCard: {
-    padding: 20,
-    borderRadius: 20,
-    gap: 12,
+    padding: 22,
+    borderRadius: 24,
+    gap: 14,
   },
   heroTopRow: {
     flexDirection: 'row',
@@ -305,9 +305,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   heroLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 1,
+    letterSpacing: 1.2,
   },
   heroTitle: {
     fontSize: 26,
@@ -316,10 +316,10 @@ const styles = StyleSheet.create({
   },
   heroSubtitle: {
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   heroProgressWrap: {
-    gap: 6,
+    gap: 8,
     marginTop: 4,
   },
   heroProgressLabels: {
@@ -349,11 +349,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 100,
-    alignSelf: 'flex-start',
-    marginTop: 4,
+    paddingVertical: 14,
+    borderRadius: 14,
+    marginTop: 8,
   },
   continueBtnText: {
     fontSize: 13,
