@@ -35,6 +35,9 @@ import {
   initialize as initPoseDetector,
   processBase64Frame,
   release as releasePoseDetector,
+  convertToMoveNetKeypoints,
+  PoseLandmark,
+  MoveNetKeypoint,
 } from '../../modules/pose-detector';
 import { ExerciseErrorBoundary } from '../../src/components/exercise/ExerciseErrorBoundary';
 import { useKeepAwake } from 'expo-keep-awake';
@@ -76,6 +79,7 @@ function ExerciseTrackerInner() {
 
   // Controlled UI states
   const [isBodyDetected, setIsBodyDetected] = useState<boolean>(false);
+  const [detectedKeypoints, setDetectedKeypoints] = useState<MoveNetKeypoint[] | null>(null);
   const [formFeedback, setFormFeedback] = useState<string>('Good Form');
 
   const cameraRef = useRef<any>(null);
@@ -150,9 +154,32 @@ function ExerciseTrackerInner() {
       isProcessingRef.current = true;
 
       try {
+        let keypoints: MoveNetKeypoint[] = [];
+        if (cameraRef.current && cameraPermission?.granted) {
+          try {
+            const pic = await cameraRef.current.takePictureAsync({
+              base64: true,
+              quality: 0.2,
+              skipProcessing: true,
+            });
+            if (pic?.base64) {
+              const landmarks: PoseLandmark[] = await processBase64Frame(pic.base64);
+              if (landmarks && landmarks.length > 5) {
+                keypoints = convertToMoveNetKeypoints(landmarks);
+              }
+            }
+          } catch (_) {}
+        }
+
         const now = Date.now();
-        const nextState = processFrame(repStateRef.current, [], config, now);
+        const nextState = processFrame(repStateRef.current, keypoints, config, now);
         repStateRef.current = nextState;
+
+        if (keypoints.length === 17 && nextState.isBodyDetected) {
+          setDetectedKeypoints(keypoints);
+        } else {
+          setDetectedKeypoints(null);
+        }
 
         if (nextState.isBodyDetected !== lastBodyDetectedRef.current) {
           lastBodyDetectedRef.current = nextState.isBodyDetected;
@@ -171,12 +198,12 @@ function ExerciseTrackerInner() {
       } finally {
         isProcessingRef.current = false;
         if (isMountedRef.current && isActive) {
-          frameInterval = setTimeout(processCameraInference, 150);
+          frameInterval = setTimeout(processCameraInference, 120);
         }
       }
     };
 
-    frameInterval = setTimeout(processCameraInference, 500);
+    frameInterval = setTimeout(processCameraInference, 400);
 
     return () => {
       if (frameInterval) clearTimeout(frameInterval);
@@ -279,44 +306,95 @@ function ExerciseTrackerInner() {
         <View style={styles.topVignette} />
         <View style={styles.bottomVignette} />
 
-        {/* Stitch v2 Simulated AI Skeletal Tracking Overlay */}
-        <Svg style={StyleSheet.absoluteFill} viewBox="0 0 100 100">
-          <Polyline
-            points="30,45 50,40 70,45"
-            fill="none"
-            stroke="#CCFF00"
-            strokeWidth="0.6"
-            strokeOpacity="0.8"
-          />
-          <Polyline
-            points="50,40 50,70"
-            fill="none"
-            stroke="#CCFF00"
-            strokeWidth="0.6"
-            strokeOpacity="0.8"
-          />
-          <Polyline
-            points="50,70 35,90"
-            fill="none"
-            stroke="#CCFF00"
-            strokeWidth="0.6"
-            strokeOpacity="0.8"
-          />
-          <Polyline
-            points="50,70 65,90"
-            fill="none"
-            stroke="#CCFF00"
-            strokeWidth="0.6"
-            strokeOpacity="0.8"
-          />
+        {/* Real Live AI Skeletal Tracking Overlay (Connected directly to detected body joints) */}
+        {detectedKeypoints && isBodyDetected ? (
+          <Svg style={StyleSheet.absoluteFill} viewBox="0 0 100 100">
+            {/* Shoulders */}
+            <Polyline
+              points={`${detectedKeypoints[5].x * 100},${detectedKeypoints[5].y * 100} ${detectedKeypoints[6].x * 100},${detectedKeypoints[6].y * 100}`}
+              fill="none"
+              stroke="#0A84FF"
+              strokeWidth="0.8"
+            />
+            {/* Left Arm (Shoulder -> Elbow -> Wrist) */}
+            <Polyline
+              points={`${detectedKeypoints[5].x * 100},${detectedKeypoints[5].y * 100} ${detectedKeypoints[7].x * 100},${detectedKeypoints[7].y * 100} ${detectedKeypoints[9].x * 100},${detectedKeypoints[9].y * 100}`}
+              fill="none"
+              stroke="#0A84FF"
+              strokeWidth="0.8"
+            />
+            {/* Right Arm (Shoulder -> Elbow -> Wrist) */}
+            <Polyline
+              points={`${detectedKeypoints[6].x * 100},${detectedKeypoints[6].y * 100} ${detectedKeypoints[8].x * 100},${detectedKeypoints[8].y * 100} ${detectedKeypoints[10].x * 100},${detectedKeypoints[10].y * 100}`}
+              fill="none"
+              stroke="#0A84FF"
+              strokeWidth="0.8"
+            />
+            {/* Left Torso (Shoulder -> Hip) */}
+            <Polyline
+              points={`${detectedKeypoints[5].x * 100},${detectedKeypoints[5].y * 100} ${detectedKeypoints[11].x * 100},${detectedKeypoints[11].y * 100}`}
+              fill="none"
+              stroke="#0A84FF"
+              strokeWidth="0.8"
+            />
+            {/* Right Torso (Shoulder -> Hip) */}
+            <Polyline
+              points={`${detectedKeypoints[6].x * 100},${detectedKeypoints[6].y * 100} ${detectedKeypoints[12].x * 100},${detectedKeypoints[12].y * 100}`}
+              fill="none"
+              stroke="#0A84FF"
+              strokeWidth="0.8"
+            />
+            {/* Hips */}
+            <Polyline
+              points={`${detectedKeypoints[11].x * 100},${detectedKeypoints[11].y * 100} ${detectedKeypoints[12].x * 100},${detectedKeypoints[12].y * 100}`}
+              fill="none"
+              stroke="#0A84FF"
+              strokeWidth="0.8"
+            />
+            {/* Left Leg (Hip -> Knee -> Ankle) */}
+            <Polyline
+              points={`${detectedKeypoints[11].x * 100},${detectedKeypoints[11].y * 100} ${detectedKeypoints[13].x * 100},${detectedKeypoints[13].y * 100} ${detectedKeypoints[15].x * 100},${detectedKeypoints[15].y * 100}`}
+              fill="none"
+              stroke="#10B981"
+              strokeWidth="0.8"
+            />
+            {/* Right Leg (Hip -> Knee -> Ankle) */}
+            <Polyline
+              points={`${detectedKeypoints[12].x * 100},${detectedKeypoints[12].y * 100} ${detectedKeypoints[14].x * 100},${detectedKeypoints[14].y * 100} ${detectedKeypoints[16].x * 100},${detectedKeypoints[16].y * 100}`}
+              fill="none"
+              stroke="#10B981"
+              strokeWidth="0.8"
+            />
 
-          <SvgCircle cx="30" cy="45" r="1.5" fill="#CCFF00" />
-          <SvgCircle cx="50" cy="40" r="1.5" fill="#CCFF00" />
-          <SvgCircle cx="70" cy="45" r="1.5" fill="#CCFF00" />
-          <SvgCircle cx="50" cy="70" r="1.5" fill="#CCFF00" />
-          <SvgCircle cx="35" cy="90" r="1.5" fill="#CCFF00" />
-          <SvgCircle cx="65" cy="90" r="1.5" fill="#CCFF00" />
-        </Svg>
+            {/* Joint Marker Dots */}
+            {[5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].map((idx) => {
+              const pt = detectedKeypoints[idx];
+              if (!pt || pt.confidence < 0.2) return null;
+              return (
+                <SvgCircle
+                  key={idx}
+                  cx={pt.x * 100}
+                  cy={pt.y * 100}
+                  r="1.4"
+                  fill="#10B981"
+                  stroke="#FFFFFF"
+                  strokeWidth="0.4"
+                />
+              );
+            })}
+          </Svg>
+        ) : (
+          /* Bounding Alignment Box when body is not yet detected */
+          <View style={styles.alignmentGuideWrap} pointerEvents="none">
+            <View style={styles.alignmentGuideBox}>
+              <View style={[styles.cornerBracket, styles.bracketTL]} />
+              <View style={[styles.cornerBracket, styles.bracketTR]} />
+              <View style={[styles.cornerBracket, styles.bracketBL]} />
+              <View style={[styles.cornerBracket, styles.bracketBR]} />
+              <Text style={styles.alignGuideText}>ALIGN FULL BODY IN FRAME</Text>
+            </View>
+          </View>
+        )}
       </View>
 
       <SafeAreaView style={styles.safeArea}>
@@ -548,35 +626,88 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 100,
-    backgroundColor: 'rgba(204, 255, 0, 0.12)',
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
     borderWidth: 1,
-    borderColor: 'rgba(204, 255, 0, 0.35)',
+    borderColor: 'rgba(16, 185, 129, 0.4)',
   },
   goodFormDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#CCFF00',
+    backgroundColor: '#10B981',
   },
   goodFormText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#CCFF00',
+    color: '#10B981',
     letterSpacing: 0.5,
   },
   bodyDetectedChip: {
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 100,
-    backgroundColor: 'rgba(28, 43, 60, 0.65)',
+    backgroundColor: 'rgba(10, 132, 255, 0.15)',
     borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: 'rgba(10, 132, 255, 0.3)',
   },
   bodyDetectedText: {
     fontSize: 9,
     fontWeight: '700',
-    color: '#D4E4FA',
+    color: '#0A84FF',
     letterSpacing: 0.5,
+  },
+  alignmentGuideWrap: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  alignmentGuideBox: {
+    width: '78%',
+    height: '62%',
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cornerBracket: {
+    position: 'absolute',
+    width: 28,
+    height: 28,
+    borderColor: '#0A84FF',
+  },
+  bracketTL: {
+    top: 0,
+    left: 0,
+    borderTopWidth: 3,
+    borderLeftWidth: 3,
+  },
+  bracketTR: {
+    top: 0,
+    right: 0,
+    borderTopWidth: 3,
+    borderRightWidth: 3,
+  },
+  bracketBL: {
+    bottom: 0,
+    left: 0,
+    borderBottomWidth: 3,
+    borderLeftWidth: 3,
+  },
+  bracketBR: {
+    bottom: 0,
+    right: 0,
+    borderBottomWidth: 3,
+    borderRightWidth: 3,
+  },
+  alignGuideText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#0A84FF',
+    letterSpacing: 1.5,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    overflow: 'hidden',
   },
   bottomControlsRow: {
     flexDirection: 'row',
@@ -596,8 +727,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   smallControlBtnActive: {
-    borderColor: '#CCFF00',
-    backgroundColor: 'rgba(204, 255, 0, 0.15)',
+    borderColor: '#0A84FF',
+    backgroundColor: 'rgba(10, 132, 255, 0.2)',
   },
   endSetBtn: {
     width: 96,

@@ -1,28 +1,15 @@
 import { expoDb } from '../database/client.native';
 
 /**
- * Ultra-fast synchronous SQLite helper for startup state routing.
- * Ensures that if a profile exists in SQLite, onboarding is 100% completed.
+ * Authoritative synchronous SQLite helper for startup state routing.
+ * Returns true only when onboarding is completed.
  */
 export function getIsOnboardingCompleted(): boolean {
   try {
     const row = expoDb.getFirstSync<{ onboarding_completed: number }>(
       'SELECT onboarding_completed FROM settings LIMIT 1;'
     );
-    if (row?.onboarding_completed === 1) {
-      return true;
-    }
-
-    // Safety fallback: Check if a user_profile already exists
-    const userRow = expoDb.getFirstSync<{ id: number; display_name: string }>(
-      'SELECT id, display_name FROM user_profile LIMIT 1;'
-    );
-    if (userRow && userRow.display_name) {
-      setIsOnboardingCompletedSync(true);
-      return true;
-    }
-
-    return false;
+    return row?.onboarding_completed === 1;
   } catch {
     return false;
   }

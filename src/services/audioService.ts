@@ -262,26 +262,9 @@ export class AudioService {
     }
 
     const b64 = uint8ArrayToBase64(rawBytes);
-
-    if (Platform.OS === 'web' || !FileSystem.cacheDirectory) {
-      const dataUri = `data:audio/wav;base64,${b64}`;
-      this.cachedFileUris.set(trackId, dataUri);
-      return dataUri;
-    }
-
-    // Write real .wav file to local app cache for Android MediaPlayer
-    const targetPath = `${FileSystem.cacheDirectory}arise_audio_${trackId}.wav`;
-    try {
-      await FileSystem.writeAsStringAsync(targetPath, b64, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      this.cachedFileUris.set(trackId, targetPath);
-      return targetPath;
-    } catch (e) {
-      console.warn('[AudioService] FileSystem write error, fallback to data URI:', e);
-      const dataUri = `data:audio/wav;base64,${b64}`;
-      return dataUri;
-    }
+    const dataUri = `data:audio/wav;base64,${b64}`;
+    this.cachedFileUris.set(trackId, dataUri);
+    return dataUri;
   }
 
   async play(trackId: string = this.currentTrackId): Promise<void> {

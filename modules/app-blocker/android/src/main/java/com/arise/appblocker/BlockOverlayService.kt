@@ -46,6 +46,10 @@ class BlockOverlayService : Service() {
 
     private fun showOverlay() {
         if (overlayView != null) return
+        if (System.currentTimeMillis() < AppMonitorService.unlockedUntilEpochMs) {
+            stopSelf()
+            return
+        }
 
         val layoutParamsType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY

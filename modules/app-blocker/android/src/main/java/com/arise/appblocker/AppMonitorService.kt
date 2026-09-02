@@ -25,8 +25,11 @@ class AppMonitorService : Service() {
             if (!isMonitoring) return
 
             val now = System.currentTimeMillis()
-            // If user has an active screen time pass, bypass blocking!
+            // If user has an active screen time pass, bypass blocking and dismiss overlay!
             if (now < unlockedUntilEpochMs) {
+                try {
+                    stopService(Intent(this@AppMonitorService, BlockOverlayService::class.java))
+                } catch (_: Exception) {}
                 handler.postDelayed(this, 1000)
                 return
             }
