@@ -10,7 +10,7 @@ interface GlassCardProps {
 }
 
 /**
- * Ultra-Premium Solid Matte Charcoal Surface (Apple & Linear Tier)
+ * Ultra-Premium Solid Slate Charcoal Surface (Apple Pro & Linear Tier)
  * Solid high-contrast surface with crisp subtle hairline borders
  */
 export const GlassCard = React.memo(function GlassCard({
@@ -25,30 +25,30 @@ export const GlassCard = React.memo(function GlassCard({
     switch (variant) {
       case 'elevated':
         return {
-          backgroundColor: isDark ? '#16161C' : '#FFFFFF',
-          borderColor: isDark ? '#23232C' : '#E5E5EA',
+          backgroundColor: isDark ? '#161822' : '#FFFFFF',
+          borderColor: isDark ? '#232636' : '#E5E5EA',
           shadowColor: '#000000',
           shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: isDark ? 0.35 : 0.06,
+          shadowOpacity: isDark ? 0.4 : 0.06,
           shadowRadius: 10,
           elevation: 4,
         };
 
       case 'glow':
         return {
-          backgroundColor: isDark ? '#121216' : '#FFFFFF',
+          backgroundColor: isDark ? '#111218' : '#FFFFFF',
           borderColor: glowColor || (isDark ? '#0A84FF' : '#007AFF'),
           shadowColor: glowColor || colors.primary,
           shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: isDark ? 0.2 : 0.08,
+          shadowOpacity: isDark ? 0.25 : 0.08,
           shadowRadius: 8,
           elevation: 3,
         };
 
       case 'accent':
         return {
-          backgroundColor: isDark ? '#0F121C' : '#F0F7FF',
-          borderColor: isDark ? '#1E2842' : '#D0E3FF',
+          backgroundColor: isDark ? '#0D111A' : '#F0F7FF',
+          borderColor: isDark ? '#1B2338' : '#D0E3FF',
           shadowColor: colors.primary,
           shadowOffset: { width: 0, height: 2 },
           shadowOpacity: 0.15,
@@ -58,8 +58,8 @@ export const GlassCard = React.memo(function GlassCard({
 
       default:
         return {
-          backgroundColor: isDark ? '#121216' : '#FFFFFF',
-          borderColor: isDark ? '#1F1F27' : '#E5E5EA',
+          backgroundColor: isDark ? '#111218' : '#FFFFFF',
+          borderColor: isDark ? '#1C1E2A' : '#E5E5EA',
           shadowColor: '#000000',
           shadowOffset: { width: 0, height: 2 },
           shadowOpacity: isDark ? 0.2 : 0.04,
@@ -78,7 +78,7 @@ export const GlassCard = React.memo(function GlassCard({
 
 const styles = StyleSheet.create({
   cardBase: {
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: 1,
     overflow: 'hidden',
   },

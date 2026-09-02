@@ -11,36 +11,36 @@ import {
 import { useTheme } from '../../src/hooks/useTheme';
 
 /**
- * Modern Solid Charcoal Floating Navigation Bar (Titanium Azure Tier)
+ * Modern Solid Charcoal Floating Navigation Bar (Royal Sapphire Pro Tier)
  */
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
-  const { colors, isDark } = useTheme();
+  const { isDark } = useTheme();
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: isDark ? '#121216' : '#FFFFFF',
+          backgroundColor: isDark ? '#111218' : '#FFFFFF',
           borderTopWidth: 0,
           borderWidth: 1,
-          borderColor: isDark ? '#1F1F27' : '#E5E5EA',
+          borderColor: isDark ? '#1C1E2A' : '#E5E5EA',
           borderRadius: 24,
           marginHorizontal: 16,
           marginBottom: insets.bottom > 0 ? insets.bottom + 4 : 14,
-          height: 62,
+          height: 64,
           paddingBottom: 8,
           paddingTop: 8,
           position: 'absolute',
           shadowColor: '#000000',
           shadowOffset: { width: 0, height: 6 },
-          shadowOpacity: isDark ? 0.35 : 0.06,
+          shadowOpacity: isDark ? 0.4 : 0.06,
           shadowRadius: 14,
           elevation: 10,
         },
-        tabBarActiveTintColor: '#0A84FF', // Titanium Azure Accent
-        tabBarInactiveTintColor: isDark ? '#636366' : '#8E8E93',
+        tabBarActiveTintColor: '#0A84FF', // Royal Sapphire Accent
+        tabBarInactiveTintColor: isDark ? '#636675' : '#8E8E93',
         tabBarLabelStyle: {
           fontSize: 10,
           fontWeight: '700',

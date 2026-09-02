@@ -51,80 +51,74 @@ export interface ThemeColors {
 }
 
 export const darkThemeColors: ThemeColors = {
-  // Signature Primary: Royal Sapphire Azure
+  // Signature Royal Sapphire
   primary: '#0A84FF',
   primaryLight: '#389BFF',
   primaryDark: '#0066CC',
   primaryGlow: 'rgba(10, 132, 255, 0.2)',
   tertiary: '#F59E0B',
 
-  // Secondary Accent: Deep Iris / Slate Violet
-  primaryPurple: '#6366F1',
-  purpleGlow: 'rgba(99, 102, 241, 0.2)',
+  primaryPurple: '#0A84FF',
+  purpleGlow: 'rgba(10, 132, 255, 0.15)',
 
-  // Pure True OLED Black Backgrounds
+  // Pure OLED Black
   background: '#000000',
-  backgroundElevated: '#0A0A0D',
-  backgroundGradientTop: '#0C0C10',
+  backgroundElevated: '#08090C',
+  backgroundGradientTop: '#0B0C10',
   backgroundGradientBottom: '#000000',
 
-  // Solid Velvety Charcoal Zinc Cards
-  card: '#121216',
+  // Solid Slate Charcoal
+  card: '#111218',
   surface: '#000000',
-  surfaceLight: '#121216',
-  surfaceElevated: '#17171D',
-  surfaceBorder: '#1F1F27',
-  border: '#1F1F27',
+  surfaceLight: '#111218',
+  surfaceElevated: '#161822',
+  surfaceBorder: '#1C1E2A',
+  border: '#1C1E2A',
   borderGlow: 'rgba(10, 132, 255, 0.25)',
 
-  // Typography
+  // Crisp High Contrast Typography
   textPrimary: '#FFFFFF',
   textSecondary: '#8E8E93',
-  textMuted: '#636366',
+  textMuted: '#555866',
 
-  // Supporting Functional Accents
   accent: '#0A84FF',
   accentGold: '#F59E0B',
   accentGlow: 'rgba(245, 158, 11, 0.2)',
-  secondary: '#6366F1',
+  secondary: '#389BFF',
   danger: '#FF453A',
   dangerGlow: 'rgba(255, 69, 58, 0.2)',
   warning: '#FF9F0A',
-  success: '#10B981', // Functional Emerald Green
+  success: '#10B981',
   neonGreen: '#10B981',
 
   stats: {
-    strength: '#FF453A',
+    strength: '#0A84FF',
     discipline: '#0A84FF',
-    focus: '#6366F1',
+    focus: '#389BFF',
     health: '#10B981',
-    knowledge: '#38BDF8',
+    knowledge: '#389BFF',
   },
 
-  overlay: 'rgba(0, 0, 0, 0.8)',
-  glassCard: '#121216',
+  overlay: 'rgba(0, 0, 0, 0.85)',
+  glassCard: '#111218',
   isDark: true,
 };
 
 export const lightThemeColors: ThemeColors = {
-  // Signature Primary: Royal Sapphire Azure
   primary: '#007AFF',
   primaryLight: '#389BFF',
   primaryDark: '#0055B3',
   primaryGlow: 'rgba(0, 122, 255, 0.15)',
   tertiary: '#F59E0B',
 
-  // Secondary: Iris
-  primaryPurple: '#6366F1',
-  purpleGlow: 'rgba(99, 102, 241, 0.15)',
+  primaryPurple: '#007AFF',
+  purpleGlow: 'rgba(0, 122, 255, 0.15)',
 
-  // Apple Light Gray
   background: '#F2F2F7',
   backgroundElevated: '#FFFFFF',
   backgroundGradientTop: '#FFFFFF',
   backgroundGradientBottom: '#E5E5EA',
 
-  // Solid White Cards
   card: '#FFFFFF',
   surface: '#FFFFFF',
   surfaceLight: '#F2F2F7',
@@ -133,7 +127,6 @@ export const lightThemeColors: ThemeColors = {
   border: '#E5E5EA',
   borderGlow: 'rgba(0, 122, 255, 0.2)',
 
-  // Typography
   textPrimary: '#000000',
   textSecondary: '#3C3C43',
   textMuted: '#8E8E93',
@@ -141,7 +134,7 @@ export const lightThemeColors: ThemeColors = {
   accent: '#007AFF',
   accentGold: '#D97706',
   accentGlow: 'rgba(217, 119, 6, 0.2)',
-  secondary: '#6366F1',
+  secondary: '#007AFF',
   danger: '#DC2626',
   dangerGlow: 'rgba(220, 38, 38, 0.2)',
   warning: '#D97706',
@@ -149,9 +142,9 @@ export const lightThemeColors: ThemeColors = {
   neonGreen: '#10B981',
 
   stats: {
-    strength: '#DC2626',
+    strength: '#007AFF',
     discipline: '#007AFF',
-    focus: '#6366F1',
+    focus: '#007AFF',
     health: '#10B981',
     knowledge: '#0284C7',
   },

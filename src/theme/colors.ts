@@ -1,51 +1,50 @@
 export const colors = {
-  // ARISE v2 Ultra-Premium "Titanium Azure" Palette (Apple iOS 18 + Linear Executive Tier)
+  // ARISE — Unified Royal Sapphire Pro Design System (Apple Pro / Linear Executive Tier)
 
-  // Signature Primary Accent: Royal Sapphire / Titanium Azure
+  // Signature Primary Accent: Royal Sapphire Blue
   primary: '#0A84FF',
   primaryAzure: '#0A84FF',
   primaryLight: '#389BFF',
   primaryDark: '#0066CC',
   primaryGlow: 'rgba(10, 132, 255, 0.2)',
 
-  // Secondary Accent: Deep Iris / Slate Violet
-  secondary: '#6366F1',
-  primaryPurple: '#4F46E5',
-  purpleLight: '#818CF8',
-  purpleDark: '#3730A3',
-  purpleGlow: 'rgba(99, 102, 241, 0.2)',
+  // Supporting Subtle / Secondary
+  secondary: '#389BFF',
+  primaryPurple: '#0A84FF',
+  purpleLight: '#389BFF',
+  purpleDark: '#0066CC',
+  purpleGlow: 'rgba(10, 132, 255, 0.15)',
 
-  // Supporting Functional Accent: Discipline Emerald Green (For success, streaks, completed quests)
-  success: '#10B981',
+  // Clean Functional Accents
+  success: '#10B981', // Discipline Emerald for completed checkmarks & positive streaks
   successLight: '#34D399',
   successDark: '#059669',
   green: '#10B981',
   neonGreen: '#10B981',
 
-  // Amber Gold (For coins & store rewards)
-  tertiary: '#F59E0B',
+  tertiary: '#F59E0B', // Soft Gold for coins
   tertiaryDim: '#D97706',
   accentGold: '#F59E0B',
 
-  // Pure True OLED Black Backgrounds
+  // Pure True OLED Black Background
   background: '#000000',
-  backgroundElevated: '#0A0A0D',
-  backgroundGradientTop: '#0C0C10',
+  backgroundElevated: '#08090C',
+  backgroundGradientTop: '#0B0C10',
   backgroundGradientBottom: '#000000',
 
-  // Solid Velvety Charcoal Zinc Cards & Surfaces (Zero blur, zero transparency)
-  card: '#121216',
+  // Velvety Solid Dark Slate Charcoal Cards (Zero blur, zero transparency)
+  card: '#111218',
   surface: '#000000',
-  surfaceLight: '#121216',
-  surfaceElevated: '#17171D',
-  surfaceBorder: '#1F1F27',
-  border: '#1F1F27',
+  surfaceLight: '#111218',
+  surfaceElevated: '#161822',
+  surfaceBorder: '#1C1E2A',
+  border: '#1C1E2A',
   borderGlow: 'rgba(10, 132, 255, 0.25)',
 
   // Crisp High-Contrast Typography
   textPrimary: '#FFFFFF',
   textSecondary: '#8E8E93',
-  textMuted: '#636366',
+  textMuted: '#555866',
 
   // Status Colors
   accent: '#0A84FF',
@@ -55,16 +54,16 @@ export const colors = {
 
   // RPG Attributes
   stats: {
-    strength: '#FF453A',
+    strength: '#0A84FF',
     discipline: '#0A84FF',
-    focus: '#6366F1',
+    focus: '#389BFF',
     health: '#10B981',
-    knowledge: '#38BDF8',
+    knowledge: '#389BFF',
   },
 
   // Modal Backdrop
-  overlay: 'rgba(0, 0, 0, 0.8)',
-  glassCard: '#121216',
+  overlay: 'rgba(0, 0, 0, 0.85)',
+  glassCard: '#111218',
 } as const;
 
 export type Colors = typeof colors;
