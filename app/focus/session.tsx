@@ -27,6 +27,7 @@ import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { audioService, AUDIO_TRACKS } from '../../src/services/audioService';
 import { db } from '../../src/database/client';
 import { focusSession } from '../../src/database/schema';
+import { useKeepAwake } from 'expo-keep-awake';
 import { useSound } from '../../src/hooks/useSound';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTheme } from '../../src/hooks/useTheme';
@@ -34,6 +35,7 @@ import { useTheme } from '../../src/hooks/useTheme';
 const DURATION_PRESETS = [15, 25, 45, 60];
 
 export default function FocusModeScreen() {
+  useKeepAwake();
   const router = useRouter();
   const sound = useSound();
   const haptics = useHaptics();

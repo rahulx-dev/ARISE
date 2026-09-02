@@ -3,16 +3,16 @@ import { Tabs, router } from 'expo-router';
 import { View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  Home,
-  Rocket,
+  House,
+  Lightning,
   Timer,
-  Dumbbell,
+  Barbell,
   User,
-} from 'lucide-react-native';
+} from 'phosphor-react-native';
 import { useTheme } from '../../src/hooks/useTheme';
 
 /**
- * Stitch v2 Kinetic Glass Floating Navigation Bar
+ * Stitch v2 Kinetic Glass Floating Navigation Bar with Phosphor Icons
  */
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
@@ -55,7 +55,11 @@ export default function TabsLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color, focused }) => (
-            <Home size={20} color={focused ? colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
+            <House
+              size={22}
+              color={focused ? colors.primary : color}
+              weight={focused ? 'fill' : 'regular'}
+            />
           ),
         }}
       />
@@ -64,7 +68,11 @@ export default function TabsLayout() {
         options={{
           title: 'Quests',
           tabBarIcon: ({ color, focused }) => (
-            <Rocket size={20} color={focused ? colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
+            <Lightning
+              size={22}
+              color={focused ? colors.primary : color}
+              weight={focused ? 'fill' : 'regular'}
+            />
           ),
         }}
       />
@@ -73,7 +81,11 @@ export default function TabsLayout() {
         options={{
           title: 'Focus',
           tabBarIcon: ({ color, focused }) => (
-            <Timer size={20} color={focused ? colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
+            <Timer
+              size={22}
+              color={focused ? colors.primary : color}
+              weight={focused ? 'fill' : 'regular'}
+            />
           ),
         }}
         listeners={{
@@ -88,7 +100,11 @@ export default function TabsLayout() {
         options={{
           title: 'Gym',
           tabBarIcon: ({ color, focused }) => (
-            <Dumbbell size={20} color={focused ? colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
+            <Barbell
+              size={22}
+              color={focused ? colors.primary : color}
+              weight={focused ? 'fill' : 'regular'}
+            />
           ),
         }}
       />
@@ -97,7 +113,11 @@ export default function TabsLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, focused }) => (
-            <User size={20} color={focused ? colors.primary : color} strokeWidth={focused ? 2.5 : 2} />
+            <User
+              size={22}
+              color={focused ? colors.primary : color}
+              weight={focused ? 'fill' : 'regular'}
+            />
           ),
         }}
       />

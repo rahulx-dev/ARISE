@@ -37,6 +37,7 @@ import {
   release as releasePoseDetector,
 } from '../../modules/pose-detector';
 import { ExerciseErrorBoundary } from '../../src/components/exercise/ExerciseErrorBoundary';
+import { useKeepAwake } from 'expo-keep-awake';
 import { useSound } from '../../src/hooks/useSound';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { voiceCoach } from '../../src/services/voiceCoach';
@@ -44,6 +45,7 @@ import { voiceCoach } from '../../src/services/voiceCoach';
 const { width, height } = Dimensions.get('window');
 
 function ExerciseTrackerInner() {
+  useKeepAwake();
   const { type, questId, target: paramTarget } = useLocalSearchParams<{
     type: string;
     questId?: string;
