@@ -72,6 +72,14 @@ export function setRestrictedPackages(restrictedPackages: string[]): void {
   }
 }
 
+export function setAppBudget(packageName: string | null, budgetMinutes: number): void {
+  if (Platform.OS === 'android' && AppBlocker?.setAppBudget) {
+    try {
+      AppBlocker.setAppBudget(packageName, budgetMinutes);
+    } catch {}
+  }
+}
+
 export function temporaryUnlock(durationMs: number): boolean {
   if (Platform.OS === 'android' && AppBlocker?.temporaryUnlock) {
     try {

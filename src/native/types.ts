@@ -21,6 +21,7 @@ export interface IAppBlockerDriver {
   startMonitoring(restrictedPackages: string[]): void;
   stopMonitoring(): void;
   setRestrictedPackages(restrictedPackages: string[]): void;
+  setAppBudget?(packageName: string | null, budgetMinutes: number): void;
   getInstalledApps(): Promise<InstalledAppItem[]>;
   temporaryUnlock?(durationMs: number): boolean;
   unlockUntil?(epochMs: number): boolean;

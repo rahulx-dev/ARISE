@@ -36,11 +36,21 @@ class AppMonitorService : Service() {
 
             val fgPackage = UsageStatsHelper.getForegroundPackage(this@AppMonitorService)
             if (fgPackage != null && restrictedPackages.contains(fgPackage)) {
-                // Restricted app is running without an active unlock pass! Launch overlay blocker
-                val overlayIntent = Intent(this@AppMonitorService, BlockOverlayService::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                val usedTodayMs = UsageStatsHelper.getPackageTodayUsageMs(this@AppMonitorService, fgPackage)
+                val budgetMs = packageBudgetsMs[fgPackage] ?: defaultBudgetMs
+
+                if (usedTodayMs >= budgetMs) {
+                    // Budget exceeded! Launch overlay blocker
+                    val overlayIntent = Intent(this@AppMonitorService, BlockOverlayService::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    startService(overlayIntent)
+                } else {
+                    // Still within budget (e.g. 16m < 45m). Ensure overlay is dismissed!
+                    try {
+                        stopService(Intent(this@AppMonitorService, BlockOverlayService::class.java))
+                    } catch (_: Exception) {}
                 }
-                startService(overlayIntent)
             }
 
             handler.postDelayed(this, 1000)
@@ -112,8 +122,22 @@ class AppMonitorService : Service() {
         @Volatile
         var unlockedUntilEpochMs: Long = 0L
 
+        @Volatile
+        var defaultBudgetMs: Long = 45 * 60 * 1000L // 45 minutes default daily budget
+
+        val packageBudgetsMs = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
         fun setUnlockUntil(epochMs: Long) {
             unlockedUntilEpochMs = Math.max(unlockedUntilEpochMs, epochMs)
+        }
+
+        fun setBudget(packageName: String?, budgetMinutes: Double) {
+            val ms = (budgetMinutes * 60 * 1000).toLong()
+            if (packageName != null && packageName.isNotEmpty()) {
+                packageBudgetsMs[packageName] = ms
+            } else {
+                defaultBudgetMs = ms
+            }
         }
     }
 }

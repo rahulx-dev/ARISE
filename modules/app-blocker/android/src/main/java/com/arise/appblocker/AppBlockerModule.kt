@@ -159,6 +159,12 @@ class AppBlockerModule : Module() {
             Unit
         }
 
+        Function("setAppBudget") { packageName: String?, budgetMinutes: Double ->
+            AppMonitorService.setBudget(packageName, budgetMinutes)
+            Log.d(TAG, "setAppBudget: $packageName -> $budgetMinutes min")
+            Unit
+        }
+
         Function("temporaryUnlock") { durationMs: Double ->
             val epochTarget = System.currentTimeMillis() + durationMs.toLong()
             AppMonitorService.setUnlockUntil(epochTarget)

@@ -46,4 +46,32 @@ object UsageStatsHelper {
         }
         return lastForeground
     }
+
+    fun getPackageTodayUsageMs(context: Context, packageName: String): Long {
+        val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager ?: return 0L
+        val calendar = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }
+        val startTime = calendar.timeInMillis
+        val endTime = System.currentTimeMillis()
+
+        val stats = usageStatsManager.queryUsageStats(
+            UsageStatsManager.INTERVAL_DAILY,
+            startTime,
+            endTime
+        )
+
+        var totalTime = 0L
+        if (stats != null) {
+            for (usageStat in stats) {
+                if (usageStat.packageName == packageName) {
+                    totalTime += usageStat.totalTimeInForeground
+                }
+            }
+        }
+        return totalTime
+    }
 }
