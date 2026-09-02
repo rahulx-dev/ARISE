@@ -212,6 +212,80 @@ class HistoryService {
       return [];
     }
   }
+
+  /**
+   * Get real live statistics for Today from SQLite tables (no mock data)
+   */
+  async getTodayRealStats(): Promise<{
+    focusMinutes: number;
+    focusSessionsCount: number;
+    workoutMinutes: number;
+    workoutCount: number;
+    completedQuests: number;
+    totalQuests: number;
+  }> {
+    try {
+      const todayIso = new Date().toISOString().split('T')[0];
+
+      const [exercises, focuses, workouts, quests] = await Promise.all([
+        db.select().from(exerciseSession),
+        db.select().from(focusSession),
+        db.select().from(workoutSessions),
+        db.select().from(quest),
+      ]);
+
+      let focusMinutes = 0;
+      let focusSessionsCount = 0;
+      for (const f of focuses) {
+        if (f.startTime && f.startTime.startsWith(todayIso)) {
+          focusMinutes += f.completedMinutes || 0;
+          focusSessionsCount += 1;
+        }
+      }
+
+      let workoutMinutes = 0;
+      let workoutCount = 0;
+      for (const w of workouts) {
+        if (w.status === 'COMPLETED' && w.startTime && w.startTime.startsWith(todayIso)) {
+          workoutMinutes += Math.round((w.durationSeconds || 0) / 60);
+          workoutCount += 1;
+        }
+      }
+      for (const ex of exercises) {
+        if (ex.timestamp && ex.timestamp.startsWith(todayIso)) {
+          workoutMinutes += Math.max(1, Math.round(ex.durationSeconds / 60));
+          workoutCount += 1;
+        }
+      }
+
+      let completedQuests = 0;
+      const totalQuests = quests.length;
+      for (const q of quests) {
+        if (q.completed === 1) {
+          completedQuests += 1;
+        }
+      }
+
+      return {
+        focusMinutes,
+        focusSessionsCount,
+        workoutMinutes,
+        workoutCount,
+        completedQuests,
+        totalQuests,
+      };
+    } catch (e) {
+      console.warn('Error fetching today real stats:', e);
+      return {
+        focusMinutes: 0,
+        focusSessionsCount: 0,
+        workoutMinutes: 0,
+        workoutCount: 0,
+        completedQuests: 0,
+        totalQuests: 0,
+      };
+    }
+  }
 }
 
 export const historyService = new HistoryService();

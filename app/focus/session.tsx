@@ -28,6 +28,7 @@ import { audioService, AUDIO_TRACKS } from '../../src/services/audioService';
 import { db } from '../../src/database/client';
 import { focusSession } from '../../src/database/schema';
 import { useKeepAwake } from 'expo-keep-awake';
+import { historyService } from '../../src/services/historyService';
 import { useSound } from '../../src/hooks/useSound';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTheme } from '../../src/hooks/useTheme';
@@ -40,6 +41,7 @@ export default function FocusModeScreen() {
   const sound = useSound();
   const haptics = useHaptics();
   const { colors, isDark } = useTheme();
+  const profile = usePlayerStore((s) => s.profile);
 
   const [targetMinutes, setTargetMinutes] = useState<number>(25);
   const [remainingMs, setRemainingMs] = useState<number>(25 * 60 * 1000);
@@ -47,9 +49,21 @@ export default function FocusModeScreen() {
   const [isAudioSheetOpen, setIsAudioSheetOpen] = useState<boolean>(false);
   const [isPresetSheetOpen, setIsPresetSheetOpen] = useState<boolean>(false);
   const [selectedTrackId, setSelectedTrackId] = useState<string>('deep_focus');
+  const [todayStats, setTodayStats] = useState({ focusMinutes: 0, focusSessionsCount: 0 });
 
   const timerRef = useRef<any>(null);
   const startTimeRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const loadFocusStats = async () => {
+      const stats = await historyService.getTodayRealStats();
+      setTodayStats({
+        focusMinutes: stats.focusMinutes,
+        focusSessionsCount: stats.focusSessionsCount,
+      });
+    };
+    loadFocusStats();
+  }, [isActive]);
 
   useEffect(() => {
     return () => {
@@ -282,17 +296,23 @@ export default function FocusModeScreen() {
           {/* Bottom Stats Row */}
           <GlassCard variant="default" style={styles.statsCard}>
             <View style={styles.statCol}>
-              <Text style={[styles.statVal, { color: colors.textPrimary }]}>32m</Text>
+              <Text style={[styles.statVal, { color: colors.textPrimary }]}>
+                {todayStats.focusMinutes}m
+              </Text>
               <Text style={[styles.statLabel, { color: colors.textMuted }]}>TODAY</Text>
             </View>
             <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.statCol}>
-              <Text style={[styles.statVal, { color: colors.primary }]}>2</Text>
+              <Text style={[styles.statVal, { color: colors.primary }]}>
+                {todayStats.focusSessionsCount}
+              </Text>
               <Text style={[styles.statLabel, { color: colors.textMuted }]}>SESSIONS</Text>
             </View>
             <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.statCol}>
-              <Text style={[styles.statVal, { color: colors.success }]}>12d</Text>
+              <Text style={[styles.statVal, { color: colors.success }]}>
+                {profile?.currentStreak || 0}d
+              </Text>
               <Text style={[styles.statLabel, { color: colors.textMuted }]}>STREAK</Text>
             </View>
           </GlassCard>

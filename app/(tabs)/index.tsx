@@ -32,6 +32,7 @@ import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { useQuestStore } from '../../src/stores/useQuestStore';
 import { streakService } from '../../src/services/streakService';
 import { notificationService, AppNotification } from '../../src/services/notificationService';
+import { historyService } from '../../src/services/historyService';
 import { initializeDatabase } from '../../src/database/client';
 import { appBlockerService } from '../../src/native';
 import { GlassCard } from '../../src/components/ios/GlassCard';
@@ -56,6 +57,14 @@ export default function HomeDashboard() {
   const [isNotifSheetOpen, setIsNotifSheetOpen] = useState(false);
   const [hasAllPermissions, setHasAllPermissions] = useState(true);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [todayStats, setTodayStats] = useState({
+    focusMinutes: 0,
+    workoutMinutes: 0,
+    workoutCount: 0,
+    completedQuests: 0,
+    totalQuests: 0,
+    focusSessionsCount: 0,
+  });
 
   // Live time ticker
   const [timeStr, setTimeStr] = useState('09:41');
@@ -96,10 +105,20 @@ export default function HomeDashboard() {
     setNotifications(notifs);
   };
 
+  const loadStats = async () => {
+    try {
+      const stats = await historyService.getTodayRealStats();
+      setTodayStats(stats);
+    } catch (e) {
+      console.warn('Error loading real today stats:', e);
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       loadProfile();
       loadQuests();
+      loadStats();
       checkPermissions();
       loadNotifications();
     }, [])
@@ -111,6 +130,7 @@ export default function HomeDashboard() {
         await initializeDatabase();
         await loadProfile();
         await loadQuests();
+        await loadStats();
         await streakService.checkAndUpdateStreak();
         await checkPermissions();
         await loadNotifications();
@@ -127,6 +147,7 @@ export default function HomeDashboard() {
         checkPermissions();
         loadProfile();
         loadQuests();
+        loadStats();
         loadNotifications();
       }
     });
@@ -145,17 +166,20 @@ export default function HomeDashboard() {
   const currentXP = profile?.currentXP || 0;
   const coins = profile?.coins || 0;
   const streak = profile?.currentStreak || 0;
-  const displayName = profile?.displayName || 'Alex';
+  const displayName = profile?.displayName || 'Warrior';
   const avatarIcon = profile?.avatarIcon || 'img_pfp_01';
   const completedQuestsCount = dailyQuests.filter((q) => q.completed).length;
   const totalQuestsCount = dailyQuests.length || 1;
   const winRate = totalQuestsCount > 0 ? Math.round((completedQuestsCount / totalQuestsCount) * 100) : 0;
 
+  // Find next pending quest
+  const nextPendingQuest = dailyQuests.find((q) => !q.completed);
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <SafeAreaView style={styles.safeArea}>
-        {/* Stitch v2 Top App Bar */}
-        <View style={[styles.topHeader, { borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)' }]}>
+        {/* Top App Bar */}
+        <View style={[styles.topHeader, { borderBottomColor: isDark ? '#232532' : '#E5E7EB' }]}>
           <TouchableOpacity
             style={styles.headerLeftCol}
             onPress={() => router.push('/(tabs)/profile')}
@@ -168,16 +192,16 @@ export default function HomeDashboard() {
               glowColor={colors.primary}
             />
             <View style={{ gap: 1 }}>
-              <Text style={[styles.greetingSub, { color: colors.textMuted }]}>Good morning,</Text>
+              <Text style={[styles.greetingSub, { color: colors.textMuted }]}>Good day,</Text>
               <Text style={[styles.greetingTitle, { color: colors.textPrimary }]}>
-                {displayName} <Text style={{ fontSize: 16 }}>👋</Text>
+                {displayName}
               </Text>
             </View>
           </TouchableOpacity>
 
           <View style={styles.headerRightActions}>
             <TouchableOpacity
-              style={[styles.headerIconBtn, { backgroundColor: isDark ? 'rgba(39, 54, 71, 0.45)' : 'rgba(0, 0, 0, 0.04)', borderColor: colors.border }]}
+              style={[styles.headerIconBtn, { backgroundColor: isDark ? '#14151C' : '#FFFFFF', borderColor: colors.border }]}
               onPress={() => router.push('/settings')}
               activeOpacity={0.8}
             >
@@ -185,7 +209,7 @@ export default function HomeDashboard() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.headerIconBtn, { backgroundColor: isDark ? 'rgba(39, 54, 71, 0.45)' : 'rgba(0, 0, 0, 0.04)', borderColor: colors.border }]}
+              style={[styles.headerIconBtn, { backgroundColor: isDark ? '#14151C' : '#FFFFFF', borderColor: colors.border }]}
               onPress={() => {
                 haptics.light();
                 loadNotifications();
@@ -202,67 +226,93 @@ export default function HomeDashboard() {
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Missing Permissions Banner */}
+          {/* Permission Shield Alert (if missing) */}
           {!hasAllPermissions && (
             <TouchableOpacity
-              style={[styles.permAlertCard, { backgroundColor: 'rgba(204, 255, 0, 0.08)', borderColor: colors.primary }]}
-              onPress={() => {
-                haptics.medium();
-                router.push('/permissions' as any);
-              }}
-              activeOpacity={0.8}
+              style={[styles.permAlertCard, { backgroundColor: isDark ? '#450A0A' : '#FEE2E2', borderColor: '#EF4444' }]}
+              onPress={() => router.push('/permissions' as any)}
+              activeOpacity={0.85}
             >
-              <ShieldWarning size={22} color={colors.primary} weight="duotone" />
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text style={[styles.permAlertTitle, { color: colors.textPrimary }]}>Phone Shield Inactive</Text>
-                <Text style={[styles.permAlertDesc, { color: colors.textSecondary }]}>
-                  Grant Usage Access & Overlay permissions to lock distraction apps.
+              <ShieldWarning size={20} color="#EF4444" weight="fill" />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.permAlertTitle, { color: '#FFFFFF' }]}>Shield Inactive</Text>
+                <Text style={[styles.permAlertSub, { color: isDark ? '#FCA5A5' : '#7F1D1D' }]}>
+                  App blocker requires system permissions to protect focus.
                 </Text>
               </View>
-              <View style={[styles.permAlertBadge, { backgroundColor: colors.primary }]}>
+              <View style={[styles.permAlertBadge, { backgroundColor: '#EF4444' }]}>
                 <Text style={styles.permAlertBadgeText}>GRANT</Text>
               </View>
             </TouchableOpacity>
           )}
 
-          {/* Stitch v2 Big Display Time & Date */}
+          {/* Big Display Time & Date */}
           <View style={styles.timeHeroSection}>
             <Text style={[styles.timeHeroDisplay, { color: colors.textPrimary }]}>{timeStr}</Text>
             <Text style={[styles.dateHeroDisplay, { color: colors.textMuted }]}>{dateStr}</Text>
           </View>
 
-          {/* Stitch v2 "Next Up" Card */}
+          {/* Dynamic Next Up Card */}
           <GlassCard variant="glow" style={styles.nextUpCard}>
             <View style={styles.nextUpTopRow}>
               <Text style={[styles.nextUpLabel, { color: colors.textMuted }]}>NEXT UP</Text>
               <CaretRight size={18} color={colors.primary} weight="bold" />
             </View>
 
-            <Text style={[styles.nextUpHeading, { color: colors.textPrimary }]}>Complete your</Text>
-            <Text style={[styles.nextUpHighlight, { color: colors.primary }]}>25 min Focus Session</Text>
+            {nextPendingQuest ? (
+              <>
+                <Text style={[styles.nextUpHeading, { color: colors.textPrimary }]}>Daily Mission</Text>
+                <Text style={[styles.nextUpHighlight, { color: colors.primary }]}>{nextPendingQuest.title}</Text>
 
-            <TouchableOpacity
-              style={[styles.startPillBtn, { backgroundColor: colors.primary }]}
-              onPress={() => {
-                haptics.heavy();
-                router.push('/focus/session');
-              }}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.startPillBtnText}>Start</Text>
-              <ArrowRight size={15} color="#000000" weight="bold" />
-            </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.startPillBtn, { backgroundColor: colors.primary }]}
+                  onPress={() => {
+                    haptics.heavy();
+                    if (nextPendingQuest.category === 'FITNESS' || nextPendingQuest.category === 'strength') {
+                      router.push('/(tabs)/progress');
+                    } else if (nextPendingQuest.category === 'FOCUS' || nextPendingQuest.category === 'focus') {
+                      router.push('/focus/session');
+                    } else {
+                      router.push('/(tabs)/quests');
+                    }
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.startPillBtnText}>Start Mission</Text>
+                  <ArrowRight size={15} color="#FFFFFF" weight="bold" />
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Text style={[styles.nextUpHeading, { color: colors.textPrimary }]}>All Daily Quests</Text>
+                <Text style={[styles.nextUpHighlight, { color: colors.success }]}>Completed! Great Discipline.</Text>
+
+                <TouchableOpacity
+                  style={[styles.startPillBtn, { backgroundColor: colors.secondary }]}
+                  onPress={() => {
+                    haptics.heavy();
+                    router.push('/focus/session');
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.startPillBtnText}>Deep Focus</Text>
+                  <ArrowRight size={15} color="#FFFFFF" weight="bold" />
+                </TouchableOpacity>
+              </>
+            )}
           </GlassCard>
 
-          {/* Stitch v2 4-Column Quick Metrics Grid */}
+          {/* 4-Column Live Real Metrics Grid from SQLite */}
           <View style={styles.metricsGridRow}>
             {/* Focus */}
             <GlassCard variant="default" style={styles.metricGridItem}>
               <View style={styles.metricIconHeader}>
-                <Timer size={14} color={colors.textMuted} weight="duotone" />
+                <Timer size={14} color={colors.secondary} weight="duotone" />
                 <Text style={[styles.metricGridLabel, { color: colors.textMuted }]}>FOCUS</Text>
               </View>
-              <Text style={[styles.metricGridVal, { color: colors.textPrimary }]}>32m</Text>
+              <Text style={[styles.metricGridVal, { color: colors.textPrimary }]}>
+                {todayStats.focusMinutes}m
+              </Text>
             </GlassCard>
 
             {/* Workout */}
@@ -271,13 +321,15 @@ export default function HomeDashboard() {
                 <Barbell size={14} color={colors.primary} weight="duotone" />
                 <Text style={[styles.metricGridLabel, { color: colors.textMuted }]}>WORKOUT</Text>
               </View>
-              <Text style={[styles.metricGridVal, { color: colors.primary }]}>45m</Text>
+              <Text style={[styles.metricGridVal, { color: colors.primary }]}>
+                {todayStats.workoutMinutes}m
+              </Text>
             </GlassCard>
 
             {/* Quests */}
             <GlassCard variant="default" style={styles.metricGridItem}>
               <View style={styles.metricIconHeader}>
-                <Sparkle size={14} color={colors.textMuted} weight="duotone" />
+                <Sparkle size={14} color={colors.success} weight="duotone" />
                 <Text style={[styles.metricGridLabel, { color: colors.textMuted }]}>QUESTS</Text>
               </View>
               <Text style={[styles.metricGridVal, { color: colors.textPrimary }]}>
@@ -288,16 +340,16 @@ export default function HomeDashboard() {
             {/* Coins */}
             <GlassCard variant="default" style={styles.metricGridItem}>
               <View style={styles.metricIconHeader}>
-                <Coins size={14} color={colors.secondary} weight="duotone" />
-                <Text style={[styles.metricGridLabel, { color: colors.secondary }]}>COINS</Text>
+                <Coins size={14} color={colors.tertiary} weight="duotone" />
+                <Text style={[styles.metricGridLabel, { color: colors.tertiary }]}>COINS</Text>
               </View>
-              <Text style={[styles.metricGridVal, { color: colors.secondary }]}>
+              <Text style={[styles.metricGridVal, { color: colors.tertiary }]}>
                 {coins.toLocaleString()}
               </Text>
             </GlassCard>
           </View>
 
-          {/* Apple Fitness 3-Ring Activity Component */}
+          {/* Apple Fitness 3-Ring Activity Component with Live Data */}
           <GlassCard variant="elevated" style={styles.activityRingsCard}>
             <View style={styles.ringsHeaderRow}>
               <Text style={[styles.ringsCardTitle, { color: colors.textPrimary }]}>ACTIVITY RINGS</Text>
@@ -306,20 +358,20 @@ export default function HomeDashboard() {
               </Text>
             </View>
             <IOSActivityRings
-              workoutProgress={Math.min(100, (completedQuestsCount / Math.max(1, totalQuestsCount)) * 100)}
-              focusProgress={Math.min(100, Math.round(((profile?.dailyFocusGoal || 30) / 45) * 100))}
+              workoutProgress={Math.min(100, Math.round((todayStats.workoutMinutes / 30) * 100))}
+              focusProgress={Math.min(100, Math.round((todayStats.focusMinutes / Math.max(1, profile?.dailyFocusGoal || 25)) * 100))}
               questProgress={winRate}
               size={130}
             />
           </GlassCard>
 
-          {/* Stitch v2 14-Day Discipline Heatmap */}
+          {/* 14-Day Discipline Heatmap with Real SQLite Activity */}
           <DisciplineHeatmap />
 
           {/* Weather Widget */}
           <WeatherWidget />
 
-          {/* Today's Quests Section with AI Camera triggers */}
+          {/* Today's Quests Section */}
           <View style={styles.questsSection}>
             <View style={styles.sectionHeaderRow}>
               <Text style={[styles.sectionHeading, { color: colors.textPrimary }]}>Today's Quests</Text>
@@ -328,114 +380,95 @@ export default function HomeDashboard() {
               </TouchableOpacity>
             </View>
 
-            {dailyQuests.length === 0 ? (
-              <GlassCard variant="default" style={styles.emptyCard}>
-                <Sparkle size={24} color={colors.textMuted} weight="duotone" />
-                <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>All clear for today</Text>
-                <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>New quests arrive at midnight</Text>
-              </GlassCard>
-            ) : (
-              dailyQuests.slice(0, 3).map((q) => {
-                const isExercise =
-                  q.category === 'strength' ||
-                  q.category === 'fitness' ||
-                  q.title.toLowerCase().includes('push') ||
-                  q.title.toLowerCase().includes('squat');
+            {dailyQuests.slice(0, 3).map((quest) => {
+              const isExercise = quest.category === 'FITNESS';
+              return (
+                <GlassCard key={quest.id} variant="default" style={styles.questCard}>
+                  <TouchableOpacity
+                    style={[styles.questCheckbox, quest.completed && { backgroundColor: colors.success, borderColor: colors.success }]}
+                    onPress={() => {
+                      haptics.success();
+                      completeQuest(quest.id);
+                    }}
+                  >
+                    {quest.completed && <Check size={14} color="#FFFFFF" weight="bold" />}
+                  </TouchableOpacity>
 
-                return (
-                  <GlassCard key={q.id} variant="default" style={styles.questPreviewCard}>
-                    <TouchableOpacity
-                      style={styles.questPreviewRow}
-                      activeOpacity={0.7}
-                      onPress={() => {
-                        if (isExercise) {
-                          haptics.medium();
-                          const type = q.title.toLowerCase().includes('squat') ? 'SQUAT' : 'PUSHUP';
-                          router.push({
-                            pathname: '/exercise/[type]',
-                            params: { type, target: q.target || 20, questId: String(q.id) },
-                          } as any);
-                        } else {
-                          router.push('/(tabs)/quests');
-                        }
-                      }}
+                  <View style={styles.questTextCol}>
+                    <Text
+                      style={[
+                        styles.questTitle,
+                        { color: colors.textPrimary },
+                        quest.completed && styles.questCompletedText,
+                      ]}
                     >
-                      <View
-                        style={[
-                          styles.questIconBox,
-                          {
-                            backgroundColor: isExercise
-                              ? isDark
-                                ? 'rgba(204, 255, 0, 0.12)'
-                                : 'rgba(16, 185, 129, 0.12)'
-                              : isDark
-                              ? 'rgba(221, 183, 255, 0.12)'
-                              : 'rgba(124, 58, 237, 0.1)',
-                          },
-                        ]}
-                      >
-                        {isExercise ? (
-                          <Barbell size={18} color={colors.primary} weight="duotone" />
-                        ) : (
-                          <Brain size={18} color={colors.secondary} weight="duotone" />
-                        )}
-                      </View>
+                      {quest.title}
+                    </Text>
+                    <Text style={[styles.questSub, { color: colors.textSecondary }]}>
+                      +{quest.rewardXP} XP • +{quest.rewardCoins} Coins
+                    </Text>
+                  </View>
 
-                      <View style={{ flex: 1, gap: 2 }}>
-                        <Text style={[styles.questTitleText, { color: colors.textPrimary }]}>{q.title}</Text>
-                        <Text style={[styles.questSubText, { color: colors.textMuted }]}>
-                          +{q.rewardCoins} coins • +{q.rewardXP} XP
-                        </Text>
-                      </View>
-
-                      {isExercise ? (
-                        <View style={[styles.aiTrackPill, { backgroundColor: isDark ? 'rgba(204, 255, 0, 0.15)' : 'rgba(16, 185, 129, 0.15)' }]}>
-                          <Camera size={12} color={colors.primary} weight="bold" />
-                          <Text style={[styles.aiTrackPillText, { color: colors.primary }]}>AI TRACK</Text>
-                        </View>
-                      ) : (
-                        <CaretRight size={16} color={colors.textMuted} weight="bold" />
-                      )}
+                  {isExercise && !quest.completed && (
+                    <TouchableOpacity
+                      style={[styles.aiTrackBtn, { backgroundColor: isDark ? 'rgba(255, 85, 0, 0.15)' : '#FFECE2', borderColor: '#FF5500' }]}
+                      onPress={() => {
+                        haptics.heavy();
+                        const exType = quest.title.toLowerCase().includes('squat')
+                          ? 'SQUAT'
+                          : quest.title.toLowerCase().includes('pull')
+                          ? 'PULLUP'
+                          : quest.title.toLowerCase().includes('plank')
+                          ? 'PLANK'
+                          : 'PUSHUP';
+                        router.push({
+                          pathname: '/exercise/[type]',
+                          params: { type: exType, target: 20 },
+                        } as any);
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Camera size={13} color="#FF5500" weight="bold" />
+                      <Text style={[styles.aiTrackBtnText, { color: '#FF5500' }]}>AI CAM</Text>
                     </TouchableOpacity>
-                  </GlassCard>
-                );
-              })
-            )}
+                  )}
+                </GlassCard>
+              );
+            })}
           </View>
 
-          <View style={{ height: 100 }} />
+          <View style={{ height: 110 }} />
         </ScrollView>
 
-        {/* Notifications Modal */}
-        <Modal
-          visible={isNotifSheetOpen}
-          transparent
-          animationType="slide"
-          statusBarTranslucent
-          onRequestClose={() => setIsNotifSheetOpen(false)}
-        >
+        {/* Notifications Sheet Modal */}
+        <Modal visible={isNotifSheetOpen} transparent animationType="slide">
           <View style={styles.modalOverlay}>
-            <View style={[styles.modalContent, { backgroundColor: isDark ? '#0A141E' : '#FFFFFF', borderColor: colors.border }]}>
+            <GlassCard variant="elevated" style={styles.modalSheet}>
               <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Activity Alerts</Text>
-                <TouchableOpacity onPress={() => setIsNotifSheetOpen(false)}>
-                  <X size={20} color={colors.textSecondary} weight="bold" />
+                <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Notifications</Text>
+                <TouchableOpacity onPress={() => setIsNotifSheetOpen(false)} style={styles.closeBtn}>
+                  <X size={18} color={colors.textSecondary} weight="bold" />
                 </TouchableOpacity>
               </View>
 
-              <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
+              <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
                 {notifications.length === 0 ? (
-                  <Text style={[styles.emptyNotifText, { color: colors.textMuted }]}>No recent notifications.</Text>
+                  <Text style={[styles.emptyNotifText, { color: colors.textMuted }]}>
+                    No notifications yet.
+                  </Text>
                 ) : (
                   notifications.map((n) => (
-                    <View key={n.id} style={[styles.notifRow, { borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }]}>
+                    <View key={n.id} style={[styles.notifItem, { borderBottomColor: colors.border }]}>
                       <Text style={[styles.notifTitle, { color: colors.textPrimary }]}>{n.title}</Text>
                       <Text style={[styles.notifBody, { color: colors.textSecondary }]}>{n.message}</Text>
+                      <Text style={[styles.notifTime, { color: colors.textMuted }]}>
+                        {new Date(n.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </Text>
                     </View>
                   ))
                 )}
               </ScrollView>
-            </View>
+            </GlassCard>
           </View>
         </Modal>
       </SafeAreaView>
@@ -445,8 +478,8 @@ export default function HomeDashboard() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  center: { justifyContent: 'center', alignItems: 'center' },
   safeArea: { flex: 1 },
+  center: { alignItems: 'center', justifyContent: 'center' },
   topHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -472,7 +505,7 @@ const styles = StyleSheet.create({
   headerRightActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
   headerIconBtn: {
     width: 38,
@@ -481,6 +514,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
   },
   bellDot: {
     position: 'absolute',
@@ -492,7 +526,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 14,
+    paddingTop: 16,
     gap: 16,
   },
   permAlertCard: {
@@ -500,16 +534,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     padding: 14,
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: 1,
   },
   permAlertTitle: {
     fontSize: 13,
     fontWeight: '800',
   },
-  permAlertDesc: {
+  permAlertSub: {
     fontSize: 11,
-    lineHeight: 15,
+    lineHeight: 14,
   },
   permAlertBadge: {
     paddingHorizontal: 10,
@@ -519,63 +553,62 @@ const styles = StyleSheet.create({
   permAlertBadgeText: {
     fontSize: 10,
     fontWeight: '900',
-    color: '#000000',
+    color: '#FFFFFF',
   },
   timeHeroSection: {
+    alignItems: 'center',
+    gap: 2,
     paddingVertical: 6,
   },
   timeHeroDisplay: {
-    fontSize: 48,
-    fontWeight: '800',
-    letterSpacing: -1.5,
-    lineHeight: 52,
+    fontSize: 44,
+    fontWeight: '900',
+    letterSpacing: -1,
   },
   dateHeroDisplay: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
-    marginTop: 2,
   },
   nextUpCard: {
-    padding: 20,
-    borderRadius: 22,
+    padding: 18,
+    borderRadius: 20,
     gap: 6,
   },
   nextUpTopRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    alignItems: 'center',
   },
   nextUpLabel: {
     fontSize: 10,
     fontWeight: '800',
-    letterSpacing: 1,
+    letterSpacing: 0.8,
   },
   nextUpHeading: {
     fontSize: 14,
     fontWeight: '600',
+    marginTop: 2,
   },
   nextUpHighlight: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '900',
-    letterSpacing: -0.5,
-    marginBottom: 10,
+    letterSpacing: -0.3,
   },
   startPillBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    alignSelf: 'flex-start',
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 18,
     borderRadius: 100,
+    alignSelf: 'flex-start',
+    marginTop: 6,
   },
   startPillBtnText: {
     fontSize: 12,
     fontWeight: '900',
-    color: '#000000',
-    letterSpacing: 0.3,
+    color: '#FFFFFF',
   },
   metricsGridRow: {
     flexDirection: 'row',
@@ -584,11 +617,9 @@ const styles = StyleSheet.create({
   },
   metricGridItem: {
     flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
+    padding: 12,
     borderRadius: 16,
-    alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
   metricIconHeader: {
     flexDirection: 'row',
@@ -598,17 +629,17 @@ const styles = StyleSheet.create({
   metricGridLabel: {
     fontSize: 9,
     fontWeight: '800',
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
   },
   metricGridVal: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '900',
     letterSpacing: -0.3,
   },
   activityRingsCard: {
     padding: 18,
-    borderRadius: 22,
-    gap: 14,
+    borderRadius: 20,
+    gap: 12,
   },
   ringsHeaderRow: {
     flexDirection: 'row',
@@ -618,11 +649,11 @@ const styles = StyleSheet.create({
   ringsCardTitle: {
     fontSize: 12,
     fontWeight: '800',
-    letterSpacing: 0.8,
+    letterSpacing: 0.5,
   },
   ringsCardDate: {
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 10,
+    fontWeight: '700',
   },
   questsSection: {
     gap: 10,
@@ -639,70 +670,63 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   seeAllText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  emptyCard: {
-    padding: 24,
-    borderRadius: 18,
-    alignItems: 'center',
-    gap: 6,
-  },
-  emptyTitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '800',
   },
-  emptySubtitle: {
-    fontSize: 12,
-  },
-  questPreviewCard: {
-    borderRadius: 18,
-  },
-  questPreviewRow: {
+  questCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
     padding: 14,
+    borderRadius: 16,
+    gap: 12,
   },
-  questIconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+  questCheckbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderColor: '#94A3B8',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  questTitleText: {
-    fontSize: 13,
+  questTextCol: {
+    flex: 1,
+    gap: 2,
+  },
+  questTitle: {
+    fontSize: 14,
     fontWeight: '700',
   },
-  questSubText: {
-    fontSize: 11,
-    fontWeight: '500',
+  questCompletedText: {
+    textDecorationLine: 'line-through',
+    opacity: 0.5,
   },
-  aiTrackPill: {
+  questSub: {
+    fontSize: 11,
+  },
+  aiTrackBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 100,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
   },
-  aiTrackPillText: {
-    fontSize: 9,
+  aiTrackBtnText: {
+    fontSize: 10,
     fontWeight: '900',
-    letterSpacing: 0.5,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.65)',
+    backgroundColor: 'rgba(0,0,0,0.75)',
     justifyContent: 'flex-end',
   },
-  modalContent: {
+  modalSheet: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    borderWidth: 1,
     padding: 20,
-    gap: 14,
+    gap: 16,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -710,25 +734,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalTitle: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '800',
+  },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyNotifText: {
     textAlign: 'center',
-    paddingVertical: 24,
+    paddingVertical: 20,
     fontSize: 13,
   },
-  notifRow: {
+  notifItem: {
     paddingVertical: 12,
     borderBottomWidth: 1,
-    gap: 3,
+    gap: 2,
   },
   notifTitle: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '800',
   },
   notifBody: {
-    fontSize: 11,
+    fontSize: 12,
     lineHeight: 16,
+  },
+  notifTime: {
+    fontSize: 10,
+    marginTop: 2,
   },
 });

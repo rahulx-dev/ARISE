@@ -23,6 +23,7 @@ import {
 import { GlassCard } from '../../src/components/ios/GlassCard';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { useGymStore } from '../../src/stores/useGymStore';
+import { historyService } from '../../src/services/historyService';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTheme } from '../../src/hooks/useTheme';
 
@@ -41,18 +42,13 @@ export default function GymWorkoutScreen() {
   const haptics = useHaptics();
   const { colors, isDark } = useTheme();
 
-  const [activeTab, setActiveTab] = useState<'workout' | 'telemetry' | 'prs'>('workout');
   const [isPrefModalOpen, setIsPrefModalOpen] = useState<boolean>(false);
+  const [completedCount, setCompletedCount] = useState<number>(0);
+  const [activeWeekDays, setActiveWeekDays] = useState<boolean[]>([false, false, false, false, false, false, false]);
 
   const profile = usePlayerStore((s) => s.profile);
   const loadProfile = usePlayerStore((s) => s.loadProfile);
   const loadGymData = useGymStore((s) => s.loadGymData);
-  const preferences = useGymStore((s) => s.preferences);
-  const savePreferences = useGymStore((s) => s.savePreferences);
-
-  const [prefGoal, setPrefGoal] = useState<any>('strength');
-  const [prefDays, setPrefDays] = useState<number>(4);
-  const [prefDuration, setPrefDuration] = useState<number>(45);
 
   const todayDayIndex = (new Date().getDay() + 6) % 7; // Monday = 0
 
@@ -60,6 +56,16 @@ export default function GymWorkoutScreen() {
     try {
       await loadProfile();
       await loadGymData();
+      const stats = await historyService.getTodayRealStats();
+      setCompletedCount(Math.min(EXERCISES_LIST.length, stats.workoutCount));
+
+      // Load real 7-day activity
+      const allDays = await historyService.get12WeekHeatmapData();
+      const last7 = allDays.slice(-7);
+      if (last7.length > 0) {
+        const bools = last7.map((d) => d.workoutCount > 0 || d.intensity > 0);
+        setActiveWeekDays(bools);
+      }
     } catch (e) {
       console.warn('Error loading gym tab data:', e);
     }
@@ -86,11 +92,14 @@ export default function GymWorkoutScreen() {
     } as any);
   };
 
+  const totalExercises = EXERCISES_LIST.length;
+  const progressPercent = Math.min(100, Math.round((completedCount / totalExercises) * 100));
+
   return (
-    <View style={[styles.container, { backgroundColor: isDark ? '#051424' : '#F2F2F7' }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <SafeAreaView style={styles.safeArea}>
         {/* Top App Bar */}
-        <View style={[styles.topHeader, { borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)' }]}>
+        <View style={[styles.topHeader, { borderBottomColor: isDark ? '#232532' : '#E5E7EB' }]}>
           <View>
             <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Gym</Text>
             <Text style={[styles.headerSub, { color: colors.textMuted }]}>
@@ -98,7 +107,7 @@ export default function GymWorkoutScreen() {
             </Text>
           </View>
           <TouchableOpacity
-            style={[styles.circleBtn, { backgroundColor: isDark ? 'rgba(39, 54, 71, 0.45)' : 'rgba(0, 0, 0, 0.04)', borderColor: colors.border }]}
+            style={[styles.circleBtn, { backgroundColor: isDark ? '#14151C' : '#FFFFFF', borderColor: colors.border }]}
             onPress={() => {
               haptics.light();
               setIsPrefModalOpen(true);
@@ -109,7 +118,7 @@ export default function GymWorkoutScreen() {
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Stitch v2 Hero Workout Card */}
+          {/* Hero Workout Card */}
           <GlassCard variant="elevated" style={styles.heroCard}>
             <View style={styles.heroTopRow}>
               <Text style={[styles.heroLabel, { color: colors.primary }]}>TODAY'S WORKOUT</Text>
@@ -118,40 +127,40 @@ export default function GymWorkoutScreen() {
 
             <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>Upper Body</Text>
             <Text style={[styles.heroSubtitle, { color: colors.textMuted }]}>
-              45 min • 5 exercises
+              45 min • {totalExercises} exercises
             </Text>
 
             {/* Progress Indicator */}
             <View style={styles.heroProgressWrap}>
               <View style={styles.heroProgressLabels}>
                 <Text style={[styles.heroProgressCount, { color: colors.textSecondary }]}>
-                  2 / 5 Completed
+                  {completedCount} / {totalExercises} Completed
                 </Text>
-                <Text style={[styles.heroProgressPercent, { color: colors.primary }]}>40%</Text>
+                <Text style={[styles.heroProgressPercent, { color: colors.primary }]}>{progressPercent}%</Text>
               </View>
-              <View style={[styles.progressBarTrack, { backgroundColor: isDark ? 'rgba(204, 255, 0, 0.12)' : 'rgba(0, 0, 0, 0.06)' }]}>
-                <View style={[styles.progressBarFill, { width: '40%', backgroundColor: colors.primary }]} />
+              <View style={[styles.progressBarTrack, { backgroundColor: isDark ? '#1C1E27' : '#E5E7EB' }]}>
+                <View style={[styles.progressBarFill, { width: `${progressPercent}%`, backgroundColor: colors.primary }]} />
               </View>
             </View>
 
-            {/* Continue Button in Solid Electric Lime */}
+            {/* Start Button in Solid Vibrant Orange */}
             <TouchableOpacity
-              style={[styles.continueBtn, { backgroundColor: colors.primary }]}
+              style={[styles.continueBtn, { backgroundColor: '#FF5500' }]}
               onPress={() => handleStartExercise('PUSHUP', 20)}
               activeOpacity={0.85}
             >
-              <Text style={styles.continueBtnText}>Continue</Text>
-              <Play size={16} color="#000000" weight="fill" />
+              <Text style={styles.continueBtnText}>Start Workout</Text>
+              <Play size={16} color="#FFFFFF" weight="fill" />
             </TouchableOpacity>
           </GlassCard>
 
-          {/* Stitch v2 Weekly Tracker ("This Week") */}
+          {/* Weekly Tracker ("This Week") with Real Activity */}
           <GlassCard variant="default" style={styles.weeklyTrackerCard}>
             <Text style={[styles.weeklyTitle, { color: colors.textMuted }]}>This Week</Text>
             <View style={styles.weekDaysRow}>
               {DAYS_OF_WEEK.map((day, idx) => {
                 const isToday = idx === todayDayIndex;
-                const isCompleted = idx < todayDayIndex;
+                const isCompleted = activeWeekDays[idx] || (idx === todayDayIndex && completedCount > 0);
 
                 return (
                   <View key={idx} style={styles.dayCol}>
@@ -170,16 +179,16 @@ export default function GymWorkoutScreen() {
                         {
                           backgroundColor: isToday
                             ? colors.primary
-                              : isCompleted
-                              ? isDark
-                                ? 'rgba(39, 54, 71, 0.7)'
-                                : 'rgba(0, 0, 0, 0.06)'
-                            : 'transparent',
-                          borderColor: isToday ? colors.primary : colors.border,
+                            : isCompleted
+                            ? colors.success
+                            : isDark
+                            ? '#1C1E27'
+                            : '#F3F4F6',
+                          borderColor: isToday ? colors.primary : isCompleted ? colors.success : colors.border,
                         },
                       ]}
                     >
-                      {isCompleted && <CheckCircle size={14} color={colors.primary} weight="fill" />}
+                      {isCompleted && !isToday && <CheckCircle size={14} color="#FFFFFF" weight="fill" />}
                       {isToday && <Text style={styles.todayDayNum}>{new Date().getDate()}</Text>}
                     </View>
                   </View>
@@ -204,12 +213,12 @@ export default function GymWorkoutScreen() {
                 </View>
 
                 <TouchableOpacity
-                  style={[styles.aiCamBtn, { backgroundColor: isDark ? 'rgba(204, 255, 0, 0.12)' : 'rgba(16, 185, 129, 0.12)', borderColor: colors.primary }]}
+                  style={[styles.aiCamBtn, { backgroundColor: isDark ? 'rgba(255, 85, 0, 0.15)' : '#FFECE2', borderColor: '#FF5500' }]}
                   onPress={() => handleStartExercise(ex.type, parseInt(ex.reps, 10) || 20)}
                   activeOpacity={0.8}
                 >
-                  <Camera size={14} color={colors.primary} weight="bold" />
-                  <Text style={[styles.aiCamBtnText, { color: colors.primary }]}>AI TRACK</Text>
+                  <Camera size={14} color="#FF5500" weight="bold" />
+                  <Text style={[styles.aiCamBtnText, { color: '#FF5500' }]}>AI TRACK</Text>
                 </TouchableOpacity>
               </GlassCard>
             ))}
@@ -235,7 +244,7 @@ export default function GymWorkoutScreen() {
                 </Text>
 
                 <TouchableOpacity
-                  style={[styles.savePrefBtn, { backgroundColor: colors.primary }]}
+                  style={[styles.savePrefBtn, { backgroundColor: '#FF5500' }]}
                   onPress={() => {
                     haptics.heavy();
                     setIsPrefModalOpen(false);
@@ -287,7 +296,7 @@ const styles = StyleSheet.create({
   },
   heroCard: {
     padding: 20,
-    borderRadius: 22,
+    borderRadius: 20,
     gap: 12,
   },
   heroTopRow: {
@@ -301,7 +310,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   heroTitle: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '900',
     letterSpacing: -0.5,
   },
@@ -349,12 +358,12 @@ const styles = StyleSheet.create({
   continueBtnText: {
     fontSize: 13,
     fontWeight: '900',
-    color: '#000000',
+    color: '#FFFFFF',
     letterSpacing: 0.3,
   },
   weeklyTrackerCard: {
     padding: 16,
-    borderRadius: 20,
+    borderRadius: 18,
     gap: 12,
   },
   weeklyTitle: {
@@ -385,7 +394,7 @@ const styles = StyleSheet.create({
   todayDayNum: {
     fontSize: 11,
     fontWeight: '900',
-    color: '#000000',
+    color: '#FFFFFF',
   },
   exerciseSection: {
     gap: 10,
@@ -401,7 +410,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
-    borderRadius: 18,
+    borderRadius: 16,
   },
   exerciseInfoCol: {
     flex: 1,
@@ -431,7 +440,7 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.65)',
+    backgroundColor: 'rgba(0,0,0,0.75)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
@@ -462,6 +471,6 @@ const styles = StyleSheet.create({
   savePrefBtnText: {
     fontSize: 13,
     fontWeight: '900',
-    color: '#000000',
+    color: '#FFFFFF',
   },
 });
