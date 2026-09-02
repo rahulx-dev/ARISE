@@ -25,7 +25,7 @@ interface GlassButtonProps {
 }
 
 /**
- * Solid Modern Action Button with Smooth Spring Press Animation
+ * Ultra-Premium Solid Action Button with Spring Scale Feedback
  */
 export const GlassButton = React.memo(function GlassButton({
   title,
@@ -71,9 +71,9 @@ export const GlassButton = React.memo(function GlassButton({
       case 'primary':
         return {
           btn: {
-            backgroundColor: '#FF5500',
-            borderColor: '#FF5500',
-            shadowColor: '#FF5500',
+            backgroundColor: '#0A84FF',
+            borderColor: '#0A84FF',
+            shadowColor: '#0A84FF',
             shadowOffset: { width: 0, height: 2 },
             shadowOpacity: 0.25,
             shadowRadius: 6,
@@ -81,18 +81,18 @@ export const GlassButton = React.memo(function GlassButton({
           },
           text: {
             color: '#FFFFFF',
-            fontWeight: '900',
+            fontWeight: '800',
           },
         };
 
       case 'secondary':
         return {
           btn: {
-            backgroundColor: isDark ? '#2E1065' : '#EDE9FE',
-            borderColor: isDark ? '#4C1D95' : '#DDD6FE',
+            backgroundColor: isDark ? '#141A29' : '#EFF6FF',
+            borderColor: isDark ? '#1E2D4A' : '#BFDBFE',
           },
           text: {
-            color: isDark ? '#C4B5FD' : '#6D28D9',
+            color: isDark ? '#60A5FA' : '#1D4ED8',
             fontWeight: '800',
           },
         };
@@ -105,15 +105,15 @@ export const GlassButton = React.memo(function GlassButton({
           },
           text: {
             color: '#FFFFFF',
-            fontWeight: '900',
+            fontWeight: '800',
           },
         };
 
       case 'outline':
         return {
           btn: {
-            backgroundColor: isDark ? '#14151C' : '#FFFFFF',
-            borderColor: isDark ? '#282A36' : '#E5E7EB',
+            backgroundColor: isDark ? '#121216' : '#FFFFFF',
+            borderColor: isDark ? '#1F1F27' : '#E5E5EA',
           },
           text: {
             color: colors.textPrimary,
@@ -124,12 +124,12 @@ export const GlassButton = React.memo(function GlassButton({
       case 'danger':
         return {
           btn: {
-            backgroundColor: isDark ? '#450A0A' : '#FEE2E2',
-            borderColor: isDark ? '#7F1D1D' : '#FECACA',
+            backgroundColor: isDark ? '#3D0D0D' : '#FEE2E2',
+            borderColor: isDark ? '#661414' : '#FECACA',
           },
           text: {
             color: isDark ? '#FCA5A5' : '#DC2626',
-            fontWeight: '900',
+            fontWeight: '800',
           },
         };
 
@@ -137,8 +137,8 @@ export const GlassButton = React.memo(function GlassButton({
       default:
         return {
           btn: {
-            backgroundColor: isDark ? '#1C1E27' : '#F3F4F6',
-            borderColor: isDark ? '#2B2D3A' : '#E5E7EB',
+            backgroundColor: isDark ? '#18181F' : '#F2F2F7',
+            borderColor: isDark ? '#262630' : '#E5E5EA',
           },
           text: {
             color: colors.textPrimary,
@@ -153,18 +153,18 @@ export const GlassButton = React.memo(function GlassButton({
       case 'sm':
         return {
           btn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10 },
-          text: { fontSize: 11, letterSpacing: 0.4 },
+          text: { fontSize: 11, letterSpacing: 0.3 },
         };
       case 'lg':
         return {
-          btn: { paddingVertical: 16, paddingHorizontal: 24, borderRadius: 16 },
-          text: { fontSize: 14, letterSpacing: 0.8 },
+          btn: { paddingVertical: 15, paddingHorizontal: 24, borderRadius: 16 },
+          text: { fontSize: 14, letterSpacing: 0.6 },
         };
       case 'md':
       default:
         return {
           btn: { paddingVertical: 12, paddingHorizontal: 18, borderRadius: 14 },
-          text: { fontSize: 12, letterSpacing: 0.6 },
+          text: { fontSize: 12, letterSpacing: 0.5 },
         };
     }
   };

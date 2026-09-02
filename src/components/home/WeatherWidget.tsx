@@ -72,9 +72,9 @@ export const WeatherWidget = React.memo(function WeatherWidget() {
         <View style={styles.tempRow}>
           <Text style={[styles.tempNumber, { color: colors.textPrimary }]}>{weather.tempC}°</Text>
           {weather.isDay ? (
-            <Sun size={24} color="#FF5500" weight="fill" />
+            <Sun size={24} color="#F59E0B" weight="fill" />
           ) : (
-            <Moon size={24} color="#8B5CF6" weight="fill" />
+            <Moon size={24} color="#6366F1" weight="fill" />
           )}
         </View>
       </View>

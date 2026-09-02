@@ -51,97 +51,97 @@ export interface ThemeColors {
 }
 
 export const darkThemeColors: ThemeColors = {
-  // Main Accent: Vibrant Orange
-  primary: '#FF5500',
-  primaryLight: '#FF7733',
-  primaryDark: '#CC4400',
-  primaryGlow: 'rgba(255, 85, 0, 0.25)',
+  // Signature Primary: Royal Sapphire Azure
+  primary: '#0A84FF',
+  primaryLight: '#389BFF',
+  primaryDark: '#0066CC',
+  primaryGlow: 'rgba(10, 132, 255, 0.2)',
   tertiary: '#F59E0B',
 
-  // Secondary Accent: Deep Focus Purple
-  primaryPurple: '#7C3AED',
-  purpleGlow: 'rgba(124, 58, 237, 0.25)',
+  // Secondary Accent: Deep Iris / Slate Violet
+  primaryPurple: '#6366F1',
+  purpleGlow: 'rgba(99, 102, 241, 0.2)',
 
-  // Deep Solid Dark Backgrounds
-  background: '#090A0F',
-  backgroundElevated: '#111218',
-  backgroundGradientTop: '#111218',
-  backgroundGradientBottom: '#090A0F',
+  // Pure True OLED Black Backgrounds
+  background: '#000000',
+  backgroundElevated: '#0A0A0D',
+  backgroundGradientTop: '#0C0C10',
+  backgroundGradientBottom: '#000000',
 
-  // Solid Surfaces (No blur, no transparency)
-  card: '#14151C',
-  surface: '#090A0F',
-  surfaceLight: '#14151C',
-  surfaceElevated: '#1C1E27',
-  surfaceBorder: '#232532',
-  border: '#232532',
-  borderGlow: 'rgba(255, 85, 0, 0.3)',
+  // Solid Velvety Charcoal Zinc Cards
+  card: '#121216',
+  surface: '#000000',
+  surfaceLight: '#121216',
+  surfaceElevated: '#17171D',
+  surfaceBorder: '#1F1F27',
+  border: '#1F1F27',
+  borderGlow: 'rgba(10, 132, 255, 0.25)',
 
   // Typography
   textPrimary: '#FFFFFF',
-  textSecondary: '#94A3B8',
-  textMuted: '#64748B',
+  textSecondary: '#8E8E93',
+  textMuted: '#636366',
 
-  // Supporting Colors
-  accent: '#FF5500',
+  // Supporting Functional Accents
+  accent: '#0A84FF',
   accentGold: '#F59E0B',
-  accentGlow: 'rgba(245, 158, 11, 0.25)',
-  secondary: '#8B5CF6',
-  danger: '#EF4444',
-  dangerGlow: 'rgba(239, 68, 68, 0.25)',
-  warning: '#F59E0B',
-  success: '#10B981', // Supporting Green
+  accentGlow: 'rgba(245, 158, 11, 0.2)',
+  secondary: '#6366F1',
+  danger: '#FF453A',
+  dangerGlow: 'rgba(255, 69, 58, 0.2)',
+  warning: '#FF9F0A',
+  success: '#10B981', // Functional Emerald Green
   neonGreen: '#10B981',
 
   stats: {
-    strength: '#EF4444',
-    discipline: '#FF5500',
-    focus: '#8B5CF6',
+    strength: '#FF453A',
+    discipline: '#0A84FF',
+    focus: '#6366F1',
     health: '#10B981',
     knowledge: '#38BDF8',
   },
 
-  overlay: 'rgba(0, 0, 0, 0.75)',
-  glassCard: '#14151C',
+  overlay: 'rgba(0, 0, 0, 0.8)',
+  glassCard: '#121216',
   isDark: true,
 };
 
 export const lightThemeColors: ThemeColors = {
-  // Main Accent: Vibrant Orange
-  primary: '#FF5500',
-  primaryLight: '#FF7733',
-  primaryDark: '#CC4400',
-  primaryGlow: 'rgba(255, 85, 0, 0.15)',
+  // Signature Primary: Royal Sapphire Azure
+  primary: '#007AFF',
+  primaryLight: '#389BFF',
+  primaryDark: '#0055B3',
+  primaryGlow: 'rgba(0, 122, 255, 0.15)',
   tertiary: '#F59E0B',
 
-  // Secondary Accent: Deep Purple
-  primaryPurple: '#7C3AED',
-  purpleGlow: 'rgba(124, 58, 237, 0.15)',
+  // Secondary: Iris
+  primaryPurple: '#6366F1',
+  purpleGlow: 'rgba(99, 102, 241, 0.15)',
 
-  // Clean Light Backgrounds
-  background: '#F8F9FA',
+  // Apple Light Gray
+  background: '#F2F2F7',
   backgroundElevated: '#FFFFFF',
   backgroundGradientTop: '#FFFFFF',
-  backgroundGradientBottom: '#F1F3F5',
+  backgroundGradientBottom: '#E5E5EA',
 
-  // Solid White Cards & Surfaces
+  // Solid White Cards
   card: '#FFFFFF',
   surface: '#FFFFFF',
-  surfaceLight: '#F1F3F5',
+  surfaceLight: '#F2F2F7',
   surfaceElevated: '#FFFFFF',
-  surfaceBorder: '#E5E7EB',
-  border: '#E5E7EB',
-  borderGlow: 'rgba(255, 85, 0, 0.2)',
+  surfaceBorder: '#E5E5EA',
+  border: '#E5E5EA',
+  borderGlow: 'rgba(0, 122, 255, 0.2)',
 
   // Typography
-  textPrimary: '#111827',
-  textSecondary: '#4B5563',
-  textMuted: '#9CA3AF',
+  textPrimary: '#000000',
+  textSecondary: '#3C3C43',
+  textMuted: '#8E8E93',
 
-  accent: '#FF5500',
+  accent: '#007AFF',
   accentGold: '#D97706',
   accentGlow: 'rgba(217, 119, 6, 0.2)',
-  secondary: '#7C3AED',
+  secondary: '#6366F1',
   danger: '#DC2626',
   dangerGlow: 'rgba(220, 38, 38, 0.2)',
   warning: '#D97706',
@@ -150,8 +150,8 @@ export const lightThemeColors: ThemeColors = {
 
   stats: {
     strength: '#DC2626',
-    discipline: '#FF5500',
-    focus: '#7C3AED',
+    discipline: '#007AFF',
+    focus: '#6366F1',
     health: '#10B981',
     knowledge: '#0284C7',
   },

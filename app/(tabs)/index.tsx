@@ -411,7 +411,7 @@ export default function HomeDashboard() {
 
                   {isExercise && !quest.completed && (
                     <TouchableOpacity
-                      style={[styles.aiTrackBtn, { backgroundColor: isDark ? 'rgba(255, 85, 0, 0.15)' : '#FFECE2', borderColor: '#FF5500' }]}
+                      style={[styles.aiTrackBtn, { backgroundColor: isDark ? 'rgba(10, 132, 255, 0.15)' : '#EFF6FF', borderColor: '#0A84FF' }]}
                       onPress={() => {
                         haptics.heavy();
                         const exType = quest.title.toLowerCase().includes('squat')
@@ -428,8 +428,8 @@ export default function HomeDashboard() {
                       }}
                       activeOpacity={0.8}
                     >
-                      <Camera size={13} color="#FF5500" weight="bold" />
-                      <Text style={[styles.aiTrackBtnText, { color: '#FF5500' }]}>AI CAM</Text>
+                      <Camera size={13} color="#0A84FF" weight="bold" />
+                      <Text style={[styles.aiTrackBtnText, { color: '#0A84FF' }]}>AI CAM</Text>
                     </TouchableOpacity>
                   )}
                 </GlassCard>

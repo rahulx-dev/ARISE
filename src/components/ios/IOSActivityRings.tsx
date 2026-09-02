@@ -11,16 +11,16 @@ interface ActivityRingsProps {
 }
 
 /**
- * Modern 3-Concentric Activity Rings
- * - Outer Ring (Orange #FF5500): Workout & Physical Power
- * - Middle Ring (Purple #8B5CF6): Deep Focus & Mental Clarity
- * - Inner Ring (Green #10B981): Quests & Daily Discipline
+ * Ultra-Clean Modern 3-Concentric Activity Rings
+ * - Outer Ring (Titanium Azure #0A84FF): Physical Power / Workout
+ * - Middle Ring (Iris #6366F1): Deep Focus & Mental Clarity
+ * - Inner Ring (Emerald #10B981): Quests & Daily Discipline
  */
 export function IOSActivityRings({
   workoutProgress = 65,
   focusProgress = 80,
   questProgress = 50,
-  size = 140,
+  size = 136,
 }: ActivityRingsProps) {
   const { colors, isDark } = useTheme();
   const strokeWidth = 11;
@@ -28,19 +28,19 @@ export function IOSActivityRings({
 
   const center = size / 2;
 
-  // Outer Ring (Orange - Workout)
+  // Outer Ring (Azure - Workout)
   const r1 = center - strokeWidth / 2 - 2;
   const c1 = 2 * Math.PI * r1;
   const pct1 = Math.min(100, Math.max(0, workoutProgress)) / 100;
   const offset1 = c1 * (1 - pct1);
 
-  // Middle Ring (Purple - Focus)
+  // Middle Ring (Iris - Focus)
   const r2 = r1 - strokeWidth - gap;
   const c2 = 2 * Math.PI * r2;
   const pct2 = Math.min(100, Math.max(0, focusProgress)) / 100;
   const offset2 = c2 * (1 - pct2);
 
-  // Inner Ring (Green - Quests)
+  // Inner Ring (Emerald - Quests)
   const r3 = r2 - strokeWidth - gap;
   const c3 = 2 * Math.PI * r3;
   const pct3 = Math.min(100, Math.max(0, questProgress)) / 100;
@@ -57,7 +57,7 @@ export function IOSActivityRings({
               cx={center}
               cy={center}
               r={r1}
-              stroke="rgba(255, 85, 0, 0.15)"
+              stroke="rgba(10, 132, 255, 0.15)"
               strokeWidth={strokeWidth}
               fill="none"
             />
@@ -65,7 +65,7 @@ export function IOSActivityRings({
               cx={center}
               cy={center}
               r={r2}
-              stroke="rgba(139, 92, 246, 0.15)"
+              stroke="rgba(99, 102, 241, 0.15)"
               strokeWidth={strokeWidth}
               fill="none"
             />
@@ -83,7 +83,7 @@ export function IOSActivityRings({
               cx={center}
               cy={center}
               r={r1}
-              stroke="#FF5500"
+              stroke="#0A84FF"
               strokeWidth={strokeWidth}
               strokeDasharray={`${c1} ${c1}`}
               strokeDashoffset={offset1}
@@ -94,7 +94,7 @@ export function IOSActivityRings({
               cx={center}
               cy={center}
               r={r2}
-              stroke="#8B5CF6"
+              stroke="#6366F1"
               strokeWidth={strokeWidth}
               strokeDasharray={`${c2} ${c2}`}
               strokeDashoffset={offset2}
@@ -120,10 +120,10 @@ export function IOSActivityRings({
       <View style={styles.legendContainer}>
         {/* Workout */}
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#FF5500' }]} />
+          <View style={[styles.legendDot, { backgroundColor: '#0A84FF' }]} />
           <View style={{ flex: 1 }}>
             <Text style={[styles.legendLabel, { color: colors.textMuted }]}>WORKOUT</Text>
-            <Text style={[styles.legendVal, { color: '#FF5500' }]}>
+            <Text style={[styles.legendVal, { color: '#0A84FF' }]}>
               {Math.round(workoutProgress)}%
             </Text>
           </View>
@@ -131,10 +131,10 @@ export function IOSActivityRings({
 
         {/* Focus */}
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#8B5CF6' }]} />
+          <View style={[styles.legendDot, { backgroundColor: '#6366F1' }]} />
           <View style={{ flex: 1 }}>
             <Text style={[styles.legendLabel, { color: colors.textMuted }]}>FOCUS</Text>
-            <Text style={[styles.legendVal, { color: '#8B5CF6' }]}>
+            <Text style={[styles.legendVal, { color: '#6366F1' }]}>
               {Math.round(focusProgress)}%
             </Text>
           </View>
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 20,
-    paddingVertical: 6,
+    paddingVertical: 4,
   },
   legendContainer: {
     flex: 1,
@@ -178,12 +178,12 @@ const styles = StyleSheet.create({
   },
   legendLabel: {
     fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.8,
+    fontWeight: '700',
+    letterSpacing: 0.6,
   },
   legendVal: {
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '800',
     letterSpacing: -0.3,
   },
 });

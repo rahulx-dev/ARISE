@@ -143,9 +143,9 @@ export default function GymWorkoutScreen() {
               </View>
             </View>
 
-            {/* Start Button in Solid Vibrant Orange */}
+            {/* Start Button in Solid Titanium Azure */}
             <TouchableOpacity
-              style={[styles.continueBtn, { backgroundColor: '#FF5500' }]}
+              style={[styles.continueBtn, { backgroundColor: '#0A84FF' }]}
               onPress={() => handleStartExercise('PUSHUP', 20)}
               activeOpacity={0.85}
             >
@@ -213,12 +213,12 @@ export default function GymWorkoutScreen() {
                 </View>
 
                 <TouchableOpacity
-                  style={[styles.aiCamBtn, { backgroundColor: isDark ? 'rgba(255, 85, 0, 0.15)' : '#FFECE2', borderColor: '#FF5500' }]}
+                  style={[styles.aiCamBtn, { backgroundColor: isDark ? 'rgba(10, 132, 255, 0.15)' : '#EFF6FF', borderColor: '#0A84FF' }]}
                   onPress={() => handleStartExercise(ex.type, parseInt(ex.reps, 10) || 20)}
                   activeOpacity={0.8}
                 >
-                  <Camera size={14} color="#FF5500" weight="bold" />
-                  <Text style={[styles.aiCamBtnText, { color: '#FF5500' }]}>AI TRACK</Text>
+                  <Camera size={14} color="#0A84FF" weight="bold" />
+                  <Text style={[styles.aiCamBtnText, { color: '#0A84FF' }]}>AI TRACK</Text>
                 </TouchableOpacity>
               </GlassCard>
             ))}

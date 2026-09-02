@@ -384,7 +384,7 @@ function ExerciseTrackerInner() {
             onPress={toggleTorch}
             activeOpacity={0.8}
           >
-            <Flashlight size={20} color={torch ? '#FF5500' : '#FFFFFF'} />
+            <Flashlight size={20} color={torch ? '#0A84FF' : '#FFFFFF'} />
           </TouchableOpacity>
 
           {/* End Set / Action Button with Circular Progress Arc */}
@@ -399,7 +399,7 @@ function ExerciseTrackerInner() {
                 cx="50"
                 cy="50"
                 r="46"
-                stroke="rgba(255, 85, 0, 0.2)"
+                stroke="rgba(10, 132, 255, 0.2)"
                 strokeWidth="3.5"
                 fill="none"
               />
@@ -408,7 +408,7 @@ function ExerciseTrackerInner() {
                 cx="50"
                 cy="50"
                 r="46"
-                stroke="#FF5500"
+                stroke="#0A84FF"
                 strokeWidth="3.5"
                 strokeDasharray={`${circleCircumference} ${circleCircumference}`}
                 strokeDashoffset={strokeDashoffset}

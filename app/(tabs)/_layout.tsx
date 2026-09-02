@@ -11,7 +11,7 @@ import {
 import { useTheme } from '../../src/hooks/useTheme';
 
 /**
- * Modern Solid Dark Floating Navigation Bar (No Glassmorphism, No Blur)
+ * Modern Solid Charcoal Floating Navigation Bar (Titanium Azure Tier)
  */
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
@@ -22,10 +22,10 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: isDark ? '#14151C' : '#FFFFFF',
+          backgroundColor: isDark ? '#121216' : '#FFFFFF',
           borderTopWidth: 0,
           borderWidth: 1,
-          borderColor: isDark ? '#232532' : '#E5E7EB',
+          borderColor: isDark ? '#1F1F27' : '#E5E5EA',
           borderRadius: 24,
           marginHorizontal: 16,
           marginBottom: insets.bottom > 0 ? insets.bottom + 4 : 14,
@@ -35,12 +35,12 @@ export default function TabsLayout() {
           position: 'absolute',
           shadowColor: '#000000',
           shadowOffset: { width: 0, height: 6 },
-          shadowOpacity: isDark ? 0.35 : 0.08,
+          shadowOpacity: isDark ? 0.35 : 0.06,
           shadowRadius: 14,
           elevation: 10,
         },
-        tabBarActiveTintColor: '#FF5500', // Orange Accent
-        tabBarInactiveTintColor: isDark ? '#64748B' : '#9CA3AF',
+        tabBarActiveTintColor: '#0A84FF', // Titanium Azure Accent
+        tabBarInactiveTintColor: isDark ? '#636366' : '#8E8E93',
         tabBarLabelStyle: {
           fontSize: 10,
           fontWeight: '700',
@@ -56,7 +56,7 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, focused }) => (
             <House
               size={22}
-              color={focused ? '#FF5500' : color}
+              color={focused ? '#0A84FF' : color}
               weight={focused ? 'fill' : 'regular'}
             />
           ),
@@ -69,7 +69,7 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, focused }) => (
             <Lightning
               size={22}
-              color={focused ? '#FF5500' : color}
+              color={focused ? '#0A84FF' : color}
               weight={focused ? 'fill' : 'regular'}
             />
           ),
@@ -82,7 +82,7 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, focused }) => (
             <Timer
               size={22}
-              color={focused ? '#8B5CF6' : color} // Deep Purple for Focus Tab
+              color={focused ? '#0A84FF' : color}
               weight={focused ? 'fill' : 'regular'}
             />
           ),
@@ -101,7 +101,7 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, focused }) => (
             <Barbell
               size={22}
-              color={focused ? '#FF5500' : color}
+              color={focused ? '#0A84FF' : color}
               weight={focused ? 'fill' : 'regular'}
             />
           ),
@@ -114,7 +114,7 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, focused }) => (
             <User
               size={22}
-              color={focused ? '#FF5500' : color}
+              color={focused ? '#0A84FF' : color}
               weight={focused ? 'fill' : 'regular'}
             />
           ),

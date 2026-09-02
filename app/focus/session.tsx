@@ -219,8 +219,8 @@ export default function FocusModeScreen() {
             <Svg width={270} height={270} viewBox="0 0 270 270">
               <Defs>
                 <SvgLinearGradient id="focusGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <Stop offset="0%" stopColor="#8B5CF6" />
-                  <Stop offset="100%" stopColor="#7C3AED" />
+                  <Stop offset="0%" stopColor="#0A84FF" />
+                  <Stop offset="100%" stopColor="#6366F1" />
                 </SvgLinearGradient>
               </Defs>
 
@@ -229,7 +229,7 @@ export default function FocusModeScreen() {
                 cx="135"
                 cy="135"
                 r={ringRadius}
-                stroke={isDark ? '#181922' : '#E5E7EB'}
+                stroke={isDark ? '#181822' : '#E5E5EA'}
                 strokeWidth="10"
                 fill="none"
               />
@@ -270,9 +270,9 @@ export default function FocusModeScreen() {
               <ArrowCounterClockwise size={20} color={colors.textMuted} weight="bold" />
             </TouchableOpacity>
 
-            {/* Play/Pause Button in Solid Vibrant Orange */}
+            {/* Play/Pause Button in Solid Titanium Azure */}
             <TouchableOpacity
-              style={[styles.primaryPlayBtn, { backgroundColor: '#FF5500' }]}
+              style={[styles.primaryPlayBtn, { backgroundColor: '#0A84FF' }]}
               onPress={handleStartPause}
               activeOpacity={0.85}
             >
@@ -397,8 +397,8 @@ export default function FocusModeScreen() {
                       style={[
                         styles.presetCard,
                         {
-                          backgroundColor: isSelected ? '#FF5500' : isDark ? '#14151C' : '#F3F4F6',
-                          borderColor: isSelected ? '#FF5500' : colors.border,
+                          backgroundColor: isSelected ? '#0A84FF' : isDark ? '#14151C' : '#F3F4F6',
+                          borderColor: isSelected ? '#0A84FF' : colors.border,
                         },
                       ]}
                     >
