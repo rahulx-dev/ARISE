@@ -43,10 +43,12 @@ class PoseDetectorModule : Module() {
                 val bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
                     ?: throw IllegalArgumentException("Failed to decode base64 string into bitmap")
                 
-                val imgWidth = bitmap.width.toFloat().coerceAtLeast(1f)
-                val imgHeight = bitmap.height.toFloat().coerceAtLeast(1f)
+                val rawW = bitmap.width.toFloat().coerceAtLeast(1f)
+                val rawH = bitmap.height.toFloat().coerceAtLeast(1f)
 
-                val image = InputImage.fromBitmap(bitmap, 0)
+                // If Camera sensor captured in landscape orientation while phone is portrait:
+                val rotation = if (rawW > rawH) 270 else 0
+                val image = InputImage.fromBitmap(bitmap, rotation)
                 
                 // Run detection synchronously
                 val task = detector.process(image)
@@ -54,9 +56,13 @@ class PoseDetectorModule : Module() {
                 
                 val resultList = mutableListOf<Map<String, Any>>()
                 
+                // When rotated 90 or 270 degrees, ML Kit coordinates are in rotated coordinate space:
+                val effectiveWidth = if (rotation == 90 || rotation == 270) rawH else rawW
+                val effectiveHeight = if (rotation == 90 || rotation == 270) rawW else rawH
+                
                 for (landmark in pose.allPoseLandmarks) {
-                    val normX = (landmark.position.x / imgWidth).coerceIn(0f, 1f)
-                    val normY = (landmark.position.y / imgHeight).coerceIn(0f, 1f)
+                    val normX = (landmark.position.x / effectiveWidth).coerceIn(0f, 1f)
+                    val normY = (landmark.position.y / effectiveHeight).coerceIn(0f, 1f)
                     val landmarkMap = mapOf(
                         "x" to normX,
                         "y" to normY,

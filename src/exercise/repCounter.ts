@@ -101,14 +101,45 @@ export function processFrame(
     };
   }
 
-  // Get the three joints for primary angle
-  const [idxA, idxB, idxC] = config.primaryJoints;
-  const pointA = keypoints[idxA];
-  const pointB = keypoints[idxB];
-  const pointC = keypoints[idxC];
+  // 1. Bilateral Joint Selection:
+  // Instead of only checking left side joints, evaluate both sides and choose whichever has higher confidence!
+  let pointA = keypoints[config.primaryJoints[0]];
+  let pointB = keypoints[config.primaryJoints[1]];
+  let pointC = keypoints[config.primaryJoints[2]];
 
-  // Check confidence
-  if (!areAllConfident([pointA, pointB, pointC], config.minConfidence)) {
+  if (config.type === 'PUSHUP') {
+    // Left arm: 5 (shoulder), 7 (elbow), 9 (wrist)
+    // Right arm: 6 (shoulder), 8 (elbow), 10 (wrist)
+    const leftConf = ((keypoints[5]?.confidence || 0) + (keypoints[7]?.confidence || 0) + (keypoints[9]?.confidence || 0)) / 3;
+    const rightConf = ((keypoints[6]?.confidence || 0) + (keypoints[8]?.confidence || 0) + (keypoints[10]?.confidence || 0)) / 3;
+    if (rightConf > leftConf) {
+      pointA = keypoints[6];
+      pointB = keypoints[8];
+      pointC = keypoints[10];
+    } else {
+      pointA = keypoints[5];
+      pointB = keypoints[7];
+      pointC = keypoints[9];
+    }
+  } else if (config.type === 'SQUAT') {
+    // Left leg: 11 (hip), 13 (knee), 15 (ankle)
+    // Right leg: 12 (hip), 14 (knee), 16 (ankle)
+    const leftConf = ((keypoints[11]?.confidence || 0) + (keypoints[13]?.confidence || 0) + (keypoints[15]?.confidence || 0)) / 3;
+    const rightConf = ((keypoints[12]?.confidence || 0) + (keypoints[14]?.confidence || 0) + (keypoints[16]?.confidence || 0)) / 3;
+    if (rightConf > leftConf) {
+      pointA = keypoints[12];
+      pointB = keypoints[14];
+      pointC = keypoints[16];
+    } else {
+      pointA = keypoints[11];
+      pointB = keypoints[13];
+      pointC = keypoints[15];
+    }
+  }
+
+  // Check confidence with forgiving 0.22 threshold
+  const effectiveMinConf = Math.min(config.minConfidence || 0.3, 0.22);
+  if (!pointA || !pointB || !pointC || !areAllConfident([pointA, pointB, pointC], effectiveMinConf)) {
     return {
       ...state,
       isBodyDetected: false,
@@ -150,7 +181,7 @@ export function processFrame(
       // Check form alignment if secondary joints are configured
       if (config.secondaryJoints) {
         const [sA, sB, sC] = config.secondaryJoints;
-        if (areAllConfident([keypoints[sA], keypoints[sB], keypoints[sC]], config.minConfidence)) {
+        if (areAllConfident([keypoints[sA], keypoints[sB], keypoints[sC]], effectiveMinConf)) {
           const alignAngle = calculateAngle(keypoints[sA], keypoints[sB], keypoints[sC]);
           if (config.formAlignmentThreshold && Math.abs(180 - alignAngle) > config.formAlignmentThreshold) {
             newState.feedback = { message: 'Keep your back straight', type: 'warning' };
@@ -164,7 +195,6 @@ export function processFrame(
         newState.downStartTime = now;
         newState.feedback = { message: 'Good! Now come back up', type: 'good' };
       } else if (config.formAngleMin && angle < config.upThreshold && angle > config.formAngleMin) {
-        // In between - not quite down enough
         newState.feedback = { message: 'Go lower', type: 'warning' };
       } else {
         newState.feedback = { message: 'Good form!', type: 'good' };
@@ -175,17 +205,16 @@ export function processFrame(
       // Transition to UP = complete one rep
       if (angle >= config.upThreshold) {
         const timeSinceLastRep = now - state.lastRepTime;
-        const timeInDown = now - state.downStartTime;
 
-        // Debounce and minimum hold checks
-        if (timeSinceLastRep >= config.debounceMs && timeInDown >= config.minHoldMs) {
+        // Debounce check
+        if (timeSinceLastRep >= (config.debounceMs || 300)) {
           newState.repState = 'UP';
           newState.count = state.count + 1;
           newState.lastRepTime = now;
           newState.feedback = { message: `${newState.count}! Keep going!`, type: 'good' };
         } else {
           newState.repState = 'UP';
-          newState.feedback = { message: 'Too fast! Control the movement', type: 'warning' };
+          newState.feedback = { message: 'Control your movement', type: 'warning' };
         }
       } else {
         // Still in down position

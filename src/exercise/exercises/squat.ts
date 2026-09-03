@@ -27,15 +27,15 @@ export const squatConfig: ExerciseConfig = {
   secondaryJoints: [5, 11, 13],
   
   // Angle thresholds
-  upThreshold: 155,      // Legs nearly straight
-  downThreshold: 100,    // Good squat depth
+  upThreshold: 148,      // Legs extended
+  downThreshold: 115,    // Good squat depth
   
   // Confidence
-  minConfidence: 0.3,
+  minConfidence: 0.22,
   
   // Timing
-  debounceMs: 500,       // At least 500ms between reps (squats are slower)
-  minHoldMs: 200,        // Must hold bottom position briefly
+  debounceMs: 350,       // Fast responsive rep debounce
+  minHoldMs: 0,          // Instant trigger on up movement
   
   // Targets
   defaultTarget: 10,

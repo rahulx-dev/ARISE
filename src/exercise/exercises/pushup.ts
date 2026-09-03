@@ -29,15 +29,15 @@ export const pushupConfig: ExerciseConfig = {
   secondaryJoints: [5, 11, 15],
   
   // Angle thresholds
-  upThreshold: 155,      // Arms nearly straight
-  downThreshold: 95,     // Arms bent at ~90°
+  upThreshold: 145,      // Arms extended
+  downThreshold: 110,    // Arms bent (~90-110°)
   
   // Confidence
-  minConfidence: 0.3,
+  minConfidence: 0.22,
   
   // Timing
-  debounceMs: 400,       // At least 400ms between reps
-  minHoldMs: 150,        // Must hold down position briefly
+  debounceMs: 300,       // Fast responsive rep debounce
+  minHoldMs: 0,          // Instant trigger on up movement
   
   // Targets
   defaultTarget: 10,

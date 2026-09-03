@@ -313,83 +313,91 @@ function ExerciseTrackerInner() {
         <View style={styles.bottomVignette} />
 
         {/* Real Live AI Skeletal Tracking Overlay (Connected directly to detected body joints) */}
-        {detectedKeypoints && isBodyDetected ? (
-          <Svg style={StyleSheet.absoluteFill} viewBox="0 0 100 100">
-            {/* Shoulders */}
-            <Polyline
-              points={`${detectedKeypoints[5].x * 100},${detectedKeypoints[5].y * 100} ${detectedKeypoints[6].x * 100},${detectedKeypoints[6].y * 100}`}
-              fill="none"
-              stroke="#0A84FF"
-              strokeWidth="0.8"
-            />
-            {/* Left Arm (Shoulder -> Elbow -> Wrist) */}
-            <Polyline
-              points={`${detectedKeypoints[5].x * 100},${detectedKeypoints[5].y * 100} ${detectedKeypoints[7].x * 100},${detectedKeypoints[7].y * 100} ${detectedKeypoints[9].x * 100},${detectedKeypoints[9].y * 100}`}
-              fill="none"
-              stroke="#0A84FF"
-              strokeWidth="0.8"
-            />
-            {/* Right Arm (Shoulder -> Elbow -> Wrist) */}
-            <Polyline
-              points={`${detectedKeypoints[6].x * 100},${detectedKeypoints[6].y * 100} ${detectedKeypoints[8].x * 100},${detectedKeypoints[8].y * 100} ${detectedKeypoints[10].x * 100},${detectedKeypoints[10].y * 100}`}
-              fill="none"
-              stroke="#0A84FF"
-              strokeWidth="0.8"
-            />
-            {/* Left Torso (Shoulder -> Hip) */}
-            <Polyline
-              points={`${detectedKeypoints[5].x * 100},${detectedKeypoints[5].y * 100} ${detectedKeypoints[11].x * 100},${detectedKeypoints[11].y * 100}`}
-              fill="none"
-              stroke="#0A84FF"
-              strokeWidth="0.8"
-            />
-            {/* Right Torso (Shoulder -> Hip) */}
-            <Polyline
-              points={`${detectedKeypoints[6].x * 100},${detectedKeypoints[6].y * 100} ${detectedKeypoints[12].x * 100},${detectedKeypoints[12].y * 100}`}
-              fill="none"
-              stroke="#0A84FF"
-              strokeWidth="0.8"
-            />
-            {/* Hips */}
-            <Polyline
-              points={`${detectedKeypoints[11].x * 100},${detectedKeypoints[11].y * 100} ${detectedKeypoints[12].x * 100},${detectedKeypoints[12].y * 100}`}
-              fill="none"
-              stroke="#0A84FF"
-              strokeWidth="0.8"
-            />
-            {/* Left Leg (Hip -> Knee -> Ankle) */}
-            <Polyline
-              points={`${detectedKeypoints[11].x * 100},${detectedKeypoints[11].y * 100} ${detectedKeypoints[13].x * 100},${detectedKeypoints[13].y * 100} ${detectedKeypoints[15].x * 100},${detectedKeypoints[15].y * 100}`}
-              fill="none"
-              stroke="#10B981"
-              strokeWidth="0.8"
-            />
-            {/* Right Leg (Hip -> Knee -> Ankle) */}
-            <Polyline
-              points={`${detectedKeypoints[12].x * 100},${detectedKeypoints[12].y * 100} ${detectedKeypoints[14].x * 100},${detectedKeypoints[14].y * 100} ${detectedKeypoints[16].x * 100},${detectedKeypoints[16].y * 100}`}
-              fill="none"
-              stroke="#10B981"
-              strokeWidth="0.8"
-            />
+        {detectedKeypoints && isBodyDetected ? (() => {
+          const gx = (idx: number) => {
+            const val = detectedKeypoints[idx]?.x ?? 0;
+            return (facing === 'front' ? (1 - val) : val) * 100;
+          };
+          const gy = (idx: number) => (detectedKeypoints[idx]?.y ?? 0) * 100;
 
-            {/* Joint Marker Dots */}
-            {[5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].map((idx) => {
-              const pt = detectedKeypoints[idx];
-              if (!pt || pt.confidence < 0.2) return null;
-              return (
-                <SvgCircle
-                  key={idx}
-                  cx={pt.x * 100}
-                  cy={pt.y * 100}
-                  r="1.4"
-                  fill="#10B981"
-                  stroke="#FFFFFF"
-                  strokeWidth="0.4"
-                />
-              );
-            })}
-          </Svg>
-        ) : (
+          return (
+            <Svg style={StyleSheet.absoluteFill} viewBox="0 0 100 100">
+              {/* Shoulders */}
+              <Polyline
+                points={`${gx(5)},${gy(5)} ${gx(6)},${gy(6)}`}
+                fill="none"
+                stroke="#0A84FF"
+                strokeWidth="1.2"
+              />
+              {/* Left Arm (Shoulder -> Elbow -> Wrist) */}
+              <Polyline
+                points={`${gx(5)},${gy(5)} ${gx(7)},${gy(7)} ${gx(9)},${gy(9)}`}
+                fill="none"
+                stroke="#0A84FF"
+                strokeWidth="1.2"
+              />
+              {/* Right Arm (Shoulder -> Elbow -> Wrist) */}
+              <Polyline
+                points={`${gx(6)},${gy(6)} ${gx(8)},${gy(8)} ${gx(10)},${gy(10)}`}
+                fill="none"
+                stroke="#0A84FF"
+                strokeWidth="1.2"
+              />
+              {/* Left Torso (Shoulder -> Hip) */}
+              <Polyline
+                points={`${gx(5)},${gy(5)} ${gx(11)},${gy(11)}`}
+                fill="none"
+                stroke="#0A84FF"
+                strokeWidth="1.2"
+              />
+              {/* Right Torso (Shoulder -> Hip) */}
+              <Polyline
+                points={`${gx(6)},${gy(6)} ${gx(12)},${gy(12)}`}
+                fill="none"
+                stroke="#0A84FF"
+                strokeWidth="1.2"
+              />
+              {/* Hips */}
+              <Polyline
+                points={`${gx(11)},${gy(11)} ${gx(12)},${gy(12)}`}
+                fill="none"
+                stroke="#0A84FF"
+                strokeWidth="1.2"
+              />
+              {/* Left Leg (Hip -> Knee -> Ankle) */}
+              <Polyline
+                points={`${gx(11)},${gy(11)} ${gx(13)},${gy(13)} ${gx(15)},${gy(15)}`}
+                fill="none"
+                stroke="#10B981"
+                strokeWidth="1.2"
+              />
+              {/* Right Leg (Hip -> Knee -> Ankle) */}
+              <Polyline
+                points={`${gx(12)},${gy(12)} ${gx(14)},${gy(14)} ${gx(16)},${gy(16)}`}
+                fill="none"
+                stroke="#10B981"
+                strokeWidth="1.2"
+              />
+
+              {/* Joint Marker Dots */}
+              {[5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].map((idx) => {
+                const pt = detectedKeypoints[idx];
+                if (!pt || pt.confidence < 0.2) return null;
+                return (
+                  <SvgCircle
+                    key={idx}
+                    cx={gx(idx)}
+                    cy={gy(idx)}
+                    r="1.6"
+                    fill="#10B981"
+                    stroke="#FFFFFF"
+                    strokeWidth="0.4"
+                  />
+                );
+              })}
+            </Svg>
+          );
+        })() : (
           /* Bounding Alignment Box when body is not yet detected */
           <View style={styles.alignmentGuideWrap} pointerEvents="none">
             <View style={styles.alignmentGuideBox}>
