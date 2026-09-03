@@ -321,7 +321,7 @@ function ExerciseTrackerInner() {
           const gy = (idx: number) => (detectedKeypoints[idx]?.y ?? 0) * 100;
 
           return (
-            <Svg style={StyleSheet.absoluteFill} viewBox="0 0 100 100">
+            <Svg style={StyleSheet.absoluteFill} viewBox="0 0 100 100" preserveAspectRatio="none">
               {/* Shoulders */}
               <Polyline
                 points={`${gx(5)},${gy(5)} ${gx(6)},${gy(6)}`}
@@ -452,10 +452,12 @@ function ExerciseTrackerInner() {
 
           <View style={styles.statusCol}>
             {/* Good Form Pill */}
-            <View style={[styles.goodFormPill, { backgroundColor: 'rgba(16, 185, 129, 0.15)', borderColor: '#10B981' }]}>
-              <View style={[styles.goodFormDot, { backgroundColor: '#10B981' }]} />
-              <Text style={[styles.goodFormText, { color: '#10B981' }]}>{formFeedback}</Text>
-            </View>
+            {isBodyDetected && (
+              <View style={[styles.goodFormPill, { backgroundColor: 'rgba(16, 185, 129, 0.15)', borderColor: '#10B981' }]}>
+                <View style={[styles.goodFormDot, { backgroundColor: '#10B981' }]} />
+                <Text style={[styles.goodFormText, { color: '#10B981' }]}>{formFeedback}</Text>
+              </View>
+            )}
 
             {/* Body Detected Chip */}
             <View style={[styles.bodyDetectedChip, { backgroundColor: isBodyDetected ? 'rgba(139, 92, 246, 0.2)' : 'rgba(255, 255, 255, 0.08)', borderColor: isBodyDetected ? '#8B5CF6' : 'rgba(255, 255, 255, 0.15)' }]}>
