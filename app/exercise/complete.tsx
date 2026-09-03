@@ -13,6 +13,7 @@ import { AriseIcon } from '../../src/components/ui/AriseIcon';
 import { getExerciseConfig, ExerciseType } from '../../src/exercise';
 import { exerciseRepository } from '../../src/database/repositories/exerciseRepository';
 import { userRepository } from '../../src/database/repositories/userRepository';
+import { adMobService } from '../../src/services/adMobService';
 import { colors } from '../../src/theme/colors';
 
 export default function QuestCompleteScreen() {
@@ -198,7 +199,10 @@ export default function QuestCompleteScreen() {
           variant="primary"
           size="lg"
           fullWidth
-          onPress={() => router.replace('/(tabs)')}
+          onPress={() => {
+            adMobService.showInterstitialAd();
+            router.replace('/(tabs)');
+          }}
           style={{ marginTop: 8 }}
         />
 

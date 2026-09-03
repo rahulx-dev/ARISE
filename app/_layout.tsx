@@ -19,6 +19,7 @@ import { colors } from '../src/theme/colors';
 
 import { IOSAlertProvider } from '../src/components/ios/IOSAlertModal';
 import { getIsOnboardingCompleted } from '../src/services/appStateService';
+import { adMobService } from '../src/services/adMobService';
 
 /**
  * ARISE App Startup States:
@@ -54,7 +55,10 @@ export default function RootLayout() {
       // 3. Load player profile from SQLite
       await usePlayerStore.getState().loadProfile();
 
-      // 4. Check onboarding status from SQLite-backed store & synchronous SQLite query
+      // 4. Initialize Google Mobile Ads (AdMob)
+      adMobService.initialize();
+
+      // 5. Check onboarding status from SQLite-backed store & synchronous SQLite query
       let onboardingCompleted = useSettingsStore.getState().onboardingCompleted;
       if (!onboardingCompleted) {
         onboardingCompleted = getIsOnboardingCompleted();

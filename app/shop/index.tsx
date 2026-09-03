@@ -29,12 +29,14 @@ import {
   Banknote,
   Wallet,
   ArrowUpRight,
+  PlayCircle,
 } from 'lucide-react-native';
 import { GlassCard } from '../../src/components/ios/GlassCard';
 import { GlassButton } from '../../src/components/ios/GlassButton';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { userRepository } from '../../src/database/repositories/userRepository';
 import { payoutRepository, PayoutRequestItem } from '../../src/database/repositories/payoutRepository';
+import { adMobService } from '../../src/services/adMobService';
 import { screenTimerService, appBlockerService } from '../../src/native';
 import { voiceCoach } from '../../src/services/voiceCoach';
 import { useHaptics } from '../../src/hooks/useHaptics';
@@ -282,6 +284,27 @@ export default function ShopScreen() {
     }
   };
 
+  const handleWatchAd = () => {
+    haptics.medium();
+    const shown = adMobService.showRewardedAd(
+      async (earnedCoins) => {
+        const reward = earnedCoins || 50;
+        await userRepository.addCoins(reward, 'Watched Rewarded Video Ad', 'ad');
+        await loadProfile();
+        sound.play('quest_complete');
+        haptics.success();
+        Alert.alert('Reward Received! 🎉', `+${reward} Coins added to your vault!`);
+      }
+    );
+
+    if (!shown) {
+      Alert.alert(
+        'Loading Ad...',
+        'Ad is loading from Google AdMob. Please wait 3-5 seconds and tap again!'
+      );
+    }
+  };
+
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
@@ -351,6 +374,28 @@ export default function ShopScreen() {
                   Convert physical workout reps & focus coins into real money transferred directly to your PhonePe, Google Pay, or Paytm.
                 </Text>
               </GlassCard>
+
+              {/* Watch Rewarded Video Ad Card */}
+              <TouchableOpacity
+                onPress={handleWatchAd}
+                activeOpacity={0.85}
+              >
+                <GlassCard variant="elevated" style={styles.adRewardCard}>
+                  <View style={styles.adRewardLeft}>
+                    <View style={styles.adRewardIconWrap}>
+                      <PlayCircle size={24} color="#0A84FF" />
+                    </View>
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <Text style={styles.adRewardTitle}>Watch Ad & Earn Coins</Text>
+                      <Text style={styles.adRewardSub}>Watch a short video to get +50 Coins immediately</Text>
+                    </View>
+                  </View>
+                  <View style={styles.adRewardBadge}>
+                    <Coins size={13} color="#F59E0B" />
+                    <Text style={styles.adRewardBadgeText}>+50 COINS</Text>
+                  </View>
+                </GlassCard>
+              </TouchableOpacity>
 
               {/* Tiers List */}
               <Text style={styles.sectionTitle}>Select Cashout Tier</Text>
@@ -1172,6 +1217,56 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '900',
     color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  adRewardCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderRadius: 18,
+    backgroundColor: '#111218',
+    borderWidth: 1,
+    borderColor: 'rgba(10, 132, 255, 0.3)',
+  },
+  adRewardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  adRewardIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(10, 132, 255, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  adRewardTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  adRewardSub: {
+    fontSize: 11,
+    color: '#8E8E93',
+  },
+  adRewardBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 100,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+  },
+  adRewardBadgeText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#F59E0B',
     letterSpacing: 0.5,
   },
 });
