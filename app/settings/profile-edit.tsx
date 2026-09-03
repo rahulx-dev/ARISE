@@ -30,8 +30,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { useSettingsStore } from '../../src/stores/useSettingsStore';
-import { GlowCard } from '../../src/components/design-system/GlowCard';
-import { GlowButton } from '../../src/components/design-system/GlowButton';
+import { GlassCard } from '../../src/components/ios/GlassCard';
+import { GlassButton } from '../../src/components/ios/GlassButton';
 import { AVATAR_IMAGES, AVATAR_ICONS } from '../../src/components/profile/AvatarPicker';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTheme } from '../../src/hooks/useTheme';
@@ -40,7 +40,7 @@ import { ThemeMode } from '../../src/theme/themeEngine';
 export default function ProfileEditScreen() {
   const router = useRouter();
   const haptics = useHaptics();
-  const { colors, themeMode } = useTheme();
+  const { colors, isDark, themeMode } = useTheme();
 
   const profile = usePlayerStore((s) => s.profile);
   const updateProfile = usePlayerStore((s) => s.updateProfile);
@@ -121,20 +121,20 @@ export default function ProfileEditScreen() {
       <SafeAreaView style={styles.safeArea}>
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
+          <TouchableOpacity onPress={() => router.back()} style={[styles.iconBtn, { backgroundColor: colors.surfaceLight, borderColor: colors.border }]}>
             <ArrowLeft size={20} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>EDIT PROTOCOL PROFILE</Text>
           <TouchableOpacity onPress={handleSave} style={[styles.saveHeaderBtn, { backgroundColor: colors.primary }]}>
-            <Text style={styles.saveHeaderText}>SAVE</Text>
+            <Text style={[styles.saveHeaderText, { color: '#FFFFFF' }]}>SAVE</Text>
           </TouchableOpacity>
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {/* Avatar Hero Card */}
-          <GlowCard variant="glow" style={styles.avatarSectionCard}>
+          <GlassCard variant="glow" style={styles.avatarSectionCard}>
             <View style={styles.avatarRow}>
-              <View style={[styles.avatarWrap, { borderColor: colors.primary }]}>
+              <View style={[styles.avatarWrap, { backgroundColor: colors.surfaceLight, borderColor: colors.primary }]}>
                 {customPhotoUri && selectedAvatar === 'custom' ? (
                   <Image source={{ uri: customPhotoUri }} style={styles.avatarImg} />
                 ) : currentAvatarImage ? (
@@ -175,10 +175,10 @@ export default function ProfileEditScreen() {
             {/* Built-in Avatars Horizontal Grid */}
             <View style={styles.avatarTabsHeader}>
               <Text style={[styles.inputLabel, { color: colors.textMuted }]}>BUILT-IN CYBER AVATARS</Text>
-              <View style={[styles.tabPillWrap, { backgroundColor: colors.surfaceLight }]}>
+              <View style={[styles.tabPillWrap, { backgroundColor: isDark ? colors.surfaceLight : '#E5E5EA' }]}>
                 <TouchableOpacity
                   onPress={() => setAvatarTab('images')}
-                  style={[styles.tabPill, avatarTab === 'images' && { backgroundColor: colors.surfaceElevated }]}
+                  style={[styles.tabPill, avatarTab === 'images' && { backgroundColor: isDark ? colors.surfaceElevated : '#FFFFFF' }]}
                 >
                   <Text style={[styles.tabPillText, avatarTab === 'images' && { color: colors.primary }]}>
                     PFPs ({AVATAR_IMAGES.length})
@@ -186,7 +186,7 @@ export default function ProfileEditScreen() {
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => setAvatarTab('icons')}
-                  style={[styles.tabPill, avatarTab === 'icons' && { backgroundColor: colors.surfaceElevated }]}
+                  style={[styles.tabPill, avatarTab === 'icons' && { backgroundColor: isDark ? colors.surfaceElevated : '#FFFFFF' }]}
                 >
                   <Text style={[styles.tabPillText, avatarTab === 'icons' && { color: colors.primary }]}>
                     ICONS
@@ -209,13 +209,14 @@ export default function ProfileEditScreen() {
                       }}
                       style={[
                         styles.avatarThumbWrap,
+                        { backgroundColor: colors.surfaceLight, borderColor: colors.border },
                         isSelected && { borderColor: colors.primary, transform: [{ scale: 1.08 }] },
                       ]}
                     >
                       <Image source={img.source} style={styles.avatarThumbImg} />
                       {isSelected && (
-                        <View style={styles.checkBadge}>
-                          <Check size={12} color="#000" strokeWidth={3} />
+                        <View style={[styles.checkBadge, { backgroundColor: colors.primary }]}>
+                          <Check size={12} color="#FFFFFF" strokeWidth={3} />
                         </View>
                       )}
                     </TouchableOpacity>
@@ -238,13 +239,14 @@ export default function ProfileEditScreen() {
                       style={[
                         styles.avatarThumbWrap,
                         styles.iconThumbWrap,
+                        { backgroundColor: colors.surfaceLight, borderColor: colors.border },
                         isSelected && { borderColor: colors.primary, transform: [{ scale: 1.08 }] },
                       ]}
                     >
                       <IconComp size={22} color={isSelected ? colors.primary : colors.textMuted} />
                       {isSelected && (
-                        <View style={styles.checkBadge}>
-                          <Check size={12} color="#000" strokeWidth={3} />
+                        <View style={[styles.checkBadge, { backgroundColor: colors.primary }]}>
+                          <Check size={12} color="#FFFFFF" strokeWidth={3} />
                         </View>
                       )}
                     </TouchableOpacity>
@@ -252,10 +254,10 @@ export default function ProfileEditScreen() {
                 })}
               </ScrollView>
             )}
-          </GlowCard>
+          </GlassCard>
 
           {/* Display Name & Bio */}
-          <GlowCard variant="default" style={styles.formCard}>
+          <GlassCard variant="default" style={styles.formCard}>
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: colors.textMuted }]}>DISPLAY NAME / CALLSIGN</Text>
               <TextInput
@@ -281,10 +283,10 @@ export default function ProfileEditScreen() {
                 maxLength={120}
               />
             </View>
-          </GlowCard>
+          </GlassCard>
 
           {/* Protocol Goals */}
-          <GlowCard variant="default" style={styles.formCard}>
+          <GlassCard variant="default" style={styles.formCard}>
             <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>PROTOCOL TARGETS</Text>
 
             <View style={styles.inputGroup}>
@@ -312,7 +314,7 @@ export default function ProfileEditScreen() {
                       style={[
                         styles.optionPillText,
                         { color: colors.textSecondary },
-                        workoutGoal === item.id && { color: '#000', fontWeight: '900' },
+                        workoutGoal === item.id && { color: '#FFFFFF', fontWeight: '900' },
                       ]}
                     >
                       {item.label}
@@ -342,7 +344,7 @@ export default function ProfileEditScreen() {
                       style={[
                         styles.optionPillText,
                         { color: colors.textSecondary },
-                        dailyFocusGoal === mins && { color: '#000', fontWeight: '900' },
+                        dailyFocusGoal === mins && { color: '#FFFFFF', fontWeight: '900' },
                       ]}
                     >
                       {mins}m
@@ -351,10 +353,10 @@ export default function ProfileEditScreen() {
                 ))}
               </View>
             </View>
-          </GlowCard>
+          </GlassCard>
 
           {/* Theme & System Preferences */}
-          <GlowCard variant="default" style={styles.formCard}>
+          <GlassCard variant="default" style={styles.formCard}>
             <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>APPEARANCE & THEME</Text>
             <View style={styles.themeSelectorRow}>
               {[
@@ -374,7 +376,7 @@ export default function ProfileEditScreen() {
                     style={[
                       styles.themeCard,
                       { backgroundColor: colors.surfaceLight, borderColor: colors.border },
-                      isSelected && { borderColor: colors.primary, backgroundColor: 'rgba(209, 255, 0, 0.1)' },
+                      isSelected && { borderColor: colors.primary, backgroundColor: isDark ? 'rgba(10, 132, 255, 0.15)' : '#EFF6FF' },
                     ]}
                   >
                     <IconC size={20} color={isSelected ? colors.primary : colors.textMuted} />
@@ -401,7 +403,7 @@ export default function ProfileEditScreen() {
                   { backgroundColor: settingsState.sfxEnabled ? colors.primary : colors.surfaceLight },
                 ]}
               >
-                <Text style={[styles.toggleBadgeText, { color: settingsState.sfxEnabled ? '#000' : colors.textMuted }]}>
+                <Text style={[styles.toggleBadgeText, { color: settingsState.sfxEnabled ? '#FFFFFF' : colors.textMuted }]}>
                   {settingsState.sfxEnabled ? 'ON' : 'OFF'}
                 </Text>
               </TouchableOpacity>
@@ -419,7 +421,7 @@ export default function ProfileEditScreen() {
                   { backgroundColor: settingsState.hapticsEnabled ? colors.primary : colors.surfaceLight },
                 ]}
               >
-                <Text style={[styles.toggleBadgeText, { color: settingsState.hapticsEnabled ? '#000' : colors.textMuted }]}>
+                <Text style={[styles.toggleBadgeText, { color: settingsState.hapticsEnabled ? '#FFFFFF' : colors.textMuted }]}>
                   {settingsState.hapticsEnabled ? 'ON' : 'OFF'}
                 </Text>
               </TouchableOpacity>
@@ -437,20 +439,20 @@ export default function ProfileEditScreen() {
                   { backgroundColor: settingsState.bgMusicEnabled ? colors.primary : colors.surfaceLight },
                 ]}
               >
-                <Text style={[styles.toggleBadgeText, { color: settingsState.bgMusicEnabled ? '#000' : colors.textMuted }]}>
+                <Text style={[styles.toggleBadgeText, { color: settingsState.bgMusicEnabled ? '#FFFFFF' : colors.textMuted }]}>
                   {settingsState.bgMusicEnabled ? 'ON' : 'OFF'}
                 </Text>
               </TouchableOpacity>
             </View>
-          </GlowCard>
+          </GlassCard>
 
-          <GlowButton
+          <GlassButton
             title="SAVE PROFILE CHANGES"
             onPress={handleSave}
             variant="primary"
             size="lg"
             loading={isSaving}
-            icon={<Save size={18} color="#000" />}
+            icon={<Save size={18} color="#FFFFFF" />}
           />
 
           <View style={{ height: 40 }} />
@@ -475,9 +477,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: '#262626',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -494,7 +494,7 @@ const styles = StyleSheet.create({
   saveHeaderText: {
     fontSize: 11,
     fontWeight: '900',
-    color: '#000',
+    color: '#FFFFFF',
     letterSpacing: 1,
   },
   scrollContent: {
@@ -517,7 +517,6 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     borderWidth: 2,
     overflow: 'hidden',
-    backgroundColor: '#1E1E1E',
   },
   avatarImg: {
     width: '100%',
@@ -589,10 +588,8 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 26,
     borderWidth: 2,
-    borderColor: '#262626',
     overflow: 'hidden',
     position: 'relative',
-    backgroundColor: '#1E1E1E',
   },
   iconThumbWrap: {
     justifyContent: 'center',
@@ -609,7 +606,6 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: '#D1FF00',
     justifyContent: 'center',
     alignItems: 'center',
   },
