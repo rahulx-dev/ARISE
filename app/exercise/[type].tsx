@@ -239,6 +239,7 @@ function ExerciseTrackerInner() {
 
   const handleFinishWorkout = (finalReps: number) => {
     setIsActive(false);
+    unmuteShutter();
     if (timerRef.current) clearInterval(timerRef.current);
 
     haptics.success();

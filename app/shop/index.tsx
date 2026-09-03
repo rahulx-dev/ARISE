@@ -65,10 +65,6 @@ export default function ShopScreen() {
     }, [])
   );
 
-  useEffect(() => {
-    loadProfile();
-  }, []);
-
   const currentCoins = profile?.coins || 0;
 
   const boostersList: ShopItem[] = [

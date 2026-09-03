@@ -233,6 +233,12 @@ export async function initializeDatabase(): Promise<void> {
       reps INTEGER NOT NULL DEFAULT 0,
       achieved_at TEXT NOT NULL
     );
+
+    CREATE INDEX IF NOT EXISTS idx_quest_date_freq ON quest(date, frequency);
+    CREATE INDEX IF NOT EXISTS idx_coin_tx_id ON coin_transaction(id DESC);
+    CREATE INDEX IF NOT EXISTS idx_exercise_session_time ON exercise_session(timestamp);
+    CREATE INDEX IF NOT EXISTS idx_focus_session_time ON focus_session(start_time);
+    CREATE INDEX IF NOT EXISTS idx_app_restriction_pkg ON app_restriction(package_name);
   `;
 
   expoDb.execSync(createTablesSql);
