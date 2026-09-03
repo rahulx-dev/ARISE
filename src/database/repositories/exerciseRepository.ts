@@ -34,5 +34,14 @@ export const exerciseRepository = {
       .from(exerciseSession)
       .where(like(exerciseSession.timestamp, `${date}%`))
       .orderBy(desc(exerciseSession.timestamp));
+  },
+
+  async getWeeklyTotalReps(): Promise<number> {
+    try {
+      const all = await db.select().from(exerciseSession);
+      return all.reduce((acc, curr) => acc + (curr.completedReps || 0), 0);
+    } catch {
+      return 0;
+    }
   }
 };

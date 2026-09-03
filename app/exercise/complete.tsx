@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Share2 } from 'lucide-react-native';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { useSound } from '../../src/hooks/useSound';
 import { useHaptics } from '../../src/hooks/useHaptics';
@@ -37,6 +38,7 @@ export default function QuestCompleteScreen() {
     questId?: string;
   }>();
 
+  const profile = usePlayerStore((s) => s.profile);
   const loadProfile = usePlayerStore((s) => s.loadProfile);
 
   const coins = parseInt(earnedCoins || '0', 10);
@@ -163,6 +165,33 @@ export default function QuestCompleteScreen() {
           </View>
         </Card>
 
+        {/* Share Protocol Button */}
+        <TouchableOpacity
+          style={styles.shareBtn}
+          onPress={async () => {
+            haptics.heavy();
+            try {
+              const name = profile?.displayName || 'Warrior';
+              const lvl = profile?.level || 1;
+              const text = `⚔️ ARISE PROTOCOL // SESSION CLEARED ⚔️\n\n` +
+                `👤 Warrior: ${name} (Rank: LVL ${lvl})\n` +
+                `🏋️ Workout: ${reps} ${config.displayName} Reps\n` +
+                `⏱️ Duration: ${Math.floor(duration / 60)}m ${duration % 60}s\n` +
+                `🪙 Rewards: +${coins} Coins • +${xp} XP\n` +
+                `🎯 Form Accuracy: 95% Flawless\n\n` +
+                `"Every physical rep earns my screen time."\n` +
+                `ARISE Protocol.`;
+              await Share.share({ message: text });
+            } catch (err) {
+              console.warn('Share error:', err);
+            }
+          }}
+          activeOpacity={0.85}
+        >
+          <Share2 size={16} color="#0A84FF" />
+          <Text style={styles.shareBtnText}>Share Warrior Protocol</Text>
+        </TouchableOpacity>
+
         {/* Action Button */}
         <Button
           title="Return to Dashboard"
@@ -170,7 +199,7 @@ export default function QuestCompleteScreen() {
           size="lg"
           fullWidth
           onPress={() => router.replace('/(tabs)')}
-          style={{ marginTop: 12 }}
+          style={{ marginTop: 8 }}
         />
 
         <View style={{ height: 30 }} />
@@ -216,4 +245,22 @@ const styles = StyleSheet.create({
   },
   metricLabel: { fontSize: 13, color: colors.textSecondary },
   metricValue: { fontSize: 13, fontWeight: '800', color: colors.textPrimary, fontVariant: ['tabular-nums'] },
+  shareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#111218',
+    borderWidth: 1,
+    borderColor: '#1C1E2A',
+    borderRadius: 16,
+    paddingVertical: 14,
+    marginTop: 10,
+  },
+  shareBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0A84FF',
+    letterSpacing: 0.5,
+  },
 });

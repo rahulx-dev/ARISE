@@ -19,11 +19,16 @@ import {
   X,
   Trophy,
   Lightning,
+  Sword,
+  Skull,
+  Coins,
+  Flame,
 } from 'phosphor-react-native';
 import { GlassCard } from '../../src/components/ios/GlassCard';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { useGymStore } from '../../src/stores/useGymStore';
 import { historyService } from '../../src/services/historyService';
+import { bossService, BossRaidInfo } from '../../src/services/bossService';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTheme } from '../../src/hooks/useTheme';
 
@@ -45,6 +50,7 @@ export default function GymWorkoutScreen() {
   const [isPrefModalOpen, setIsPrefModalOpen] = useState<boolean>(false);
   const [completedCount, setCompletedCount] = useState<number>(0);
   const [activeWeekDays, setActiveWeekDays] = useState<boolean[]>([false, false, false, false, false, false, false]);
+  const [bossRaid, setBossRaid] = useState<BossRaidInfo | null>(null);
 
   const profile = usePlayerStore((s) => s.profile);
   const loadProfile = usePlayerStore((s) => s.loadProfile);
@@ -66,6 +72,10 @@ export default function GymWorkoutScreen() {
         const bools = last7.map((d) => d.workoutCount > 0 || d.intensity > 0);
         setActiveWeekDays(bools);
       }
+
+      // Load weekly Dungeon Boss Raid
+      const boss = await bossService.getCurrentBoss();
+      setBossRaid(boss);
     } catch (e) {
       console.warn('Error loading gym tab data:', e);
     }
@@ -196,6 +206,81 @@ export default function GymWorkoutScreen() {
               })}
             </View>
           </GlassCard>
+
+          {/* Solo Leveling Dungeon Boss Raid Card */}
+          {bossRaid && (
+            <GlassCard variant="elevated" style={styles.bossRaidCard}>
+              <View style={styles.bossHeaderRow}>
+                <View style={styles.bossTagWrap}>
+                  <Skull size={14} color="#EF4444" weight="fill" />
+                  <Text style={styles.bossTagText}>{bossRaid.gateRank}</Text>
+                </View>
+                <View style={styles.bossRewardPill}>
+                  <Coins size={13} color="#F59E0B" weight="fill" />
+                  <Text style={styles.bossRewardText}>+{bossRaid.rewardCoins} COINS</Text>
+                </View>
+              </View>
+
+              <Text style={[styles.bossNameText, { color: colors.textPrimary }]}>
+                {bossRaid.name}
+              </Text>
+              <Text style={[styles.bossSubText, { color: colors.textMuted }]}>
+                Inflict damage through tracked exercise reps. 1 Rep = 5 DMG.
+              </Text>
+
+              {/* Boss HP Bar */}
+              <View style={styles.bossHpWrap}>
+                <View style={styles.bossHpMetaRow}>
+                  <Text style={styles.bossHpLabel}>
+                    BOSS HP: {bossRaid.currentHp} / {bossRaid.maxHp}
+                  </Text>
+                  <Text style={[styles.bossHpPercent, { color: bossRaid.isDefeated ? '#10B981' : '#EF4444' }]}>
+                    {bossRaid.isDefeated ? 'DEFEATED' : `${Math.round((bossRaid.currentHp / bossRaid.maxHp) * 100)}%`}
+                  </Text>
+                </View>
+                <View style={styles.bossHpTrack}>
+                  <View
+                    style={[
+                      styles.bossHpFill,
+                      {
+                        width: `${Math.max(0, Math.min(100, (bossRaid.currentHp / bossRaid.maxHp) * 100))}%`,
+                        backgroundColor: bossRaid.isDefeated ? '#10B981' : '#EF4444',
+                      },
+                    ]}
+                  />
+                </View>
+              </View>
+
+              {/* Attack Button */}
+              <TouchableOpacity
+                style={[
+                  styles.bossAttackBtn,
+                  { backgroundColor: bossRaid.isDefeated ? '#10B981' : '#0A84FF' },
+                ]}
+                onPress={() => {
+                  haptics.heavy();
+                  if (bossRaid.isDefeated) {
+                    bossService.claimBossVictoryReward().then(() => loadAll());
+                  } else {
+                    handleStartExercise('PUSHUP', 25);
+                  }
+                }}
+                activeOpacity={0.85}
+              >
+                {bossRaid.isDefeated ? (
+                  <>
+                    <Trophy size={16} color="#FFFFFF" weight="fill" />
+                    <Text style={styles.bossAttackBtnText}>GATE CONQUERED • CLAIM REWARD</Text>
+                  </>
+                ) : (
+                  <>
+                    <Sword size={16} color="#FFFFFF" weight="fill" />
+                    <Text style={styles.bossAttackBtnText}>ATTACK BOSS // EXECUTE REPS</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </GlassCard>
+          )}
 
           {/* Exercises Routine List with Direct AI Camera Buttons */}
           <View style={styles.exerciseSection}>
@@ -470,5 +555,104 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '900',
     color: '#FFFFFF',
+  },
+  bossRaidCard: {
+    padding: 20,
+    borderRadius: 22,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.35)',
+    backgroundColor: '#121014',
+  },
+  bossHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  bossTagWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 100,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+  },
+  bossTagText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#EF4444',
+    letterSpacing: 0.8,
+  },
+  bossRewardPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 100,
+    backgroundColor: '#1A1710',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.25)',
+  },
+  bossRewardText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#F59E0B',
+    letterSpacing: 0.4,
+  },
+  bossNameText: {
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: -0.3,
+  },
+  bossSubText: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '500',
+  },
+  bossHpWrap: {
+    gap: 6,
+    marginVertical: 4,
+  },
+  bossHpMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  bossHpLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#8E8E93',
+    letterSpacing: 0.5,
+  },
+  bossHpPercent: {
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  bossHpTrack: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#1F1A20',
+    overflow: 'hidden',
+  },
+  bossHpFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  bossAttackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 14,
+    marginTop: 4,
+  },
+  bossAttackBtnText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: 0.8,
   },
 });

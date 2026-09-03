@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
+  Animated,
+  Easing,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -53,6 +55,80 @@ export default function FocusModeScreen() {
 
   const timerRef = useRef<any>(null);
   const startTimeRef = useRef<number | null>(null);
+
+  // 120 FPS Siri Live Ring Animation Values
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const glowAnim = useRef(new Animated.Value(0.25)).current;
+  const rotateLoopRef = useRef<Animated.CompositeAnimation | null>(null);
+  const pulseLoopRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  useEffect(() => {
+    if (isActive) {
+      // 120 FPS Infinite smooth rotation for outer Siri halo
+      rotateLoopRef.current = Animated.loop(
+        Animated.timing(rotateAnim, {
+          toValue: 1,
+          duration: 9000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        })
+      );
+      rotateLoopRef.current.start();
+
+      // 120 FPS 4-second deep-breathing cycle (inhale 2.5s, exhale 2.5s)
+      pulseLoopRef.current = Animated.loop(
+        Animated.sequence([
+          Animated.parallel([
+            Animated.timing(pulseAnim, {
+              toValue: 1.04,
+              duration: 2500,
+              easing: Easing.inOut(Easing.sin),
+              useNativeDriver: true,
+            }),
+            Animated.timing(glowAnim, {
+              toValue: 0.85,
+              duration: 2500,
+              easing: Easing.inOut(Easing.sin),
+              useNativeDriver: true,
+            }),
+          ]),
+          Animated.parallel([
+            Animated.timing(pulseAnim, {
+              toValue: 1.0,
+              duration: 2500,
+              easing: Easing.inOut(Easing.sin),
+              useNativeDriver: true,
+            }),
+            Animated.timing(glowAnim, {
+              toValue: 0.35,
+              duration: 2500,
+              easing: Easing.inOut(Easing.sin),
+              useNativeDriver: true,
+            }),
+          ]),
+        ])
+      );
+      pulseLoopRef.current.start();
+    } else {
+      if (rotateLoopRef.current) rotateLoopRef.current.stop();
+      if (pulseLoopRef.current) pulseLoopRef.current.stop();
+      Animated.parallel([
+        Animated.timing(pulseAnim, { toValue: 1.0, duration: 400, useNativeDriver: true }),
+        Animated.timing(glowAnim, { toValue: 0.15, duration: 400, useNativeDriver: true }),
+      ]).start();
+    }
+
+    return () => {
+      if (rotateLoopRef.current) rotateLoopRef.current.stop();
+      if (pulseLoopRef.current) pulseLoopRef.current.stop();
+    };
+  }, [isActive]);
+
+  const rotateInterpolate = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
 
   useEffect(() => {
     const loadFocusStats = async () => {
@@ -171,9 +247,14 @@ export default function FocusModeScreen() {
   const minutes = Math.floor(remainingMs / 60000);
   const seconds = Math.floor((remainingMs % 60000) / 1000);
 
-  const ringRadius = 120;
+  const ringRadius = 114;
   const ringCircumference = 2 * Math.PI * ringRadius;
   const strokeDashoffset = ringCircumference * (1 - progressFraction);
+
+  // Comet head tip coordinates along ring circumference (starts from -90 deg / 12 o'clock)
+  const angleRad = (progressFraction * 2 * Math.PI) - Math.PI / 2;
+  const headX = 135 + ringRadius * Math.cos(angleRad);
+  const headY = 135 + ringRadius * Math.sin(angleRad);
 
   const currentTrack = AUDIO_TRACKS.find((t) => t.id === selectedTrackId) || AUDIO_TRACKS[0];
 
@@ -214,48 +295,117 @@ export default function FocusModeScreen() {
             <CaretDown size={14} color={colors.textMuted} weight="bold" />
           </TouchableOpacity>
 
-          {/* Solid 280px Circular Timer Display */}
+          {/* 120 FPS Siri Live Ring Timer Display */}
           <View style={styles.timerWrap}>
-            <Svg width={270} height={270} viewBox="0 0 270 270">
-              <Defs>
-                <SvgLinearGradient id="focusGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <Stop offset="0%" stopColor="#0A84FF" />
-                  <Stop offset="100%" stopColor="#6366F1" />
-                </SvgLinearGradient>
-              </Defs>
+            {/* Layer 1: Outer Rotating Siri Iridescent Halo Ring */}
+            <Animated.View
+              style={[
+                styles.siriHaloRing,
+                {
+                  opacity: glowAnim,
+                  transform: [
+                    { scale: pulseAnim },
+                    { rotate: rotateInterpolate },
+                  ],
+                },
+              ]}
+            />
 
-              {/* Background Track */}
-              <SvgCircle
-                cx="135"
-                cy="135"
-                r={ringRadius}
-                stroke={isDark ? '#181822' : '#E5E5EA'}
-                strokeWidth="10"
-                fill="none"
-              />
+            {/* Layer 2: Ambient Inner Siri Orb Pulse Glow */}
+            <Animated.View
+              style={[
+                styles.siriInnerOrb,
+                {
+                  opacity: glowAnim,
+                  transform: [{ scale: pulseAnim }],
+                },
+              ]}
+            />
 
-              {/* Progress Ring */}
-              <SvgCircle
-                cx="135"
-                cy="135"
-                r={ringRadius}
-                stroke="url(#focusGradient)"
-                strokeWidth="10"
-                strokeDasharray={`${ringCircumference} ${ringCircumference}`}
-                strokeDashoffset={strokeDashoffset}
-                strokeLinecap="round"
-                fill="none"
-                transform="rotate(-90 135 135)"
-              />
-            </Svg>
+            {/* Layer 3: Precision Native-Driven SVG Ring with Breathing Physics */}
+            <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+              <Svg width={270} height={270} viewBox="0 0 270 270">
+                <Defs>
+                  <SvgLinearGradient id="siriGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <Stop offset="0%" stopColor="#00F2FE" />
+                    <Stop offset="30%" stopColor="#0A84FF" />
+                    <Stop offset="70%" stopColor="#6366F1" />
+                    <Stop offset="100%" stopColor="#A855F7" />
+                  </SvgLinearGradient>
+                  <SvgLinearGradient id="trackGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <Stop offset="0%" stopColor={isDark ? '#14151F' : '#E5E5EA'} />
+                    <Stop offset="100%" stopColor={isDark ? '#1A1C28' : '#D1D1D6'} />
+                  </SvgLinearGradient>
+                </Defs>
 
-            <View style={styles.timerCenterContent}>
+                {/* Background Track */}
+                <SvgCircle
+                  cx="135"
+                  cy="135"
+                  r={ringRadius}
+                  stroke="url(#trackGradient)"
+                  strokeWidth="12"
+                  fill="none"
+                />
+
+                {/* Siri Multi-Color Gradient Active Progress Ring */}
+                {progressFraction > 0 && (
+                  <SvgCircle
+                    cx="135"
+                    cy="135"
+                    r={ringRadius}
+                    stroke="url(#siriGradient)"
+                    strokeWidth="12"
+                    strokeDasharray={`${ringCircumference} ${ringCircumference}`}
+                    strokeDashoffset={strokeDashoffset}
+                    strokeLinecap="round"
+                    fill="none"
+                    transform="rotate(-90 135 135)"
+                  />
+                )}
+
+                {/* Glowing Leading Comet Particle */}
+                {isActive && progressFraction > 0.005 && progressFraction < 0.995 && (
+                  <>
+                    <SvgCircle
+                      cx={headX}
+                      cy={headY}
+                      r={14}
+                      fill="rgba(10, 132, 255, 0.35)"
+                    />
+                    <SvgCircle
+                      cx={headX}
+                      cy={headY}
+                      r={9}
+                      fill="rgba(0, 242, 254, 0.7)"
+                    />
+                    <SvgCircle
+                      cx={headX}
+                      cy={headY}
+                      r={5}
+                      fill="#FFFFFF"
+                    />
+                  </>
+                )}
+              </Svg>
+            </Animated.View>
+
+            {/* Layer 4: Center Digits & Status Pill */}
+            <View style={styles.timerCenterContent} pointerEvents="none">
               <Text style={[styles.timerDigits, { color: colors.textPrimary }]}>
                 {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
               </Text>
-              <Text style={[styles.timerSubLabel, { color: colors.textMuted }]}>
-                {isActive ? 'Shield Active' : 'Time Remaining'}
-              </Text>
+              <View style={styles.statusPillWrap}>
+                <View
+                  style={[
+                    styles.statusDot,
+                    { backgroundColor: isActive ? '#10B981' : '#F59E0B' },
+                  ]}
+                />
+                <Text style={[styles.timerSubLabel, { color: colors.textMuted }]}>
+                  {isActive ? 'SHIELD ACTIVE' : 'PAUSED'}
+                </Text>
+              </View>
             </View>
           </View>
 
@@ -471,6 +621,44 @@ const styles = StyleSheet.create({
     position: 'relative',
     marginVertical: 10,
   },
+  siriHaloRing: {
+    position: 'absolute',
+    width: 252,
+    height: 252,
+    borderRadius: 126,
+    borderWidth: 5,
+    borderColor: '#0A84FF',
+    borderTopColor: '#00F2FE',
+    borderRightColor: '#6366F1',
+    borderBottomColor: '#A855F7',
+    shadowColor: '#0A84FF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 28,
+    elevation: 8,
+  },
+  siriInnerOrb: {
+    position: 'absolute',
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    backgroundColor: 'rgba(10, 132, 255, 0.12)',
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 36,
+  },
+  statusPillWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
   timerCenterContent: {
     position: 'absolute',
     alignItems: 'center',
@@ -483,9 +671,9 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   timerSubLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 0.5,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1,
   },
   controlsRow: {
     flexDirection: 'row',
