@@ -55,16 +55,19 @@ export default function QuestCompleteScreen() {
 
     const grantRewards = async () => {
       try {
+        let awarded = false;
         if (questId && parseInt(questId, 10)) {
           // Atomic quest completion in SQLite
-          await userRepository.completeQuestAndGrantRewards(
+          awarded = await userRepository.completeQuestAndGrantRewards(
             parseInt(questId, 10),
             coins,
             xp,
             config.statType as any
           );
-        } else {
-          // Free exercise workout rewards
+        }
+
+        // If not a quest or quest was already completed, grant workout coins & XP directly
+        if (!awarded) {
           if (coins > 0) {
             await userRepository.addCoins(coins, `${config.displayName} Workout`, 'exercise');
           }

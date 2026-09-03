@@ -349,6 +349,16 @@ export default function HomeDashboard() {
             </GlassCard>
           </View>
 
+          {/* Quick Shop Access */}
+          <TouchableOpacity
+            style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-end', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 100, backgroundColor: '#111218', borderWidth: 1, borderColor: '#1C1E2A' }}
+            onPress={() => { haptics.light(); router.push('/shop' as any); }}
+            activeOpacity={0.8}
+          >
+            <Coins size={14} color="#F59E0B" weight="duotone" />
+            <Text style={{ fontSize: 11, fontWeight: '800', color: '#F59E0B', letterSpacing: 0.3 }}>SHOP</Text>
+          </TouchableOpacity>
+
           {/* Apple Fitness 3-Ring Activity Component with Live Data */}
           <GlassCard variant="elevated" style={styles.activityRingsCard}>
             <View style={styles.ringsHeaderRow}>

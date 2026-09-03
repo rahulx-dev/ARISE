@@ -133,6 +133,16 @@ export default function ProfileTab() {
       action: handleExportBackup,
     },
     {
+      title: 'Shop',
+      sub: 'Spend your hard-earned coins',
+      icon: Coins,
+      color: '#F59E0B',
+      action: () => {
+        haptics.light();
+        router.push('/shop' as any);
+      },
+    },
+    {
       title: 'About ARISE System',
       sub: 'Architecture telemetry, version & policies',
       icon: Info,

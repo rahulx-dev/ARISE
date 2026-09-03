@@ -43,6 +43,9 @@ class PoseDetectorModule : Module() {
                 val bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
                     ?: throw IllegalArgumentException("Failed to decode base64 string into bitmap")
                 
+                val imgWidth = bitmap.width.toFloat().coerceAtLeast(1f)
+                val imgHeight = bitmap.height.toFloat().coerceAtLeast(1f)
+
                 val image = InputImage.fromBitmap(bitmap, 0)
                 
                 // Run detection synchronously
@@ -52,9 +55,11 @@ class PoseDetectorModule : Module() {
                 val resultList = mutableListOf<Map<String, Any>>()
                 
                 for (landmark in pose.allPoseLandmarks) {
+                    val normX = (landmark.position.x / imgWidth).coerceIn(0f, 1f)
+                    val normY = (landmark.position.y / imgHeight).coerceIn(0f, 1f)
                     val landmarkMap = mapOf(
-                        "x" to landmark.position.x,
-                        "y" to landmark.position.y,
+                        "x" to normX,
+                        "y" to normY,
                         "z" to landmark.position3D.z,
                         "confidence" to landmark.inFrameLikelihood,
                         "type" to landmark.landmarkType
@@ -67,6 +72,28 @@ class PoseDetectorModule : Module() {
                 Log.e("ARISE_POSE", "Error processing frame", e)
                 return@AsyncFunction emptyList<Map<String, Any>>()
             }
+        }
+
+        Function("muteShutter") {
+            try {
+                val context = appContext.reactContext
+                val audioManager = context?.getSystemService(android.content.Context.AUDIO_SERVICE) as? android.media.AudioManager
+                audioManager?.adjustStreamVolume(android.media.AudioManager.STREAM_SYSTEM, android.media.AudioManager.ADJUST_MUTE, 0)
+            } catch (e: Exception) {
+                Log.w("ARISE_POSE", "muteShutter failed: ${e.message}")
+            }
+            Unit
+        }
+
+        Function("unmuteShutter") {
+            try {
+                val context = appContext.reactContext
+                val audioManager = context?.getSystemService(android.content.Context.AUDIO_SERVICE) as? android.media.AudioManager
+                audioManager?.adjustStreamVolume(android.media.AudioManager.STREAM_SYSTEM, android.media.AudioManager.ADJUST_UNMUTE, 0)
+            } catch (e: Exception) {
+                Log.w("ARISE_POSE", "unmuteShutter failed: ${e.message}")
+            }
+            Unit
         }
 
         Function("release") {

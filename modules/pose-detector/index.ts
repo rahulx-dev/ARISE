@@ -68,6 +68,18 @@ export async function processBase64Frame(base64: string): Promise<PoseLandmark[]
   return await PoseDetector.processBase64Frame(base64);
 }
 
+export function muteShutter(): void {
+  if (Platform.OS === 'android' && PoseDetector?.muteShutter) {
+    try { PoseDetector.muteShutter(); } catch {}
+  }
+}
+
+export function unmuteShutter(): void {
+  if (Platform.OS === 'android' && PoseDetector?.unmuteShutter) {
+    try { PoseDetector.unmuteShutter(); } catch {}
+  }
+}
+
 export function release(): void {
   if (Platform.OS !== 'android' || !PoseDetector) {
     return;

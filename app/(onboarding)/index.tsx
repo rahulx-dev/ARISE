@@ -44,8 +44,8 @@ import { useSound } from '../../src/hooks/useSound';
 import { appBlockerService, InstalledAppItem } from '../../src/native';
 import { db } from '../../src/database/client';
 import { appRestriction } from '../../src/database/schema';
-import { GlowCard } from '../../src/components/design-system/GlowCard';
-import { GlowButton } from '../../src/components/design-system/GlowButton';
+import { GlassCard } from '../../src/components/ios/GlassCard';
+import { GlassButton } from '../../src/components/ios/GlassButton';
 import { AriseLogo } from '../../src/components/ui/AriseLogo';
 import { AVATAR_IMAGES, AVATAR_ICONS } from '../../src/components/profile/AvatarPicker';
 import { getIsOnboardingCompleted, setIsOnboardingCompletedSync } from '../../src/services/appStateService';
@@ -70,7 +70,7 @@ export default function OnboardingScreen() {
   const updateProfile = usePlayerStore((s) => s.updateProfile);
 
   const [step, setStep] = useState<number>(1);
-  const [userName, setUserName] = useState<string>('Shadow Hunter');
+  const [userName, setUserName] = useState<string>('');
   const [selectedAvatar, setSelectedAvatar] = useState<string>('img_pfp_01');
   const [avatarTab, setAvatarTab] = useState<'images' | 'icons'>('images');
   const [selectedGoals, setSelectedGoals] = useState<string[]>(['fitness', 'screentime']);
@@ -263,7 +263,7 @@ export default function OnboardingScreen() {
               </Text>
 
               {/* Holographic Identity Card Live Preview */}
-              <GlowCard variant="glow" style={styles.holographicCard}>
+              <GlassCard variant="glow" style={styles.holographicCard}>
                 <View style={styles.holoTopRow}>
                   <View style={styles.holoAvatarWrapper}>
                     {avatarInfo.type === 'image' ? (
@@ -281,7 +281,7 @@ export default function OnboardingScreen() {
                       <Text style={styles.holoRankTag}>LEVEL 1 • RECRUIT</Text>
                     </View>
                     <Text style={styles.holoCallsignText} numberOfLines={1}>
-                      {userName || 'UNKNOWN WARRIOR'}
+                      {userName || 'WARRIOR'}
                     </Text>
                     <Text style={styles.holoIdText}>ID: ARISE-001 • STATUS: ACTIVE</Text>
                   </View>
@@ -291,7 +291,7 @@ export default function OnboardingScreen() {
                 <View style={styles.holoStatsGrid}>
                   <View style={styles.holoStatBox}>
                     <Text style={styles.holoStatLabel}>STRENGTH</Text>
-                    <Text style={[styles.holoStatVal, { color: colors.danger }]}>0</Text>
+                    <Text style={[styles.holoStatVal, { color: colors.primary }]}>0</Text>
                   </View>
                   <View style={styles.holoStatBox}>
                     <Text style={styles.holoStatLabel}>FOCUS</Text>
@@ -299,10 +299,10 @@ export default function OnboardingScreen() {
                   </View>
                   <View style={styles.holoStatBox}>
                     <Text style={styles.holoStatLabel}>DISCIPLINE</Text>
-                    <Text style={[styles.holoStatVal, { color: colors.primary }]}>0</Text>
+                    <Text style={[styles.holoStatVal, { color: colors.success }]}>0</Text>
                   </View>
                 </View>
-              </GlowCard>
+              </GlassCard>
 
               {/* Callsign Input */}
               <View style={styles.inputGroup}>
@@ -453,7 +453,7 @@ export default function OnboardingScreen() {
                       onPress={() => toggleGoal(goal.id)}
                       activeOpacity={0.8}
                     >
-                      <GlowCard
+                      <GlassCard
                         variant={isSelected ? 'glow' : 'default'}
                         style={[styles.goalCard, isSelected && styles.goalCardSelected]}
                       >
@@ -487,7 +487,7 @@ export default function OnboardingScreen() {
                         >
                           {isSelected && <Check size={14} color="#000" strokeWidth={3} />}
                         </View>
-                      </GlowCard>
+                      </GlassCard>
                     </TouchableOpacity>
                   );
                 })}
@@ -538,7 +538,7 @@ export default function OnboardingScreen() {
                           onPress={() => toggleApp(app.packageName)}
                           activeOpacity={0.8}
                         >
-                          <GlowCard
+                          <GlassCard
                             variant={isSelected ? 'glow' : 'default'}
                             style={styles.miniAppCard}
                           >
@@ -572,7 +572,7 @@ export default function OnboardingScreen() {
                                 color={isSelected ? colors.primary : colors.textMuted}
                               />
                             </View>
-                          </GlowCard>
+                          </GlassCard>
                         </TouchableOpacity>
                       );
                     })}
@@ -596,7 +596,7 @@ export default function OnboardingScreen() {
               </Text>
 
               {/* Final Identity Hologram */}
-              <GlowCard variant="glow" style={styles.deploymentCard}>
+              <GlassCard variant="glow" style={styles.deploymentCard}>
                 <View style={styles.deploymentAvatarWrap}>
                   {avatarInfo.type === 'image' ? (
                     <Image source={avatarInfo.source} style={styles.deployAvatarImg} />
@@ -606,7 +606,7 @@ export default function OnboardingScreen() {
                   <View style={styles.deployGlowRing} />
                 </View>
 
-                <Text style={styles.deployWarriorName}>{userName}</Text>
+                <Text style={styles.deployWarriorName}>{userName || 'WARRIOR'}</Text>
                 <Text style={styles.deployRank}>LEVEL 1 • DISCIPLINE INITIATE</Text>
 
                 <View style={styles.protocolDetailsBox}>
@@ -631,7 +631,7 @@ export default function OnboardingScreen() {
                     </Text>
                   </View>
                 </View>
-              </GlowCard>
+              </GlassCard>
             </View>
           )}
 
@@ -640,7 +640,7 @@ export default function OnboardingScreen() {
 
         {/* Bottom CTA Button */}
         <View style={styles.footerContainer}>
-          <GlowButton
+          <GlassButton
             title={
               isSubmitting
                 ? 'INITIALIZING PROTOCOL...'

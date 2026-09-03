@@ -26,9 +26,8 @@ import {
   Palette,
   User,
 } from 'lucide-react-native';
-import { GlowCard } from '../../src/components/design-system/GlowCard';
-import { GlowButton } from '../../src/components/design-system/GlowButton';
-import { CoinBalance } from '../../src/components/design-system/CoinBalance';
+import { GlassCard } from '../../src/components/ios/GlassCard';
+import { GlassButton } from '../../src/components/ios/GlassButton';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { userRepository } from '../../src/database/repositories/userRepository';
 import { screenTimerService, appBlockerService } from '../../src/native';
@@ -220,7 +219,10 @@ export default function ShopScreen() {
             <Text style={styles.headerTitle}>Shop</Text>
           </View>
 
-          <CoinBalance amount={currentCoins} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#111218', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 100, borderWidth: 1, borderColor: '#1C1E2A' }}>
+            <Coins size={16} color="#F59E0B" />
+            <Text style={{ fontSize: 14, fontWeight: '900', color: '#F59E0B' }}>{currentCoins.toLocaleString()}</Text>
+          </View>
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -249,7 +251,7 @@ export default function ShopScreen() {
 
           {/* Hero Featured Card */}
           {(activeTab === 'all' || activeTab === 'boosters') && (
-            <GlowCard variant="glow" style={styles.featuredCard}>
+            <GlassCard variant="glow" style={styles.featuredCard}>
               <View style={styles.featuredLeft}>
                 <Text style={styles.featuredTitle}>Extra Focus Time</Text>
                 <Text style={styles.featuredBonus}>+30 min</Text>
@@ -279,7 +281,7 @@ export default function ShopScreen() {
               <View style={styles.featuredArtworkWrap}>
                 <Hourglass size={56} color={colors.primary} />
               </View>
-            </GlowCard>
+            </GlassCard>
           )}
 
           {/* Boosters Section */}
@@ -298,7 +300,7 @@ export default function ShopScreen() {
                       onPress={() => handlePurchase(item)}
                       activeOpacity={0.8}
                     >
-                      <GlowCard style={styles.shopItemCard}>
+                      <GlassCard style={styles.shopItemCard}>
                         <View style={styles.itemLeft}>
                           <View style={styles.itemIconCircle}>
                             <IconComp size={22} color={colors.primary} />
@@ -313,7 +315,7 @@ export default function ShopScreen() {
                           <Coins size={13} color={colors.primary} strokeWidth={2.5} />
                           <Text style={styles.priceChipText}>{item.cost}</Text>
                         </View>
-                      </GlowCard>
+                      </GlassCard>
                     </TouchableOpacity>
                   );
                 })}
@@ -335,7 +337,7 @@ export default function ShopScreen() {
                     onPress={() => handlePurchase(item)}
                     activeOpacity={0.8}
                   >
-                    <GlowCard style={styles.shopItemCard}>
+                    <GlassCard style={styles.shopItemCard}>
                       <View style={styles.itemLeft}>
                         <View style={styles.itemIconCircle}>
                           <Clock size={22} color={colors.primary} />
@@ -350,7 +352,7 @@ export default function ShopScreen() {
                         <Coins size={13} color={colors.primary} strokeWidth={2.5} />
                         <Text style={styles.priceChipText}>{item.cost}</Text>
                       </View>
-                    </GlowCard>
+                    </GlassCard>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -368,7 +370,7 @@ export default function ShopScreen() {
                     onPress={() => handlePurchase(item)}
                     activeOpacity={0.8}
                   >
-                    <GlowCard style={styles.shopItemCard}>
+                    <GlassCard style={styles.shopItemCard}>
                       <View style={styles.itemLeft}>
                         <View style={styles.itemIconCircle}>
                           <Palette size={22} color={colors.primary} />
@@ -383,7 +385,7 @@ export default function ShopScreen() {
                         <Coins size={13} color={colors.primary} strokeWidth={2.5} />
                         <Text style={styles.priceChipText}>{item.cost}</Text>
                       </View>
-                    </GlowCard>
+                    </GlassCard>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -401,7 +403,7 @@ export default function ShopScreen() {
                     onPress={() => handlePurchase(item)}
                     activeOpacity={0.8}
                   >
-                    <GlowCard style={styles.shopItemCard}>
+                    <GlassCard style={styles.shopItemCard}>
                       <View style={styles.itemLeft}>
                         <View style={styles.itemIconCircle}>
                           <User size={22} color={colors.primary} />
@@ -416,7 +418,7 @@ export default function ShopScreen() {
                         <Coins size={13} color={colors.primary} strokeWidth={2.5} />
                         <Text style={styles.priceChipText}>{item.cost}</Text>
                       </View>
-                    </GlowCard>
+                    </GlassCard>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -434,7 +436,7 @@ export default function ShopScreen() {
           onRequestClose={() => setSuccessItem(null)}
         >
           <View style={styles.modalOverlay}>
-            <GlowCard variant="glow" style={styles.dialogCard}>
+            <GlassCard variant="glow" style={styles.dialogCard}>
               <View style={styles.dialogIconCircle}>
                 <CheckCircle2 size={36} color={colors.primary} />
               </View>
@@ -442,13 +444,13 @@ export default function ShopScreen() {
               <Text style={styles.dialogDesc}>
                 {successItem?.name} has been activated on your device.
               </Text>
-              <GlowButton
+              <GlassButton
                 title="DONE"
                 onPress={() => setSuccessItem(null)}
                 variant="primary"
                 style={{ width: '100%', marginTop: 8 }}
               />
-            </GlowCard>
+            </GlassCard>
           </View>
         </Modal>
 
@@ -460,7 +462,7 @@ export default function ShopScreen() {
           onRequestClose={() => setInsufficientItem(null)}
         >
           <View style={styles.modalOverlay}>
-            <GlowCard style={styles.dialogCard}>
+            <GlassCard style={styles.dialogCard}>
               <View style={[styles.dialogIconCircle, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
                 <AlertCircle size={36} color={colors.danger} />
               </View>
@@ -468,7 +470,7 @@ export default function ShopScreen() {
               <Text style={styles.dialogDesc}>
                 You need {insufficientItem?.cost} Coins (Balance: {currentCoins}). Complete push-ups or focus sessions to earn more!
               </Text>
-              <GlowButton
+              <GlassButton
                 title="EARN COINS"
                 onPress={() => {
                   setInsufficientItem(null);
@@ -477,7 +479,7 @@ export default function ShopScreen() {
                 variant="primary"
                 style={{ width: '100%', marginTop: 8 }}
               />
-            </GlowCard>
+            </GlassCard>
           </View>
         </Modal>
       </SafeAreaView>
@@ -511,9 +513,9 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#161616',
+    backgroundColor: '#111218',
     borderWidth: 1,
-    borderColor: '#242424',
+    borderColor: '#1C1E2A',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -525,7 +527,7 @@ const styles = StyleSheet.create({
   tabBar: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: '#1F1F1F',
+    borderBottomColor: '#1C1E2A',
     paddingBottom: 4,
   },
   tabBtn: {
@@ -599,7 +601,7 @@ const styles = StyleSheet.create({
     width: 76,
     height: 76,
     borderRadius: 38,
-    backgroundColor: 'rgba(209, 255, 0, 0.1)',
+    backgroundColor: 'rgba(10, 132, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -636,7 +638,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#1E1E1E',
+    backgroundColor: '#111218',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -653,12 +655,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#1C1C1C',
+    backgroundColor: '#111218',
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 100,
     borderWidth: 1,
-    borderColor: '#262626',
+    borderColor: '#1C1E2A',
   },
   priceChipText: {
     fontSize: 13,
@@ -683,7 +685,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: 'rgba(209, 255, 0, 0.15)',
+    backgroundColor: 'rgba(10, 132, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 4,
