@@ -288,22 +288,28 @@ export default function ShopScreen() {
 
   const handleWatchAd = () => {
     haptics.medium();
-    const shown = adMobService.showRewardedAd(
-      async (earnedCoins) => {
-        const reward = earnedCoins || 50;
-        await userRepository.addCoins(reward, 'Watched Rewarded Video Ad', 'ad');
-        await loadProfile();
-        sound.play('quest_complete');
-        haptics.success();
-        Alert.alert('Reward Received! 🎉', `+${reward} Coins added to your vault!`);
-      }
-    );
 
-    if (!shown) {
-      Alert.alert(
-        'Loading Ad...',
-        'Ad is loading from Google AdMob. Please wait 3-5 seconds and tap again!'
+    const onReward = async (earnedCoins: number) => {
+      const reward = earnedCoins || 50;
+      await userRepository.addCoins(reward, 'Watched Rewarded Video Ad', 'ad');
+      await loadProfile();
+      sound.play('quest_complete');
+      haptics.success();
+      showIOSAlert(
+        'REWARD UNLOCKED! 🏆',
+        `+${reward} Gold Coins have been transferred to your Vault!`,
+        [{ text: 'CLAIM', style: 'primary' }]
       );
+    };
+
+    const shown = adMobService.showRewardedAd(onReward);
+    if (!shown) {
+      showIOSAlert(
+        'CONNECTING STREAM...',
+        'Connecting to Google AdMob network stream. The ad is buffering and will be ready in 3 seconds. Tap again to view!',
+        [{ text: 'PROCEED', style: 'primary' }]
+      );
+      adMobService.preloadRewarded();
     }
   };
 

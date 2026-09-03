@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -8,8 +8,8 @@ import {
   TouchableWithoutFeedback,
   Dimensions,
   Platform,
+  Alert as RNAlert,
 } from 'react-native';
-import { colors } from '../../theme/colors';
 
 export interface AlertButton {
   text: string;
@@ -33,7 +33,7 @@ const AlertContext = createContext<AlertContextType | undefined>(undefined);
 let globalShowAlert: ((options: AlertOptions) => void) | null = null;
 
 /**
- * Global drop-in replacement for Alert.alert with true iOS aesthetic
+ * Global drop-in replacement for Alert.alert with Solo Leveling System UI aesthetic
  */
 export function showIOSAlert(title: string, message?: string, buttons?: AlertButton[]) {
   if (globalShowAlert) {
@@ -46,7 +46,7 @@ export function IOSAlertProvider({ children }: { children: React.ReactNode }) {
   const [alertConfig, setAlertConfig] = useState<AlertOptions>({
     title: '',
     message: '',
-    buttons: [{ text: 'OK', style: 'primary' }],
+    buttons: [{ text: 'CONFIRM', style: 'primary' }],
   });
 
   const showAlert = useCallback((options: AlertOptions) => {
@@ -55,7 +55,7 @@ export function IOSAlertProvider({ children }: { children: React.ReactNode }) {
       message: options.message,
       buttons: options.buttons && options.buttons.length > 0
         ? options.buttons
-        : [{ text: 'OK', style: 'primary' }],
+        : [{ text: 'CONFIRM', style: 'primary' }],
     });
     setVisible(true);
   }, []);
@@ -66,6 +66,13 @@ export function IOSAlertProvider({ children }: { children: React.ReactNode }) {
 
   globalShowAlert = showAlert;
 
+  // Intercept standard React Native Alert.alert across the entire app
+  useEffect(() => {
+    RNAlert.alert = (title: string, message?: string, buttons?: any[]) => {
+      showAlert({ title, message, buttons });
+    };
+  }, [showAlert]);
+
   const handleButtonPress = (btn: AlertButton) => {
     setVisible(false);
     if (btn.onPress) {
@@ -75,7 +82,7 @@ export function IOSAlertProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const buttons = alertConfig.buttons || [{ text: 'OK', style: 'primary' }];
+  const buttons = alertConfig.buttons || [{ text: 'CONFIRM', style: 'primary' }];
   const isHorizontalButtons = buttons.length === 2;
 
   return (
@@ -91,8 +98,17 @@ export function IOSAlertProvider({ children }: { children: React.ReactNode }) {
         <TouchableWithoutFeedback onPress={hideAlert}>
           <View style={styles.backdrop}>
             <TouchableWithoutFeedback>
-              <View style={styles.alertCard}>
-                {/* Header Content */}
+              <View style={styles.systemWindow}>
+                {/* Tech Header Bar */}
+                <View style={styles.systemHeaderBar}>
+                  <View style={styles.headerLeftTag}>
+                    <View style={styles.systemDot} />
+                    <Text style={styles.systemTagText}>SYSTEM NOTIFICATION</Text>
+                  </View>
+                  <Text style={styles.systemLevelText}>[ ARISE OS ]</Text>
+                </View>
+
+                {/* Main Content Area */}
                 <View style={styles.contentContainer}>
                   <Text style={styles.titleText}>{alertConfig.title}</Text>
                   {!!alertConfig.message && (
@@ -100,8 +116,8 @@ export function IOSAlertProvider({ children }: { children: React.ReactNode }) {
                   )}
                 </View>
 
-                {/* iOS Hairline Divider */}
-                <View style={styles.horizontalDivider} />
+                {/* Solo Leveling Glowing Separator */}
+                <View style={styles.systemDivider} />
 
                 {/* Buttons Container */}
                 <View
@@ -116,33 +132,29 @@ export function IOSAlertProvider({ children }: { children: React.ReactNode }) {
                     const isPrimary = btn.style === 'primary' || (!isCancel && !isDestructive);
 
                     return (
-                      <React.Fragment key={index}>
-                        {index > 0 && isHorizontalButtons && (
-                          <View style={styles.verticalDivider} />
-                        )}
-                        {index > 0 && !isHorizontalButtons && (
-                          <View style={styles.horizontalDivider} />
-                        )}
-                        <TouchableOpacity
+                      <TouchableOpacity
+                        key={index}
+                        style={[
+                          styles.alertButton,
+                          isHorizontalButtons && styles.alertButtonHalf,
+                          isPrimary && styles.alertButtonPrimary,
+                          isCancel && styles.alertButtonCancel,
+                          isDestructive && styles.alertButtonDestructive,
+                        ]}
+                        onPress={() => handleButtonPress(btn)}
+                        activeOpacity={0.75}
+                      >
+                        <Text
                           style={[
-                            styles.alertButton,
-                            isHorizontalButtons && styles.alertButtonHalf,
+                            styles.buttonText,
+                            isPrimary && styles.buttonTextPrimary,
+                            isCancel && styles.buttonTextCancel,
+                            isDestructive && styles.buttonTextDestructive,
                           ]}
-                          onPress={() => handleButtonPress(btn)}
-                          activeOpacity={0.65}
                         >
-                          <Text
-                            style={[
-                              styles.buttonText,
-                              isPrimary && styles.buttonTextPrimary,
-                              isCancel && styles.buttonTextCancel,
-                              isDestructive && styles.buttonTextDestructive,
-                            ]}
-                          >
-                            {btn.text}
-                          </Text>
-                        </TouchableOpacity>
-                      </React.Fragment>
+                          {btn.text.toUpperCase()}
+                        </Text>
+                      </TouchableOpacity>
                     );
                   })}
                 </View>
@@ -169,90 +181,131 @@ export function useIOSAlert() {
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: 'rgba(0, 0, 0, 0.82)',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: 28,
   },
-  alertCard: {
+  systemWindow: {
     width: '100%',
-    maxWidth: 320,
-    backgroundColor: 'rgba(30, 32, 38, 0.94)',
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    maxWidth: 340,
+    backgroundColor: '#070A14',
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: '#0A84FF',
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
+    shadowColor: '#0A84FF',
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.5,
-    shadowRadius: 24,
+    shadowRadius: 18,
     elevation: 20,
+  },
+  systemHeaderBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'rgba(10, 132, 255, 0.12)',
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(10, 132, 255, 0.25)',
+  },
+  headerLeftTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  systemDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#00F0FF',
+    shadowColor: '#00F0FF',
+    shadowRadius: 4,
+    shadowOpacity: 0.9,
+  },
+  systemTagText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#00F0FF',
+    letterSpacing: 1.2,
+  },
+  systemLevelText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: 'rgba(10, 132, 255, 0.8)',
+    letterSpacing: 0.8,
   },
   contentContainer: {
     paddingHorizontal: 20,
-    paddingTop: 22,
+    paddingTop: 20,
     paddingBottom: 18,
     alignItems: 'center',
     gap: 8,
   },
   titleText: {
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '900',
     color: '#FFFFFF',
     textAlign: 'center',
-    letterSpacing: -0.4,
+    letterSpacing: 0.5,
   },
   messageText: {
     fontSize: 13,
-    fontWeight: '400',
-    color: 'rgba(235, 235, 245, 0.75)',
+    color: '#94A3B8',
     textAlign: 'center',
-    lineHeight: 18,
-    letterSpacing: -0.2,
+    lineHeight: 19,
   },
-  horizontalDivider: {
-    height: StyleSheet.hairlineWidth || 0.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.14)',
+  systemDivider: {
+    height: 1,
+    backgroundColor: 'rgba(10, 132, 255, 0.2)',
     width: '100%',
-  },
-  verticalDivider: {
-    width: StyleSheet.hairlineWidth || 0.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.14)',
-    height: '100%',
   },
   buttonsContainer: {
-    width: '100%',
+    padding: 12,
+    gap: 8,
   },
   buttonsRow: {
     flexDirection: 'row',
-    height: 48,
   },
   buttonsColumn: {
     flexDirection: 'column',
   },
   alertButton: {
-    height: 48,
+    paddingVertical: 12,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 16,
   },
   alertButtonHalf: {
     flex: 1,
   },
+  alertButtonPrimary: {
+    backgroundColor: '#0A84FF',
+    shadowColor: '#0A84FF',
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+  },
+  alertButtonCancel: {
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  alertButtonDestructive: {
+    backgroundColor: '#FF453A',
+  },
   buttonText: {
-    fontSize: 16,
-    letterSpacing: -0.3,
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0.8,
   },
   buttonTextPrimary: {
-    color: '#D1FF00',
-    fontWeight: '700',
+    color: '#FFFFFF',
   },
   buttonTextCancel: {
-    color: '#9CA3AF',
-    fontWeight: '600',
+    color: '#8E8E93',
   },
   buttonTextDestructive: {
-    color: '#FF453A',
-    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });
