@@ -27,6 +27,7 @@ import {
   Moon,
   Music,
   Sliders,
+  Banknote,
 } from 'lucide-react-native';
 import { GlowCard } from '../../src/components/design-system/GlowCard';
 import { GlowButton } from '../../src/components/design-system/GlowButton';
@@ -118,6 +119,23 @@ export default function SettingsScreen() {
               <View style={styles.settingTextGroup}>
                 <Text style={[styles.settingTitle, { color: colors.textPrimary }]}>Physique Progress Photos</Text>
                 <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>Daily transformation gallery timeline</Text>
+              </View>
+              <ChevronRight size={18} color={colors.textMuted} />
+            </TouchableOpacity>
+
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+            <TouchableOpacity
+              style={styles.navRow}
+              activeOpacity={0.7}
+              onPress={() => router.push('/settings/payouts' as any)}
+            >
+              <View style={[styles.iconCircle, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
+                <Banknote size={20} color={colors.accentGold} />
+              </View>
+              <View style={styles.settingTextGroup}>
+                <Text style={[styles.settingTitle, { color: colors.textPrimary }]}>Admin Payout Manager</Text>
+                <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>View and transfer pending UPI user cashouts</Text>
               </View>
               <ChevronRight size={18} color={colors.textMuted} />
             </TouchableOpacity>

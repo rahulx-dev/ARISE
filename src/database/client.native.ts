@@ -234,11 +234,23 @@ export async function initializeDatabase(): Promise<void> {
       achieved_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS payout_request (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL DEFAULT 'default_user',
+      amount_inr INTEGER NOT NULL,
+      coins_spent INTEGER NOT NULL,
+      upi_id TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'PENDING',
+      created_at TEXT NOT NULL,
+      paid_at TEXT
+    );
+
     CREATE INDEX IF NOT EXISTS idx_quest_date_freq ON quest(date, frequency);
     CREATE INDEX IF NOT EXISTS idx_coin_tx_id ON coin_transaction(id DESC);
     CREATE INDEX IF NOT EXISTS idx_exercise_session_time ON exercise_session(timestamp);
     CREATE INDEX IF NOT EXISTS idx_focus_session_time ON focus_session(start_time);
     CREATE INDEX IF NOT EXISTS idx_app_restriction_pkg ON app_restriction(package_name);
+    CREATE INDEX IF NOT EXISTS idx_payout_status ON payout_request(status);
   `;
 
   expoDb.execSync(createTablesSql);

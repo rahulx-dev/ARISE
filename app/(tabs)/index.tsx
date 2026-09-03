@@ -27,6 +27,8 @@ import {
   Barbell,
   Brain,
   Timer,
+  Wallet,
+  ShieldCheck,
 } from 'phosphor-react-native';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { useQuestStore } from '../../src/stores/useQuestStore';
@@ -250,6 +252,115 @@ export default function HomeDashboard() {
           <View style={styles.timeHeroSection}>
             <Text style={[styles.timeHeroDisplay, { color: colors.textPrimary }]}>{timeStr}</Text>
             <Text style={[styles.dateHeroDisplay, { color: colors.textMuted }]}>{dateStr}</Text>
+          </View>
+
+          {/* Next UPI Payout Goal Progress Banner */}
+          <TouchableOpacity
+            onPress={() => {
+              haptics.light();
+              router.push('/shop' as any);
+            }}
+            activeOpacity={0.88}
+          >
+            <GlassCard variant="elevated" style={styles.cashoutGoalCard}>
+              <View style={styles.cashoutGoalTopRow}>
+                <View style={styles.cashoutGoalTag}>
+                  <Wallet size={13} color="#F59E0B" weight="fill" />
+                  <Text style={styles.cashoutGoalTagText}>NEXT CASHOUT: ₹50 UPI</Text>
+                </View>
+                <Text style={styles.cashoutGoalPercentText}>
+                  {Math.min(100, Math.round((coins / 5000) * 100))}%
+                </Text>
+              </View>
+
+              <View style={styles.cashoutGoalBarTrack}>
+                <View
+                  style={[
+                    styles.cashoutGoalBarFill,
+                    {
+                      width: `${Math.max(4, Math.min(100, (coins / 5000) * 100))}%`,
+                    },
+                  ]}
+                />
+              </View>
+
+              <View style={styles.cashoutGoalFooter}>
+                <Text style={styles.cashoutGoalMeta}>
+                  {coins.toLocaleString()} / 5,000 Coins
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Text style={styles.cashoutGoalAction}>REDEEM VAULT</Text>
+                  <ArrowRight size={11} color="#F59E0B" weight="bold" />
+                </View>
+              </View>
+            </GlassCard>
+          </TouchableOpacity>
+
+          {/* 4 Big Command Center Quick Action Tiles */}
+          <View style={styles.commandTilesGrid}>
+            {/* 1. AI Workout */}
+            <TouchableOpacity
+              style={styles.commandTile}
+              onPress={() => {
+                haptics.heavy();
+                router.push('/(tabs)/progress');
+              }}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.commandIconCircle, { backgroundColor: 'rgba(10, 132, 255, 0.15)' }]}>
+                <Barbell size={22} color="#0A84FF" weight="duotone" />
+              </View>
+              <Text style={styles.commandTileTitle}>AI Workout</Text>
+              <Text style={styles.commandTileSub}>Pose Tracker</Text>
+            </TouchableOpacity>
+
+            {/* 2. Deep Focus */}
+            <TouchableOpacity
+              style={styles.commandTile}
+              onPress={() => {
+                haptics.heavy();
+                router.push('/focus/session');
+              }}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.commandIconCircle, { backgroundColor: 'rgba(99, 102, 241, 0.15)' }]}>
+                <Timer size={22} color="#6366F1" weight="duotone" />
+              </View>
+              <Text style={styles.commandTileTitle}>Deep Focus</Text>
+              <Text style={styles.commandTileSub}>Siri Ring</Text>
+            </TouchableOpacity>
+
+            {/* 3. Lock Apps */}
+            <TouchableOpacity
+              style={styles.commandTile}
+              onPress={() => {
+                haptics.heavy();
+                router.push('/settings/apps');
+              }}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.commandIconCircle, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
+                <ShieldCheck size={22} color="#10B981" weight="duotone" />
+              </View>
+              <Text style={styles.commandTileTitle}>Lock Apps</Text>
+              <Text style={styles.commandTileSub}>Screen Time</Text>
+            </TouchableOpacity>
+
+            {/* 4. Redeem UPI */}
+            <TouchableOpacity
+              style={styles.commandTile}
+              onPress={() => {
+                haptics.heavy();
+                router.push('/shop' as any);
+              }}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.commandIconCircle, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
+                <Coins size={22} color="#F59E0B" weight="duotone" />
+              </View>
+              <Text style={styles.commandTileTitle}>Redeem UPI</Text>
+              <Text style={styles.commandTileSub}>Cashout</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Dynamic Next Up Card */}
@@ -580,6 +691,101 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     letterSpacing: 0.5,
+  },
+  cashoutGoalCard: {
+    padding: 16,
+    borderRadius: 20,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.25)',
+    backgroundColor: '#121118',
+  },
+  cashoutGoalTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cashoutGoalTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+  },
+  cashoutGoalTagText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#F59E0B',
+    letterSpacing: 0.8,
+  },
+  cashoutGoalPercentText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#F59E0B',
+  },
+  cashoutGoalBarTrack: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#1C1E2A',
+    overflow: 'hidden',
+  },
+  cashoutGoalBarFill: {
+    height: '100%',
+    borderRadius: 3,
+    backgroundColor: '#F59E0B',
+  },
+  cashoutGoalFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cashoutGoalMeta: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#8E8E93',
+  },
+  cashoutGoalAction: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#F59E0B',
+    letterSpacing: 0.6,
+  },
+  commandTilesGrid: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  commandTile: {
+    flex: 1,
+    backgroundColor: '#111218',
+    borderWidth: 1,
+    borderColor: '#1C1E2A',
+    borderRadius: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    gap: 4,
+  },
+  commandIconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  commandTileTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  commandTileSub: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: '#8E8E93',
+    textAlign: 'center',
   },
   nextUpCard: {
     padding: 20,

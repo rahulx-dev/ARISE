@@ -221,3 +221,14 @@ export const personalRecords = sqliteTable('personal_records', {
   reps: integer('reps').notNull().default(0),
   achievedAt: text('achieved_at').notNull(),
 });
+
+export const payoutRequest = sqliteTable('payout_request', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('user_id').notNull().default('default_user'),
+  amountInr: integer('amount_inr').notNull(),
+  coinsSpent: integer('coins_spent').notNull(),
+  upiId: text('upi_id').notNull(),
+  status: text('status').notNull().default('PENDING'), // 'PENDING' | 'PAID' | 'REJECTED'
+  createdAt: text('created_at').notNull(),
+  paidAt: text('paid_at'),
+});
