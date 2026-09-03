@@ -193,10 +193,12 @@ export default function QuestsTab() {
                       <TouchableOpacity
                         onPress={() => {
                           if (isDone) return;
-                          if (isExercise) {
+                          if (isExercise || isFocus) {
                             handleCardPress();
-                          } else {
+                          } else if (q.questType === 'MANUAL' || q.category === 'productivity' || q.category === 'general') {
                             handleComplete(q.id);
+                          } else {
+                            handleCardPress();
                           }
                         }}
                         style={[
@@ -206,7 +208,11 @@ export default function QuestsTab() {
                         ]}
                         activeOpacity={0.7}
                       >
-                        {isDone && <Check size={13} color="#000" weight="bold" />}
+                        {isDone ? (
+                          <Check size={13} color="#000" weight="bold" />
+                        ) : (isExercise || isFocus) ? (
+                          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.border }} />
+                        ) : null}
                       </TouchableOpacity>
 
                       {/* Content */}

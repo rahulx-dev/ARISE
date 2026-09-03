@@ -42,6 +42,7 @@ import { voiceCoach } from '../../src/services/voiceCoach';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useSound } from '../../src/hooks/useSound';
 import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
+import { useTheme } from '../../src/hooks/useTheme';
 import { colors } from '../../src/theme/colors';
 
 interface ShopItem {
@@ -74,6 +75,7 @@ export default function ShopScreen() {
   const haptics = useHaptics();
   const profile = usePlayerStore((s) => s.profile);
   const loadProfile = usePlayerStore((s) => s.loadProfile);
+  const { colors, isDark } = useTheme();
 
   const [activeTab, setActiveTab] = useState<'cashout' | 'time' | 'boosters' | 'themes'>('cashout');
   const [purchasingId, setPurchasingId] = useState<string | null>(null);
@@ -306,22 +308,22 @@ export default function ShopScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <SafeAreaView style={styles.safeArea}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { borderBottomColor: colors.border }]}>
           <View style={styles.headerLeft}>
             <TouchableOpacity
-              style={styles.iconBtn}
+              style={[styles.iconBtn, { backgroundColor: colors.surfaceLight, borderColor: colors.border }]}
               onPress={() => router.back()}
               activeOpacity={0.8}
             >
               <ArrowLeft size={20} color={colors.textPrimary} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Shop</Text>
+            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Shop</Text>
           </View>
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#111218', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 100, borderWidth: 1, borderColor: '#1C1E2A' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: isDark ? '#111218' : '#F2F2F7', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 100, borderWidth: 1, borderColor: colors.border }}>
             <Coins size={16} color="#F59E0B" />
             <Text style={{ fontSize: 14, fontWeight: '900', color: '#F59E0B' }}>{currentCoins.toLocaleString()}</Text>
           </View>
@@ -640,12 +642,13 @@ export default function ShopScreen() {
               <Text style={styles.dialogDesc}>
                 {successItem?.name} has been activated on your device.
               </Text>
-              <GlassButton
-                title="DONE"
+              <TouchableOpacity
+                style={styles.dialogDoneBtn}
                 onPress={() => setSuccessItem(null)}
-                variant="primary"
-                style={{ width: '100%', marginTop: 8 }}
-              />
+                activeOpacity={0.85}
+              >
+                <Text style={styles.dialogDoneBtnText}>DONE</Text>
+              </TouchableOpacity>
             </GlassCard>
           </View>
         </Modal>
@@ -666,15 +669,16 @@ export default function ShopScreen() {
               <Text style={styles.dialogDesc}>
                 You need {insufficientItem?.cost} Coins (Balance: {currentCoins}). Complete push-ups or focus sessions to earn more!
               </Text>
-              <GlassButton
-                title="EARN COINS"
+              <TouchableOpacity
+                style={styles.dialogDoneBtn}
                 onPress={() => {
                   setInsufficientItem(null);
                   router.push('/(tabs)/quests');
                 }}
-                variant="primary"
-                style={{ width: '100%', marginTop: 8 }}
-              />
+                activeOpacity={0.85}
+              >
+                <Text style={styles.dialogDoneBtnText}>EARN COINS</Text>
+              </TouchableOpacity>
             </GlassCard>
           </View>
         </Modal>
@@ -959,6 +963,21 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 18,
+  },
+  dialogDoneBtn: {
+    width: '100%',
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: '#0A84FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+  },
+  dialogDoneBtnText: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
   },
   cashoutSection: {
     gap: 16,

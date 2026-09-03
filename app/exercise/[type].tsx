@@ -10,7 +10,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import Svg, { Polyline, Circle as SvgCircle } from 'react-native-svg';
+import Svg, { Polyline, Circle as SvgCircle, Line as SvgLine } from 'react-native-svg';
 import {
   ArrowLeft,
   Camera as CameraIcon,
@@ -151,7 +151,7 @@ function ExerciseTrackerInner() {
       if (!isMountedRef.current || !isActive || isProcessingRef.current) return;
 
       if (!cameraRef.current || !cameraPermission?.granted) {
-        frameInterval = setTimeout(processCameraInference, 400);
+        frameInterval = setTimeout(processCameraInference, 150);
         return;
       }
 
@@ -164,6 +164,7 @@ function ExerciseTrackerInner() {
             base64: true,
             quality: 0.1,
             skipProcessing: true,
+            shutterSound: false,
           });
           if (pic?.base64) {
             const landmarks: PoseLandmark[] = await processBase64Frame(pic.base64);
@@ -203,12 +204,12 @@ function ExerciseTrackerInner() {
       } finally {
         isProcessingRef.current = false;
         if (isMountedRef.current && isActive) {
-          frameInterval = setTimeout(processCameraInference, 400);
+          frameInterval = setTimeout(processCameraInference, 120);
         }
       }
     };
 
-    frameInterval = setTimeout(processCameraInference, 400);
+    frameInterval = setTimeout(processCameraInference, 120);
 
     return () => {
       if (frameInterval) clearTimeout(frameInterval);
@@ -320,78 +321,69 @@ function ExerciseTrackerInner() {
           };
           const gy = (idx: number) => (detectedKeypoints[idx]?.y ?? 0) * 100;
 
+          const renderBone = (idxA: number, idxB: number, color: string = '#0A84FF', strokeWidth: number = 1.4) => {
+            const ptA = detectedKeypoints[idxA];
+            const ptB = detectedKeypoints[idxB];
+            if (!ptA || !ptB || ptA.confidence < 0.35 || ptB.confidence < 0.35) return null;
+            return (
+              <SvgLine
+                key={`bone-${idxA}-${idxB}`}
+                x1={gx(idxA)}
+                y1={gy(idxA)}
+                x2={gx(idxB)}
+                y2={gy(idxB)}
+                stroke={color}
+                strokeWidth={strokeWidth}
+                strokeLinecap="round"
+              />
+            );
+          };
+
           return (
             <Svg style={StyleSheet.absoluteFill} viewBox="0 0 100 100" preserveAspectRatio="none">
-              {/* Shoulders */}
-              <Polyline
-                points={`${gx(5)},${gy(5)} ${gx(6)},${gy(6)}`}
-                fill="none"
-                stroke="#0A84FF"
-                strokeWidth="1.2"
-              />
-              {/* Left Arm (Shoulder -> Elbow -> Wrist) */}
-              <Polyline
-                points={`${gx(5)},${gy(5)} ${gx(7)},${gy(7)} ${gx(9)},${gy(9)}`}
-                fill="none"
-                stroke="#0A84FF"
-                strokeWidth="1.2"
-              />
-              {/* Right Arm (Shoulder -> Elbow -> Wrist) */}
-              <Polyline
-                points={`${gx(6)},${gy(6)} ${gx(8)},${gy(8)} ${gx(10)},${gy(10)}`}
-                fill="none"
-                stroke="#0A84FF"
-                strokeWidth="1.2"
-              />
-              {/* Left Torso (Shoulder -> Hip) */}
-              <Polyline
-                points={`${gx(5)},${gy(5)} ${gx(11)},${gy(11)}`}
-                fill="none"
-                stroke="#0A84FF"
-                strokeWidth="1.2"
-              />
-              {/* Right Torso (Shoulder -> Hip) */}
-              <Polyline
-                points={`${gx(6)},${gy(6)} ${gx(12)},${gy(12)}`}
-                fill="none"
-                stroke="#0A84FF"
-                strokeWidth="1.2"
-              />
-              {/* Hips */}
-              <Polyline
-                points={`${gx(11)},${gy(11)} ${gx(12)},${gy(12)}`}
-                fill="none"
-                stroke="#0A84FF"
-                strokeWidth="1.2"
-              />
-              {/* Left Leg (Hip -> Knee -> Ankle) */}
-              <Polyline
-                points={`${gx(11)},${gy(11)} ${gx(13)},${gy(13)} ${gx(15)},${gy(15)}`}
-                fill="none"
-                stroke="#10B981"
-                strokeWidth="1.2"
-              />
-              {/* Right Leg (Hip -> Knee -> Ankle) */}
-              <Polyline
-                points={`${gx(12)},${gy(12)} ${gx(14)},${gy(14)} ${gx(16)},${gy(16)}`}
-                fill="none"
-                stroke="#10B981"
-                strokeWidth="1.2"
-              />
+              {/* Head / Neck */}
+              {renderBone(0, 5, '#389BFF', 1.0)}
+              {renderBone(0, 6, '#389BFF', 1.0)}
 
-              {/* Joint Marker Dots */}
-              {[5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].map((idx) => {
+              {/* Shoulders */}
+              {renderBone(5, 6, '#0A84FF', 1.6)}
+
+              {/* Left Arm (Shoulder -> Elbow -> Wrist) */}
+              {renderBone(5, 7, '#0A84FF', 1.4)}
+              {renderBone(7, 9, '#0A84FF', 1.4)}
+
+              {/* Right Arm (Shoulder -> Elbow -> Wrist) */}
+              {renderBone(6, 8, '#0A84FF', 1.4)}
+              {renderBone(8, 10, '#0A84FF', 1.4)}
+
+              {/* Torso Box (Shoulder -> Hip) */}
+              {renderBone(5, 11, '#0A84FF', 1.4)}
+              {renderBone(6, 12, '#0A84FF', 1.4)}
+              {renderBone(11, 12, '#0A84FF', 1.6)}
+
+              {/* Left Leg (Hip -> Knee -> Ankle) */}
+              {renderBone(11, 13, '#10B981', 1.4)}
+              {renderBone(13, 15, '#10B981', 1.4)}
+
+              {/* Right Leg (Hip -> Knee -> Ankle) */}
+              {renderBone(12, 14, '#10B981', 1.4)}
+              {renderBone(14, 16, '#10B981', 1.4)}
+
+              {/* Joint Marker Dots (Only high-confidence detected joints on physical body) */}
+              {[0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].map((idx) => {
                 const pt = detectedKeypoints[idx];
-                if (!pt || pt.confidence < 0.2) return null;
+                if (!pt || pt.confidence < 0.35) return null;
+                const isLeg = idx >= 13;
+                const isHead = idx === 0;
                 return (
                   <SvgCircle
-                    key={idx}
+                    key={`dot-${idx}`}
                     cx={gx(idx)}
                     cy={gy(idx)}
-                    r="1.6"
-                    fill="#10B981"
+                    r={isHead ? '1.4' : '1.8'}
+                    fill={isHead ? '#389BFF' : isLeg ? '#10B981' : '#0A84FF'}
                     stroke="#FFFFFF"
-                    strokeWidth="0.4"
+                    strokeWidth="0.5"
                   />
                 );
               })}

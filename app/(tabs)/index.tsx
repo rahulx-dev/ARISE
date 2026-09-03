@@ -502,15 +502,37 @@ export default function HomeDashboard() {
             </View>
 
             {dailyQuests.slice(0, 3).map((quest) => {
-              const isExercise = quest.category === 'FITNESS';
+              const isExercise = quest.category === 'FITNESS' || quest.category === 'strength';
+              const isFocus = quest.category === 'FOCUS' || quest.category === 'focus';
+              const exType = quest.title.toLowerCase().includes('squat')
+                ? 'SQUAT'
+                : quest.title.toLowerCase().includes('pull')
+                ? 'PULLUP'
+                : quest.title.toLowerCase().includes('plank')
+                ? 'PLANK'
+                : 'PUSHUP';
+
+              const handleAction = () => {
+                if (quest.completed) return;
+                haptics.heavy();
+                if (isExercise) {
+                  router.push({
+                    pathname: '/exercise/[type]',
+                    params: { type: exType, target: 20, questId: String(quest.id) },
+                  } as any);
+                } else if (isFocus) {
+                  router.push('/focus/session');
+                } else {
+                  haptics.success();
+                  completeQuest(quest.id);
+                }
+              };
+
               return (
                 <GlassCard key={quest.id} variant="default" style={styles.questCard}>
                   <TouchableOpacity
                     style={[styles.questCheckbox, quest.completed && { backgroundColor: colors.success, borderColor: colors.success }]}
-                    onPress={() => {
-                      haptics.success();
-                      completeQuest(quest.id);
-                    }}
+                    onPress={handleAction}
                   >
                     {quest.completed && <Check size={14} color="#FFFFFF" weight="bold" />}
                   </TouchableOpacity>

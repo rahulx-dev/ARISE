@@ -36,21 +36,11 @@ class AppMonitorService : Service() {
 
             val fgPackage = UsageStatsHelper.getForegroundPackage(this@AppMonitorService)
             if (fgPackage != null && restrictedPackages.contains(fgPackage)) {
-                val usedTodayMs = UsageStatsHelper.getPackageTodayUsageMs(this@AppMonitorService, fgPackage)
-                val budgetMs = packageBudgetsMs[fgPackage] ?: defaultBudgetMs
-
-                if (usedTodayMs >= budgetMs) {
-                    // Budget exceeded! Launch overlay blocker
-                    val overlayIntent = Intent(this@AppMonitorService, BlockOverlayService::class.java).apply {
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    }
-                    startService(overlayIntent)
-                } else {
-                    // Still within budget (e.g. 16m < 45m). Ensure overlay is dismissed!
-                    try {
-                        stopService(Intent(this@AppMonitorService, BlockOverlayService::class.java))
-                    } catch (_: Exception) {}
+                // Screen time pass has expired. Enforce immediate lock on restricted distraction apps!
+                val overlayIntent = Intent(this@AppMonitorService, BlockOverlayService::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
+                startService(overlayIntent)
             }
 
             handler.postDelayed(this, 1000)
