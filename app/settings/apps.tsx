@@ -79,14 +79,12 @@ export default function LockedAppsScreen() {
       );
 
       if (installed.length > 0) {
-        const merged: AppItem[] = installed
-          .filter((a) => !a.isSystemApp || restrictedSet.has(a.packageName))
-          .map((app) => ({
-            packageName: app.packageName,
-            appName: app.appName,
-            isRestricted: restrictedSet.has(app.packageName),
-            appIconBase64: app.appIconBase64,
-          }));
+        const merged: AppItem[] = installed.map((app) => ({
+          packageName: app.packageName,
+          appName: app.appName,
+          isRestricted: restrictedSet.has(app.packageName),
+          appIconBase64: app.appIconBase64,
+        }));
         merged.sort((a, b) => (b.isRestricted ? 1 : 0) - (a.isRestricted ? 1 : 0));
         setAllApps(merged);
       } else {

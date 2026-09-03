@@ -236,18 +236,19 @@ class AppBlockerModule : Module() {
             val pm = context.packageManager
             val apps = mutableListOf<Map<String, Any?>>()
             val myPackage = context.packageName
+            val coreSystemExclusions = setOf("android", "com.android.systemui", "com.android.settings")
 
             try {
                 // Tier 1: Query Category Launcher Activities (user-facing launchable apps)
                 val launcherIntent = Intent(Intent.ACTION_MAIN, null).apply {
                     addCategory(Intent.CATEGORY_LAUNCHER)
                 }
-                val resolveInfos = pm.queryIntentActivities(launcherIntent, 0)
+                val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PackageManager.MATCH_ALL else 0
+                val resolveInfos = pm.queryIntentActivities(launcherIntent, flags)
                 for (info in resolveInfos) {
                     val pkgName = info.activityInfo.packageName
-                    if (pkgName != myPackage) {
+                    if (pkgName != myPackage && !coreSystemExclusions.contains(pkgName)) {
                         val appName = info.loadLabel(pm).toString()
-                        val isSystem = (info.activityInfo.applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
                         val iconBase64 = try {
                             val iconDrawable = info.loadIcon(pm)
                             drawableToBase64(iconDrawable)
@@ -258,7 +259,7 @@ class AppBlockerModule : Module() {
                             mapOf(
                                 "packageName" to pkgName,
                                 "appName" to appName,
-                                "isSystemApp" to isSystem,
+                                "isSystemApp" to false,
                                 "appIconBase64" to iconBase64
                             )
                         )
@@ -268,15 +269,15 @@ class AppBlockerModule : Module() {
                 Log.e(TAG, "Error querying launcher activities", e)
             }
 
-            // Tier 2: Fallback query if launcher query returned empty
-            if (apps.isEmpty()) {
-                try {
-                    val installedList = pm.getInstalledApplications(PackageManager.GET_META_DATA)
-                    for (appInfo in installedList) {
-                        val pkgName = appInfo.packageName
-                        if (pkgName != myPackage && pm.getLaunchIntentForPackage(pkgName) != null) {
+            // Tier 2: Also query all installed applications that have a launch intent (catches pre-installed YouTube, Chrome, etc.)
+            try {
+                val installedList = pm.getInstalledApplications(PackageManager.GET_META_DATA)
+                for (appInfo in installedList) {
+                    val pkgName = appInfo.packageName
+                    if (pkgName != myPackage && !coreSystemExclusions.contains(pkgName)) {
+                        val launchIntent = pm.getLaunchIntentForPackage(pkgName)
+                        if (launchIntent != null) {
                             val appName = appInfo.loadLabel(pm).toString()
-                            val isSystem = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
                             val iconBase64 = try {
                                 val iconDrawable = appInfo.loadIcon(pm)
                                 drawableToBase64(iconDrawable)
@@ -287,19 +288,19 @@ class AppBlockerModule : Module() {
                                 mapOf(
                                     "packageName" to pkgName,
                                     "appName" to appName,
-                                    "isSystemApp" to isSystem,
+                                    "isSystemApp" to false,
                                     "appIconBase64" to iconBase64
                                 )
                             )
                         }
                     }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error querying installed applications fallback", e)
                 }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error querying installed applications with launch intents", e)
             }
 
             val result = apps.distinctBy { it["packageName"] }.sortedBy { ((it["appName"] as? String) ?: "").lowercase() }
-            Log.d(TAG, "Installed apps found: ${result.size}")
+            Log.d(TAG, "Total launchable apps discovered: ${result.size}")
             result
         }
     }

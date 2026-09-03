@@ -99,8 +99,7 @@ export default function OnboardingScreen() {
     setLoadingApps(true);
     try {
       const apps = await appBlockerService.getInstalledApps();
-      const filtered = apps.filter((a) => !a.isSystemApp);
-      const appList = filtered.length > 0 ? filtered : apps;
+      const appList = apps;
       setInstalledApps(appList);
 
       if (selectedApps.length === 0) {
