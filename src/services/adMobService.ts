@@ -127,8 +127,8 @@ class AdMobService {
     try {
       const unsubscribeEarned = this.rewardedAd.addAdEventListener(
         RewardedAdEventType.EARNED_REWARD,
-        (reward) => {
-          onRewardEarned(reward.amount || 50);
+        () => {
+          onRewardEarned(50);
           unsubscribeEarned();
         }
       );

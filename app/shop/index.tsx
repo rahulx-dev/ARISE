@@ -289,8 +289,8 @@ export default function ShopScreen() {
   const handleWatchAd = () => {
     haptics.medium();
 
-    const onReward = async (earnedCoins: number) => {
-      const reward = earnedCoins || 50;
+    const onReward = async (earnedCoins?: number) => {
+      const reward = 50;
       await userRepository.addCoins(reward, 'Watched Rewarded Video Ad', 'ad');
       await loadProfile();
       sound.play('quest_complete');
