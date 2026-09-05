@@ -22,6 +22,7 @@ import {
   CheckCircle2,
   RefreshCw,
   ExternalLink,
+  Zap,
 } from 'lucide-react-native';
 import { GlassCard } from '../../src/components/ios/GlassCard';
 import { ARISEModal } from '../../src/components/ui/ARISEModal';
@@ -30,7 +31,7 @@ import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTheme } from '../../src/hooks/useTheme';
 
 interface PendingPerm {
-  id: 'usage' | 'overlay' | 'camera' | 'notif';
+  id: 'usage' | 'overlay' | 'battery' | 'camera' | 'notif';
   title: string;
   explanation: string;
   icon: any;
@@ -44,6 +45,7 @@ export default function PermissionsScreen() {
 
   const [usageGranted, setUsageGranted] = useState<boolean>(false);
   const [overlayGranted, setOverlayGranted] = useState<boolean>(false);
+  const [batteryGranted, setBatteryGranted] = useState<boolean>(false);
   const [cameraGranted, setCameraGranted] = useState<boolean>(false);
   const [notifGranted, setNotifGranted] = useState<boolean>(false);
 
@@ -59,11 +61,15 @@ export default function PermissionsScreen() {
       const overlay = await appBlockerService.hasOverlayPermission();
       setOverlayGranted(overlay);
 
-      // 3. Camera permission
+      // 3. Battery optimization exemption
+      const battery = await appBlockerService.hasBatteryOptimizationExemption?.() ?? true;
+      setBatteryGranted(battery);
+
+      // 4. Camera permission
       const cam = await Camera.getCameraPermissionsAsync();
       setCameraGranted(cam.granted);
 
-      // 4. Notifications permission
+      // 5. Notifications permission
       const notif = await Notifications.getPermissionsAsync();
       setNotifGranted(notif.granted);
     } catch (e) {
@@ -100,6 +106,12 @@ export default function PermissionsScreen() {
   const triggerNativeOverlay = () => {
     if (Platform.OS === 'android') {
       appBlockerService.requestOverlayPermission();
+    }
+  };
+
+  const triggerNativeBattery = () => {
+    if (Platform.OS === 'android') {
+      appBlockerService.requestBatteryOptimizationExemption?.();
     }
   };
 
@@ -144,6 +156,13 @@ export default function PermissionsScreen() {
       action: triggerNativeOverlay,
     },
     {
+      id: 'battery',
+      title: 'Background Shield (Unrestricted Battery)',
+      explanation: 'Device makers (Xiaomi, Samsung, OnePlus, Vivo) aggressively freeze background services. Granting unrestricted battery exemption ensures ARISE continuously protects your screen time without being killed.',
+      icon: Zap,
+      action: triggerNativeBattery,
+    },
+    {
       id: 'camera',
       title: 'Camera Access (AI Pose Tracker)',
       explanation: 'ARISE uses your phone camera for real-time on-device Google ML Kit body joint tracking. Camera frames are processed 100% in RAM and are never recorded or uploaded.',
@@ -162,11 +181,12 @@ export default function PermissionsScreen() {
   const getGrantedState = (id: string) => {
     if (id === 'usage') return usageGranted;
     if (id === 'overlay') return overlayGranted;
+    if (id === 'battery') return batteryGranted;
     if (id === 'camera') return cameraGranted;
     return notifGranted;
   };
 
-  const allGranted = usageGranted && overlayGranted && cameraGranted && notifGranted;
+  const allGranted = usageGranted && overlayGranted && batteryGranted && cameraGranted && notifGranted;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>

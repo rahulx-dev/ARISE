@@ -1,17 +1,19 @@
-﻿import { db } from '../client';
+import { db } from '../client';
 import { payoutRequest } from '../schema';
 import { eq, desc } from 'drizzle-orm';
 import { userRepository } from './userRepository';
+import { supabase, isSupabaseConfigured, getCloudUserId } from '../../services/supabaseClient';
 
 export interface PayoutRequestItem {
   id: number;
-  userId: string;
+  userId?: string;
   amountInr: number;
   coinsSpent: number;
   upiId: string;
   status: string;
   createdAt: string;
   paidAt: string | null;
+  cloudSynced?: boolean;
 }
 
 export const payoutRepository = {
@@ -22,7 +24,7 @@ export const payoutRepository = {
         return false;
       }
 
-      // Deduct coins from user balance
+      // 1. Deduct coins from user local balance
       const deducted = await userRepository.deductCoins(
         coinsSpent,
         `UPI Cashout INR ${amountInr}`,
@@ -31,7 +33,7 @@ export const payoutRepository = {
 
       if (!deducted) return false;
 
-      // Insert payout request
+      // 2. Insert into local SQLite
       await db.insert(payoutRequest).values({
         amountInr,
         coinsSpent,
@@ -39,6 +41,29 @@ export const payoutRepository = {
         status: 'PENDING',
         createdAt: new Date().toISOString(),
       });
+
+      // 3. Sync to Supabase Cloud Database (Live Admin Dashboard)
+      if (isSupabaseConfigured() && supabase) {
+        try {
+          const cloudUserId = await getCloudUserId();
+          const { error } = await supabase.from('payout_requests').insert({
+            user_id: cloudUserId,
+            user_name: user.displayName || 'Warrior',
+            amount_inr: amountInr,
+            coins_spent: coinsSpent,
+            upi_id: upiId.trim(),
+            status: 'PENDING',
+          });
+
+          if (error) {
+            console.warn('[PayoutCloudSync] Supabase push error:', error.message);
+          } else {
+            console.log('[PayoutCloudSync] Payout request successfully pushed to Supabase Cloud!');
+          }
+        } catch (cloudErr) {
+          console.warn('[PayoutCloudSync] Offline queue warning:', cloudErr);
+        }
+      }
 
       return true;
     } catch (e) {
@@ -49,6 +74,36 @@ export const payoutRepository = {
 
   async getUserRequests(): Promise<PayoutRequestItem[]> {
     try {
+      // If cloud is connected, fetch latest live status from Supabase
+      if (isSupabaseConfigured() && supabase) {
+        try {
+          const cloudUserId = await getCloudUserId();
+          const { data } = await supabase
+            .from('payout_requests')
+            .select('*')
+            .eq('user_id', cloudUserId)
+            .order('id', { ascending: false });
+
+          if (data && data.length > 0) {
+            for (const item of data) {
+              if (item.status === 'PAID') {
+                await db
+                  .update(payoutRequest)
+                  .set({ status: 'PAID', paidAt: item.paid_at })
+                  .where(eq(payoutRequest.upiId, item.upi_id));
+              } else if (item.status === 'REJECTED') {
+                await db
+                  .update(payoutRequest)
+                  .set({ status: 'REJECTED' })
+                  .where(eq(payoutRequest.upiId, item.upi_id));
+              }
+            }
+          }
+        } catch (syncErr) {
+          console.warn('[PayoutCloudSync] Could not refresh live cloud status:', syncErr);
+        }
+      }
+
       const rows = await db
         .select()
         .from(payoutRequest)

@@ -36,6 +36,7 @@ import { GlassButton } from '../../src/components/ios/GlassButton';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { userRepository } from '../../src/database/repositories/userRepository';
 import { payoutRepository, PayoutRequestItem } from '../../src/database/repositories/payoutRepository';
+import { isSupabaseConfigured } from '../../src/services/supabaseClient';
 import { adMobService } from '../../src/services/adMobService';
 import { screenTimerService, appBlockerService } from '../../src/native';
 import { voiceCoach } from '../../src/services/voiceCoach';
@@ -376,8 +377,12 @@ export default function ShopScreen() {
                   <View style={styles.cashoutHeroIconWrap}>
                     <Wallet size={24} color="#F59E0B" />
                   </View>
-                  <View style={styles.verifiedPill}>
-                    <Text style={styles.verifiedText}>INSTANT UPI TRANSFER</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={[styles.verifiedPill, { backgroundColor: isSupabaseConfigured() ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)', borderColor: isSupabaseConfigured() ? '#10B981' : '#F59E0B' }]}>
+                      <Text style={[styles.verifiedText, { color: isSupabaseConfigured() ? '#10B981' : '#F59E0B' }]}>
+                        {isSupabaseConfigured() ? 'CLOUD VAULT ACTIVE 🟢' : 'INSTANT UPI TRANSFER'}
+                      </Text>
+                    </View>
                   </View>
                 </View>
                 <Text style={styles.cashoutHeroTitle}>Discipline Cashout Vault</Text>

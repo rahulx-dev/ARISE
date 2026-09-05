@@ -34,6 +34,18 @@ export class NativeAppBlockerDriver implements IAppBlockerDriver {
     }
   }
 
+  async hasBatteryOptimizationExemption(): Promise<boolean> {
+    if (Platform.OS !== 'android' || !NativeAppBlocker) return true;
+    try {
+      const result = await NativeAppBlocker.hasBatteryOptimizationExemption();
+      console.log('[NativeAppBlocker] hasBatteryOptimizationExemption:', result);
+      return !!result;
+    } catch (e) {
+      console.warn('[NativeAppBlocker] Error checking battery exemption:', e);
+      return false;
+    }
+  }
+
   requestUsagePermission(): void {
     if (Platform.OS === 'android' && NativeAppBlocker) {
       console.log('[NativeAppBlocker] Calling native requestUsagePermission');
@@ -45,6 +57,13 @@ export class NativeAppBlockerDriver implements IAppBlockerDriver {
     if (Platform.OS === 'android' && NativeAppBlocker) {
       console.log('[NativeAppBlocker] Calling native requestOverlayPermission');
       NativeAppBlocker.requestOverlayPermission();
+    }
+  }
+
+  requestBatteryOptimizationExemption(): void {
+    if (Platform.OS === 'android' && NativeAppBlocker) {
+      console.log('[NativeAppBlocker] Calling native requestBatteryOptimizationExemption');
+      NativeAppBlocker.requestBatteryOptimizationExemption();
     }
   }
 

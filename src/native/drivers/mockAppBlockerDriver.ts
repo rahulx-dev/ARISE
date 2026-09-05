@@ -30,6 +30,10 @@ export class MockAppBlockerDriver implements IAppBlockerDriver {
     return this.overlayPermGranted;
   }
 
+  async hasBatteryOptimizationExemption(): Promise<boolean> {
+    return true;
+  }
+
   requestUsagePermission(): void {
     this.usagePermGranted = true;
     console.log('⚡ [PREVIEW MODE] Simulated Usage Access Permission Granted');
@@ -38,6 +42,10 @@ export class MockAppBlockerDriver implements IAppBlockerDriver {
   requestOverlayPermission(): void {
     this.overlayPermGranted = true;
     console.log('⚡ [PREVIEW MODE] Simulated Draw Over Other Apps Permission Granted');
+  }
+
+  requestBatteryOptimizationExemption(): void {
+    console.log('⚡ [PREVIEW MODE] Simulated Battery Optimization Exemption Granted');
   }
 
   startMonitoring(restrictedPackages: string[]): void {

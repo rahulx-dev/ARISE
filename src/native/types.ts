@@ -16,8 +16,10 @@ export interface InstalledAppItem {
 export interface IAppBlockerDriver {
   hasUsagePermission(): Promise<boolean>;
   hasOverlayPermission(): Promise<boolean>;
+  hasBatteryOptimizationExemption?(): Promise<boolean>;
   requestUsagePermission(): void;
   requestOverlayPermission(): void;
+  requestBatteryOptimizationExemption?(): void;
   startMonitoring(restrictedPackages: string[]): void;
   stopMonitoring(): void;
   setRestrictedPackages(restrictedPackages: string[]): void;

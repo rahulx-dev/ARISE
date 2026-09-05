@@ -11,6 +11,7 @@ import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Build
+import android.os.PowerManager
 import android.provider.Settings
 import android.util.Base64
 import android.util.Log
@@ -99,6 +100,51 @@ class AppBlockerModule : Module() {
                         targetContext.startActivity(fallbackIntent)
                     } catch (err: Exception) {
                         Log.e(TAG, "Failed to open overlay settings", err)
+                    }
+                }
+            }
+            Unit
+        }
+
+        Function("hasBatteryOptimizationExemption") {
+            val context = appContext.reactContext ?: appContext.currentActivity
+            val granted = if (context != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+                powerManager?.isIgnoringBatteryOptimizations(context.packageName) ?: false
+            } else {
+                true
+            }
+            Log.d(TAG, "Battery Optimization Exemption: $granted")
+            granted
+        }
+
+        Function("requestBatteryOptimizationExemption") {
+            val activity = appContext.currentActivity
+            val context = appContext.reactContext
+            val targetContext = activity ?: context
+            val pkg = context?.packageName ?: activity?.packageName ?: "com.arise.app"
+
+            if (targetContext != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                Log.d(TAG, "Requesting ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS for $pkg")
+                try {
+                    val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                        data = Uri.parse("package:$pkg")
+                        if (activity == null) {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        }
+                    }
+                    targetContext.startActivity(intent)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Fallback to general battery optimization settings", e)
+                    try {
+                        val fallbackIntent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).apply {
+                            if (activity == null) {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            }
+                        }
+                        targetContext.startActivity(fallbackIntent)
+                    } catch (err: Exception) {
+                        Log.e(TAG, "Failed to open battery optimization settings", err)
                     }
                 }
             }

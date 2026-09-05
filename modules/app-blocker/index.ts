@@ -12,8 +12,10 @@ if (!AppBlocker) {
   AppBlocker = {
     hasUsagePermission: async () => false,
     hasOverlayPermission: async () => false,
+    hasBatteryOptimizationExemption: async () => false,
     requestUsagePermission: () => {},
     requestOverlayPermission: () => {},
+    requestBatteryOptimizationExemption: () => {},
     startMonitoring: (_restrictedPackages: string[]) => {},
     stopMonitoring: () => {},
     setRestrictedPackages: (_restrictedPackages: string[]) => {},
@@ -42,6 +44,15 @@ export async function hasOverlayPermission(): Promise<boolean> {
   }
 }
 
+export async function hasBatteryOptimizationExemption(): Promise<boolean> {
+  if (Platform.OS !== 'android') return true;
+  try {
+    return await AppBlocker.hasBatteryOptimizationExemption();
+  } catch {
+    return false;
+  }
+}
+
 export function requestUsagePermission(): void {
   if (Platform.OS === 'android') {
     AppBlocker.requestUsagePermission();
@@ -51,6 +62,12 @@ export function requestUsagePermission(): void {
 export function requestOverlayPermission(): void {
   if (Platform.OS === 'android') {
     AppBlocker.requestOverlayPermission();
+  }
+}
+
+export function requestBatteryOptimizationExemption(): void {
+  if (Platform.OS === 'android') {
+    AppBlocker.requestBatteryOptimizationExemption();
   }
 }
 
@@ -116,8 +133,10 @@ export function isCurrentlyUnlocked(): boolean {
 export default {
   hasUsagePermission,
   hasOverlayPermission,
+  hasBatteryOptimizationExemption,
   requestUsagePermission,
   requestOverlayPermission,
+  requestBatteryOptimizationExemption,
   startMonitoring,
   stopMonitoring,
   setRestrictedPackages,
