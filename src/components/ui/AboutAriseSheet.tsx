@@ -5,6 +5,7 @@ import { ARISEBottomSheet } from './ARISEModal';
 import { AriseLogo } from './AriseLogo';
 import { useTheme } from '../../hooks/useTheme';
 import { GlassCard } from '../ios/GlassCard';
+import { showIOSAlert } from '../ios/IOSAlertModal';
 import { useHaptics } from '../../hooks/useHaptics';
 
 interface AboutAriseSheetProps {
@@ -34,8 +35,8 @@ export function AboutAriseSheet({ visible, onClose }: AboutAriseSheetProps) {
           <Text style={[styles.tagline, { color: colors.primary }]}>
             "Build discipline. Earn your time."
           </Text>
-          <View style={[styles.versionBadge, { backgroundColor: isDark ? 'rgba(204, 255, 0, 0.12)' : 'rgba(16, 185, 129, 0.12)' }]}>
-            <Text style={[styles.versionText, { color: colors.primary }]}>VERSION 2.0.0 (RELEASE)</Text>
+          <View style={[styles.versionBadge, { backgroundColor: isDark ? 'rgba(10, 132, 255, 0.15)' : 'rgba(10, 132, 255, 0.12)' }]}>
+            <Text style={[styles.versionText, { color: colors.primary }]}>VERSION 3.3.0 (RELEASE)</Text>
           </View>
         </View>
 
@@ -51,7 +52,13 @@ export function AboutAriseSheet({ visible, onClose }: AboutAriseSheetProps) {
         <View style={styles.linksGroup}>
           <TouchableOpacity
             style={[styles.linkRow, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.03)', borderColor: colors.border }]}
-            onPress={() => handleOpenLink('https://github.com/rahulx-dev/ARISE/blob/main/PRIVACY.md')}
+            onPress={() => {
+              haptics.light();
+              showIOSAlert(
+                'Privacy Architecture',
+                'ARISE operates strictly on-device. Pose detection camera frames are processed in volatile memory and immediately recycled. All workout history and screen time metrics are stored locally in your private SQLite database.'
+              );
+            }}
             activeOpacity={0.7}
           >
             <Shield size={18} color={colors.secondary} weight="duotone" />
@@ -61,7 +68,13 @@ export function AboutAriseSheet({ visible, onClose }: AboutAriseSheetProps) {
 
           <TouchableOpacity
             style={[styles.linkRow, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.03)', borderColor: colors.border }]}
-            onPress={() => handleOpenLink('https://github.com/rahulx-dev/ARISE/blob/main/TERMS.md')}
+            onPress={() => {
+              haptics.light();
+              showIOSAlert(
+                'Terms of Service',
+                'By using ARISE protocols, you agree that physical exercise, workouts, and discipline goals are undertaken responsibly. Ensure proper form and consult fitness professionals as appropriate.'
+              );
+            }}
             activeOpacity={0.7}
           >
             <FileText size={18} color={colors.primary} weight="duotone" />
@@ -71,27 +84,23 @@ export function AboutAriseSheet({ visible, onClose }: AboutAriseSheetProps) {
 
           <TouchableOpacity
             style={[styles.linkRow, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.03)', borderColor: colors.border }]}
-            onPress={() => handleOpenLink('https://github.com/rahulx-dev/ARISE/blob/main/LICENSE')}
+            onPress={() => {
+              haptics.light();
+              showIOSAlert(
+                'Software Licenses',
+                'ARISE is engineered with React Native, Expo SDK 54, Google ML Kit, Phosphor Icons, and SQLite. All third-party libraries comply with their respective open-source licenses.'
+              );
+            }}
             activeOpacity={0.7}
           >
             <Scales size={18} color={colors.textSecondary} weight="duotone" />
-            <Text style={[styles.linkText, { color: colors.textPrimary }]}>Open Source Licenses</Text>
-            <ArrowSquareOut size={14} color={colors.textMuted} weight="bold" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.linkRow, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.03)', borderColor: colors.border }]}
-            onPress={() => handleOpenLink('https://github.com/rahulx-dev/ARISE')}
-            activeOpacity={0.7}
-          >
-            <Code size={18} color={colors.primary} weight="bold" />
-            <Text style={[styles.linkText, { color: colors.textPrimary }]}>GitHub Repository</Text>
+            <Text style={[styles.linkText, { color: colors.textPrimary }]}>Third-Party Licenses</Text>
             <ArrowSquareOut size={14} color={colors.textMuted} weight="bold" />
           </TouchableOpacity>
         </View>
 
         <Text style={[styles.copyrightText, { color: colors.textMuted }]}>
-          Crafted with discipline • 100% Offline & Open Source
+          Crafted with discipline • 100% On-Device & Private Architecture
         </Text>
       </View>
     </ARISEBottomSheet>
