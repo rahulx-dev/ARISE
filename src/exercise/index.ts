@@ -74,3 +74,4 @@ export { jumpingJackConfig } from './exercises/jumpingJack';
 export { plankConfig, type PlankState, createPlankState, processPlankFrame } from './exercises/plank';
 export { createInitialState, processFrame, resetState, type RepCounterState, type FormFeedback } from './repCounter';
 export { calculateAngle, distance, isConfident, areAllConfident, normalizeKeypoints, type Point } from './angleUtils';
+export { validateExercisePose, type PoseValidationResult } from './poseValidator';

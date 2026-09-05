@@ -29,6 +29,7 @@ import {
   calculateRewards,
   createInitialState,
   processFrame,
+  validateExercisePose,
   RepCounterState,
 } from '../../src/exercise';
 import {
@@ -175,22 +176,37 @@ function ExerciseTrackerInner() {
         } catch (_) {}
 
         const now = Date.now();
-        if (keypoints.length === 17 && keypoints.some((k) => k.confidence > 0.3)) {
-          setDetectedKeypoints(keypoints);
-          if (!lastBodyDetectedRef.current) {
-            lastBodyDetectedRef.current = true;
-            setIsBodyDetected(true);
-          }
+        if (keypoints.length === 17) {
+          const validation = validateExercisePose(keypoints, config.type);
 
-          const nextState = processFrame(repStateRef.current, keypoints, config, now);
-          repStateRef.current = nextState;
+          if (validation.valid) {
+            // Real body detected with required exercise limbs
+            setDetectedKeypoints(keypoints);
+            if (!lastBodyDetectedRef.current) {
+              lastBodyDetectedRef.current = true;
+              setIsBodyDetected(true);
+            }
 
-          if (nextState.feedback.message && nextState.feedback.message !== formFeedback) {
-            setFormFeedback(nextState.feedback.message);
-          }
+            const nextState = processFrame(repStateRef.current, keypoints, config, now);
+            repStateRef.current = nextState;
 
-          if (nextState.count > repsRef.current) {
-            handleCountRep(nextState.count);
+            if (nextState.feedback.message && nextState.feedback.message !== formFeedback) {
+              setFormFeedback(nextState.feedback.message);
+            }
+
+            if (nextState.count > repsRef.current) {
+              handleCountRep(nextState.count);
+            }
+          } else {
+            // Face-only closeup or incomplete limbs: do NOT draw skeleton on face and do NOT count reps!
+            setDetectedKeypoints(null);
+            if (lastBodyDetectedRef.current) {
+              lastBodyDetectedRef.current = false;
+              setIsBodyDetected(false);
+            }
+            if (validation.message && validation.message !== formFeedback) {
+              setFormFeedback(validation.message);
+            }
           }
         } else {
           setDetectedKeypoints(null);
@@ -324,7 +340,9 @@ function ExerciseTrackerInner() {
           const renderBone = (idxA: number, idxB: number, color: string = '#0A84FF', strokeWidth: number = 1.4) => {
             const ptA = detectedKeypoints[idxA];
             const ptB = detectedKeypoints[idxB];
-            if (!ptA || !ptB || ptA.confidence < 0.35 || ptB.confidence < 0.35) return null;
+            if (!ptA || !ptB || ptA.confidence < 0.40 || ptB.confidence < 0.40) return null;
+            // Prevent collapsed micro-bones from rendering
+            if (Math.hypot(ptA.x - ptB.x, ptA.y - ptB.y) < 0.03) return null;
             return (
               <SvgLine
                 key={`bone-${idxA}-${idxB}`}
@@ -372,7 +390,7 @@ function ExerciseTrackerInner() {
               {/* Joint Marker Dots (Only high-confidence detected joints on physical body) */}
               {[0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].map((idx) => {
                 const pt = detectedKeypoints[idx];
-                if (!pt || pt.confidence < 0.35) return null;
+                if (!pt || pt.confidence < 0.40) return null;
                 const isLeg = idx >= 13;
                 const isHead = idx === 0;
                 return (

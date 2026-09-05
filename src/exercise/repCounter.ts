@@ -8,6 +8,7 @@
  */
 
 import { Point, calculateAngle, areAllConfident, smoothAngle } from './angleUtils';
+import { validateExercisePose } from './poseValidator';
 
 export type RepState = 'IDLE' | 'READY' | 'UP' | 'DOWN';
 
@@ -101,6 +102,16 @@ export function processFrame(
     };
   }
 
+  // 0. Anatomical Validation: Reject face-only closeups and verify limb presence
+  const validation = validateExercisePose(keypoints, config.type);
+  if (!validation.valid) {
+    return {
+      ...state,
+      isBodyDetected: false,
+      feedback: { message: validation.message, type: validation.isFaceOnly ? 'warning' : 'info' },
+    };
+  }
+
   // 1. Bilateral Joint Selection:
   // Instead of only checking left side joints, evaluate both sides and choose whichever has higher confidence!
   let pointA = keypoints[config.primaryJoints[0]];
@@ -137,8 +148,8 @@ export function processFrame(
     }
   }
 
-  // Check confidence with forgiving 0.22 threshold
-  const effectiveMinConf = Math.min(config.minConfidence || 0.3, 0.22);
+  // Check confidence with 0.38 threshold (prevents out-of-frame noise)
+  const effectiveMinConf = config.minConfidence || 0.38;
   if (!pointA || !pointB || !pointC || !areAllConfident([pointA, pointB, pointC], effectiveMinConf)) {
     return {
       ...state,
