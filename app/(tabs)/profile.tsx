@@ -30,6 +30,7 @@ import { AboutAriseSheet } from '../../src/components/ui/AboutAriseSheet';
 import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { backupService } from '../../src/services/backupService';
+import { SwipeableTabScreen } from '../../src/components/navigation/SwipeableTabScreen';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTheme } from '../../src/hooks/useTheme';
 
@@ -153,7 +154,7 @@ export default function ProfileTab() {
   ];
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <SwipeableTabScreen prevTab="/(tabs)/progress" style={[styles.container, { backgroundColor: colors.background }]}>
       <SafeAreaView style={styles.safeArea}>
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: isDark ? '#232532' : '#E5E7EB' }]}>
@@ -289,7 +290,7 @@ export default function ProfileTab() {
           onClose={() => setIsAboutSheetOpen(false)}
         />
       </SafeAreaView>
-    </View>
+    </SwipeableTabScreen>
   );
 }
 

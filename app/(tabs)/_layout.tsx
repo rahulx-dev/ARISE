@@ -21,6 +21,7 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        animation: 'shift',
         tabBarStyle: {
           backgroundColor: isDark ? '#111218' : '#FFFFFF',
           borderTopWidth: 0,

@@ -29,6 +29,7 @@ import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { useGymStore } from '../../src/stores/useGymStore';
 import { historyService } from '../../src/services/historyService';
 import { bossService, BossRaidInfo } from '../../src/services/bossService';
+import { SwipeableTabScreen } from '../../src/components/navigation/SwipeableTabScreen';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTheme } from '../../src/hooks/useTheme';
 
@@ -106,7 +107,7 @@ export default function GymWorkoutScreen() {
   const progressPercent = Math.min(100, Math.round((completedCount / totalExercises) * 100));
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <SwipeableTabScreen prevTab="/(tabs)/quests" nextTab="/(tabs)/profile" style={[styles.container, { backgroundColor: colors.background }]}>
       <SafeAreaView style={styles.safeArea}>
         {/* Top App Bar */}
         <View style={[styles.topHeader, { borderBottomColor: isDark ? '#232532' : '#E5E7EB' }]}>
@@ -342,7 +343,7 @@ export default function GymWorkoutScreen() {
           </View>
         </Modal>
       </SafeAreaView>
-    </View>
+    </SwipeableTabScreen>
   );
 }
 

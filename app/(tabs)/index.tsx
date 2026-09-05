@@ -47,6 +47,7 @@ import { PlayerAvatar } from '../../src/components/ui/PlayerAvatar';
 import { WeatherWidget } from '../../src/components/home/WeatherWidget';
 import { DisciplineHeatmap } from '../../src/components/home/DisciplineHeatmap';
 import { IOSActivityRings } from '../../src/components/ios/IOSActivityRings';
+import { SwipeableTabScreen } from '../../src/components/navigation/SwipeableTabScreen';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTheme } from '../../src/hooks/useTheme';
 
@@ -224,7 +225,7 @@ export default function HomeDashboard() {
   const nextPendingQuest = dailyQuests.find((q) => !q.completed);
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <SwipeableTabScreen nextTab="/(tabs)/quests" style={[styles.container, { backgroundColor: colors.background }]}>
       <SafeAreaView style={styles.safeArea}>
         {/* Top App Bar */}
         <View style={[styles.topHeader, { borderBottomColor: isDark ? '#232532' : '#E5E7EB' }]}>
@@ -749,7 +750,7 @@ export default function HomeDashboard() {
           </View>
         </Modal>
       </SafeAreaView>
-    </View>
+    </SwipeableTabScreen>
   );
 }
 

@@ -25,6 +25,7 @@ import {
 import { GlassCard } from '../../src/components/ios/GlassCard';
 import { GlassButton } from '../../src/components/ios/GlassButton';
 import { IOSSegmentedControl } from '../../src/components/ios/IOSSegmentedControl';
+import { SwipeableTabScreen } from '../../src/components/navigation/SwipeableTabScreen';
 import { useQuestStore } from '../../src/stores/useQuestStore';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { useSound } from '../../src/hooks/useSound';
@@ -76,12 +77,12 @@ export default function QuestsTab() {
   const progressPercent = Math.round((completedCount / totalCount) * 100);
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <SwipeableTabScreen prevTab="/(tabs)" nextTab="/(tabs)/progress" style={[styles.container, { backgroundColor: colors.background }]}>
       <SafeAreaView style={styles.safeArea}>
         {/* Top Header */}
         <View style={[styles.header, { borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)' }]}>
           <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>MISSION DIRECTIVES</Text>
-          <View style={[styles.completionBadge, { backgroundColor: isDark ? 'rgba(204, 255, 0, 0.15)' : 'rgba(16, 185, 129, 0.15)' }]}>
+          <View style={[styles.completionBadge, { backgroundColor: isDark ? 'rgba(10, 132, 255, 0.15)' : 'rgba(10, 132, 255, 0.1)' }]}>
             <Text style={[styles.completionBadgeText, { color: colors.primary }]}>
               {completedCount}/{dailyQuests.length} DONE
             </Text>
@@ -268,7 +269,7 @@ export default function QuestsTab() {
           <View style={{ height: 100 }} />
         </ScrollView>
       </SafeAreaView>
-    </View>
+    </SwipeableTabScreen>
   );
 }
 
