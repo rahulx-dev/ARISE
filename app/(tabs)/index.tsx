@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Modal,
   AppState,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
@@ -29,7 +30,9 @@ import {
   Timer,
   Wallet,
   ShieldCheck,
+  Images,
 } from 'phosphor-react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { useQuestStore } from '../../src/stores/useQuestStore';
 import { streakService } from '../../src/services/streakService';
@@ -37,6 +40,8 @@ import { notificationService, AppNotification } from '../../src/services/notific
 import { historyService } from '../../src/services/historyService';
 import { initializeDatabase } from '../../src/database/client';
 import { appBlockerService } from '../../src/native';
+import { photoRepository } from '../../src/database/repositories/photoRepository';
+import { photoService } from '../../src/services/photoService';
 import { GlassCard } from '../../src/components/ios/GlassCard';
 import { PlayerAvatar } from '../../src/components/ui/PlayerAvatar';
 import { WeatherWidget } from '../../src/components/home/WeatherWidget';
@@ -67,6 +72,9 @@ export default function HomeDashboard() {
     totalQuests: 0,
     focusSessionsCount: 0,
   });
+
+  const [todayPhoto, setTodayPhoto] = useState<any | null>(null);
+  const [totalPhotosCount, setTotalPhotosCount] = useState<number>(0);
 
   // Live time ticker
   const [timeStr, setTimeStr] = useState('09:41');
@@ -116,11 +124,47 @@ export default function HomeDashboard() {
     }
   };
 
+  const loadPhotos = async () => {
+    try {
+      const today = await photoRepository.getTodaysPhoto();
+      setTodayPhoto(today || null);
+      const all = await photoRepository.getAllPhotos();
+      setTotalPhotosCount(all.length);
+    } catch (e) {
+      console.warn('Error loading photos on home:', e);
+    }
+  };
+
+  const handleTakeHomePhoto = async () => {
+    haptics.heavy();
+    try {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) {
+        router.push('/photos' as any);
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [3, 4],
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets[0]?.uri) {
+        await photoService.saveProgressPhoto(result.assets[0].uri, 'Daily Transformation Check-in');
+        haptics.success();
+        loadPhotos();
+      }
+    } catch (e) {
+      console.warn('Error capturing photo from home:', e);
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       loadProfile();
       loadQuests();
       loadStats();
+      loadPhotos();
       checkPermissions();
       loadNotifications();
     }, [])
@@ -133,6 +177,7 @@ export default function HomeDashboard() {
         await loadProfile();
         await loadQuests();
         await loadStats();
+        await loadPhotos();
         await streakService.checkAndUpdateStreak();
         await checkPermissions();
         await loadNotifications();
@@ -150,6 +195,7 @@ export default function HomeDashboard() {
         loadProfile();
         loadQuests();
         loadStats();
+        loadPhotos();
         loadNotifications();
       }
     });
@@ -346,20 +392,20 @@ export default function HomeDashboard() {
               <Text style={styles.commandTileSub}>Screen Time</Text>
             </TouchableOpacity>
 
-            {/* 4. Redeem UPI */}
+            {/* 4. Daily Physique Photo Log */}
             <TouchableOpacity
               style={styles.commandTile}
               onPress={() => {
                 haptics.heavy();
-                router.push('/shop' as any);
+                router.push('/photos' as any);
               }}
               activeOpacity={0.8}
             >
-              <View style={[styles.commandIconCircle, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
-                <Coins size={22} color="#F59E0B" weight="duotone" />
+              <View style={[styles.commandIconCircle, { backgroundColor: 'rgba(236, 72, 153, 0.15)' }]}>
+                <Camera size={22} color="#EC4899" weight="duotone" />
               </View>
-              <Text style={styles.commandTileTitle}>Redeem UPI</Text>
-              <Text style={styles.commandTileSub}>Cashout</Text>
+              <Text style={styles.commandTileTitle}>Physique</Text>
+              <Text style={styles.commandTileSub}>Photo Log</Text>
             </TouchableOpacity>
           </View>
 
@@ -485,6 +531,94 @@ export default function HomeDashboard() {
               size={130}
             />
           </GlassCard>
+
+          {/* Daily Physique Transformation Check-In Card */}
+          <TouchableOpacity
+            onPress={() => {
+              haptics.light();
+              router.push('/photos' as any);
+            }}
+            activeOpacity={0.88}
+          >
+            <GlassCard variant="elevated" style={styles.photoSectionCard}>
+              <View style={styles.photoSectionHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <View style={[styles.photoBadgeIcon, { backgroundColor: isDark ? 'rgba(236, 72, 153, 0.15)' : '#FCE7F3' }]}>
+                    <Camera size={18} color="#EC4899" weight="duotone" />
+                  </View>
+                  <View>
+                    <Text style={[styles.photoSectionTitle, { color: colors.textPrimary }]}>
+                      Daily Physique Check-In
+                    </Text>
+                    <Text style={[styles.photoSectionSub, { color: colors.textMuted }]}>
+                      Private 100% On-Device Visual Tracker
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={[styles.photoPillBadge, { backgroundColor: isDark ? '#1C1E2A' : '#F3F4F6' }]}>
+                  <Text style={[styles.photoPillText, { color: colors.primary }]}>
+                    {totalPhotosCount > 0 ? `${totalPhotosCount} LOGGED` : 'START'}
+                  </Text>
+                  <CaretRight size={12} color={colors.primary} weight="bold" />
+                </View>
+              </View>
+
+              {todayPhoto ? (
+                <View style={styles.todayPhotoRow}>
+                  <Image source={{ uri: todayPhoto.filePath }} style={styles.todayPhotoThumbnail} />
+                  <View style={{ flex: 1, justifyContent: 'center', gap: 4 }}>
+                    <View style={styles.todayLoggedBadge}>
+                      <Check size={11} color="#FFFFFF" weight="bold" />
+                      <Text style={styles.todayLoggedBadgeText}>TODAY LOGGED</Text>
+                    </View>
+                    <Text style={[styles.photoRowTitle, { color: colors.textPrimary }]}>
+                      Physique Check-in Completed
+                    </Text>
+                    <Text style={[styles.photoRowSub, { color: colors.textMuted }]}>
+                      Tap to open full transformation timeline & compare before/after
+                    </Text>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.emptyPhotoRow}>
+                  <View style={[styles.photoPlaceholderBox, { borderColor: colors.border, backgroundColor: isDark ? '#111218' : '#F8FAFC' }]}>
+                    <Camera size={26} color={colors.textMuted} weight="duotone" />
+                  </View>
+                  <View style={{ flex: 1, gap: 6 }}>
+                    <Text style={[styles.photoPromptHeading, { color: colors.textPrimary }]}>
+                      Capture Today's Progress
+                    </Text>
+                    <Text style={[styles.photoPromptDescription, { color: colors.textMuted }]}>
+                      Log 1 photo daily to track muscle definition & visual body transformation.
+                    </Text>
+                    <View style={styles.photoBtnRow}>
+                      <TouchableOpacity
+                        style={[styles.quickSnapBtn, { backgroundColor: colors.primary }]}
+                        onPress={handleTakeHomePhoto}
+                        activeOpacity={0.8}
+                      >
+                        <Camera size={13} color="#FFFFFF" weight="bold" />
+                        <Text style={styles.quickSnapBtnText}>Snap Photo</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[styles.quickGalleryBtn, { borderColor: colors.border, backgroundColor: isDark ? '#14151C' : '#FFFFFF' }]}
+                        onPress={() => {
+                          haptics.light();
+                          router.push('/photos' as any);
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Images size={13} color={colors.textPrimary} weight="bold" />
+                        <Text style={[styles.quickGalleryBtnText, { color: colors.textPrimary }]}>Timeline</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              )}
+            </GlassCard>
+          </TouchableOpacity>
 
           {/* 14-Day Discipline Heatmap with Real SQLite Activity */}
           <DisciplineHeatmap />
@@ -893,6 +1027,135 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   ringsCardDate: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  photoSectionCard: {
+    padding: 16,
+    borderRadius: 22,
+    gap: 12,
+  },
+  photoSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  photoBadgeIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoSectionTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  photoSectionSub: {
+    fontSize: 10,
+    fontWeight: '500',
+  },
+  photoPillBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 100,
+  },
+  photoPillText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  todayPhotoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingTop: 4,
+  },
+  todayPhotoThumbnail: {
+    width: 68,
+    height: 90,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#10B981',
+  },
+  todayLoggedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    backgroundColor: '#10B981',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  todayLoggedBadgeText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  photoRowTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  photoRowSub: {
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  emptyPhotoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingTop: 4,
+  },
+  photoPlaceholderBox: {
+    width: 68,
+    height: 90,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoPromptHeading: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  photoPromptDescription: {
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  photoBtnRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+  quickSnapBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+  },
+  quickSnapBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  quickGalleryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  quickGalleryBtnText: {
     fontSize: 11,
     fontWeight: '700',
   },

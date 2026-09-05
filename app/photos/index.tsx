@@ -6,34 +6,32 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
-  Alert,
   Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  ArrowLeft,
-  Camera as CameraIcon,
-  Image as ImageIcon,
+  CaretLeft,
+  Camera,
+  Images,
   Check,
-  Trash2,
+  Trash,
   X,
-  Sparkles,
-  RefreshCw,
-} from 'lucide-react-native';
+  Sparkle,
+  Plus,
+} from 'phosphor-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { photoRepository } from '../../src/database/repositories/photoRepository';
 import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
 import { photoService } from '../../src/services/photoService';
-import { GlowCard } from '../../src/components/design-system/GlowCard';
-import { GlowButton } from '../../src/components/design-system/GlowButton';
+import { GlassCard } from '../../src/components/ios/GlassCard';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTheme } from '../../src/hooks/useTheme';
 
 export default function PhotosScreen() {
   const router = useRouter();
   const haptics = useHaptics();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
 
   const [photos, setPhotos] = useState<any[]>([]);
   const [selectedPhoto, setSelectedPhoto] = useState<any | null>(null);
@@ -122,26 +120,36 @@ export default function PhotosScreen() {
       <SafeAreaView style={styles.safeArea}>
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
-            <ArrowLeft size={20} color={colors.textPrimary} />
+          <TouchableOpacity
+            onPress={() => {
+              haptics.light();
+              router.back();
+            }}
+            style={[styles.iconBtn, { backgroundColor: isDark ? '#14151C' : '#FFFFFF', borderColor: colors.border }]}
+            activeOpacity={0.8}
+          >
+            <CaretLeft size={20} color={colors.textPrimary} weight="bold" />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>DAILY PROGRESS PHOTO</Text>
+          <View style={{ alignItems: 'center' }}>
+            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>PHYSIQUE TRACKER</Text>
+            <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>100% On-Device Private Log</Text>
+          </View>
           <View style={{ width: 38 }} />
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {/* Daily Check-in Hero Card */}
-          <GlowCard variant="glow" style={styles.todayCard}>
+          <GlassCard variant="elevated" style={styles.todayCard}>
             <View style={styles.todayHeader}>
-              <View style={[styles.cameraIconBadge, { backgroundColor: 'rgba(209, 255, 0, 0.15)' }]}>
-                <CameraIcon size={24} color={colors.primary} />
+              <View style={[styles.cameraIconBadge, { backgroundColor: isDark ? 'rgba(236, 72, 153, 0.15)' : '#FCE7F3' }]}>
+                <Camera size={22} color="#EC4899" weight="duotone" />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.todayTitle, { color: colors.textPrimary }]}>Today's Physique Check-In</Text>
-                <Text style={[styles.todaySub, { color: colors.textSecondary }]}>
+                <Text style={[styles.todaySub, { color: colors.textMuted }]}>
                   {todayPhoto
-                    ? 'Logged for today. Stored 100% locally on your device.'
-                    : 'Take 1 photo daily to track lean mass & transformation progress.'}
+                    ? 'Logged for today. Stored 100% locally and privately on your phone.'
+                    : 'Take 1 photo daily to track muscle definition & physical transformation.'}
                 </Text>
               </View>
             </View>
@@ -150,42 +158,60 @@ export default function PhotosScreen() {
               <View style={styles.todayPreviewBox}>
                 <Image source={{ uri: todayPhoto.filePath }} style={styles.todayPreviewImg} />
                 <View style={styles.todaySuccessBadge}>
-                  <Check size={14} color="#000" strokeWidth={3} />
+                  <Check size={12} color="#FFFFFF" weight="bold" />
                   <Text style={styles.todaySuccessText}>LOGGED TODAY</Text>
                 </View>
               </View>
             )}
 
             <View style={styles.actionButtonsRow}>
-              <GlowButton
-                title={todayPhoto ? 'RETAKE PHOTO' : 'CAMERA CHECK-IN'}
-                onPress={handleCapturePhoto}
-                variant="primary"
-                size="md"
-                style={{ flex: 1 }}
-                icon={<CameraIcon size={16} color="#000" />}
-              />
-              <GlowButton
-                title="GALLERY"
-                onPress={handlePickFromGallery}
-                variant="outline"
-                size="md"
-                style={{ flex: 0.8 }}
-                icon={<ImageIcon size={16} color={colors.primary} />}
-              />
+              <TouchableOpacity
+                style={[styles.primaryActionBtn, { backgroundColor: colors.primary }]}
+                onPress={() => {
+                  haptics.heavy();
+                  handleCapturePhoto();
+                }}
+                activeOpacity={0.85}
+              >
+                <Camera size={16} color="#FFFFFF" weight="bold" />
+                <Text style={styles.primaryActionBtnText}>
+                  {todayPhoto ? 'RETAKE PHOTO' : 'CAMERA CHECK-IN'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.secondaryActionBtn,
+                  {
+                    backgroundColor: isDark ? '#14151C' : '#FFFFFF',
+                    borderColor: colors.border,
+                  },
+                ]}
+                onPress={() => {
+                  haptics.light();
+                  handlePickFromGallery();
+                }}
+                activeOpacity={0.85}
+              >
+                <Images size={16} color={colors.textPrimary} weight="bold" />
+                <Text style={[styles.secondaryActionBtnText, { color: colors.textPrimary }]}>GALLERY</Text>
+              </TouchableOpacity>
             </View>
-          </GlowCard>
+          </GlassCard>
 
           {/* Transformation Baseline Comparison */}
           {photos.length >= 2 && oldestPhoto && newestPhoto && (
-            <GlowCard variant="default" style={styles.comparisonCard}>
+            <GlassCard variant="elevated" style={styles.comparisonCard}>
               <View style={styles.comparisonHeader}>
-                <Text style={[styles.comparisonTitle, { color: colors.textMuted }]}>
-                  TRANSFORMATION TIMELINE
-                </Text>
-                <View style={styles.tagBadge}>
-                  <Text style={[styles.tagBadgeText, { color: colors.accentGold }]}>
-                    {photos.length} TOTAL DAYS LOGGED
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Sparkle size={15} color="#F59E0B" weight="fill" />
+                  <Text style={[styles.comparisonTitle, { color: colors.textPrimary }]}>
+                    TRANSFORMATION TIMELINE
+                  </Text>
+                </View>
+                <View style={[styles.tagBadge, { backgroundColor: isDark ? '#1C1E2A' : '#FEF3C7' }]}>
+                  <Text style={[styles.tagBadgeText, { color: '#F59E0B' }]}>
+                    {photos.length} DAYS LOGGED
                   </Text>
                 </View>
               </View>
@@ -193,38 +219,47 @@ export default function PhotosScreen() {
               <View style={styles.comparisonGrid}>
                 <View style={styles.comparisonColumn}>
                   <Image source={{ uri: oldestPhoto.filePath }} style={styles.comparisonImg} />
-                  <Text style={[styles.comparisonDate, { color: colors.textSecondary }]}>
+                  <Text style={[styles.comparisonDate, { color: colors.textMuted }]}>
                     {oldestPhoto.date}
                   </Text>
-                  <Text style={[styles.comparisonLabel, { color: colors.accentGold }]}>BASELINE</Text>
+                  <View style={[styles.compareTagBadge, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
+                    <Text style={[styles.comparisonLabel, { color: '#F59E0B' }]}>BASELINE</Text>
+                  </View>
                 </View>
 
-                <View style={[styles.vsCircle, { backgroundColor: colors.surfaceLight }]}>
+                <View style={[styles.vsCircle, { backgroundColor: isDark ? '#1C1E2A' : '#EFF6FF', borderColor: colors.border }]}>
                   <Text style={[styles.vsText, { color: colors.primary }]}>VS</Text>
                 </View>
 
                 <View style={styles.comparisonColumn}>
                   <Image source={{ uri: newestPhoto.filePath }} style={styles.comparisonImg} />
-                  <Text style={[styles.comparisonDate, { color: colors.textSecondary }]}>
+                  <Text style={[styles.comparisonDate, { color: colors.textMuted }]}>
                     {newestPhoto.date}
                   </Text>
-                  <Text style={[styles.comparisonLabel, { color: colors.primary }]}>LATEST</Text>
+                  <View style={[styles.compareTagBadge, { backgroundColor: isDark ? 'rgba(10, 132, 255, 0.15)' : '#EFF6FF' }]}>
+                    <Text style={[styles.comparisonLabel, { color: colors.primary }]}>LATEST</Text>
+                  </View>
                 </View>
               </View>
-            </GlowCard>
+            </GlassCard>
           )}
 
           {/* Chronological Grid */}
-          <Text style={[styles.sectionHeading, { color: colors.textMuted }]}>
-            PHOTO TIMELINE ({photos.length})
-          </Text>
+          <View style={styles.timelineHeaderRow}>
+            <Text style={[styles.sectionHeading, { color: colors.textPrimary }]}>
+              Photo Timeline
+            </Text>
+            <Text style={[styles.photoCountBadge, { color: colors.textMuted }]}>
+              {photos.length} total
+            </Text>
+          </View>
 
           {photos.length > 0 ? (
             <View style={styles.galleryGrid}>
               {photos.map((photo) => (
                 <TouchableOpacity
                   key={photo.id}
-                  style={styles.thumbnailWrapper}
+                  style={[styles.thumbnailWrapper, { borderColor: colors.border }]}
                   onPress={() => {
                     haptics.light();
                     setSelectedPhoto(photo);
@@ -239,16 +274,29 @@ export default function PhotosScreen() {
               ))}
             </View>
           ) : (
-            <GlowCard variant="default" style={styles.emptyCard}>
-              <CameraIcon size={36} color={colors.textMuted} />
+            <GlassCard variant="default" style={styles.emptyCard}>
+              <View style={[styles.emptyIconCircle, { backgroundColor: isDark ? '#14151C' : '#F3F4F6' }]}>
+                <Camera size={32} color={colors.textMuted} weight="duotone" />
+              </View>
               <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>No Photos Logged Yet</Text>
-              <Text style={[styles.emptySub, { color: colors.textSecondary }]}>
+              <Text style={[styles.emptySub, { color: colors.textMuted }]}>
                 Capture daily physique check-ins to build your private visual transformation timeline.
               </Text>
-            </GlowCard>
+              <TouchableOpacity
+                style={[styles.emptyStartBtn, { backgroundColor: colors.primary }]}
+                onPress={() => {
+                  haptics.heavy();
+                  handleCapturePhoto();
+                }}
+                activeOpacity={0.85}
+              >
+                <Plus size={16} color="#FFFFFF" weight="bold" />
+                <Text style={styles.emptyStartBtnText}>Take First Photo</Text>
+              </TouchableOpacity>
+            </GlassCard>
           )}
 
-          <View style={{ height: 40 }} />
+          <View style={{ height: 60 }} />
         </ScrollView>
 
         {/* Full Image Modal */}
@@ -259,9 +307,10 @@ export default function PhotosScreen() {
                 <Text style={styles.modalDate}>{selectedPhoto?.date}</Text>
                 <TouchableOpacity
                   onPress={() => setSelectedPhoto(null)}
-                  style={styles.iconBtn}
+                  style={styles.modalCloseBtn}
+                  activeOpacity={0.8}
                 >
-                  <X size={20} color="#FFF" />
+                  <X size={20} color="#FFFFFF" weight="bold" />
                 </TouchableOpacity>
               </View>
 
@@ -276,13 +325,14 @@ export default function PhotosScreen() {
               )}
 
               <View style={styles.modalFooter}>
-                <GlowButton
-                  title="DELETE PHOTO"
-                  variant="danger"
-                  size="md"
-                  icon={<Trash2 size={16} color="#FFF" />}
+                <TouchableOpacity
+                  style={styles.deleteModalBtn}
                   onPress={() => selectedPhoto && handleDeletePhoto(selectedPhoto.id)}
-                />
+                  activeOpacity={0.8}
+                >
+                  <Trash size={18} color="#FFFFFF" weight="bold" />
+                  <Text style={styles.deleteModalBtnText}>DELETE PHOTO</Text>
+                </TouchableOpacity>
               </View>
             </SafeAreaView>
           </View>
@@ -307,16 +357,19 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: '#262626',
     justifyContent: 'center',
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '900',
     letterSpacing: 1.2,
+  },
+  headerSubtitle: {
+    fontSize: 10,
+    fontWeight: '500',
+    marginTop: 1,
   },
   scrollContent: {
     padding: 20,
@@ -325,7 +378,7 @@ const styles = StyleSheet.create({
   todayCard: {
     padding: 18,
     gap: 14,
-    borderRadius: 20,
+    borderRadius: 22,
   },
   todayHeader: {
     flexDirection: 'row',
@@ -340,18 +393,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   todayTitle: {
-    fontSize: 16,
-    fontWeight: '900',
+    fontSize: 15,
+    fontWeight: '800',
   },
   todaySub: {
-    fontSize: 12,
+    fontSize: 11.5,
     lineHeight: 16,
     marginTop: 2,
   },
   todayPreviewBox: {
     width: '100%',
-    height: 200,
-    borderRadius: 14,
+    height: 220,
+    borderRadius: 16,
     overflow: 'hidden',
     position: 'relative',
   },
@@ -365,26 +418,56 @@ const styles = StyleSheet.create({
     left: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#D1FF00',
-    paddingHorizontal: 10,
+    gap: 5,
+    backgroundColor: '#10B981',
+    paddingHorizontal: 9,
     paddingVertical: 4,
     borderRadius: 8,
   },
   todaySuccessText: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: '900',
-    color: '#000',
-    letterSpacing: 1,
+    color: '#FFFFFF',
+    letterSpacing: 0.8,
   },
   actionButtonsRow: {
     flexDirection: 'row',
     gap: 10,
   },
+  primaryActionBtn: {
+    flex: 1.2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    paddingVertical: 13,
+    borderRadius: 14,
+  },
+  primaryActionBtnText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: 0.4,
+  },
+  secondaryActionBtn: {
+    flex: 0.8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    paddingVertical: 13,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  secondaryActionBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
   comparisonCard: {
     padding: 16,
     gap: 14,
-    borderRadius: 18,
+    borderRadius: 22,
   },
   comparisonHeader: {
     flexDirection: 'row',
@@ -392,12 +475,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   comparisonTitle: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '900',
-    letterSpacing: 1.2,
+    letterSpacing: 1,
   },
   tagBadge: {
-    backgroundColor: 'rgba(255, 184, 0, 0.1)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
@@ -415,26 +497,32 @@ const styles = StyleSheet.create({
   comparisonColumn: {
     width: '43%',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
   comparisonImg: {
     width: '100%',
     height: 160,
-    borderRadius: 12,
+    borderRadius: 14,
   },
   comparisonDate: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '600',
+  },
+  compareTagBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
   },
   comparisonLabel: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: '900',
-    letterSpacing: 1,
+    letterSpacing: 0.8,
   },
   vsCircle: {
     width: 32,
     height: 32,
     borderRadius: 16,
+    borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -442,10 +530,19 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '900',
   },
+  timelineHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 2,
+  },
   sectionHeading: {
-    fontSize: 11,
+    fontSize: 16,
     fontWeight: '900',
-    letterSpacing: 1.5,
+  },
+  photoCountBadge: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   galleryGrid: {
     flexDirection: 'row',
@@ -455,10 +552,10 @@ const styles = StyleSheet.create({
   thumbnailWrapper: {
     width: '31%',
     aspectRatio: 3 / 4,
-    borderRadius: 12,
+    borderRadius: 14,
     overflow: 'hidden',
     position: 'relative',
-    backgroundColor: '#1E1E1E',
+    borderWidth: 1,
   },
   thumbnail: {
     width: '100%',
@@ -469,20 +566,28 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     paddingVertical: 4,
     alignItems: 'center',
   },
   thumbnailDate: {
     fontSize: 9,
-    color: '#FFF',
+    color: '#FFFFFF',
     fontWeight: '800',
   },
   emptyCard: {
     padding: 32,
     alignItems: 'center',
-    gap: 10,
-    borderRadius: 18,
+    gap: 12,
+    borderRadius: 22,
+  },
+  emptyIconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
   },
   emptyTitle: {
     fontSize: 16,
@@ -492,6 +597,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
     lineHeight: 18,
+    maxWidth: 260,
+  },
+  emptyStartBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 100,
+    marginTop: 4,
+  },
+  emptyStartBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
   modalOverlay: {
     flex: 1,
@@ -510,7 +630,15 @@ const styles = StyleSheet.create({
   modalDate: {
     fontSize: 16,
     fontWeight: '900',
-    color: '#FFF',
+    color: '#FFFFFF',
+  },
+  modalCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   modalImageContainer: {
     flex: 1,
@@ -524,5 +652,21 @@ const styles = StyleSheet.create({
   },
   modalFooter: {
     alignItems: 'center',
+    paddingBottom: 10,
+  },
+  deleteModalBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 14,
+  },
+  deleteModalBtnText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: 0.8,
   },
 });
