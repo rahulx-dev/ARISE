@@ -24,12 +24,12 @@ export const jumpingJackConfig: ExerciseConfig = {
   // Arms UP = large angle (>140), Arms DOWN = small angle (<60)
   primaryJoints: [9, 5, 11],
   
-  // Angle thresholds
-  upThreshold: 60,       // Arms at sides (closed position)
-  downThreshold: 140,    // Arms raised (open position)
+  // Angle thresholds: Arms raised high (>135°), Arms returned to sides (<65°)
+  upThreshold: 135,      // Arms raised high overhead
+  downThreshold: 65,     // Arms returned to sides
   
   // Confidence
-  minConfidence: 0.25,   // Slightly lower since jumping causes blur
+  minConfidence: 0.35,
   
   // Timing
   debounceMs: 300,       // Jumping jacks are fast

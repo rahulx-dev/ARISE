@@ -209,7 +209,7 @@ export default function QuestsTab() {
                         activeOpacity={0.7}
                       >
                         {isDone ? (
-                          <Check size={13} color="#000" weight="bold" />
+                          <Check size={13} color="#FFFFFF" weight="bold" />
                         ) : (isExercise || isFocus) ? (
                           <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.border }} />
                         ) : null}

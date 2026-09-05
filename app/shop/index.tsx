@@ -178,16 +178,18 @@ export default function ShopScreen() {
 
     try {
       if (item.type === 'time' && item.minutes) {
-        const durationMs = item.minutes * 60 * 1000;
+        const addedDurationMs = item.minutes * 60 * 1000;
         const now = new Date();
-        const targetEpoch = Date.now() + durationMs;
+        const currentRemainingMs = await screenTimerService.getRemainingMillis();
+        const totalDurationMs = Math.max(0, currentRemainingMs) + addedDurationMs;
+        const targetEpoch = Date.now() + totalDurationMs;
 
         const result = await userRepository.purchaseScreenTimeAtomically(
           item.cost,
           {
             packageName: 'ALL_APPS',
             appName: 'Screen Time Pass',
-            durationMs,
+            durationMs: totalDurationMs,
             startTime: now.toISOString(),
             endTime: new Date(targetEpoch).toISOString(),
             targetEndEpoch: targetEpoch,
@@ -201,10 +203,11 @@ export default function ShopScreen() {
           return;
         }
 
-        // 1. Start UI countdown timer
-        screenTimerService.startSessionTimer(durationMs, `Screen Time (${item.minutes}m)`);
-        // 2. Temporarily unblock native monitor overlay for duration
-        appBlockerService.temporaryUnlock?.(durationMs);
+        // 1. Start UI countdown timer with cumulative duration
+        const totalMinutes = Math.round(totalDurationMs / 60000);
+        screenTimerService.startSessionTimer(totalDurationMs, `Screen Time (${totalMinutes}m)`);
+        // 2. Temporarily unblock native monitor overlay for total duration
+        appBlockerService.temporaryUnlock?.(totalDurationMs);
       } else {
         const success = await userRepository.spendCoins(item.cost, `Purchased ${item.name}`);
         if (!success) {

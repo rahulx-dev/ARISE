@@ -72,6 +72,11 @@ class AppMonitorService : Service() {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
                 startService(overlayIntent)
+            } else if (fgPackage != null && !restrictedPackages.contains(fgPackage)) {
+                // User navigated away from restricted app (e.g. to Home Screen or ARISE): dismiss overlay!
+                try {
+                    stopService(Intent(this@AppMonitorService, BlockOverlayService::class.java))
+                } catch (_: Exception) {}
             }
 
             handler.postDelayed(this, 1000)

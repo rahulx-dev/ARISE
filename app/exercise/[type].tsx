@@ -144,7 +144,7 @@ function ExerciseTrackerInner() {
 
   // Frame Processing Loop
   useEffect(() => {
-    if (!isActive || isPlank) return;
+    if (!isActive) return;
 
     let frameInterval: any = null;
 
