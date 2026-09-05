@@ -11,7 +11,9 @@ import {
   SpaceGrotesk_600SemiBold,
   SpaceGrotesk_700Bold,
 } from '@expo-google-fonts/space-grotesk';
-import { initializeDatabase } from '../src/database/client';
+import { initializeDatabase, db } from '../src/database/client';
+import { appRestriction } from '../src/database/schema';
+import { appBlockerService } from '../src/native';
 import { useSettingsStore } from '../src/stores/useSettingsStore';
 import { usePlayerStore } from '../src/stores/usePlayerStore';
 import { ErrorBoundary } from '../src/components/ui/ErrorBoundary';
@@ -58,7 +60,19 @@ export default function RootLayout() {
       // 4. Initialize Google Mobile Ads (AdMob)
       adMobService.initialize();
 
-      // 5. Check onboarding status from SQLite-backed store & synchronous SQLite query
+      // 5. Restore background app blocker for active restricted apps
+      try {
+        const restrictions = await db.select().from(appRestriction);
+        const activeBlocked = restrictions.filter((r) => r.isRestricted === 1).map((r) => r.packageName);
+        if (activeBlocked.length > 0) {
+          appBlockerService.startMonitoring(activeBlocked);
+          console.log(`[ARISE Startup] Background app blocker restored for ${activeBlocked.length} apps`);
+        }
+      } catch (blockerErr) {
+        console.warn('[ARISE Startup] Blocker restore note:', blockerErr);
+      }
+
+      // 6. Check onboarding status from SQLite-backed store & synchronous SQLite query
       let onboardingCompleted = useSettingsStore.getState().onboardingCompleted;
       if (!onboardingCompleted) {
         onboardingCompleted = getIsOnboardingCompleted();

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ARISE - Privacy Policy</title>
+  <style>
+    :root {
+      --bg: #000000;
+      --card-bg: #111218;
+      --border: #1C1E2A;
+      --accent: #0A84FF;
+      --text: #FFFFFF;
+      --text-muted: #8E8E93;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      margin: 0;
+      padding: 24px;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    header {
+      text-align: center;
+      padding: 40px 0 20px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 30px;
+    }
+    h1 {
+      font-size: 2.2rem;
+      letter-spacing: 1px;
+      margin: 0;
+      color: var(--accent);
+    }
+    .badge {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 4px 12px;
+      background: #162438;
+      border: 1px solid var(--accent);
+      border-radius: 100px;
+      font-size: 0.8rem;
+      font-weight: bold;
+      color: var(--accent);
+    }
+    .updated {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+    section {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    h2 {
+      font-size: 1.25rem;
+      margin-top: 0;
+      color: var(--text);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 10px;
+    }
+    p, li {
+      color: #D1D5DB;
+      font-size: 0.95rem;
+    }
+    ul {
+      padding-left: 20px;
+    }
+    li {
+      margin-bottom: 8px;
+    }
+    strong {
+      color: #FFFFFF;
+    }
+    footer {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>ARISE PROTOCOL</h1>
+      <div class="badge">100% PRIVATE ON-DEVICE ARCHITECTURE</div>
+      <p class="updated">Last Updated: September 2026</p>
+    </header>
+
+    <section>
+      <h2>1. Overview</h2>
+      <p>
+        <strong>ARISE</strong> ("we", "our", or "the App") is an AI-powered physical fitness gamification and screen-time discipline application. We respect your privacy and are committed to protecting personal data. This Privacy Policy describes how we handle device permissions, telemetry, and transactional information.
+      </p>
+    </section>
+
+    <section>
+      <h2>2. Device Permissions & Usage</h2>
+      <ul>
+        <li>
+          <strong>Camera Access (AI Pose Estimation):</strong> The camera feed is processed in real-time exclusively on your local device RAM using Google ML Kit. Camera frames, images, and video streams are <strong>NEVER recorded, saved to disk, or transmitted to any external server</strong>.
+        </li>
+        <li>
+          <strong>App Usage Access (PACKAGE_USAGE_STATS):</strong> Used locally to track active screen time across distraction apps that you designate as restricted. No private messages, keystrokes, browsing history, or in-app activity are ever accessed.
+        </li>
+        <li>
+          <strong>Display Over Apps (SYSTEM_ALERT_WINDOW):</strong> Used to render the discipline lock screen on top of restricted apps when time quotas expire.
+        </li>
+        <li>
+          <strong>Battery Optimization Exemption:</strong> Used to prevent Android operating system vendors from terminating background monitoring services unexpectedly.
+        </li>
+        <li>
+          <strong>Notifications:</strong> Used for daily streak reminders, quest completions, and workout alerts.
+        </li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>3. Cloud Payouts & Anti-Cheat Ledger</h2>
+      <p>
+        When you submit a UPI cashout request in the Shop Vault:
+      </p>
+      <ul>
+        <li>We collect your chosen UPI ID, requested withdrawal amount, and anonymous device identifier.</li>
+        <li>This data is encrypted in transit and stored in our secure <strong>Supabase</strong> PostgreSQL cloud database solely for the purpose of processing your monetary disbursement.</li>
+        <li>We do not sell, rent, or monetize your payment information with third parties.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>4. Third-Party Services</h2>
+      <p>The App integrates with the following trusted third-party providers:</p>
+      <ul>
+        <li><strong>Google AdMob:</strong> For displaying rewarded and interstitial advertisements. AdMob may collect device advertising IDs in accordance with Google's Advertising Policies.</li>
+        <li><strong>Google ML Kit:</strong> On-device computer vision libraries for pose landmark extraction.</li>
+        <li><strong>Supabase:</strong> Cloud database infrastructure for verifying coin redemptions and payout requests.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>5. Data Deletion & Contact</h2>
+      <p>
+        You can delete your local workout progress, physique photos, and history at any time through <em>Settings &rarr; Storage / Clear Data</em>. To request complete deletion of any cloud withdrawal records, contact us at:
+      </p>
+      <p><strong>Email:</strong> support@ariseapp.dev</p>
+    </section>
+
+    <footer>
+      &copy; 2026 ARISE System. All rights reserved.
+    </footer>
+  </div>
+</body>
+</html>
