@@ -1,5 +1,8 @@
-﻿import { exerciseRepository } from '../database/repositories/exerciseRepository';
+import { exerciseRepository } from '../database/repositories/exerciseRepository';
 import { userRepository } from '../database/repositories/userRepository';
+import { db } from '../database/client';
+import { coinTransaction } from '../database/schema';
+import { and, eq, gte } from 'drizzle-orm';
 
 export interface BossRaidInfo {
   id: string;
@@ -11,20 +14,49 @@ export interface BossRaidInfo {
   rewardCoins: number;
   rewardXP: number;
   isDefeated: boolean;
+  isClaimed: boolean;
 }
 
 const WEEKLY_BOSS = {
-  id: 'boss_igris_01',
-  name: 'Blood-Red Commander Igris',
+  id: 'boss_ignis_01',
+  name: 'Crimson Knight Ignis',
   gateRank: 'RED GATE // S-RANK',
-  maxHp: 200,
-  damagePerRep: 5,
-  rewardCoins: 500,
-  rewardXP: 600,
+  maxHp: 1000,
+  damagePerRep: 2,
+  rewardCoins: 20, // Calibrated unit economics: 20 Coins = ₹0.20 (20 paise)
+  rewardXP: 500,
 };
 
 class BossService {
+  private getStartOfWeekIso(): string {
+    const now = new Date();
+    const day = now.getDay();
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Monday
+    const monday = new Date(now.setDate(diff));
+    monday.setHours(0, 0, 0, 0);
+    return monday.toISOString();
+  }
+
+  async isWeeklyRewardClaimed(): Promise<boolean> {
+    try {
+      const startOfWeekIso = this.getStartOfWeekIso();
+      const claims = await db
+        .select()
+        .from(coinTransaction)
+        .where(
+          and(
+            eq(coinTransaction.source, 'boss_raid'),
+            gte(coinTransaction.timestamp, startOfWeekIso)
+          )
+        );
+      return claims.length > 0;
+    } catch {
+      return false;
+    }
+  }
+
   async getCurrentBoss(): Promise<BossRaidInfo> {
+    const isClaimed = await this.isWeeklyRewardClaimed();
     try {
       const totalReps = await exerciseRepository.getWeeklyTotalReps();
       const damageDealt = totalReps * WEEKLY_BOSS.damagePerRep;
@@ -41,6 +73,7 @@ class BossService {
         rewardCoins: WEEKLY_BOSS.rewardCoins,
         rewardXP: WEEKLY_BOSS.rewardXP,
         isDefeated,
+        isClaimed,
       };
     } catch {
       return {
@@ -53,13 +86,23 @@ class BossService {
         rewardCoins: WEEKLY_BOSS.rewardCoins,
         rewardXP: WEEKLY_BOSS.rewardXP,
         isDefeated: false,
+        isClaimed,
       };
     }
   }
 
   async claimBossVictoryReward(): Promise<boolean> {
     try {
-      await userRepository.addCoins(WEEKLY_BOSS.rewardCoins, 'Defeated Dungeon Boss Igris', 'boss_raid');
+      const alreadyClaimed = await this.isWeeklyRewardClaimed();
+      if (alreadyClaimed) {
+        return false;
+      }
+
+      await userRepository.addCoins(
+        WEEKLY_BOSS.rewardCoins,
+        'Defeated Dungeon Boss Ignis (Weekly Raid)',
+        'boss_raid'
+      );
       await userRepository.addXP(WEEKLY_BOSS.rewardXP);
       return true;
     } catch {

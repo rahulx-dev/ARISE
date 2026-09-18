@@ -13,49 +13,96 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ArrowLeft,
-  Shield,
-  Smartphone,
-  Volume2,
-  Vibrate,
-  Bell,
-  Trash2,
-  ChevronRight,
-  X,
-  AlertTriangle,
-  User,
-  Camera,
+  CaretRight,
+  SunDim,
   Moon,
-  Music,
   Sliders,
-  Banknote,
-} from 'lucide-react-native';
-import { GlowCard } from '../../src/components/design-system/GlowCard';
-import { GlowButton } from '../../src/components/design-system/GlowButton';
+  Globe,
+  Clock,
+  Bell,
+  SpeakerHigh,
+  Shield,
+  Prohibit,
+  DownloadSimple,
+  Lock,
+  PlayCircle,
+  Info,
+  X,
+  Warning,
+  Check,
+} from 'phosphor-react-native';
 import { useSettingsStore } from '../../src/stores/useSettingsStore';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { useHaptics } from '../../src/hooks/useHaptics';
-import { useTheme } from '../../src/hooks/useTheme';
+import { LanguageSelectorModal } from '../../src/components/ui/LanguageSelectorModal';
+import { HowToUseModal } from '../../src/components/ui/HowToUseModal';
+import { InAppSurveyModal } from '../../src/components/surveys/InAppSurveyModal';
+import { AboutAriseSheet } from '../../src/components/ui/AboutAriseSheet';
+import { getTutorialUrl } from '../../src/config/webConfig';
+import { useLanguageStore, SUPPORTED_LANGUAGES } from '../../src/services/i18n';
+import { backupService } from '../../src/services/backupService';
+import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
+import { ThemeMode } from '../../src/theme/themeEngine';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const haptics = useHaptics();
-  const { colors } = useTheme();
 
   const {
     sfxEnabled,
     hapticsEnabled,
     notificationsEnabled,
-    bgMusicEnabled,
+    theme,
     toggleSfx,
     toggleHaptics,
     toggleNotifications,
-    setBgMusic,
+    setTheme,
   } = useSettingsStore();
 
   const resetProfile = usePlayerStore((s) => s.resetProfile);
 
+  const [showThemeModal, setShowThemeModal] = useState<boolean>(false);
+  const [showLangModal, setShowLangModal] = useState<boolean>(false);
+  const [showNotifModal, setShowNotifModal] = useState<boolean>(false);
+  const [showAudioModal, setShowAudioModal] = useState<boolean>(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState<boolean>(false);
+  const [isAboutSheetOpen, setIsAboutSheetOpen] = useState<boolean>(false);
+  const [showHowToUseModal, setShowHowToUseModal] = useState<boolean>(false);
+  const [tutorialWebModal, setTutorialWebModal] = useState<{
+    visible: boolean;
+    url: string | null;
+    title: string;
+  }>({
+    visible: false,
+    url: null,
+    title: '',
+  });
   const [showResetModal, setShowResetModal] = useState<boolean>(false);
   const [confirmInput, setConfirmInput] = useState<string>('');
+
+  const currentLang = useLanguageStore((s) => s.language);
+  const activeLangObj = SUPPORTED_LANGUAGES.find((l) => l.code === currentLang);
+
+  const handleSelectTutorialLang = (lang: 'hi' | 'en') => {
+    setShowHowToUseModal(false);
+    const url = getTutorialUrl(lang);
+    setTutorialWebModal({
+      visible: true,
+      url,
+      title: lang === 'hi' ? 'ARISE HINDI GUIDE // VIDEO TUTORIAL' : 'ARISE ENGLISH GUIDE // VIDEO TUTORIAL',
+    });
+  };
+
+  const handleExportBackup = async () => {
+    haptics.medium();
+    const success = await backupService.exportBackup();
+    if (success) {
+      haptics.success();
+      showIOSAlert('Backup Created', 'Your local ARISE database was exported successfully to JSON.');
+    } else {
+      showIOSAlert('Export Failed', 'Could not create offline backup file.');
+    }
+  };
 
   const handleResetData = async () => {
     if (confirmInput.trim().toUpperCase() !== 'ARISE') {
@@ -70,202 +117,519 @@ export default function SettingsScreen() {
     router.replace('/(onboarding)');
   };
 
+  const themeDisplayLabel = theme === 'light' ? 'Light' : theme === 'dark' ? 'Dark (OLED)' : 'System';
+
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         {/* Header */}
-        <View style={[styles.headerRow, { borderBottomColor: colors.border }]}>
+        <View style={styles.headerRow}>
           <TouchableOpacity
-            style={[styles.backBtn, { backgroundColor: colors.surfaceLight, borderColor: colors.border }]}
-            onPress={() => router.back()}
-            activeOpacity={0.8}
+            style={styles.backBtn}
+            onPress={() => {
+              haptics.light();
+              router.back();
+            }}
+            activeOpacity={0.7}
           >
-            <ArrowLeft size={20} color={colors.textPrimary} />
+            <ArrowLeft size={20} color="#F5F5F2" weight="bold" />
           </TouchableOpacity>
 
-          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>SYSTEM SETTINGS</Text>
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerTitle}>SETTINGS</Text>
+            <Text style={styles.headerSub}>FINE TUNE YOUR JOURNEY</Text>
+          </View>
+
           <View style={{ width: 40 }} />
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Section 1: Profile & Identity */}
-          <Text style={[styles.sectionHeader, { color: colors.textMuted }]}>IDENTITY & CUSTOMIZATION</Text>
-          <GlowCard variant="default" style={styles.cardBlock}>
+          {/* Section 1: APPEARANCE */}
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>APPEARANCE</Text>
+            <Text style={styles.sectionSub}>YOUR ENVIRONMENT MATTERS</Text>
+          </View>
+          <View style={styles.cardGroup}>
+            {/* Theme Mode */}
             <TouchableOpacity
-              style={styles.navRow}
-              activeOpacity={0.7}
-              onPress={() => router.push('/settings/profile-edit' as any)}
+              style={styles.menuRow}
+              activeOpacity={0.75}
+              onPress={() => {
+                haptics.light();
+                setShowThemeModal(true);
+              }}
             >
-              <View style={[styles.iconCircle, { backgroundColor: 'rgba(209, 255, 0, 0.15)' }]}>
-                <User size={20} color={colors.primary} />
+              <View style={styles.iconCircle}>
+                <SunDim size={19} color="#9AAEFF" weight="duotone" />
               </View>
-              <View style={styles.settingTextGroup}>
-                <Text style={[styles.settingTitle, { color: colors.textPrimary }]}>Edit Profile & Avatar</Text>
-                <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>Callsign, bio, goals & custom PFP</Text>
+              <View style={styles.menuTextCol}>
+                <Text style={styles.menuTitle}>Theme Mode</Text>
+                <Text style={styles.menuDesc}>Light, Dark (OLED) or System</Text>
               </View>
-              <ChevronRight size={18} color={colors.textMuted} />
+              <View style={styles.pillBadge}>
+                <Text style={styles.pillBadgeText}>{themeDisplayLabel}</Text>
+                <CaretRight size={14} color="#A6A9AE" weight="bold" />
+              </View>
             </TouchableOpacity>
 
-            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+            <View style={styles.rowDivider} />
 
+            {/* Language */}
             <TouchableOpacity
-              style={styles.navRow}
-              activeOpacity={0.7}
-              onPress={() => router.push('/photos' as any)}
+              style={styles.menuRow}
+              activeOpacity={0.75}
+              onPress={() => {
+                haptics.light();
+                setShowLangModal(true);
+              }}
             >
-              <View style={[styles.iconCircle, { backgroundColor: 'rgba(255, 184, 0, 0.15)' }]}>
-                <Camera size={20} color={colors.accentGold} />
+              <View style={styles.iconCircle}>
+                <Globe size={19} color="#9AAEFF" weight="duotone" />
               </View>
-              <View style={styles.settingTextGroup}>
-                <Text style={[styles.settingTitle, { color: colors.textPrimary }]}>Physique Progress Photos</Text>
-                <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>Daily transformation gallery timeline</Text>
+              <View style={styles.menuTextCol}>
+                <Text style={styles.menuTitle}>Language</Text>
+                <Text style={styles.menuDesc}>App language</Text>
               </View>
-              <ChevronRight size={18} color={colors.textMuted} />
-            </TouchableOpacity>
-
-            <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-            <TouchableOpacity
-              style={styles.navRow}
-              activeOpacity={0.7}
-              onPress={() => router.push('/settings/payouts' as any)}
-            >
-              <View style={[styles.iconCircle, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
-                <Banknote size={20} color={colors.accentGold} />
-              </View>
-              <View style={styles.settingTextGroup}>
-                <Text style={[styles.settingTitle, { color: colors.textPrimary }]}>Admin Payout Manager</Text>
-                <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>View and transfer pending UPI user cashouts</Text>
-              </View>
-              <ChevronRight size={18} color={colors.textMuted} />
-            </TouchableOpacity>
-          </GlowCard>
-
-          {/* Section 2: Permissions & Restrictions */}
-          <Text style={[styles.sectionHeader, { color: colors.textMuted }]}>PERMISSIONS & APP BLOCKING</Text>
-          <GlowCard variant="default" style={styles.cardBlock}>
-            <TouchableOpacity
-              style={styles.navRow}
-              activeOpacity={0.7}
-              onPress={() => router.push('/permissions' as any)}
-            >
-              <View style={[styles.iconCircle, { backgroundColor: 'rgba(0, 240, 255, 0.15)' }]}>
-                <Shield size={20} color={colors.secondary} />
-              </View>
-              <View style={styles.settingTextGroup}>
-                <Text style={[styles.settingTitle, { color: colors.textPrimary }]}>Permissions Hub</Text>
-                <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>Usage access, overlay & camera status</Text>
-              </View>
-              <ChevronRight size={18} color={colors.textMuted} />
-            </TouchableOpacity>
-
-            <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-            <TouchableOpacity
-              style={styles.navRow}
-              activeOpacity={0.7}
-              onPress={() => router.push('/settings/apps')}
-            >
-              <View style={[styles.iconCircle, { backgroundColor: 'rgba(138, 43, 226, 0.15)' }]}>
-                <Smartphone size={20} color={'#A855F7'} />
-              </View>
-              <View style={styles.settingTextGroup}>
-                <Text style={[styles.settingTitle, { color: colors.textPrimary }]}>Locked Distraction Apps</Text>
-                <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>Select real installed apps to lock behind workouts</Text>
-              </View>
-              <ChevronRight size={18} color={colors.textMuted} />
-            </TouchableOpacity>
-          </GlowCard>
-
-          {/* Section 3: Audio & Haptics */}
-          <Text style={[styles.sectionHeader, { color: colors.textMuted }]}>AUDIO & FEEDBACK</Text>
-          <GlowCard variant="default" style={styles.cardBlock}>
-            <View style={styles.toggleRow}>
-              <View style={styles.toggleLeft}>
-                <Volume2 size={20} color={sfxEnabled ? colors.primary : colors.textMuted} />
-                <View>
-                  <Text style={[styles.settingTitle, { color: colors.textPrimary }]}>Sound Effects (SFX)</Text>
-                  <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>Rep counters & quest completions</Text>
-                </View>
-              </View>
-              <Switch
-                value={sfxEnabled}
-                onValueChange={() => {
-                  haptics.light();
-                  toggleSfx();
-                }}
-                trackColor={{ false: '#262626', true: colors.primary }}
-                thumbColor={sfxEnabled ? '#000000' : '#888888'}
-              />
-            </View>
-
-            <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-            <View style={styles.toggleRow}>
-              <View style={styles.toggleLeft}>
-                <Vibrate size={20} color={hapticsEnabled ? colors.primary : colors.textMuted} />
-                <View>
-                  <Text style={[styles.settingTitle, { color: colors.textPrimary }]}>Vibration Haptics</Text>
-                  <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>Tactile pulses on button taps & reps</Text>
-                </View>
-              </View>
-              <Switch
-                value={hapticsEnabled}
-                onValueChange={() => {
-                  haptics.light();
-                  toggleHaptics();
-                }}
-                trackColor={{ false: '#262626', true: colors.primary }}
-                thumbColor={hapticsEnabled ? '#000000' : '#888888'}
-              />
-            </View>
-
-            <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-            <View style={styles.toggleRow}>
-              <View style={styles.toggleLeft}>
-                <Music size={20} color={bgMusicEnabled ? colors.primary : colors.textMuted} />
-                <View>
-                  <Text style={[styles.settingTitle, { color: colors.textPrimary }]}>Background Ambient Music</Text>
-                  <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>Subtle ambient atmospheric soundtrack</Text>
-                </View>
-              </View>
-              <Switch
-                value={bgMusicEnabled}
-                onValueChange={() => {
-                  haptics.light();
-                  setBgMusic(!bgMusicEnabled);
-                }}
-                trackColor={{ false: '#262626', true: colors.primary }}
-                thumbColor={bgMusicEnabled ? '#000000' : '#888888'}
-              />
-            </View>
-          </GlowCard>
-
-          {/* Section 4: Development / Danger Zone */}
-          <Text style={[styles.sectionHeader, { color: colors.danger }]}>DEVELOPMENT PROTOCOL RESET</Text>
-          <GlowCard variant="default" style={[styles.cardBlock, { borderColor: `${colors.danger}40` }]}>
-            <TouchableOpacity
-              style={styles.navRow}
-              activeOpacity={0.7}
-              onPress={() => setShowResetModal(true)}
-            >
-              <View style={[styles.iconCircle, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
-                <Trash2 size={20} color={colors.danger} />
-              </View>
-              <View style={styles.settingTextGroup}>
-                <Text style={[styles.settingTitle, { color: colors.danger }]}>Reset All Local Data (Dev Reset)</Text>
-                <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>
-                  Wipe database to clean first-install state
+              <View style={styles.pillBadge}>
+                <Text style={styles.pillBadgeText}>
+                  {activeLangObj?.flag} {activeLangObj?.label}
                 </Text>
+                <CaretRight size={14} color="#A6A9AE" weight="bold" />
               </View>
-              <ChevronRight size={18} color={colors.danger} />
             </TouchableOpacity>
-          </GlowCard>
+          </View>
+
+          {/* Section 2: EXPERIENCE */}
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>EXPERIENCE</Text>
+            <Text style={styles.sectionSub}>PERSONALIZE YOUR FLOW</Text>
+          </View>
+          <View style={styles.cardGroup}>
+            {/* Notifications */}
+            <TouchableOpacity
+              style={styles.menuRow}
+              activeOpacity={0.75}
+              onPress={() => {
+                haptics.light();
+                setShowNotifModal(true);
+              }}
+            >
+              <View style={styles.iconCircle}>
+                <Bell size={19} color="#9AAEFF" weight="duotone" />
+              </View>
+              <View style={styles.menuTextCol}>
+                <Text style={styles.menuTitle}>Notifications</Text>
+                <Text style={styles.menuDesc}>Reminders, alerts & updates</Text>
+              </View>
+              <CaretRight size={18} color="#A6A9AE" weight="bold" />
+            </TouchableOpacity>
+
+            <View style={styles.rowDivider} />
+
+            {/* Sounds & Haptics */}
+            <TouchableOpacity
+              style={styles.menuRow}
+              activeOpacity={0.75}
+              onPress={() => {
+                haptics.light();
+                setShowAudioModal(true);
+              }}
+            >
+              <View style={styles.iconCircle}>
+                <SpeakerHigh size={19} color="#9AAEFF" weight="duotone" />
+              </View>
+              <View style={styles.menuTextCol}>
+                <Text style={styles.menuTitle}>Sounds & Haptics</Text>
+                <Text style={styles.menuDesc}>SFX and vibration settings</Text>
+              </View>
+              <CaretRight size={18} color="#A6A9AE" weight="bold" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Section 3: SECURITY & ACCESS */}
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>SECURITY & ACCESS</Text>
+            <Text style={styles.sectionSub}>STAY IN CONTROL</Text>
+          </View>
+          <View style={styles.cardGroup}>
+            {/* Permissions Hub */}
+            <TouchableOpacity
+              style={styles.menuRow}
+              activeOpacity={0.75}
+              onPress={() => {
+                haptics.light();
+                router.push('/permissions' as any);
+              }}
+            >
+              <View style={styles.iconCircle}>
+                <Shield size={19} color="#9AAEFF" weight="duotone" />
+              </View>
+              <View style={styles.menuTextCol}>
+                <Text style={styles.menuTitle}>Permissions Hub</Text>
+                <Text style={styles.menuDesc}>Usage access, overlay & camera status</Text>
+              </View>
+              <CaretRight size={18} color="#A6A9AE" weight="bold" />
+            </TouchableOpacity>
+
+            <View style={styles.rowDivider} />
+
+            {/* Blocked Distraction Apps & Time Limit */}
+            <TouchableOpacity
+              style={styles.menuRow}
+              activeOpacity={0.75}
+              onPress={() => {
+                haptics.light();
+                router.push('/settings/apps');
+              }}
+            >
+              <View style={styles.iconCircle}>
+                <Prohibit size={19} color="#9AAEFF" weight="duotone" />
+              </View>
+              <View style={styles.menuTextCol}>
+                <Text style={styles.menuTitle}>Blocked Apps & Time Limit</Text>
+                <Text style={styles.menuDesc}>Select apps and configure daily limit</Text>
+              </View>
+              <CaretRight size={18} color="#A6A9AE" weight="bold" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Section 4: DATA & PRIVACY */}
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>DATA & PRIVACY</Text>
+            <Text style={styles.sectionSub}>YOUR DATA. YOURS.</Text>
+          </View>
+          <View style={styles.cardGroup}>
+            {/* Export Offline Backup */}
+            <TouchableOpacity
+              style={styles.menuRow}
+              activeOpacity={0.75}
+              onPress={handleExportBackup}
+            >
+              <View style={styles.iconCircle}>
+                <DownloadSimple size={19} color="#9AAEFF" weight="duotone" />
+              </View>
+              <View style={styles.menuTextCol}>
+                <Text style={styles.menuTitle}>Export Offline Backup</Text>
+                <Text style={styles.menuDesc}>Save progress, PRs and streak history to JSON</Text>
+              </View>
+              <CaretRight size={18} color="#A6A9AE" weight="bold" />
+            </TouchableOpacity>
+
+            <View style={styles.rowDivider} />
+
+            {/* Privacy & Security */}
+            <TouchableOpacity
+              style={styles.menuRow}
+              activeOpacity={0.75}
+              onPress={() => {
+                haptics.light();
+                setShowPrivacyModal(true);
+              }}
+            >
+              <View style={styles.iconCircle}>
+                <Lock size={19} color="#9AAEFF" weight="duotone" />
+              </View>
+              <View style={styles.menuTextCol}>
+                <Text style={styles.menuTitle}>Privacy & Security</Text>
+                <Text style={styles.menuDesc}>Your data, camera feed and local storage</Text>
+              </View>
+              <CaretRight size={18} color="#A6A9AE" weight="bold" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Section 5: HELP & ABOUT */}
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>HELP & ABOUT</Text>
+            <Text style={styles.sectionSub}>SUPPORT & INFORMATION</Text>
+          </View>
+          <View style={styles.cardGroup}>
+            {/* How to Use */}
+            <TouchableOpacity
+              style={styles.menuRow}
+              activeOpacity={0.75}
+              onPress={() => {
+                haptics.light();
+                setShowHowToUseModal(true);
+              }}
+            >
+              <View style={styles.iconCircle}>
+                <PlayCircle size={19} color="#9AAEFF" weight="duotone" />
+              </View>
+              <View style={styles.menuTextCol}>
+                <Text style={styles.menuTitle}>How to Use (Video Guide)</Text>
+                <Text style={styles.menuDesc}>Watch official tutorial in Hindi or English</Text>
+              </View>
+              <CaretRight size={18} color="#A6A9AE" weight="bold" />
+            </TouchableOpacity>
+
+            <View style={styles.rowDivider} />
+
+            {/* About ARISE */}
+            <TouchableOpacity
+              style={styles.menuRow}
+              activeOpacity={0.75}
+              onPress={() => {
+                haptics.light();
+                setIsAboutSheetOpen(true);
+              }}
+            >
+              <View style={styles.iconCircle}>
+                <Info size={19} color="#9AAEFF" weight="duotone" />
+              </View>
+              <View style={styles.menuTextCol}>
+                <Text style={styles.menuTitle}>About ARISE</Text>
+                <Text style={styles.menuDesc}>Version, credits and legal info</Text>
+              </View>
+              <CaretRight size={18} color="#A6A9AE" weight="bold" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Section 6: SYSTEM / PROTOCOL RESET */}
+          <View style={styles.sectionHeaderRow}>
+            <Text style={[styles.sectionTitle, { color: '#EF4444' }]}>DANGER ZONE</Text>
+            <Text style={styles.sectionSub}>PROTOCOL RESET</Text>
+          </View>
+          <View style={[styles.cardGroup, { borderColor: 'rgba(239, 68, 68, 0.25)' }]}>
+            <TouchableOpacity
+              style={styles.menuRow}
+              activeOpacity={0.75}
+              onPress={() => {
+                haptics.warning();
+                setShowResetModal(true);
+              }}
+            >
+              <View style={[styles.iconCircle, { backgroundColor: 'rgba(239, 68, 68, 0.12)' }]}>
+                <Warning size={19} color="#EF4444" weight="duotone" />
+              </View>
+              <View style={styles.menuTextCol}>
+                <Text style={[styles.menuTitle, { color: '#EF4444' }]}>Clean Protocol Reset</Text>
+                <Text style={styles.menuDesc}>Delete all data and return to first launch state</Text>
+              </View>
+              <CaretRight size={18} color="#EF4444" weight="bold" />
+            </TouchableOpacity>
+          </View>
 
           <View style={{ height: 40 }} />
         </ScrollView>
       </SafeAreaView>
+
+      {/* Theme Selection Modal */}
+      <Modal
+        visible={showThemeModal}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setShowThemeModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <SunDim size={22} color="#9AAEFF" weight="duotone" />
+                <Text style={styles.modalTitle}>Select Theme Mode</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowThemeModal(false)} style={{ padding: 4 }}>
+                <X size={20} color="#A6A9AE" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalDesc}>
+              Choose your preferred visual presentation for ARISE.
+            </Text>
+
+            <View style={{ gap: 8, marginTop: 4 }}>
+              {[
+                { mode: 'light' as ThemeMode, label: 'Light', desc: 'Crisp light presentation', icon: SunDim },
+                { mode: 'dark' as ThemeMode, label: 'Dark (OLED)', desc: 'True AMOLED pure black', icon: Moon },
+                { mode: 'system' as ThemeMode, label: 'System', desc: 'Follows device OS configuration', icon: Sliders },
+              ].map((item) => {
+                const isSelected = theme === item.mode;
+                const IconComponent = item.icon;
+                return (
+                  <TouchableOpacity
+                    key={item.mode}
+                    style={[
+                      styles.modalOptionCard,
+                      isSelected && styles.modalOptionCardActive,
+                    ]}
+                    onPress={() => {
+                      haptics.light();
+                      setTheme(item.mode);
+                      setShowThemeModal(false);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <IconComponent size={20} color={isSelected ? '#9AAEFF' : '#A6A9AE'} weight="duotone" />
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <Text style={[styles.modalOptionTitle, isSelected && { color: '#9AAEFF' }]}>
+                        {item.label}
+                      </Text>
+                      <Text style={styles.modalOptionSub}>{item.desc}</Text>
+                    </View>
+                    {isSelected && <Check size={18} color="#9AAEFF" weight="bold" />}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Notifications Modal */}
+      <Modal
+        visible={showNotifModal}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setShowNotifModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Bell size={22} color="#9AAEFF" weight="duotone" />
+                <Text style={styles.modalTitle}>Notification Settings</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowNotifModal(false)} style={{ padding: 4 }}>
+                <X size={20} color="#A6A9AE" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalDesc}>
+              Configure system alerts, daily workout reset reminders, and streak milestone notifications.
+            </Text>
+
+            <View style={styles.toggleRowCard}>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={styles.toggleTitle}>System Notifications</Text>
+                <Text style={styles.toggleDesc}>Daily quests, rank promotions & penalty alerts</Text>
+              </View>
+              <Switch
+                value={notificationsEnabled}
+                onValueChange={() => {
+                  haptics.light();
+                  toggleNotifications();
+                }}
+                trackColor={{ false: '#262626', true: '#9AAEFF' }}
+                thumbColor={notificationsEnabled ? '#050607' : '#888888'}
+              />
+            </View>
+
+            <TouchableOpacity
+              style={styles.modalConfirmBtn}
+              onPress={() => setShowNotifModal(false)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.modalConfirmBtnText}>DONE</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Sounds & Haptics Modal */}
+      <Modal
+        visible={showAudioModal}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setShowAudioModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <SpeakerHigh size={22} color="#9AAEFF" weight="duotone" />
+                <Text style={styles.modalTitle}>Sounds & Haptics</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowAudioModal(false)} style={{ padding: 4 }}>
+                <X size={20} color="#A6A9AE" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalDesc}>
+              Hardware-accelerated sound synthesis and haptic response feedback for workout execution.
+            </Text>
+
+            <View style={{ gap: 10, marginTop: 4 }}>
+              <View style={styles.toggleRowCard}>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={styles.toggleTitle}>Sound Effects (SFX)</Text>
+                  <Text style={styles.toggleDesc}>Rep counts, gate completion & level-up soundscapes</Text>
+                </View>
+                <Switch
+                  value={sfxEnabled}
+                  onValueChange={() => {
+                    haptics.light();
+                    toggleSfx();
+                  }}
+                  trackColor={{ false: '#262626', true: '#9AAEFF' }}
+                  thumbColor={sfxEnabled ? '#050607' : '#888888'}
+                />
+              </View>
+
+              <View style={styles.toggleRowCard}>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={styles.toggleTitle}>Vibration Haptics</Text>
+                  <Text style={styles.toggleDesc}>Tactile vibration pulses on rep success & button taps</Text>
+                </View>
+                <Switch
+                  value={hapticsEnabled}
+                  onValueChange={() => {
+                    haptics.light();
+                    toggleHaptics();
+                  }}
+                  trackColor={{ false: '#262626', true: '#9AAEFF' }}
+                  thumbColor={hapticsEnabled ? '#050607' : '#888888'}
+                />
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.modalConfirmBtn}
+              onPress={() => setShowAudioModal(false)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.modalConfirmBtnText}>DONE</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Privacy & Security Modal */}
+      <Modal
+        visible={showPrivacyModal}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setShowPrivacyModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Lock size={22} color="#9AAEFF" weight="duotone" />
+                <Text style={styles.modalTitle}>Privacy & Security</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowPrivacyModal(false)} style={{ padding: 4 }}>
+                <X size={20} color="#A6A9AE" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.privacyHighlightBox}>
+              <Text style={styles.privacyHighlightTitle}>100% ON-DEVICE PRIVACY</Text>
+              <Text style={styles.privacyHighlightBody}>
+                • Camera frames are analyzed entirely in volatile RAM by Google ML Kit and discarded immediately.{'\n'}
+                • No workout camera video or pictures are ever sent to remote servers.{'\n'}
+                • All quest history, streak metrics, and profile data are stored in your local SQLite database on your device.
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.modalConfirmBtn}
+              onPress={() => setShowPrivacyModal(false)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.modalConfirmBtnText}>UNDERSTOOD</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Reset Confirmation Modal */}
       <Modal
@@ -275,163 +639,320 @@ export default function SettingsScreen() {
         onRequestClose={() => setShowResetModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.resetModalSheet, { backgroundColor: colors.surface, borderColor: colors.danger }]}>
+          <View style={[styles.modalSheet, { borderColor: '#EF4444' }]}>
             <View style={styles.modalHeader}>
-              <AlertTriangle size={24} color={colors.danger} />
-              <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Clean Protocol Reset</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Warning size={24} color="#EF4444" weight="duotone" />
+                <Text style={styles.modalTitle}>Clean Protocol Reset</Text>
+              </View>
               <TouchableOpacity onPress={() => setShowResetModal(false)} style={{ padding: 4 }}>
-                <X size={20} color={colors.textSecondary} />
+                <X size={20} color="#A6A9AE" />
               </TouchableOpacity>
             </View>
 
-            <Text style={[styles.modalDesc, { color: colors.textSecondary }]}>
+            <Text style={styles.modalDesc}>
               This will permanently delete all Coins, XP, Level, workout history, and photo timelines, returning ARISE to the initial first-launch state.
             </Text>
 
-            <Text style={[styles.inputPrompt, { color: colors.textSecondary }]}>
-              Type <Text style={{ color: colors.primary, fontWeight: '900' }}>ARISE</Text> to confirm:
+            <Text style={{ fontSize: 12, fontWeight: '700', color: '#A6A9AE', marginTop: 4 }}>
+              Type <Text style={{ color: '#9AAEFF', fontWeight: '900' }}>ARISE</Text> to confirm:
             </Text>
             <TextInput
-              style={[styles.resetInput, { backgroundColor: colors.surfaceLight, color: colors.textPrimary, borderColor: colors.border }]}
+              style={styles.resetTextInput}
               value={confirmInput}
               onChangeText={setConfirmInput}
               placeholder="ARISE"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor="#64748B"
               autoCapitalize="characters"
             />
 
-            <GlowButton
-              title="PERMANENTLY RESET ALL DATA"
+            <TouchableOpacity
+              style={[
+                styles.modalConfirmBtn,
+                { backgroundColor: confirmInput.trim().toUpperCase() === 'ARISE' ? '#EF4444' : '#262626' },
+              ]}
               onPress={handleResetData}
-              variant="danger"
-              size="md"
-              style={{ marginTop: 8 }}
-            />
+              disabled={confirmInput.trim().toUpperCase() !== 'ARISE'}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.modalConfirmBtnText, { color: confirmInput.trim().toUpperCase() === 'ARISE' ? '#FFFFFF' : '#888888' }]}>
+                PERMANENTLY RESET ALL DATA
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
+
+      {/* Language Selector Modal */}
+      <LanguageSelectorModal
+        visible={showLangModal}
+        onClose={() => setShowLangModal(false)}
+      />
+
+      {/* How to Use Language Selector Modal (Hindi / English) */}
+      <HowToUseModal
+        visible={showHowToUseModal}
+        onClose={() => setShowHowToUseModal(false)}
+        onSelectLanguage={handleSelectTutorialLang}
+      />
+
+      {/* In-App Web Video Guide Viewer */}
+      <InAppSurveyModal
+        visible={tutorialWebModal.visible}
+        url={tutorialWebModal.url}
+        title={tutorialWebModal.title}
+        provider="OFFICIAL VIDEO GUIDE"
+        onClose={() => setTutorialWebModal((prev) => ({ ...prev, visible: false }))}
+      />
+
+      {/* About ARISE Sheet */}
+      <AboutAriseSheet
+        visible={isAboutSheetOpen}
+        onClose={() => setIsAboutSheetOpen(false)}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  safeArea: { flex: 1 },
+  container: {
+    flex: 1,
+    backgroundColor: '#050607',
+  },
+  safeArea: {
+    flex: 1,
+  },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
+    paddingTop: 12,
+    paddingBottom: 14,
   },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#0E1115',
     borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerCenter: {
     alignItems: 'center',
   },
   headerTitle: {
     fontSize: 16,
     fontWeight: '900',
+    color: '#F5F5F2',
+    letterSpacing: 2,
+  },
+  headerSub: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#A6A9AE',
     letterSpacing: 1.2,
+    marginTop: 2,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    gap: 14,
-    paddingTop: 12,
+    paddingHorizontal: 18,
+    paddingTop: 6,
   },
-  sectionHeader: {
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1.2,
-    marginTop: 6,
-  },
-  cardBlock: {
-    padding: 6,
-    borderRadius: 18,
-  },
-  navRow: {
+  sectionHeaderRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    padding: 12,
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 12,
+    alignItems: 'center',
+    marginBottom: 8,
+    marginTop: 10,
+    paddingHorizontal: 4,
   },
-  toggleLeft: {
+  sectionTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#F5F5F2',
+    letterSpacing: 1.2,
+  },
+  sectionSub: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#A6A9AE',
+    letterSpacing: 1,
+  },
+  cardGroup: {
+    backgroundColor: '#0E1115',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  menuRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-    flex: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    gap: 12,
   },
   iconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: 'rgba(154, 174, 255, 0.08)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  settingTextGroup: {
+  menuTextCol: {
     flex: 1,
     gap: 2,
   },
-  settingTitle: {
+  menuTitle: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '700',
+    color: '#F5F5F2',
   },
-  settingDesc: {
-    fontSize: 11,
+  menuDesc: {
+    fontSize: 11.5,
+    fontWeight: '500',
+    color: '#A6A9AE',
   },
-  divider: {
+  rowDivider: {
     height: 1,
-    marginHorizontal: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    marginLeft: 64,
+  },
+  pillBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+  },
+  pillBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#F5F5F2',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
-  resetModalSheet: {
+  modalSheet: {
     width: '100%',
-    padding: 22,
+    backgroundColor: '#0E1115',
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: 'rgba(154, 174, 255, 0.3)',
+    padding: 20,
     gap: 14,
-    borderRadius: 22,
-    borderWidth: 2,
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    justifyContent: 'space-between',
   },
   modalTitle: {
     fontSize: 16,
-    fontWeight: '900',
-    flex: 1,
+    fontWeight: '800',
+    color: '#F5F5F2',
   },
   modalDesc: {
-    fontSize: 13,
+    fontSize: 12.5,
     lineHeight: 18,
+    color: '#A6A9AE',
   },
-  inputPrompt: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  resetInput: {
+  modalOptionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
     borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  modalOptionCardActive: {
+    backgroundColor: 'rgba(154, 174, 255, 0.1)',
+    borderColor: '#9AAEFF',
+  },
+  modalOptionTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#F5F5F2',
+  },
+  modalOptionSub: {
+    fontSize: 11.5,
+    color: '#A6A9AE',
+  },
+  toggleRowCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    gap: 12,
+  },
+  toggleTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#F5F5F2',
+  },
+  toggleDesc: {
+    fontSize: 11,
+    color: '#A6A9AE',
+  },
+  modalConfirmBtn: {
+    backgroundColor: '#9AAEFF',
+    paddingVertical: 13,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  modalConfirmBtnText: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#050607',
+    letterSpacing: 0.5,
+  },
+  privacyHighlightBox: {
+    backgroundColor: 'rgba(154, 174, 255, 0.06)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(154, 174, 255, 0.15)',
+    padding: 14,
+    gap: 6,
+  },
+  privacyHighlightTitle: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#9AAEFF',
+    letterSpacing: 1,
+  },
+  privacyHighlightBody: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: '#A6A9AE',
+  },
+  resetTextInput: {
+    backgroundColor: '#050607',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
     fontWeight: '800',
+    color: '#F5F5F2',
   },
 });

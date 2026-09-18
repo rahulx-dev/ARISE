@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -23,8 +23,10 @@ import {
   Skull,
   Coins,
   Flame,
+  Check,
 } from 'phosphor-react-native';
 import { GlassCard } from '../../src/components/ios/GlassCard';
+import { AriseBannerAd } from '../../src/components/ads/AriseBannerAd';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { useGymStore } from '../../src/stores/useGymStore';
 import { historyService } from '../../src/services/historyService';
@@ -38,9 +40,14 @@ const DAYS_OF_WEEK = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const EXERCISES_LIST = [
   { id: '1', name: 'Push-ups', type: 'PUSHUP', sets: '4 Sets', reps: '20 Reps', category: 'Chest & Triceps' },
   { id: '2', name: 'Bodyweight Squats', type: 'SQUAT', sets: '4 Sets', reps: '25 Reps', category: 'Quads & Glutes' },
-  { id: '3', name: 'Pull-ups', type: 'PULLUP', sets: '3 Sets', reps: '10 Reps', category: 'Back & Lats' },
-  { id: '4', name: 'Plank Hold', type: 'PLANK', sets: '3 Sets', reps: '60 Sec', category: 'Core & Stability' },
-  { id: '5', name: 'Jumping Jacks', type: 'JUMPING_JACK', sets: '3 Sets', reps: '30 Reps', category: 'Cardio & Stamina' },
+  { id: '3', name: 'Sit-ups (Abs)', type: 'SITUP', sets: '3 Sets', reps: '20 Reps', category: 'Core & Abdominals' },
+  { id: '4', name: 'Pull-ups', type: 'PULLUP', sets: '3 Sets', reps: '10 Reps', category: 'Back & Lats' },
+  { id: '5', name: 'Plank Hold', type: 'PLANK', sets: '3 Sets', reps: '60 Sec', category: 'Core & Stability' },
+  { id: '6', name: 'Burpees', type: 'BURPEE', sets: '3 Sets', reps: '12 Reps', category: 'Full Body & Conditioning' },
+  { id: '7', name: 'Jumping Jacks', type: 'JUMPING_JACK', sets: '3 Sets', reps: '30 Reps', category: 'Cardio & Stamina' },
+  { id: '8', name: 'High Knees', type: 'HIGH_KNEES', sets: '3 Sets', reps: '30 Reps', category: 'Cardio & Agility' },
+  { id: '9', name: 'Mountain Climbers', type: 'MOUNTAIN_CLIMBER', sets: '3 Sets', reps: '25 Reps', category: 'Core & Cardio' },
+  { id: '10', name: 'Lunges', type: 'LUNGE', sets: '3 Sets', reps: '20 Reps', category: 'Legs & Balance' },
 ];
 
 export default function GymWorkoutScreen() {
@@ -53,9 +60,23 @@ export default function GymWorkoutScreen() {
   const [activeWeekDays, setActiveWeekDays] = useState<boolean[]>([false, false, false, false, false, false, false]);
   const [bossRaid, setBossRaid] = useState<BossRaidInfo | null>(null);
 
+  const preferences = useGymStore((s) => s.preferences);
+  const savePreferences = useGymStore((s) => s.savePreferences);
+  const [prefDays, setPrefDays] = useState<number>(4);
+  const [prefDifficulty, setPrefDifficulty] = useState<'beginner' | 'intermediate' | 'advanced'>('intermediate');
+  const [prefGoal, setPrefGoal] = useState<'strength' | 'muscle_gain' | 'fat_loss'>('strength');
+
   const profile = usePlayerStore((s) => s.profile);
   const loadProfile = usePlayerStore((s) => s.loadProfile);
   const loadGymData = useGymStore((s) => s.loadGymData);
+
+  useEffect(() => {
+    if (preferences) {
+      setPrefDays(preferences.daysPerWeek || 4);
+      setPrefDifficulty(preferences.experience || 'intermediate');
+      setPrefGoal((preferences.goal as any) || 'strength');
+    }
+  }, [preferences]);
 
   const todayDayIndex = (new Date().getDay() + 6) % 7; // Monday = 0
 
@@ -82,9 +103,15 @@ export default function GymWorkoutScreen() {
     }
   };
 
+  const lastFocusLoadRef = useRef<number>(0);
+
   useFocusEffect(
     useCallback(() => {
-      loadAll();
+      const now = Date.now();
+      if (now - lastFocusLoadRef.current > 15000) {
+        lastFocusLoadRef.current = now;
+        loadAll();
+      }
     }, [])
   );
 
@@ -92,13 +119,14 @@ export default function GymWorkoutScreen() {
     loadAll();
   }, []);
 
-  const handleStartExercise = (exerciseType: string, targetReps: number) => {
+  const handleStartExercise = (exerciseType: string, targetReps: number, setsCount: number = 3) => {
     haptics.heavy();
     router.push({
       pathname: '/exercise/[type]',
       params: {
         type: exerciseType,
         target: targetReps,
+        sets: setsCount,
       },
     } as any);
   };
@@ -210,13 +238,30 @@ export default function GymWorkoutScreen() {
 
           {/* Solo Leveling Dungeon Boss Raid Card */}
           {bossRaid && (
-            <GlassCard variant="elevated" style={styles.bossRaidCard}>
+            <GlassCard
+              variant="elevated"
+              style={[
+                styles.bossRaidCard,
+                {
+                  backgroundColor: isDark ? '#121014' : colors.surface,
+                  borderColor: isDark ? 'rgba(239, 68, 68, 0.35)' : 'rgba(239, 68, 68, 0.25)',
+                },
+              ]}
+            >
               <View style={styles.bossHeaderRow}>
                 <View style={styles.bossTagWrap}>
                   <Skull size={14} color="#EF4444" weight="fill" />
                   <Text style={styles.bossTagText}>{bossRaid.gateRank}</Text>
                 </View>
-                <View style={styles.bossRewardPill}>
+                <View
+                  style={[
+                    styles.bossRewardPill,
+                    {
+                      backgroundColor: isDark ? '#1A1710' : '#FEF3C7',
+                      borderColor: isDark ? 'rgba(245, 158, 11, 0.25)' : 'rgba(245, 158, 11, 0.4)',
+                    },
+                  ]}
+                >
                   <Coins size={13} color="#F59E0B" weight="fill" />
                   <Text style={styles.bossRewardText}>+{bossRaid.rewardCoins} COINS</Text>
                 </View>
@@ -226,20 +271,20 @@ export default function GymWorkoutScreen() {
                 {bossRaid.name}
               </Text>
               <Text style={[styles.bossSubText, { color: colors.textMuted }]}>
-                Inflict damage through tracked exercise reps. 1 Rep = 5 DMG.
+                Inflict damage through tracked exercise reps. 1 Rep = 2 DMG.
               </Text>
 
               {/* Boss HP Bar */}
               <View style={styles.bossHpWrap}>
                 <View style={styles.bossHpMetaRow}>
-                  <Text style={styles.bossHpLabel}>
+                  <Text style={[styles.bossHpLabel, { color: colors.textMuted }]}>
                     BOSS HP: {bossRaid.currentHp} / {bossRaid.maxHp}
                   </Text>
                   <Text style={[styles.bossHpPercent, { color: bossRaid.isDefeated ? '#10B981' : '#EF4444' }]}>
-                    {bossRaid.isDefeated ? 'DEFEATED' : `${Math.round((bossRaid.currentHp / bossRaid.maxHp) * 100)}%`}
+                    {bossRaid.isDefeated ? (bossRaid.isClaimed ? 'CLAIMED' : 'DEFEATED') : `${Math.round((bossRaid.currentHp / bossRaid.maxHp) * 100)}%`}
                   </Text>
                 </View>
-                <View style={styles.bossHpTrack}>
+                <View style={[styles.bossHpTrack, { backgroundColor: isDark ? '#1F1A20' : '#E5E7EB' }]}>
                   <View
                     style={[
                       styles.bossHpFill,
@@ -252,16 +297,23 @@ export default function GymWorkoutScreen() {
                 </View>
               </View>
 
-              {/* Attack Button */}
+              {/* Attack / Claim Button */}
               <TouchableOpacity
+                disabled={bossRaid.isDefeated && bossRaid.isClaimed}
                 style={[
                   styles.bossAttackBtn,
-                  { backgroundColor: bossRaid.isDefeated ? '#10B981' : '#0A84FF' },
+                  {
+                    backgroundColor: bossRaid.isDefeated
+                      ? (bossRaid.isClaimed ? (isDark ? '#232733' : '#E2E8F0') : '#10B981')
+                      : '#0A84FF',
+                  },
                 ]}
                 onPress={() => {
                   haptics.heavy();
                   if (bossRaid.isDefeated) {
-                    bossService.claimBossVictoryReward().then(() => loadAll());
+                    if (!bossRaid.isClaimed) {
+                      bossService.claimBossVictoryReward().then(() => loadAll());
+                    }
                   } else {
                     handleStartExercise('PUSHUP', 25);
                   }
@@ -269,10 +321,19 @@ export default function GymWorkoutScreen() {
                 activeOpacity={0.85}
               >
                 {bossRaid.isDefeated ? (
-                  <>
-                    <Trophy size={16} color="#FFFFFF" weight="fill" />
-                    <Text style={styles.bossAttackBtnText}>GATE CONQUERED • CLAIM REWARD</Text>
-                  </>
+                  bossRaid.isClaimed ? (
+                    <>
+                      <CheckCircle size={16} color={isDark ? '#8E8E93' : '#64748B'} weight="fill" />
+                      <Text style={[styles.bossAttackBtnText, { color: isDark ? '#8E8E93' : '#64748B' }]}>
+                        REWARD CLAIMED • RESETS MONDAY
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <Trophy size={16} color="#FFFFFF" weight="fill" />
+                      <Text style={styles.bossAttackBtnText}>GATE CONQUERED • CLAIM REWARD (+20 COINS)</Text>
+                    </>
+                  )
                 ) : (
                   <>
                     <Sword size={16} color="#FFFFFF" weight="fill" />
@@ -282,6 +343,9 @@ export default function GymWorkoutScreen() {
               </TouchableOpacity>
             </GlassCard>
           )}
+
+          {/* Non-intrusive Sponsor Banner */}
+          <AriseBannerAd style={{ marginVertical: 10 }} />
 
           {/* Exercises Routine List with Direct AI Camera Buttons */}
           <View style={styles.exerciseSection}>
@@ -300,7 +364,7 @@ export default function GymWorkoutScreen() {
 
                 <TouchableOpacity
                   style={[styles.aiCamBtn, { backgroundColor: isDark ? 'rgba(10, 132, 255, 0.15)' : '#EFF6FF', borderColor: '#0A84FF' }]}
-                  onPress={() => handleStartExercise(ex.type, parseInt(ex.reps, 10) || 20)}
+                  onPress={() => handleStartExercise(ex.type, parseInt(ex.reps, 10) || 20, parseInt(ex.sets, 10) || 3)}
                   activeOpacity={0.8}
                 >
                   <Camera size={14} color="#0A84FF" weight="bold" />
@@ -324,21 +388,138 @@ export default function GymWorkoutScreen() {
                 </TouchableOpacity>
               </View>
 
-              <View style={{ gap: 14 }}>
-                <Text style={[styles.modalSub, { color: colors.textMuted }]}>
-                  Customize your weekly workout schedule and AI target difficulty.
-                </Text>
+              <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 16 }}>
+                {/* 1. Weekly Schedule Days */}
+                <View style={{ gap: 8 }}>
+                  <Text style={[styles.prefSectionLabel, { color: colors.textPrimary }]}>Weekly Workout Days</Text>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    {[3, 4, 5, 6].map((days) => (
+                      <TouchableOpacity
+                        key={days}
+                        style={[
+                          styles.prefOptionPill,
+                          {
+                            backgroundColor: prefDays === days ? '#0A84FF' : isDark ? '#121622' : '#F1F5F9',
+                            borderColor: prefDays === days ? '#0A84FF' : isDark ? '#1E293B' : '#CBD5E1',
+                          },
+                        ]}
+                        onPress={() => {
+                          haptics.light();
+                          setPrefDays(days);
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Text
+                          style={[
+                            styles.prefOptionText,
+                            { color: prefDays === days ? '#FFFFFF' : colors.textPrimary },
+                          ]}
+                        >
+                          {days} Days
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                {/* 2. AI Target Difficulty */}
+                <View style={{ gap: 8 }}>
+                  <Text style={[styles.prefSectionLabel, { color: colors.textPrimary }]}>AI Target Difficulty</Text>
+                  <View style={{ gap: 8 }}>
+                    {[
+                      { id: 'beginner', title: 'Novice (E-Rank)', desc: '10-15 reps • Foundation training' },
+                      { id: 'intermediate', title: 'Hunter (C-Rank)', desc: '20-25 reps • Progressive overload' },
+                      { id: 'advanced', title: 'Monarch (S-Rank)', desc: '35+ reps • Maximum stamina & hypertrophy' },
+                    ].map((diff) => (
+                      <TouchableOpacity
+                        key={diff.id}
+                        style={[
+                          styles.diffOptionCard,
+                          {
+                            backgroundColor: prefDifficulty === diff.id ? 'rgba(10, 132, 255, 0.15)' : isDark ? '#121622' : '#F8FAFC',
+                            borderColor: prefDifficulty === diff.id ? '#0A84FF' : isDark ? '#1E293B' : '#E2E8F0',
+                          },
+                        ]}
+                        onPress={() => {
+                          haptics.light();
+                          setPrefDifficulty(diff.id as any);
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <View style={{ flex: 1, gap: 2 }}>
+                          <Text style={[styles.diffOptionTitle, { color: prefDifficulty === diff.id ? '#0A84FF' : colors.textPrimary }]}>
+                            {diff.title}
+                          </Text>
+                          <Text style={[styles.diffOptionDesc, { color: colors.textSecondary }]}>
+                            {diff.desc}
+                          </Text>
+                        </View>
+                        {prefDifficulty === diff.id && (
+                          <Check size={16} color="#0A84FF" weight="bold" />
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                {/* 3. Primary Focus Goal */}
+                <View style={{ gap: 8 }}>
+                  <Text style={[styles.prefSectionLabel, { color: colors.textPrimary }]}>Primary Training Goal</Text>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    {[
+                      { id: 'strength', label: 'Strength' },
+                      { id: 'muscle_gain', label: 'Hypertrophy' },
+                      { id: 'fat_loss', label: 'Stamina' },
+                    ].map((g) => (
+                      <TouchableOpacity
+                        key={g.id}
+                        style={[
+                          styles.prefOptionPill,
+                          {
+                            flex: 1,
+                            backgroundColor: prefGoal === g.id ? '#F59E0B' : isDark ? '#121622' : '#F1F5F9',
+                            borderColor: prefGoal === g.id ? '#F59E0B' : isDark ? '#1E293B' : '#CBD5E1',
+                          },
+                        ]}
+                        onPress={() => {
+                          haptics.light();
+                          setPrefGoal(g.id as any);
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Text
+                          style={[
+                            styles.prefOptionText,
+                            { color: prefGoal === g.id ? '#000000' : colors.textPrimary },
+                          ]}
+                        >
+                          {g.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
 
                 <TouchableOpacity
-                  style={[styles.savePrefBtn, { backgroundColor: '#FF5500' }]}
-                  onPress={() => {
+                  style={[styles.savePrefBtn, { backgroundColor: '#FF5500', marginTop: 6 }]}
+                  onPress={async () => {
                     haptics.heavy();
+                    try {
+                      await savePreferences({
+                        daysPerWeek: prefDays,
+                        experience: prefDifficulty,
+                        goal: prefGoal,
+                        equipment: 'full_gym',
+                        workoutDurationMinutes: 45,
+                      });
+                    } catch {}
                     setIsPrefModalOpen(false);
                   }}
+                  activeOpacity={0.85}
                 >
                   <Text style={styles.savePrefBtnText}>Save Preferences</Text>
                 </TouchableOpacity>
-              </View>
+              </ScrollView>
             </GlassCard>
           </View>
         </Modal>
@@ -556,6 +737,38 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '900',
     color: '#FFFFFF',
+  },
+  prefSectionLabel: {
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  prefOptionPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  prefOptionText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  diffOptionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  diffOptionTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  diffOptionDesc: {
+    fontSize: 11,
+    fontWeight: '500',
   },
   bossRaidCard: {
     padding: 20,

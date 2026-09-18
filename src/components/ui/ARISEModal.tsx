@@ -12,6 +12,7 @@ import {
 import { X, CheckCircle, WarningCircle, Info, Fire } from 'phosphor-react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { GlassCard } from '../ios/GlassCard';
+import { SoloLevelingWindow } from './SoloLevelingWindow';
 
 const { width, height } = Dimensions.get('window');
 
@@ -35,8 +36,6 @@ export function ARISEModal({
   children,
   icon,
 }: ARISEModalProps) {
-  const { colors, isDark } = useTheme();
-
   return (
     <Modal
       visible={visible}
@@ -48,42 +47,16 @@ export function ARISEModal({
       <TouchableWithoutFeedback onPress={onClose}>
         <View style={styles.backdrop}>
           <TouchableWithoutFeedback>
-            <View style={[styles.modalCardWrapper, { maxWidth: Math.min(width - 32, 400) }]}>
-              <GlassCard variant="elevated" style={styles.modalCard}>
-                {/* Header */}
-                <View style={styles.modalHeader}>
-                  <View style={styles.modalHeaderTitleWrap}>
-                    {icon && <View style={styles.iconWrap}>{icon}</View>}
-                    <View style={{ flex: 1 }}>
-                      {title && (
-                        <Text style={[styles.modalTitleText, { color: colors.textPrimary }]}>
-                          {title}
-                        </Text>
-                      )}
-                      {subtitle && (
-                        <Text style={[styles.modalSubtitleText, { color: colors.textMuted }]}>
-                          {subtitle}
-                        </Text>
-                      )}
-                    </View>
-                  </View>
-                  <TouchableOpacity
-                    style={[
-                      styles.closeBtn,
-                      {
-                        backgroundColor: isDark ? '#1C1E27' : '#F3F4F6',
-                      },
-                    ]}
-                    onPress={onClose}
-                    activeOpacity={0.7}
-                  >
-                    <X size={16} color={colors.textSecondary} weight="bold" />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Content */}
-                <View style={styles.modalContent}>{children}</View>
-              </GlassCard>
+            <View style={[styles.modalCardWrapper, { maxWidth: Math.min(width - 32, 400), alignItems: 'center' }]}>
+              <SoloLevelingWindow
+                variant="quest"
+                tag={title || 'SYSTEM NOTIFICATION'}
+                subtag={subtitle || 'ARISE OS'}
+                icon={icon}
+                onClose={onClose}
+              >
+                <View style={{ width: '100%' }}>{children}</View>
+              </SoloLevelingWindow>
             </View>
           </TouchableWithoutFeedback>
         </View>

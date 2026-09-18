@@ -16,33 +16,95 @@ export interface PayoutRequestItem {
   cloudSynced?: boolean;
 }
 
+export interface PayoutResult {
+  success: boolean;
+  error?: string;
+}
+
 export const payoutRepository = {
-  async createRequest(amountInr: number, coinsSpent: number, upiId: string): Promise<boolean> {
+  async createRequest(
+    amountInr: number,
+    coinsSpent: number,
+    upiId: string,
+    sponsorPassesUsed: number = 0
+  ): Promise<PayoutResult> {
     try {
-      const user = await userRepository.getProfile();
-      if (!user || user.coins < coinsSpent) {
-        return false;
+      // 1. Strict amount limits validation (Phase 6: Min ₹29, Max ₹1000)
+      if (typeof amountInr !== 'number' || isNaN(amountInr) || !isFinite(amountInr)) {
+        return { success: false, error: 'Invalid cashout amount.' };
+      }
+      if (amountInr < 29 || amountInr > 1000) {
+        return { success: false, error: 'Cashout amount must be between ₹29 and ₹1,000.' };
+      }
+      if (typeof coinsSpent !== 'number' || isNaN(coinsSpent) || coinsSpent <= 0) {
+        return { success: false, error: 'Invalid coins amount.' };
       }
 
-      // 1. Deduct coins from user local balance
+      // 2. UPI format validation
+      const trimmedUpi = upiId?.trim();
+      if (!trimmedUpi || !trimmedUpi.includes('@') || trimmedUpi.length < 5) {
+        return { success: false, error: 'Please enter a valid UPI ID (e.g. name@upi).' };
+      }
+
+      // 3. User balance verification
+      const user = await userRepository.getProfile();
+      if (!user) {
+        return { success: false, error: 'Hunter profile not found.' };
+      }
+      if (user.coins < coinsSpent) {
+        return {
+          success: false,
+          error: `Insufficient Coins. You need ${coinsSpent.toLocaleString()} Coins (Current: ${user.coins.toLocaleString()}).`,
+        };
+      }
+      if ((user.sponsorPasses ?? 0) < sponsorPassesUsed) {
+        return { success: false, error: 'Insufficient sponsor passes.' };
+      }
+
+      // 4. Duplicate pending check
+      const recentPending = await db
+        .select()
+        .from(payoutRequest)
+        .where(eq(payoutRequest.status, 'PENDING'))
+        .limit(20);
+
+      const isDuplicate = recentPending.some(
+        (r) => r.upiId.toLowerCase() === trimmedUpi.toLowerCase() && r.amountInr === amountInr
+      );
+      if (isDuplicate) {
+        return {
+          success: false,
+          error: 'A pending cashout request for this amount and UPI ID already exists.',
+        };
+      }
+
+      // 5. Deduct coins from user local balance
       const deducted = await userRepository.deductCoins(
         coinsSpent,
         `UPI Cashout INR ${amountInr}`,
         'payout'
       );
 
-      if (!deducted) return false;
+      if (!deducted) {
+        return { success: false, error: 'Failed to process coin deduction.' };
+      }
 
-      // 2. Insert into local SQLite
+      // 6. Consume sponsor passes
+      if (sponsorPassesUsed > 0) {
+        await userRepository.consumeSponsorPasses(sponsorPassesUsed);
+      }
+
+      // 7. Insert into local SQLite
       await db.insert(payoutRequest).values({
         amountInr,
         coinsSpent,
-        upiId: upiId.trim(),
+        upiId: trimmedUpi,
+        sponsorPassesUsed,
         status: 'PENDING',
         createdAt: new Date().toISOString(),
       });
 
-      // 3. Sync to Supabase Cloud Database (Live Admin Dashboard)
+      // 8. Sync to Supabase Cloud Database (Live Admin Dashboard)
       if (isSupabaseConfigured() && supabase) {
         try {
           const cloudUserId = await getCloudUserId();
@@ -51,7 +113,7 @@ export const payoutRepository = {
             user_name: user.displayName || 'Warrior',
             amount_inr: amountInr,
             coins_spent: coinsSpent,
-            upi_id: upiId.trim(),
+            upi_id: trimmedUpi,
             status: 'PENDING',
           });
 
@@ -65,10 +127,10 @@ export const payoutRepository = {
         }
       }
 
-      return true;
-    } catch (e) {
+      return { success: true };
+    } catch (e: any) {
       console.error('Failed to create payout request:', e);
-      return false;
+      return { success: false, error: e?.message || 'Failed to process payout request.' };
     }
   },
 

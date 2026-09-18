@@ -6,14 +6,13 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
-  Alert,
-  TextInput,
+  Image,
+  Platform,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ArrowLeft,
-  Hourglass,
   Coins,
   CheckCircle2,
   AlertCircle,
@@ -23,19 +22,17 @@ import {
   Shield,
   Flame,
   Clock,
-  ChevronRight,
   Palette,
   User,
-  Banknote,
-  Wallet,
-  ArrowUpRight,
   PlayCircle,
+  Lock,
+  Check,
+  Crown,
 } from 'lucide-react-native';
 import { GlassCard } from '../../src/components/ios/GlassCard';
-import { GlassButton } from '../../src/components/ios/GlassButton';
+import { AriseBannerAd } from '../../src/components/ads/AriseBannerAd';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { userRepository } from '../../src/database/repositories/userRepository';
-import { payoutRepository, PayoutRequestItem } from '../../src/database/repositories/payoutRepository';
 import { isSupabaseConfigured } from '../../src/services/supabaseClient';
 import { adMobService } from '../../src/services/adMobService';
 import { screenTimerService, appBlockerService } from '../../src/native';
@@ -43,57 +40,122 @@ import { voiceCoach } from '../../src/services/voiceCoach';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useSound } from '../../src/hooks/useSound';
 import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
+import { SoloLevelingWindow } from '../../src/components/ui/SoloLevelingWindow';
+import { AVATAR_IMAGES } from '../../src/components/profile/AvatarPicker';
+import { inventoryRepository } from '../../src/database/repositories/inventoryRepository';
 import { useTheme } from '../../src/hooks/useTheme';
-import { colors } from '../../src/theme/colors';
+import { useSettingsStore } from '../../src/stores/useSettingsStore';
+import { getRankForLevel } from '../../src/constants/ranks';
 
 interface ShopItem {
   id: string;
   name: string;
   desc: string;
   cost: number;
-  type: 'boost' | 'time' | 'theme' | 'avatar';
+  type: 'boost' | 'time' | 'theme' | 'avatar' | 'title';
   icon: any;
   minutes?: number;
+  rarity?: 'MYTHIC' | 'LEGENDARY' | 'EPIC';
+  gradientColors?: string[];
+  avatarId?: string;
+  titleString?: string;
 }
-
-interface CashoutTier {
-  id: string;
-  amountInr: number;
-  cost: number;
-  badge?: string;
-}
-
-const CASHOUT_TIERS: CashoutTier[] = [
-  { id: 'upi_20', amountInr: 20, cost: 2000, badge: 'STARTER' },
-  { id: 'upi_50', amountInr: 50, cost: 5000, badge: 'MOST POPULAR' },
-  { id: 'upi_100', amountInr: 100, cost: 10000, badge: 'WARRIOR PACK' },
-  { id: 'upi_200', amountInr: 200, cost: 18000, badge: 'MONARCH ELITE' },
-];
 
 export default function ShopScreen() {
   const router = useRouter();
   const sound = useSound();
   const haptics = useHaptics();
+  const { colors, isDark } = useTheme();
   const profile = usePlayerStore((s) => s.profile);
   const loadProfile = usePlayerStore((s) => s.loadProfile);
-  const { colors, isDark } = useTheme();
 
-  const [activeTab, setActiveTab] = useState<'cashout' | 'time' | 'boosters' | 'themes'>('cashout');
+  const currentRank = getRankForLevel(profile?.level || 1);
+
+  const [activeTab, setActiveTab] = useState<'boosters' | 'time' | 'themes' | 'titles' | 'avatars'>('boosters');
   const [purchasingId, setPurchasingId] = useState<string | null>(null);
   const [successItem, setSuccessItem] = useState<ShopItem | null>(null);
   const [insufficientItem, setInsufficientItem] = useState<ShopItem | null>(null);
 
-  const [selectedTier, setSelectedTier] = useState<CashoutTier | null>(null);
-  const [upiInput, setUpiInput] = useState<string>('');
-  const [isUpiModalOpen, setIsUpiModalOpen] = useState<boolean>(false);
-  const [isSubmittingPayout, setIsSubmittingPayout] = useState<boolean>(false);
-  const [payoutHistory, setPayoutHistory] = useState<PayoutRequestItem[]>([]);
+  const [unlockedItemIds, setUnlockedItemIds] = useState<string[]>([]);
+  const [equippedTheme, setEquippedTheme] = useState<string>('cyber_sapphire');
+  const [equippedAvatar, setEquippedAvatar] = useState<string>('pfp_01');
+  const [equippedTitle, setEquippedTitle] = useState<string>('Shadow Sovereign');
+
+  // Solo Leveling System UI Modal Dialog State
+  const [systemDialog, setSystemDialog] = useState<{
+    visible: boolean;
+    variant: 'default' | 'info' | 'warning' | 'danger' | 'quest' | 'success';
+    tag: string;
+    subtag: string;
+    title: string;
+    message: string;
+    buttons: {
+      text: string;
+      style?: 'primary' | 'cancel' | 'destructive';
+      onPress?: () => void;
+    }[];
+  }>({
+    visible: false,
+    variant: 'default',
+    tag: 'SYSTEM NOTIFICATION',
+    subtag: 'ARISE OS',
+    title: '',
+    message: '',
+    buttons: [],
+  });
+
+  const showShopAlert = (
+    title: string,
+    message: string,
+    variant: 'default' | 'info' | 'warning' | 'danger' | 'quest' | 'success' = 'default',
+    tag = 'SYSTEM NOTIFICATION',
+    buttons?: { text: string; style?: 'primary' | 'cancel' | 'destructive'; onPress?: () => void }[]
+  ) => {
+    if (variant === 'danger') {
+      haptics.warning();
+      sound.play('rep_count');
+    } else if (variant === 'success') {
+      haptics.success();
+      sound.play('purchase');
+    } else {
+      haptics.heavy();
+      sound.play('unlock');
+    }
+
+    setSystemDialog({
+      visible: true,
+      variant,
+      tag,
+      subtag: 'ARISE OS',
+      title,
+      message,
+      buttons: buttons || [
+        {
+          text: 'CONFIRM',
+          style: 'primary',
+          onPress: () => setSystemDialog((prev) => ({ ...prev, visible: false })),
+        },
+      ],
+    });
+  };
 
   useFocusEffect(
     useCallback(() => {
       loadProfile();
-      payoutRepository.getUserRequests().then(setPayoutHistory);
-    }, [])
+      inventoryRepository.getUnlockedItems().then((items) => {
+        setUnlockedItemIds(items.map((i) => i.itemId));
+        const activeTheme = items.find((i) => i.itemType === 'THEME' && i.isEquipped);
+        if (activeTheme) setEquippedTheme(activeTheme.itemId);
+        const activeTitle = items.find((i) => i.itemType === 'TITLE' && i.isEquipped);
+        if (activeTitle) {
+          const foundTitle = titlesList.find((t) => t.id === activeTitle.itemId);
+          if (foundTitle?.titleString) setEquippedTitle(foundTitle.titleString);
+        }
+      });
+      if (profile?.avatarIcon) {
+        setEquippedAvatar(profile.avatarIcon);
+      }
+    }, [profile?.avatarIcon])
   );
 
   const currentCoins = profile?.coins || 0;
@@ -101,35 +163,65 @@ export default function ShopScreen() {
   const boostersList: ShopItem[] = [
     {
       id: 'double_coins',
-      name: 'Double Coins',
-      desc: 'Get 2x coins for 30 minutes',
+      name: 'Double Coins Extractor',
+      desc: 'Earn 2x coins on all workout reps and focus minutes for 30 minutes',
       cost: 750,
       type: 'boost',
       icon: Zap,
+      rarity: 'EPIC',
     },
     {
       id: 'focus_shield',
-      name: 'Focus Shield',
-      desc: 'Block distractions for 60 minutes',
+      name: 'Aegis Focus Shield',
+      desc: 'Invincible lock on all social apps for 60 minutes with zero bailout',
       cost: 1000,
       type: 'boost',
       icon: Shield,
+      rarity: 'LEGENDARY',
     },
     {
       id: 'streak_freeze',
-      name: 'Streak Freeze',
-      desc: 'Protect your streak for 1 day',
+      name: 'Phoenix Streak Flame',
+      desc: 'Auto-saves your discipline streak if you miss a daily workout',
       cost: 600,
       type: 'boost',
       icon: Flame,
+      rarity: 'MYTHIC',
+    },
+    {
+      id: 'stamina_potion',
+      name: 'Elixir of Life',
+      desc: 'Instant stamina recovery potion that removes all workout fatigue status',
+      cost: 400,
+      type: 'boost',
+      icon: Sparkles,
+      rarity: 'EPIC',
+    },
+    {
+      id: 'exp_rune',
+      name: 'Shadow Extraction XP Rune',
+      desc: 'Infuses your hunter aura with 2x XP multiplier across all exercise sets for 1 hour',
+      cost: 850,
+      type: 'boost',
+      icon: Crown,
+      rarity: 'LEGENDARY',
+    },
+    {
+      id: 'red_gate_key',
+      name: 'Red Gate Dungeon Key',
+      desc: 'Unlocks an emergency high-yield Red Gate boss raid in the Hunter Guild Hall',
+      cost: 500,
+      type: 'boost',
+      icon: Lock,
+      rarity: 'MYTHIC',
     },
   ];
 
   const timeUnlockList: ShopItem[] = [
     {
       id: 'time_15m',
-      name: '15m App Unlock',
-      desc: 'Unlock all restricted apps for 15 minutes',
+      name: '15-Min Quick Pass',
+      desc: 'Temporarily unlocks all restricted apps for 15 minutes',
       cost: 100,
       minutes: 15,
       type: 'time',
@@ -137,8 +229,8 @@ export default function ShopScreen() {
     },
     {
       id: 'time_30m',
-      name: '30m App Unlock',
-      desc: 'Unlock all restricted apps for 30 minutes',
+      name: '30-Min Extended Key',
+      desc: 'Temporarily unlocks all restricted apps for 30 minutes',
       cost: 200,
       minutes: 30,
       type: 'time',
@@ -146,36 +238,210 @@ export default function ShopScreen() {
     },
     {
       id: 'time_60m',
-      name: '60m App Unlock',
-      desc: 'Unlock all restricted apps for 1 hour',
+      name: '60-Min Full Access Pass',
+      desc: 'Temporarily unlocks all restricted apps for 1 full hour',
       cost: 350,
       minutes: 60,
       type: 'time',
       icon: Clock,
     },
+    {
+      id: 'time_120m',
+      name: '2-Hour Sovereign Exemption Pass',
+      desc: 'Temporarily unlocks all restricted apps for 2 full hours',
+      cost: 600,
+      minutes: 120,
+      type: 'time',
+      icon: Clock,
+    },
+    {
+      id: 'app_seal',
+      name: 'App Exemption Seal',
+      desc: 'Whitelists 1 specific app from block restrictions for 24 hours',
+      cost: 500,
+      minutes: 1440,
+      type: 'time',
+      icon: Shield,
+    },
   ];
 
   const themesList: ShopItem[] = [
-    { id: 'cyber_gold', name: 'Cyber Gold Theme', desc: 'Solar Flare Gold UI Accent', cost: 1500, type: 'theme', icon: Palette },
-    { id: 'neon_purple', name: 'Neon Purple Aura', desc: 'Synthwave Neon Purple Accent', cost: 1500, type: 'theme', icon: Palette },
+    {
+      id: 'cyber_gold',
+      name: 'Solar Monarch Gold',
+      desc: 'Radiant molten gold UI glow and awakening particle aura',
+      cost: 1500,
+      type: 'theme',
+      icon: Palette,
+      rarity: 'LEGENDARY',
+      gradientColors: ['#F59E0B', '#D97706'],
+    },
+    {
+      id: 'neon_purple',
+      name: 'Shadow Sovereign Violet',
+      desc: 'Deep necromancer violet glow with electric pulse accents',
+      cost: 1500,
+      type: 'theme',
+      icon: Palette,
+      rarity: 'MYTHIC',
+      gradientColors: ['#8B5CF6', '#6D28D9'],
+    },
+    {
+      id: 'crimson_berserk',
+      name: 'Blood Monarch Crimson',
+      desc: 'Intense molten blood-red HUD glow with fury particle aura',
+      cost: 1500,
+      type: 'theme',
+      icon: Palette,
+      rarity: 'LEGENDARY',
+      gradientColors: ['#EF4444', '#B91C1C'],
+    },
+    {
+      id: 'emerald_hunter',
+      name: 'S-Rank Hunter Emerald',
+      desc: 'Cybernetic matrix green terminal HUD with high-contrast runes',
+      cost: 1500,
+      type: 'theme',
+      icon: Palette,
+      rarity: 'EPIC',
+      gradientColors: ['#10B981', '#047857'],
+    },
+  ];
+
+  const titlesList: ShopItem[] = [
+    {
+      id: 'title_shadow_monarch',
+      name: 'Shadow Sovereign',
+      desc: 'Equip the supreme monarch title across profile and global leaderboards',
+      cost: 1200,
+      type: 'title',
+      icon: Crown,
+      rarity: 'MYTHIC',
+      titleString: 'Shadow Sovereign',
+    },
+    {
+      id: 'title_iron_will',
+      name: 'Iron Will Juggernaut',
+      desc: 'Title bestowed upon relentless athletes who conquer heavy workout sets',
+      cost: 800,
+      type: 'title',
+      icon: Shield,
+      rarity: 'EPIC',
+      titleString: 'Iron Will Juggernaut',
+    },
+    {
+      id: 'title_demon_slayer',
+      name: 'Demon Castle Conqueror',
+      desc: 'Exclusive raid title recognized by all hunter syndicates in the sector',
+      cost: 1000,
+      type: 'title',
+      icon: Flame,
+      rarity: 'LEGENDARY',
+      titleString: 'Demon Castle Conqueror',
+    },
+    {
+      id: 'title_relentless',
+      name: 'The Relentless',
+      desc: 'Badge honoring hunters with unbreakable workout discipline and consistency',
+      cost: 600,
+      type: 'title',
+      icon: Zap,
+      rarity: 'EPIC',
+      titleString: 'The Relentless',
+    },
   ];
 
   const avatarsList: ShopItem[] = [
-    { id: 'avatar_cyber_king', name: 'Cyber Samurai PFP', desc: 'Legendary Warrior Avatar', cost: 2000, type: 'avatar', icon: User },
-    { id: 'avatar_shadow_blade', name: 'Shadow Blade PFP', desc: 'Mythic Stealth Avatar', cost: 2000, type: 'avatar', icon: User },
+    {
+      id: 'avatar_cyber_king',
+      name: 'Cyber Samurai PFP',
+      desc: 'Legendary Hunter Avatar with cybernetic battle visor',
+      cost: 2000,
+      type: 'avatar',
+      icon: User,
+      rarity: 'LEGENDARY',
+      avatarId: 'img_pfp_03',
+    },
+    {
+      id: 'avatar_shadow_blade',
+      name: 'Shadow Monarch Blade',
+      desc: 'Mythic Sovereign Avatar with glowing blue eyes',
+      cost: 2000,
+      type: 'avatar',
+      icon: User,
+      rarity: 'MYTHIC',
+      avatarId: 'img_pfp_02',
+    },
+    {
+      id: 'avatar_demon_king',
+      name: 'Baran Demon King PFP',
+      desc: 'Fierce horned sovereign avatar radiating crackling lightning',
+      cost: 2500,
+      type: 'avatar',
+      icon: User,
+      rarity: 'LEGENDARY',
+      avatarId: 'img_pfp_01',
+    },
+    {
+      id: 'avatar_frost_monarch',
+      name: 'Frost Sovereign PFP',
+      desc: 'Glacial monarch avatar enveloped in blizzard aura',
+      cost: 2500,
+      type: 'avatar',
+      icon: User,
+      rarity: 'MYTHIC',
+      avatarId: 'img_pfp_02',
+    },
   ];
 
-  const handlePurchase = async (item: ShopItem) => {
-    if (purchasingId) return;
-
+  const handlePurchase = (item: ShopItem) => {
+    haptics.medium();
     if (currentCoins < item.cost) {
-      haptics.warning();
-      setInsufficientItem(item);
+      showShopAlert(
+        'INSUFFICIENT FUNDS',
+        `Acquiring "${item.name}" requires ${item.cost.toLocaleString()} Gold Coins.\n\nCurrent Vault Balance: ${currentCoins.toLocaleString()} Coins.\nComplete physical workouts & daily quests to earn coins!`,
+        'danger',
+        'SYSTEM ALERT',
+        [
+          {
+            text: 'ACKNOWLEDGE',
+            style: 'destructive',
+            onPress: () => setSystemDialog((prev) => ({ ...prev, visible: false })),
+          },
+        ]
+      );
       return;
     }
 
+    // Authentic Solo Leveling Purchase Directive Window
+    showShopAlert(
+      'TRANSACTION DIRECTIVE',
+      `Authorize acquisition of "${item.name}" for ${item.cost.toLocaleString()} Gold Coins?\n\nCurrent Balance: ${currentCoins.toLocaleString()} Coins\nRemaining Balance: ${(currentCoins - item.cost).toLocaleString()} Coins`,
+      'default',
+      'SYSTEM DIRECTIVE',
+      [
+        {
+          text: 'AUTHORIZE',
+          style: 'primary',
+          onPress: () => {
+            setSystemDialog((prev) => ({ ...prev, visible: false }));
+            handleExecutePurchase(item);
+          },
+        },
+        {
+          text: 'ABORT',
+          style: 'cancel',
+          onPress: () => setSystemDialog((prev) => ({ ...prev, visible: false })),
+        },
+      ]
+    );
+  };
+
+  const handleExecutePurchase = async (item: ShopItem) => {
+    if (purchasingId) return;
+
     setPurchasingId(item.id);
-    haptics.medium();
+    haptics.heavy();
 
     try {
       if (item.type === 'time' && item.minutes) {
@@ -200,19 +466,52 @@ export default function ShopScreen() {
         );
 
         if (!result.success) {
-          setInsufficientItem(item);
+          showShopAlert('INSUFFICIENT FUNDS', 'You do not have enough coins for this pass.', 'danger', 'SYSTEM ALERT');
           return;
         }
 
-        // 1. Start UI countdown timer with cumulative duration
         const totalMinutes = Math.round(totalDurationMs / 60000);
         screenTimerService.startSessionTimer(totalDurationMs, `Screen Time (${totalMinutes}m)`);
-        // 2. Temporarily unblock native monitor overlay for total duration
         appBlockerService.temporaryUnlock?.(totalDurationMs);
+      } else if (item.type === 'theme' || item.type === 'avatar') {
+        const success = await userRepository.spendCoins(item.cost, `Purchased ${item.name}`);
+        if (!success) {
+          showShopAlert('INSUFFICIENT FUNDS', 'You do not have enough coins for this item.', 'danger', 'SYSTEM ALERT');
+          return;
+        }
+
+        // Save unlock to persistent inventory
+        await inventoryRepository.unlockItem(item.id, item.type.toUpperCase());
+        setUnlockedItemIds((prev) => [...prev, item.id]);
+
+        // Automatically equip purchased theme or avatar
+        if (item.type === 'theme') {
+          await inventoryRepository.equipItem(item.id, 'THEME');
+          setEquippedTheme(item.id);
+          useSettingsStore.getState().setTheme(item.id as any);
+        } else if (item.type === 'avatar' && item.avatarId) {
+          await inventoryRepository.equipItem(item.id, 'AVATAR');
+          await userRepository.updateProfile({ avatarIcon: item.avatarId });
+          await loadProfile();
+          setEquippedAvatar(item.avatarId);
+        }
+      } else if (item.type === 'title') {
+        const success = await userRepository.spendCoins(item.cost, `Purchased ${item.name}`);
+        if (!success) {
+          showShopAlert('INSUFFICIENT FUNDS', 'You do not have enough coins for this title.', 'danger', 'SYSTEM ALERT');
+          return;
+        }
+
+        await inventoryRepository.unlockItem(item.id, 'TITLE');
+        setUnlockedItemIds((prev) => [...prev, item.id]);
+        if (item.titleString) {
+          await inventoryRepository.equipItem(item.id, 'TITLE');
+          setEquippedTitle(item.titleString);
+        }
       } else {
         const success = await userRepository.spendCoins(item.cost, `Purchased ${item.name}`);
         if (!success) {
-          setInsufficientItem(item);
+          showShopAlert('INSUFFICIENT FUNDS', 'You do not have enough coins for this item.', 'danger', 'SYSTEM ALERT');
           return;
         }
       }
@@ -220,98 +519,102 @@ export default function ShopScreen() {
       await loadProfile();
       sound.play('purchase');
       haptics.heavy();
-      try {
-        voiceCoach.speak(`Purchase confirmed! ${item.name} activated.`);
-      } catch {}
 
-      setSuccessItem(item);
+      showShopAlert(
+        'ITEM ACQUIRED',
+        `"${item.name}" has been registered and bound to your Hunter inventory.`,
+        'success',
+        'SYSTEM NOTIFICATION',
+        [
+          {
+            text: 'PROCEED',
+            style: 'primary',
+            onPress: () => setSystemDialog((prev) => ({ ...prev, visible: false })),
+          },
+        ]
+      );
     } catch (e) {
       console.warn('Purchase error:', e);
-      showIOSAlert('Purchase Error', 'Could not complete transaction.');
+      showShopAlert('TRANSACTION ERROR', 'Could not complete transaction. Please retry.', 'danger', 'SYSTEM ALERT');
     } finally {
       setPurchasingId(null);
     }
   };
 
-  const handleSelectCashoutTier = (tier: CashoutTier) => {
-    haptics.medium();
-    if (currentCoins < tier.cost) {
-      haptics.warning();
-      Alert.alert(
-        'Insufficient Coins',
-        `You need ${tier.cost.toLocaleString()} coins for ₹${tier.amountInr} UPI Cashout.\n\nYour current balance: ${currentCoins.toLocaleString()} coins.\n\nPerform physical workout reps & focus sessions to earn more coins!`
+  const handleEquipItem = async (item: ShopItem) => {
+    haptics.heavy();
+    sound.play('quest_complete');
+    if (item.type === 'theme') {
+      await inventoryRepository.equipItem(item.id, 'THEME');
+      setEquippedTheme(item.id);
+      useSettingsStore.getState().setTheme(item.id as any);
+      showShopAlert(
+        'AURA SYNCHRONIZED',
+        `"${item.name}" is now radiating as your active system theme aura.`,
+        'default',
+        'SYSTEM NOTIFICATION'
       );
-      return;
-    }
-    setSelectedTier(tier);
-    setIsUpiModalOpen(true);
-  };
-
-  const handleConfirmWithdrawal = async () => {
-    if (!selectedTier || !upiInput.trim()) {
-      Alert.alert('Required', 'Please enter your UPI ID (e.g. 9876543210@paytm or name@upi)');
-      return;
-    }
-
-    const cleanUpi = upiInput.trim();
-    if (!cleanUpi.includes('@')) {
-      Alert.alert('Invalid UPI ID', 'Please enter a valid UPI ID containing "@" (e.g. mobile@paytm, name@okhdfcbank)');
-      return;
-    }
-
-    setIsSubmittingPayout(true);
-    try {
-      const success = await payoutRepository.createRequest(
-        selectedTier.amountInr,
-        selectedTier.cost,
-        cleanUpi
+    } else if (item.type === 'avatar' && item.avatarId) {
+      await inventoryRepository.equipItem(item.id, 'AVATAR');
+      await userRepository.updateProfile({ avatarIcon: item.avatarId });
+      await loadProfile();
+      setEquippedAvatar(item.avatarId);
+      showShopAlert(
+        'IDENTITY BOUND',
+        `"${item.name}" has been set as your active Hunter avatar identity.`,
+        'default',
+        'SYSTEM NOTIFICATION'
       );
-
-      if (success) {
-        sound.play('quest_complete');
-        haptics.success();
-        setIsUpiModalOpen(false);
-        setUpiInput('');
-        await loadProfile();
-        const history = await payoutRepository.getUserRequests();
-        setPayoutHistory(history);
-        Alert.alert(
-          'Withdrawal Queued! 🎉',
-          `₹${selectedTier.amountInr} payout to "${cleanUpi}" has been recorded.\n\nYour transfer will be sent within 24 to 48 hours via UPI.`
-        );
-      } else {
-        haptics.warning();
-        Alert.alert('Insufficient Balance', 'You do not have enough coins for this tier.');
-      }
-    } catch {
-      Alert.alert('Error', 'Failed to submit withdrawal request. Please try again.');
-    } finally {
-      setIsSubmittingPayout(false);
+    } else if (item.type === 'title' && item.titleString) {
+      await inventoryRepository.equipItem(item.id, 'TITLE');
+      setEquippedTitle(item.titleString);
+      showShopAlert(
+        'TITLE BESTOWED',
+        `"${item.titleString}" is now your active title displayed on all leaderboards.`,
+        'default',
+        'SYSTEM NOTIFICATION'
+      );
     }
   };
 
   const handleWatchAd = () => {
     haptics.medium();
 
-    const onReward = async (earnedCoins?: number) => {
+    const onReward = async () => {
       const reward = 50;
-      await userRepository.addCoins(reward, 'Watched Rewarded Video Ad', 'ad');
+      await userRepository.addCoins(reward, 'Watched Sponsor Video Ad', 'ad');
       await loadProfile();
       sound.play('quest_complete');
       haptics.success();
-      showIOSAlert(
-        'REWARD UNLOCKED! 🏆',
+      showShopAlert(
+        'REWARD DISBURSED',
         `+${reward} Gold Coins have been transferred to your Vault!`,
-        [{ text: 'CLAIM', style: 'primary' }]
+        'success',
+        'SYSTEM NOTIFICATION',
+        [
+          {
+            text: 'CLAIM REWARD',
+            style: 'primary',
+            onPress: () => setSystemDialog((prev) => ({ ...prev, visible: false })),
+          },
+        ]
       );
     };
 
     const shown = adMobService.showRewardedAd(onReward);
     if (!shown) {
-      showIOSAlert(
-        'CONNECTING STREAM...',
-        'Connecting to Google AdMob network stream. The ad is buffering and will be ready in 3 seconds. Tap again to view!',
-        [{ text: 'PROCEED', style: 'primary' }]
+      showShopAlert(
+        'BUFFERING STREAM',
+        'Buffering AdMob sponsor video. Tap again in 3 seconds to watch!',
+        'info',
+        'SYSTEM NOTICE',
+        [
+          {
+            text: 'PROCEED',
+            style: 'primary',
+            onPress: () => setSystemDialog((prev) => ({ ...prev, visible: false })),
+          },
+        ]
       );
       adMobService.preloadRewarded();
     }
@@ -320,443 +623,468 @@ export default function ShopScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <SafeAreaView style={styles.safeArea}>
-        {/* Header */}
-        <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        {/* Top Header Bar */}
+        <View style={[styles.header, { backgroundColor: colors.backgroundElevated, borderBottomColor: colors.border }]}>
           <View style={styles.headerLeft}>
             <TouchableOpacity
-              style={[styles.iconBtn, { backgroundColor: colors.surfaceLight, borderColor: colors.border }]}
+              style={[styles.backBtn, { backgroundColor: colors.surfaceLight, borderColor: colors.border }]}
               onPress={() => router.back()}
               activeOpacity={0.8}
             >
-              <ArrowLeft size={20} color={colors.textPrimary} />
+              <ArrowLeft size={19} color={colors.textPrimary} />
             </TouchableOpacity>
-            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Shop</Text>
+            <View>
+              <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>SYSTEM STORE</Text>
+              <Text style={[styles.headerSub, { color: colors.textSecondary }]}>Hunter Commissary & Rewards</Text>
+            </View>
           </View>
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: isDark ? '#111218' : '#F2F2F7', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 100, borderWidth: 1, borderColor: colors.border }}>
-            <Coins size={16} color="#F59E0B" />
-            <Text style={{ fontSize: 14, fontWeight: '900', color: '#F59E0B' }}>{currentCoins.toLocaleString()}</Text>
+          <View style={[styles.coinsPill, { backgroundColor: isDark ? '#14120A' : '#FEF3C7', borderColor: isDark ? 'rgba(245, 158, 11, 0.4)' : '#F59E0B' }]}>
+            <Coins size={14} color="#F59E0B" />
+            <Text style={styles.coinsPillAmount}>{currentCoins.toLocaleString()}</Text>
           </View>
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Tabs Filter: UPI Cashout | Screen Time | Boosters | Themes */}
-          <View style={styles.tabBar}>
+          {/* Hunter Vault Card */}
+          <View style={[styles.vaultCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.vaultTopRow}>
+              <View style={styles.vaultBadge}>
+                <Shield size={14} color="#F59E0B" />
+                <Text style={styles.vaultBadgeText}>HUNTER VAULT</Text>
+              </View>
+              <View style={styles.hunterRankPill}>
+                <Crown size={12} color="#0A84FF" />
+                <Text style={styles.hunterRankText}>
+                  RANK {currentRank.rankCode} • LVL {profile?.level || 1}
+                </Text>
+              </View>
+            </View>
+
+            <View style={{ gap: 2, marginVertical: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Coins size={28} color="#F59E0B" />
+                <Text style={[styles.vaultBalanceCoins, { color: colors.textPrimary }]}>
+                  {currentCoins.toLocaleString()}
+                </Text>
+                <Text style={styles.vaultCoinsLabel}>GOLD COINS</Text>
+              </View>
+              <Text style={[styles.vaultSubText, { color: colors.textSecondary }]}>
+                Complete push-ups, squats, and daily quests to earn coins and unlock commissary gear.
+              </Text>
+            </View>
+
+            {/* Watch Rewarded Video Ad Card */}
+            <TouchableOpacity
+              style={[styles.watchAdCard, { backgroundColor: isDark ? '#0A0E18' : colors.surfaceLight, borderColor: colors.border }]}
+              onPress={handleWatchAd}
+              activeOpacity={0.85}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                <View style={styles.watchAdIconCircle}>
+                  <PlayCircle size={22} color="#0A84FF" />
+                </View>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={[styles.watchAdTitle, { color: colors.textPrimary }]}>Watch Sponsor Video</Text>
+                  <Text style={[styles.watchAdSub, { color: colors.textSecondary }]}>Support the system and earn instant coins</Text>
+                </View>
+              </View>
+              <View style={styles.watchAdBonusPill}>
+                <Coins size={13} color="#F59E0B" />
+                <Text style={styles.watchAdBonusText}>+50 COINS</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          {/* AdMob Banner right below Vault Card */}
+          <AriseBannerAd style={{ marginVertical: 4 }} />
+
+          {/* iOS Segmented Capsule Tab Bar (5 Tabs) */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.tabScrollWrap}
+          >
             {[
-              { id: 'cashout', label: 'UPI Cashout' },
-              { id: 'time', label: 'Screen Time' },
               { id: 'boosters', label: 'Boosters' },
+              { id: 'time', label: 'Screen Time' },
               { id: 'themes', label: 'Themes' },
+              { id: 'titles', label: 'Titles' },
+              { id: 'avatars', label: 'Avatars' },
             ].map((tab) => {
               const isActive = activeTab === tab.id;
               return (
                 <TouchableOpacity
                   key={tab.id}
-                  style={[styles.tabBtn, isActive && styles.tabBtnActive]}
+                  style={[
+                    styles.tabSegmentBtn,
+                    { backgroundColor: isDark ? '#0A0D15' : colors.surfaceLight, borderColor: colors.border },
+                    isActive && styles.tabSegmentBtnActive,
+                  ]}
                   onPress={() => {
                     haptics.light();
                     setActiveTab(tab.id as any);
                   }}
-                  activeOpacity={0.8}
+                  activeOpacity={0.85}
                 >
-                  <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
+                  <Text
+                    style={[
+                      styles.tabSegmentText,
+                      isActive && styles.tabSegmentTextActive,
+                    ]}
+                  >
                     {tab.label}
                   </Text>
-                  {isActive && <View style={styles.tabIndicator} />}
                 </TouchableOpacity>
               );
             })}
-          </View>
+          </ScrollView>
 
-          {/* TAB 1: UPI CASHOUT VAULT */}
-          {activeTab === 'cashout' && (
-            <View style={styles.cashoutSection}>
-              {/* Hero Banner */}
-              <GlassCard variant="elevated" style={styles.cashoutHeroCard}>
-                <View style={styles.cashoutHeroTopRow}>
-                  <View style={styles.cashoutHeroIconWrap}>
-                    <Wallet size={24} color="#F59E0B" />
-                  </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <View style={[styles.verifiedPill, { backgroundColor: isSupabaseConfigured() ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)', borderColor: isSupabaseConfigured() ? '#10B981' : '#F59E0B' }]}>
-                      <Text style={[styles.verifiedText, { color: isSupabaseConfigured() ? '#10B981' : '#F59E0B' }]}>
-                        {isSupabaseConfigured() ? 'CLOUD VAULT ACTIVE 🟢' : 'INSTANT UPI TRANSFER'}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-                <Text style={styles.cashoutHeroTitle}>Discipline Cashout Vault</Text>
-                <Text style={styles.cashoutHeroSub}>
-                  Convert physical workout reps & focus coins into real money transferred directly to your PhonePe, Google Pay, or Paytm.
-                </Text>
-              </GlassCard>
-
-              {/* Watch Rewarded Video Ad Card */}
-              <TouchableOpacity
-                onPress={handleWatchAd}
-                activeOpacity={0.85}
-              >
-                <GlassCard variant="elevated" style={styles.adRewardCard}>
-                  <View style={styles.adRewardLeft}>
-                    <View style={styles.adRewardIconWrap}>
-                      <PlayCircle size={24} color="#0A84FF" />
-                    </View>
-                    <View style={{ flex: 1, gap: 2 }}>
-                      <Text style={styles.adRewardTitle}>Watch Ad & Earn Coins</Text>
-                      <Text style={styles.adRewardSub}>Watch a short video to get +50 Coins immediately</Text>
-                    </View>
-                  </View>
-                  <View style={styles.adRewardBadge}>
-                    <Coins size={13} color="#F59E0B" />
-                    <Text style={styles.adRewardBadgeText}>+50 COINS</Text>
-                  </View>
-                </GlassCard>
-              </TouchableOpacity>
-
-              {/* Tiers List */}
-              <Text style={styles.sectionTitle}>Select Cashout Tier</Text>
-              <View style={styles.cashoutGrid}>
-                {CASHOUT_TIERS.map((tier) => {
-                  const canAfford = currentCoins >= tier.cost;
+          {/* TAB 1: BOOSTERS */}
+          {activeTab === 'boosters' && (
+            <View style={styles.tabSection}>
+              <Text style={styles.sectionHeaderTitle}>TACTICAL HUNTER BOOSTERS</Text>
+              <View style={{ gap: 10 }}>
+                {boostersList.map((item) => {
+                  const IconComp = item.icon;
                   return (
-                    <GlassCard key={tier.id} variant="elevated" style={styles.cashoutCard}>
-                      <View style={styles.cashoutCardTop}>
-                        {tier.badge ? (
-                          <View style={styles.tierBadge}>
-                            <Text style={styles.tierBadgeText}>{tier.badge}</Text>
-                          </View>
-                        ) : <View />}
-                        <Banknote size={20} color="#F59E0B" />
+                    <TouchableOpacity
+                      key={item.id}
+                      style={styles.itemRowCard}
+                      onPress={() => handlePurchase(item)}
+                      activeOpacity={0.8}
+                    >
+                      <View style={[styles.itemRowIconCircle, { borderColor: 'rgba(245, 158, 11, 0.3)' }]}>
+                        <IconComp size={20} color="#F59E0B" />
                       </View>
 
-                      <Text style={styles.cashoutAmountText}>₹{tier.amountInr}</Text>
-                      <Text style={styles.cashoutAmountSub}>Direct to any UPI ID</Text>
-
-                      <View style={styles.cashoutDivider} />
-
-                      <View style={styles.cashoutFooterRow}>
-                        <View style={styles.coinCostWrap}>
-                          <Coins size={14} color="#F59E0B" />
-                          <Text style={styles.coinCostText}>{tier.cost.toLocaleString()}</Text>
+                      <View style={{ flex: 1, gap: 2 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text style={styles.itemRowTitle}>{item.name}</Text>
+                          {item.rarity && (
+                            <View style={styles.rarityBadge}>
+                              <Text style={styles.rarityBadgeText}>{item.rarity}</Text>
+                            </View>
+                          )}
                         </View>
-
-                        <TouchableOpacity
-                          style={[
-                            styles.redeemBtn,
-                            { backgroundColor: canAfford ? '#F59E0B' : '#1F212E' },
-                          ]}
-                          onPress={() => handleSelectCashoutTier(tier)}
-                          activeOpacity={0.85}
-                        >
-                          <Text
-                            style={[
-                              styles.redeemBtnText,
-                              { color: canAfford ? '#000000' : '#8E8E93' },
-                            ]}
-                          >
-                            REDEEM
-                          </Text>
-                        </TouchableOpacity>
+                        <Text style={styles.itemRowDesc}>{item.desc}</Text>
                       </View>
-                    </GlassCard>
+
+                      <View style={styles.itemPricePill}>
+                        <Coins size={12} color="#F59E0B" />
+                        <Text style={styles.itemPriceText}>{item.cost}</Text>
+                      </View>
+                    </TouchableOpacity>
                   );
                 })}
-              </View>
-
-              {/* Cashout History */}
-              <View style={styles.historySection}>
-                <Text style={styles.sectionTitle}>Withdrawal History</Text>
-                {payoutHistory.length === 0 ? (
-                  <GlassCard style={styles.emptyHistoryCard}>
-                    <Text style={styles.emptyHistoryTitle}>No withdrawal requests yet</Text>
-                    <Text style={styles.emptyHistorySub}>
-                      Complete physical workouts to earn coins and request your first UPI transfer!
-                    </Text>
-                  </GlassCard>
-                ) : (
-                  payoutHistory.map((item) => {
-                    const isPaid = item.status === 'PAID';
-                    const isRejected = item.status === 'REJECTED';
-                    return (
-                      <GlassCard key={item.id} style={styles.historyItemCard}>
-                        <View style={styles.historyLeft}>
-                          <Text style={styles.historyAmount}>₹{item.amountInr} UPI Transfer</Text>
-                          <Text style={styles.historyUpi}>{item.upiId}</Text>
-                          <Text style={styles.historyDate}>
-                            {new Date(item.createdAt).toLocaleDateString()} • {item.coinsSpent.toLocaleString()} Coins
-                          </Text>
-                        </View>
-                        <View
-                          style={[
-                            styles.statusPill,
-                            {
-                              backgroundColor: isPaid
-                                ? 'rgba(16, 185, 129, 0.15)'
-                                : isRejected
-                                ? 'rgba(239, 68, 68, 0.15)'
-                                : 'rgba(245, 158, 11, 0.15)',
-                              borderColor: isPaid
-                                ? '#10B981'
-                                : isRejected
-                                ? '#EF4444'
-                                : '#F59E0B',
-                            },
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.statusPillText,
-                              {
-                                color: isPaid
-                                  ? '#10B981'
-                                  : isRejected
-                                  ? '#EF4444'
-                                  : '#F59E0B',
-                              },
-                            ]}
-                          >
-                            {isPaid ? 'PAID ✅' : isRejected ? 'REFUNDED ❌' : 'PENDING ⏳'}
-                          </Text>
-                        </View>
-                      </GlassCard>
-                    );
-                  })
-                )}
               </View>
             </View>
           )}
 
           {/* TAB 2: SCREEN TIME PASSES */}
           {activeTab === 'time' && (
-            <View style={styles.sectionWrap}>
-              <View style={styles.sectionHeaderRow}>
-                <Text style={styles.sectionTitle}>Screen Time Passes</Text>
-              </View>
-
-              <View style={styles.itemsList}>
+            <View style={styles.tabSection}>
+              <Text style={styles.sectionHeaderTitle}>SCREEN TIME KEYS & PASSES</Text>
+              <View style={{ gap: 10 }}>
                 {timeUnlockList.map((item) => (
                   <TouchableOpacity
                     key={item.id}
+                    style={styles.itemRowCard}
                     onPress={() => handlePurchase(item)}
                     activeOpacity={0.8}
                   >
-                    <GlassCard style={styles.shopItemCard}>
-                      <View style={styles.itemLeft}>
-                        <View style={styles.itemIconCircle}>
-                          <Clock size={22} color={colors.primary} />
-                        </View>
-                        <View style={{ flex: 1, gap: 2 }}>
-                          <Text style={styles.itemName}>{item.name}</Text>
-                          <Text style={styles.itemDesc}>{item.desc}</Text>
-                        </View>
-                      </View>
+                    <View style={styles.itemRowIconCircle}>
+                      <Clock size={20} color="#0A84FF" />
+                    </View>
 
-                      <View style={styles.priceChip}>
-                        <Coins size={13} color={colors.primary} strokeWidth={2.5} />
-                        <Text style={styles.priceChipText}>{item.cost}</Text>
-                      </View>
-                    </GlassCard>
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <Text style={styles.itemRowTitle}>{item.name}</Text>
+                      <Text style={styles.itemRowDesc}>{item.desc}</Text>
+                    </View>
+
+                    <View style={styles.itemPricePill}>
+                      <Coins size={12} color="#F59E0B" />
+                      <Text style={styles.itemPriceText}>{item.cost}</Text>
+                    </View>
                   </TouchableOpacity>
                 ))}
               </View>
             </View>
           )}
 
-          {/* TAB 3: BOOSTERS */}
-          {activeTab === 'boosters' && (
-            <View style={styles.sectionWrap}>
-              <View style={styles.sectionHeaderRow}>
-                <Text style={styles.sectionTitle}>Game Boosters</Text>
-              </View>
-
-              <View style={styles.itemsList}>
-                {boostersList.map((item) => {
-                  const IconComp = item.icon;
-                  return (
-                    <TouchableOpacity
-                      key={item.id}
-                      onPress={() => handlePurchase(item)}
-                      activeOpacity={0.8}
-                    >
-                      <GlassCard style={styles.shopItemCard}>
-                        <View style={styles.itemLeft}>
-                          <View style={styles.itemIconCircle}>
-                            <IconComp size={22} color={colors.primary} />
-                          </View>
-                          <View style={{ flex: 1, gap: 2 }}>
-                            <Text style={styles.itemName}>{item.name}</Text>
-                            <Text style={styles.itemDesc}>{item.desc}</Text>
-                          </View>
-                        </View>
-
-                        <View style={styles.priceChip}>
-                          <Coins size={13} color={colors.primary} strokeWidth={2.5} />
-                          <Text style={styles.priceChipText}>{item.cost}</Text>
-                        </View>
-                      </GlassCard>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-          )}
-
-          {/* TAB 4: THEMES & AVATARS */}
+          {/* TAB 3: THEMES */}
           {activeTab === 'themes' && (
-            <View style={styles.sectionWrap}>
-              <Text style={styles.sectionTitle}>Themes & Avatars</Text>
-              <View style={styles.itemsList}>
-                {[...themesList, ...avatarsList].map((item) => {
-                  const IconComp = item.icon;
+            <View style={styles.tabSection}>
+              <Text style={[styles.sectionHeaderTitle, { color: colors.textPrimary }]}>HUNTER SYSTEM AURA THEMES</Text>
+              <View style={{ gap: 10 }}>
+                {themesList.map((item) => {
+                  const isUnlocked = unlockedItemIds.includes(item.id);
+                  const isEquipped = equippedTheme === item.id;
                   return (
-                    <TouchableOpacity
+                    <View
                       key={item.id}
-                      onPress={() => handlePurchase(item)}
-                      activeOpacity={0.8}
+                      style={[
+                        styles.visualProductCard,
+                        {
+                          backgroundColor: isDark ? '#0A0D15' : colors.surface,
+                          borderColor: isEquipped ? '#10B981' : isDark ? '#161E2E' : colors.border,
+                        },
+                      ]}
                     >
-                      <GlassCard style={styles.shopItemCard}>
-                        <View style={styles.itemLeft}>
-                          <View style={styles.itemIconCircle}>
-                            <IconComp size={22} color={colors.primary} />
-                          </View>
-                          <View style={{ flex: 1, gap: 2 }}>
-                            <Text style={styles.itemName}>{item.name}</Text>
-                            <Text style={styles.itemDesc}>{item.desc}</Text>
-                          </View>
-                        </View>
+                      {/* Visual Aura Preview Bar */}
+                      <View
+                        style={[
+                          styles.themeColorPreviewBar,
+                          { backgroundColor: item.gradientColors?.[0] || '#F59E0B' },
+                        ]}
+                      />
 
-                        <View style={styles.priceChip}>
-                          <Coins size={13} color={colors.primary} strokeWidth={2.5} />
-                          <Text style={styles.priceChipText}>{item.cost}</Text>
+                      <View style={{ flex: 1, gap: 4, paddingVertical: 12, paddingRight: 12 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <Text style={[styles.visualTitle, { color: colors.textPrimary }]}>{item.name}</Text>
+                          {item.rarity && (
+                            <View style={styles.rarityBadge}>
+                              <Text style={styles.rarityBadgeText}>{item.rarity}</Text>
+                            </View>
+                          )}
                         </View>
-                      </GlassCard>
-                    </TouchableOpacity>
+                        <Text style={[styles.visualDesc, { color: colors.textSecondary }]}>{item.desc}</Text>
+
+                        <View style={styles.visualActionRow}>
+                          {!isUnlocked && (
+                            <View style={styles.itemPricePill}>
+                              <Coins size={12} color="#F59E0B" />
+                              <Text style={styles.itemPriceText}>{item.cost.toLocaleString()}</Text>
+                            </View>
+                          )}
+                          <View style={{ marginLeft: isUnlocked ? 0 : 'auto' }}>
+                            {isEquipped ? (
+                              <View style={[styles.equipBtn, { backgroundColor: 'rgba(16, 185, 129, 0.18)', borderWidth: 1, borderColor: '#10B981', flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+                                <Check size={12} color="#10B981" />
+                                <Text style={[styles.equipBtnText, { color: '#10B981' }]}>EQUIPPED</Text>
+                              </View>
+                            ) : isUnlocked ? (
+                              <TouchableOpacity
+                                style={[styles.equipBtn, { backgroundColor: '#0A84FF' }]}
+                                onPress={() => handleEquipItem(item)}
+                                activeOpacity={0.8}
+                              >
+                                <Text style={styles.equipBtnText}>EQUIP</Text>
+                              </TouchableOpacity>
+                            ) : (
+                              <TouchableOpacity
+                                style={[styles.equipBtn, { backgroundColor: '#0A84FF' }]}
+                                onPress={() => handlePurchase(item)}
+                                activeOpacity={0.8}
+                              >
+                                <Text style={styles.equipBtnText}>PURCHASE</Text>
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                        </View>
+                      </View>
+                    </View>
                   );
                 })}
               </View>
             </View>
           )}
+
+          {/* TAB 4: TITLES */}
+          {activeTab === 'titles' && (
+            <View style={styles.tabSection}>
+              <Text style={[styles.sectionHeaderTitle, { color: colors.textPrimary }]}>SOVEREIGN HUNTER TITLES</Text>
+              <View style={{ gap: 10 }}>
+                {titlesList.map((item) => {
+                  const isUnlocked = unlockedItemIds.includes(item.id);
+                  const isEquipped = equippedTitle === item.titleString;
+                  const IconComp = item.icon;
+                  return (
+                    <View
+                      key={item.id}
+                      style={[
+                        styles.visualProductCard,
+                        {
+                          backgroundColor: isDark ? '#0A0D15' : colors.surface,
+                          borderColor: isEquipped ? '#10B981' : isDark ? '#161E2E' : colors.border,
+                        },
+                      ]}
+                    >
+                      <View style={[styles.itemRowIconCircle, { margin: 12, backgroundColor: '#101625', borderColor: isEquipped ? '#10B981' : 'rgba(10, 132, 255, 0.4)' }]}>
+                        <IconComp size={22} color={isEquipped ? '#10B981' : '#F59E0B'} />
+                      </View>
+
+                      <View style={{ flex: 1, gap: 4, paddingVertical: 12, paddingRight: 12 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <Text style={[styles.visualTitle, { color: colors.textPrimary }]}>{item.name}</Text>
+                          {item.rarity && (
+                            <View style={styles.rarityBadge}>
+                              <Text style={styles.rarityBadgeText}>{item.rarity}</Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text style={[styles.visualDesc, { color: colors.textSecondary }]}>{item.desc}</Text>
+
+                        <View style={styles.visualActionRow}>
+                          {!isUnlocked && (
+                            <View style={styles.itemPricePill}>
+                              <Coins size={12} color="#F59E0B" />
+                              <Text style={styles.itemPriceText}>{item.cost.toLocaleString()}</Text>
+                            </View>
+                          )}
+                          <View style={{ marginLeft: isUnlocked ? 0 : 'auto' }}>
+                            {isEquipped ? (
+                              <View style={[styles.equipBtn, { backgroundColor: 'rgba(16, 185, 129, 0.18)', borderWidth: 1, borderColor: '#10B981', flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+                                <Check size={12} color="#10B981" />
+                                <Text style={[styles.equipBtnText, { color: '#10B981' }]}>EQUIPPED</Text>
+                              </View>
+                            ) : isUnlocked ? (
+                              <TouchableOpacity
+                                style={[styles.equipBtn, { backgroundColor: '#0A84FF' }]}
+                                onPress={() => handleEquipItem(item)}
+                                activeOpacity={0.8}
+                              >
+                                <Text style={styles.equipBtnText}>EQUIP</Text>
+                              </TouchableOpacity>
+                            ) : (
+                              <TouchableOpacity
+                                style={[styles.equipBtn, { backgroundColor: '#0A84FF' }]}
+                                onPress={() => handlePurchase(item)}
+                                activeOpacity={0.8}
+                              >
+                                <Text style={styles.equipBtnText}>PURCHASE</Text>
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                        </View>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
+          {/* TAB 5: AVATARS */}
+          {activeTab === 'avatars' && (
+            <View style={styles.tabSection}>
+              <Text style={[styles.sectionHeaderTitle, { color: colors.textPrimary }]}>SOVEREIGN HUNTER AVATARS</Text>
+              <View style={{ gap: 10 }}>
+                {avatarsList.map((item) => {
+                  const pfpObj = AVATAR_IMAGES.find((img) => img.id === item.avatarId);
+                  const isUnlocked = unlockedItemIds.includes(item.id);
+                  const isEquipped = profile?.avatarIcon === item.avatarId || equippedAvatar === item.avatarId;
+                  return (
+                    <View
+                      key={item.id}
+                      style={[
+                        styles.visualProductCard,
+                        {
+                          backgroundColor: isDark ? '#0A0D15' : colors.surface,
+                          borderColor: isEquipped ? '#10B981' : isDark ? '#161E2E' : colors.border,
+                        },
+                      ]}
+                    >
+                      {/* Avatar Image Preview */}
+                      <View style={[styles.avatarThumbWrap, { borderColor: isEquipped ? '#10B981' : 'rgba(10, 132, 255, 0.4)' }]}>
+                        {pfpObj?.source ? (
+                          <Image
+                            source={pfpObj.source}
+                            style={styles.avatarThumbImg}
+                            resizeMode="cover"
+                          />
+                        ) : (
+                          <User size={28} color="#0A84FF" />
+                        )}
+                      </View>
+
+                      <View style={{ flex: 1, gap: 4, paddingVertical: 12, paddingRight: 12 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <Text style={[styles.visualTitle, { color: colors.textPrimary }]}>{item.name}</Text>
+                          {item.rarity && (
+                            <View style={styles.rarityBadge}>
+                              <Text style={styles.rarityBadgeText}>{item.rarity}</Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text style={[styles.visualDesc, { color: colors.textSecondary }]}>{item.desc}</Text>
+
+                        <View style={styles.visualActionRow}>
+                          {!isUnlocked && (
+                            <View style={styles.itemPricePill}>
+                              <Coins size={12} color="#F59E0B" />
+                              <Text style={styles.itemPriceText}>{item.cost.toLocaleString()}</Text>
+                            </View>
+                          )}
+                          <View style={{ marginLeft: isUnlocked ? 0 : 'auto' }}>
+                            {isEquipped ? (
+                              <View style={[styles.equipBtn, { backgroundColor: 'rgba(16, 185, 129, 0.18)', borderWidth: 1, borderColor: '#10B981', flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+                                <Check size={12} color="#10B981" />
+                                <Text style={[styles.equipBtnText, { color: '#10B981' }]}>EQUIPPED</Text>
+                              </View>
+                            ) : isUnlocked ? (
+                              <TouchableOpacity
+                                style={[styles.equipBtn, { backgroundColor: '#0A84FF' }]}
+                                onPress={() => handleEquipItem(item)}
+                                activeOpacity={0.8}
+                              >
+                                <Text style={styles.equipBtnText}>EQUIP</Text>
+                              </TouchableOpacity>
+                            ) : (
+                              <TouchableOpacity
+                                style={[styles.equipBtn, { backgroundColor: '#0A84FF' }]}
+                                onPress={() => handlePurchase(item)}
+                                activeOpacity={0.8}
+                              >
+                                <Text style={styles.equipBtnText}>UNLOCK PFP</Text>
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                        </View>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
+          {/* AdMob Banner at bottom */}
+          <AriseBannerAd style={{ marginVertical: 12 }} />
 
           <View style={{ height: 40 }} />
         </ScrollView>
 
-        {/* Purchase Success Modal */}
+        {/* Universal Solo Leveling System Window for all Shop Directives & Alerts */}
         <Modal
-          visible={!!successItem}
+          visible={systemDialog.visible}
           transparent={true}
           animationType="fade"
-          onRequestClose={() => setSuccessItem(null)}
+          statusBarTranslucent
+          onRequestClose={() => setSystemDialog((prev) => ({ ...prev, visible: false }))}
         >
           <View style={styles.modalOverlay}>
-            <GlassCard variant="glow" style={styles.dialogCard}>
-              <View style={styles.dialogIconCircle}>
-                <CheckCircle2 size={36} color={colors.primary} />
-              </View>
-              <Text style={styles.dialogTitle}>Unlocked & Active!</Text>
-              <Text style={styles.dialogDesc}>
-                {successItem?.name} has been activated on your device.
-              </Text>
-              <TouchableOpacity
-                style={styles.dialogDoneBtn}
-                onPress={() => setSuccessItem(null)}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.dialogDoneBtnText}>DONE</Text>
-              </TouchableOpacity>
-            </GlassCard>
-          </View>
-        </Modal>
-
-        {/* Insufficient Coins Modal */}
-        <Modal
-          visible={!!insufficientItem}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setInsufficientItem(null)}
-        >
-          <View style={styles.modalOverlay}>
-            <GlassCard style={styles.dialogCard}>
-              <View style={[styles.dialogIconCircle, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
-                <AlertCircle size={36} color={colors.danger} />
-              </View>
-              <Text style={styles.dialogTitle}>Insufficient Coins</Text>
-              <Text style={styles.dialogDesc}>
-                You need {insufficientItem?.cost} Coins (Balance: {currentCoins}). Complete push-ups or focus sessions to earn more!
-              </Text>
-              <TouchableOpacity
-                style={styles.dialogDoneBtn}
-                onPress={() => {
-                  setInsufficientItem(null);
-                  router.push('/(tabs)/quests');
-                }}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.dialogDoneBtnText}>EARN COINS</Text>
-              </TouchableOpacity>
-            </GlassCard>
-          </View>
-        </Modal>
-
-        {/* UPI Cashout Input Modal */}
-        <Modal
-          visible={isUpiModalOpen}
-          transparent={true}
-          animationType="slide"
-          onRequestClose={() => setIsUpiModalOpen(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <GlassCard variant="elevated" style={styles.upiModalCard}>
-              <View style={styles.upiModalHeader}>
-                <View style={{ gap: 2 }}>
-                  <Text style={styles.upiModalTitle}>
-                    Redeem ₹{selectedTier?.amountInr} UPI Transfer
-                  </Text>
-                  <Text style={styles.upiModalSub}>
-                    Cost: {selectedTier?.cost.toLocaleString()} Coins
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => setIsUpiModalOpen(false)}
-                  style={styles.closeBtn}
-                >
-                  <X size={18} color="#8E8E93" />
-                </TouchableOpacity>
-              </View>
-
-              <Text style={styles.inputLabel}>ENTER YOUR UPI ID</Text>
-              <TextInput
-                style={styles.upiTextInput}
-                placeholder="e.g. 9876543210@paytm or name@upi"
-                placeholderTextColor="#64748B"
-                value={upiInput}
-                onChangeText={setUpiInput}
-                autoCapitalize="none"
-                autoCorrect={false}
+            <View style={{ width: '100%', maxWidth: 350, alignItems: 'center' }}>
+              <SoloLevelingWindow
+                variant={systemDialog.variant}
+                tag={systemDialog.tag}
+                subtag={systemDialog.subtag}
+                title={systemDialog.title}
+                message={systemDialog.message}
+                buttons={systemDialog.buttons.map((btn) => ({
+                  text: btn.text,
+                  style: btn.style,
+                  onPress: () => {
+                    if (btn.onPress) {
+                      btn.onPress();
+                    } else {
+                      setSystemDialog((prev) => ({ ...prev, visible: false }));
+                    }
+                  },
+                }))}
+                onClose={() => setSystemDialog((prev) => ({ ...prev, visible: false }))}
               />
-
-              <Text style={styles.upiDisclaimer}>
-                ⚡ Money is transferred directly to your bank account via UPI within 24 to 48 hours. Ensure your UPI ID is accurate.
-              </Text>
-
-              <View style={styles.modalBtnRow}>
-                <TouchableOpacity
-                  style={styles.modalCancelBtn}
-                  onPress={() => setIsUpiModalOpen(false)}
-                >
-                  <Text style={styles.modalCancelText}>Cancel</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.modalConfirmBtn, { opacity: isSubmittingPayout ? 0.6 : 1 }]}
-                  onPress={handleConfirmWithdrawal}
-                  disabled={isSubmittingPayout}
-                >
-                  <Text style={styles.modalConfirmText}>
-                    {isSubmittingPayout ? 'Submitting...' : 'CONFIRM WITHDRAWAL'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </GlassCard>
+            </View>
           </View>
         </Modal>
       </SafeAreaView>
@@ -765,15 +1093,19 @@ export default function ShopScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: '#000000' },
   safeArea: { flex: 1 },
+
+  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     paddingTop: 8,
-    paddingBottom: 12,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#121722',
   },
   headerLeft: {
     flexDirection: 'row',
@@ -781,525 +1113,324 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   headerTitle: {
-    fontSize: 22,
-    fontWeight: '900',
-    color: colors.textPrimary,
-    letterSpacing: 0.5,
-  },
-  iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#111218',
-    borderWidth: 1,
-    borderColor: '#1C1E2A',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    gap: 18,
-    paddingTop: 4,
-  },
-  tabBar: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#1C1E2A',
-    paddingBottom: 4,
-  },
-  tabBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    position: 'relative',
-  },
-  tabBtnActive: {},
-  tabText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textMuted,
-  },
-  tabTextActive: {
-    color: colors.primary,
-    fontWeight: '900',
-  },
-  tabIndicator: {
-    position: 'absolute',
-    bottom: -5,
-    height: 2,
-    width: '60%',
-    backgroundColor: colors.primary,
-    borderRadius: 1,
-  },
-  featuredCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-    borderRadius: 24,
-  },
-  featuredLeft: {
-    flex: 1,
-    gap: 4,
-  },
-  featuredTitle: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: colors.textPrimary,
-  },
-  featuredBonus: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: colors.primary,
-  },
-  featuredDesc: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    lineHeight: 16,
-    marginVertical: 4,
-  },
-  featuredPriceBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 100,
-    alignSelf: 'flex-start',
-    marginTop: 6,
-  },
-  featuredPriceText: {
-    fontSize: 13,
-    fontWeight: '900',
-    color: '#050505',
-  },
-  featuredArtworkWrap: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    backgroundColor: 'rgba(10, 132, 255, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  sectionWrap: {
-    gap: 12,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: colors.textPrimary,
-  },
-  itemsList: {
-    gap: 10,
-  },
-  shopItemCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    borderRadius: 20,
-  },
-  itemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    flex: 1,
-  },
-  itemIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#111218',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  itemName: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: colors.textPrimary,
-  },
-  itemDesc: {
-    fontSize: 11,
-    color: colors.textSecondary,
-  },
-  priceChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#111218',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 100,
-    borderWidth: 1,
-    borderColor: '#1C1E2A',
-  },
-  priceChipText: {
-    fontSize: 13,
-    fontWeight: '900',
-    color: colors.primary,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.85)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  dialogCard: {
-    width: '100%',
-    padding: 24,
-    alignItems: 'center',
-    gap: 12,
-    borderRadius: 24,
-  },
-  dialogIconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(10, 132, 255, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  dialogTitle: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: colors.textPrimary,
-  },
-  dialogDesc: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-  dialogDoneBtn: {
-    width: '100%',
-    paddingVertical: 14,
-    borderRadius: 14,
-    backgroundColor: '#0A84FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 10,
-  },
-  dialogDoneBtnText: {
-    fontSize: 13,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    letterSpacing: 0.5,
-  },
-  cashoutSection: {
-    gap: 16,
-  },
-  cashoutHeroCard: {
-    padding: 20,
-    borderRadius: 22,
-    gap: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.3)',
-    backgroundColor: '#121118',
-  },
-  cashoutHeroTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  cashoutHeroIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  verifiedPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 100,
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.3)',
-  },
-  verifiedText: {
-    fontSize: 9,
-    fontWeight: '900',
-    color: '#F59E0B',
-    letterSpacing: 0.8,
-  },
-  cashoutHeroTitle: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    letterSpacing: -0.3,
-  },
-  cashoutHeroSub: {
-    fontSize: 12,
-    color: '#8E8E93',
-    lineHeight: 17,
-  },
-  cashoutGrid: {
-    gap: 12,
-  },
-  cashoutCard: {
-    padding: 18,
-    borderRadius: 20,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: '#1C1E2A',
-    backgroundColor: '#111218',
-  },
-  cashoutCardTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  tierBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
-  },
-  tierBadgeText: {
-    fontSize: 9,
-    fontWeight: '900',
-    color: '#F59E0B',
-    letterSpacing: 0.8,
-  },
-  cashoutAmountText: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    letterSpacing: -0.5,
-  },
-  cashoutAmountSub: {
-    fontSize: 11,
-    color: '#8E8E93',
-    fontWeight: '600',
-  },
-  cashoutDivider: {
-    height: 1,
-    backgroundColor: '#1C1E2A',
-    marginVertical: 4,
-  },
-  cashoutFooterRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 2,
-  },
-  coinCostWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  coinCostText: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: '#F59E0B',
-  },
-  redeemBtn: {
-    paddingHorizontal: 18,
-    paddingVertical: 9,
-    borderRadius: 12,
-  },
-  redeemBtnText: {
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 0.8,
-  },
-  historySection: {
-    gap: 10,
-    marginTop: 8,
-  },
-  emptyHistoryCard: {
-    padding: 20,
-    borderRadius: 18,
-    alignItems: 'center',
-    gap: 6,
-  },
-  emptyHistoryTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  emptyHistorySub: {
-    fontSize: 12,
-    color: '#8E8E93',
-    textAlign: 'center',
-    lineHeight: 16,
-  },
-  historyItemCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 16,
-  },
-  historyLeft: {
-    flex: 1,
-    gap: 3,
-  },
-  historyAmount: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: '#FFFFFF',
-  },
-  historyUpi: {
-    fontSize: 12,
-    color: '#8E8E93',
-    fontWeight: '600',
-  },
-  historyDate: {
-    fontSize: 10,
-    color: '#555866',
-    marginTop: 2,
-  },
-  statusPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 100,
-    borderWidth: 1,
-  },
-  statusPillText: {
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
-  upiModalCard: {
-    width: '100%',
-    padding: 22,
-    borderRadius: 24,
-    gap: 14,
-    backgroundColor: '#111218',
-    borderWidth: 1,
-    borderColor: '#232638',
-  },
-  upiModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  upiModalTitle: {
     fontSize: 17,
     fontWeight: '900',
     color: '#FFFFFF',
+    letterSpacing: 0.6,
   },
-  upiModalSub: {
-    fontSize: 12,
-    color: '#F59E0B',
-    fontWeight: '800',
-    marginTop: 2,
-  },
-  closeBtn: {
-    padding: 4,
-  },
-  inputLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#8E8E93',
-    letterSpacing: 1,
-  },
-  upiTextInput: {
-    backgroundColor: '#161822',
-    borderWidth: 1,
-    borderColor: '#232638',
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 13,
-    fontSize: 14,
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  upiDisclaimer: {
+  headerSub: {
     fontSize: 11,
-    color: '#8E8E93',
-    lineHeight: 16,
+    fontWeight: '600',
+    color: '#64748B',
   },
-  modalBtnRow: {
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#101420',
+    borderWidth: 1,
+    borderColor: '#1C263B',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  coinsPill: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 6,
-  },
-  modalCancelBtn: {
-    flex: 1,
-    paddingVertical: 13,
-    borderRadius: 14,
-    backgroundColor: '#1A1C28',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 100,
+    backgroundColor: '#14120A',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.4)',
   },
-  modalCancelText: {
+  coinsPillAmount: {
     fontSize: 13,
-    fontWeight: '800',
-    color: '#8E8E93',
+    fontWeight: '900',
+    color: '#F59E0B',
+    fontVariant: ['tabular-nums'],
   },
-  modalConfirmBtn: {
-    flex: 2,
-    paddingVertical: 13,
-    borderRadius: 14,
-    backgroundColor: '#0A84FF',
+
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    gap: 14,
+  },
+
+  // Segment Tab Bar
+  tabScrollWrap: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingVertical: 2,
+  },
+  tabSegmentBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 100,
+    backgroundColor: '#0A0D15',
+    borderWidth: 1,
+    borderColor: '#161E2E',
   },
-  modalConfirmText: {
-    fontSize: 12,
-    fontWeight: '900',
+  tabSegmentBtnActive: {
+    backgroundColor: '#0A84FF',
+    borderColor: '#0A84FF',
+  },
+  tabSegmentText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#64748B',
+    letterSpacing: 0.2,
+  },
+  tabSegmentTextActive: {
     color: '#FFFFFF',
-    letterSpacing: 0.5,
   },
-  adRewardCard: {
+
+  tabSection: {
+    gap: 14,
+  },
+  sectionHeaderTitle: {
+    fontSize: 10.5,
+    fontWeight: '900',
+    color: '#8E9BB0',
+    letterSpacing: 0.8,
+    paddingHorizontal: 2,
+  },
+
+  // Hunter Vault Card
+  vaultCard: {
+    backgroundColor: '#0A0D15',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+    padding: 16,
+    gap: 10,
+  },
+  vaultTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
-    borderRadius: 18,
-    backgroundColor: '#111218',
+  },
+  vaultBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  vaultBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '900',
+    color: '#F59E0B',
+    letterSpacing: 0.8,
+  },
+  hunterRankPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(10, 132, 255, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 100,
     borderWidth: 1,
     borderColor: 'rgba(10, 132, 255, 0.3)',
   },
-  adRewardLeft: {
+  hunterRankText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#0A84FF',
+    letterSpacing: 0.5,
+  },
+  vaultBalanceCoins: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: -1,
+  },
+  vaultCoinsLabel: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#F59E0B',
+    letterSpacing: 0.6,
+    marginTop: 10,
+  },
+  vaultSubText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#8E9BB0',
+    lineHeight: 15,
+  },
+
+  // Watch Ad Card
+  watchAdCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    flex: 1,
+    justifyContent: 'space-between',
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: '#0A0E18',
+    borderWidth: 1,
+    borderColor: 'rgba(10, 132, 255, 0.3)',
   },
-  adRewardIconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+  watchAdIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: 'rgba(10, 132, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  adRewardTitle: {
-    fontSize: 14,
+  watchAdTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  watchAdSub: {
+    fontSize: 10.5,
+    color: '#64748B',
+  },
+  watchAdBonusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#0A84FF',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  watchAdBonusText: {
+    fontSize: 10,
     fontWeight: '900',
     color: '#FFFFFF',
   },
-  adRewardSub: {
-    fontSize: 11,
-    color: '#8E8E93',
+
+  // Item List (Time & Boosters)
+  itemRowCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: '#0A0D15',
+    borderWidth: 1,
+    borderColor: '#161E2E',
   },
-  adRewardBadge: {
+  itemRowIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#101625',
+    borderWidth: 1,
+    borderColor: 'rgba(10, 132, 255, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  itemRowTitle: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  itemRowDesc: {
+    fontSize: 10.5,
+    color: '#64748B',
+    lineHeight: 14,
+  },
+  itemPricePill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 100,
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    backgroundColor: '#14120A',
     borderWidth: 1,
     borderColor: 'rgba(245, 158, 11, 0.3)',
   },
-  adRewardBadgeText: {
-    fontSize: 10,
+  itemPriceText: {
+    fontSize: 11,
     fontWeight: '900',
     color: '#F59E0B',
+  },
+  rarityBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    borderWidth: 1,
+    borderColor: '#8B5CF6',
+  },
+  rarityBadgeText: {
+    fontSize: 8,
+    fontWeight: '900',
+    color: '#A78BFA',
     letterSpacing: 0.5,
+  },
+
+  // Visual Product Cards (Themes & Avatars)
+  visualProductCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: 16,
+    backgroundColor: '#0A0D15',
+    borderWidth: 1,
+    borderColor: '#161E2E',
+    overflow: 'hidden',
+  },
+  themeColorPreviewBar: {
+    width: 10,
+    alignSelf: 'stretch',
+  },
+  avatarThumbWrap: {
+    width: 60,
+    height: 60,
+    borderRadius: 14,
+    margin: 10,
+    backgroundColor: '#101625',
+    borderWidth: 1,
+    borderColor: 'rgba(10, 132, 255, 0.4)',
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarThumbImg: {
+    width: '100%',
+    height: '100%',
+  },
+  visualTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  visualDesc: {
+    fontSize: 11,
+    color: '#64748B',
+    lineHeight: 14,
+  },
+  visualActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  equipBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 8,
+    backgroundColor: '#0A84FF',
+  },
+  equipBtnText: {
+    fontSize: 9.5,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: 0.6,
+  },
+
+  // Solo Leveling Modal Overlays
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.88)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
   },
 });

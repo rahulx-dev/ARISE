@@ -21,7 +21,20 @@ export function PlayerAvatar({
   glow = true,
   style,
 }: PlayerAvatarProps) {
-  const imageConfig = AVATAR_IMAGES.find((i) => i.id === iconId);
+  const normalizedId =
+    typeof iconId === 'string' && iconId.startsWith('pfp_')
+      ? `img_${iconId}`
+      : typeof iconId === 'string' && iconId.startsWith('img_')
+      ? iconId
+      : iconId;
+
+  const imageConfig = AVATAR_IMAGES.find(
+    (i) =>
+      i.id === iconId ||
+      i.id === normalizedId ||
+      (typeof iconId === 'string' && i.id === `img_${iconId}`) ||
+      (typeof iconId === 'string' && i.id.replace('img_', '') === iconId)
+  );
   const iconConfig = AVATAR_ICONS.find((i) => i.id === iconId);
   const IconComponent = iconConfig ? iconConfig.component : User;
   const innerIconSize = Math.round(size * 0.48);

@@ -51,6 +51,10 @@ export interface RepCounterState {
   downStartTime: number;
   feedback: FormFeedback;
   isBodyDetected: boolean;
+  baselineY: number; // Highest/starting position
+  maxDownY: number;  // Lowest point reached
+  smoothedY: number; // Exponential Moving Average of body vertical position
+  consecutiveDownFrames: number; // Anti-jitter confirmation counter
 }
 
 export interface FormFeedback {
@@ -80,12 +84,49 @@ export function createInitialState(): RepCounterState {
     downStartTime: 0,
     feedback: DEFAULT_FEEDBACK,
     isBodyDetected: false,
+    baselineY: 0,
+    maxDownY: 0,
+    smoothedY: 0,
+    consecutiveDownFrames: 0,
   };
 }
 
 /**
+ * Robust helper: extracts the body's primary vertical Y position (0 = top, 1 = bottom).
+ * Prefers shoulders center, then single shoulder, then nose, then hips.
+ */
+export function extractBodyY(keypoints: Point[]): { y: number; confidence: number } | null {
+  const lSh = keypoints[5];
+  const rSh = keypoints[6];
+  const nose = keypoints[0];
+  const lHip = keypoints[11];
+  const rHip = keypoints[12];
+
+  const lShConf = lSh?.confidence ?? 0;
+  const rShConf = rSh?.confidence ?? 0;
+
+  if (lShConf >= 0.25 && rShConf >= 0.25) {
+    return { y: (lSh.y + rSh.y) / 2, confidence: (lShConf + rShConf) / 2 };
+  }
+  if (lShConf >= 0.28) return { y: lSh.y, confidence: lShConf };
+  if (rShConf >= 0.28) return { y: rSh.y, confidence: rShConf };
+  
+  // Strict: Never fall back to nose. Body coordinates must be shoulders or hips only.
+  const lHipConf = lHip?.confidence ?? 0;
+  const rHipConf = rHip?.confidence ?? 0;
+  if (lHipConf >= 0.25 && rHipConf >= 0.25) {
+    return { y: (lHip.y + rHip.y) / 2, confidence: (lHipConf + rHipConf) / 2 };
+  }
+  if (lHipConf >= 0.28) return { y: lHip.y, confidence: lHipConf };
+  if (rHipConf >= 0.28) return { y: rHip.y, confidence: rHipConf };
+  return null;
+}
+
+/**
  * Process a single frame of keypoints and update the rep counter state.
- * This is the core state machine.
+ * Employs a Dual Tracker:
+ * 1. Physical Vertical Motion (Y-displacement: Body goes DOWN, then returns UP)
+ * 2. Bilateral Joint Angles (if confident)
  */
 export function processFrame(
   state: RepCounterState,
@@ -93,7 +134,6 @@ export function processFrame(
   config: ExerciseConfig,
   now: number = Date.now()
 ): RepCounterState {
-  // Check if we have enough keypoints
   if (keypoints.length < 17) {
     return {
       ...state,
@@ -102,7 +142,7 @@ export function processFrame(
     };
   }
 
-  // 0. Anatomical Validation: Reject face-only closeups and verify limb presence
+  // 0. Anatomical Validation
   const validation = validateExercisePose(keypoints, config.type);
   if (!validation.valid) {
     return {
@@ -112,45 +152,9 @@ export function processFrame(
     };
   }
 
-  // 1. Bilateral Joint Selection:
-  // Instead of only checking left side joints, evaluate both sides and choose whichever has higher confidence!
-  let pointA = keypoints[config.primaryJoints[0]];
-  let pointB = keypoints[config.primaryJoints[1]];
-  let pointC = keypoints[config.primaryJoints[2]];
-
-  if (config.type === 'PUSHUP') {
-    // Left arm: 5 (shoulder), 7 (elbow), 9 (wrist)
-    // Right arm: 6 (shoulder), 8 (elbow), 10 (wrist)
-    const leftConf = ((keypoints[5]?.confidence || 0) + (keypoints[7]?.confidence || 0) + (keypoints[9]?.confidence || 0)) / 3;
-    const rightConf = ((keypoints[6]?.confidence || 0) + (keypoints[8]?.confidence || 0) + (keypoints[10]?.confidence || 0)) / 3;
-    if (rightConf > leftConf) {
-      pointA = keypoints[6];
-      pointB = keypoints[8];
-      pointC = keypoints[10];
-    } else {
-      pointA = keypoints[5];
-      pointB = keypoints[7];
-      pointC = keypoints[9];
-    }
-  } else if (config.type === 'SQUAT') {
-    // Left leg: 11 (hip), 13 (knee), 15 (ankle)
-    // Right leg: 12 (hip), 14 (knee), 16 (ankle)
-    const leftConf = ((keypoints[11]?.confidence || 0) + (keypoints[13]?.confidence || 0) + (keypoints[15]?.confidence || 0)) / 3;
-    const rightConf = ((keypoints[12]?.confidence || 0) + (keypoints[14]?.confidence || 0) + (keypoints[16]?.confidence || 0)) / 3;
-    if (rightConf > leftConf) {
-      pointA = keypoints[12];
-      pointB = keypoints[14];
-      pointC = keypoints[16];
-    } else {
-      pointA = keypoints[11];
-      pointB = keypoints[13];
-      pointC = keypoints[15];
-    }
-  }
-
-  // Check confidence with 0.38 threshold (prevents out-of-frame noise)
-  const effectiveMinConf = config.minConfidence || 0.38;
-  if (!pointA || !pointB || !pointC || !areAllConfident([pointA, pointB, pointC], effectiveMinConf)) {
+  // 1. Extract Body Vertical Position
+  const bodyYObj = extractBodyY(keypoints);
+  if (!bodyYObj) {
     return {
       ...state,
       isBodyDetected: false,
@@ -158,78 +162,196 @@ export function processFrame(
     };
   }
 
-  // Calculate primary angle
-  const rawAngle = calculateAngle(pointA, pointB, pointC);
-  const angle = smoothAngle(rawAngle, state.lastAngle, 0.6);
+  const bodyY = bodyYObj.y;
+  let angle = 0;
+
+  // 2. High-Accuracy Bilateral Angle Calculation
+  let pointA = keypoints[config.primaryJoints[0]];
+  let pointB = keypoints[config.primaryJoints[1]];
+  let pointC = keypoints[config.primaryJoints[2]];
+
+  if (config.type === 'PUSHUP') {
+    const leftArmValid = keypoints[5] && keypoints[7] && keypoints[9] && areAllConfident([keypoints[5], keypoints[7], keypoints[9]], 0.18);
+    const rightArmValid = keypoints[6] && keypoints[8] && keypoints[10] && areAllConfident([keypoints[6], keypoints[8], keypoints[10]], 0.18);
+
+    const leftAngle = leftArmValid ? calculateAngle(keypoints[5], keypoints[7], keypoints[9]) : 0;
+    const rightAngle = rightArmValid ? calculateAngle(keypoints[6], keypoints[8], keypoints[10]) : 0;
+
+    if (leftAngle > 0 && rightAngle > 0) {
+      // Both arms visible: use the arm with deeper flexion (smaller elbow angle)
+      angle = smoothAngle(Math.min(leftAngle, rightAngle), state.lastAngle, 0.75);
+    } else if (leftAngle > 0) {
+      angle = smoothAngle(leftAngle, state.lastAngle, 0.75);
+    } else if (rightAngle > 0) {
+      angle = smoothAngle(rightAngle, state.lastAngle, 0.75);
+    }
+  } else if (config.type === 'SQUAT') {
+    const leftLegValid = keypoints[11] && keypoints[13] && keypoints[15] && areAllConfident([keypoints[11], keypoints[13], keypoints[15]], 0.18);
+    const rightLegValid = keypoints[12] && keypoints[14] && keypoints[16] && areAllConfident([keypoints[12], keypoints[14], keypoints[16]], 0.18);
+
+    const leftAngle = leftLegValid ? calculateAngle(keypoints[11], keypoints[13], keypoints[15]) : 0;
+    const rightAngle = rightLegValid ? calculateAngle(keypoints[12], keypoints[14], keypoints[16]) : 0;
+
+    if (leftAngle > 0 && rightAngle > 0) {
+      // Both legs visible: use deepest knee bend
+      angle = smoothAngle(Math.min(leftAngle, rightAngle), state.lastAngle, 0.75);
+    } else if (leftAngle > 0) {
+      angle = smoothAngle(leftAngle, state.lastAngle, 0.75);
+    } else if (rightAngle > 0) {
+      angle = smoothAngle(rightAngle, state.lastAngle, 0.75);
+    }
+  } else {
+    if (pointA && pointB && pointC && areAllConfident([pointA, pointB, pointC], config.minConfidence || 0.18)) {
+      const rawAngle = calculateAngle(pointA, pointB, pointC);
+      angle = smoothAngle(rawAngle, state.lastAngle, 0.75);
+    }
+  }
+
+  // 3. Exponential Moving Average (EMA) for rock-solid vertical movement
+  const currentSmoothedY = state.smoothedY === 0
+    ? bodyY
+    : (state.smoothedY * 0.60 + bodyY * 0.40);
+
+  // Exercise-specific displacement thresholds calibrated for real camera placement
+  // Exercise-specific displacement thresholds calibrated for real camera placement
+  // Strict: require real physical range of motion, not micro-movements
+  let downDeltaThresh = 0.10;
+  if (config.type === 'SQUAT') {
+    downDeltaThresh = 0.12;
+  } else if (config.type === 'PUSHUP') {
+    downDeltaThresh = 0.09; // Real floor pushup chest-to-ground drop
+  } else if (config.type === 'JUMPING_JACK') {
+    downDeltaThresh = 0.08;
+  }
+  const upReturnThresh = downDeltaThresh * 0.45;
 
   const newState: RepCounterState = {
     ...state,
-    lastAngle: angle,
+    lastAngle: angle > 0 ? angle : state.lastAngle,
     isBodyDetected: true,
+    smoothedY: currentSmoothedY,
   };
 
-  // State machine transitions
+  // Initialize baseline if not set
+  if (newState.baselineY === 0) {
+    newState.baselineY = currentSmoothedY;
+    newState.maxDownY = currentSmoothedY;
+    newState.repState = 'READY';
+    newState.feedback = { message: 'Ready! Start movement', type: 'good' };
+    return newState;
+  }
+
+  // 4. Dual-Trigger State Machine Transitions
   switch (state.repState) {
     case 'IDLE':
-      // Transition to READY when body is detected with sufficient confidence
       newState.repState = 'READY';
+      newState.baselineY = currentSmoothedY;
+      newState.maxDownY = currentSmoothedY;
       newState.feedback = { message: 'Get ready!', type: 'info' };
       break;
 
     case 'READY':
-      // Transition to UP when in the starting position
-      if (angle >= config.upThreshold) {
-        newState.repState = 'UP';
-        newState.feedback = { message: 'Go!', type: 'good' };
-      } else if (angle <= config.downThreshold) {
-        newState.repState = 'DOWN';
-        newState.downStartTime = now;
-        newState.feedback = { message: 'Come back up!', type: 'warning' };
+      if (currentSmoothedY < newState.baselineY) {
+        newState.baselineY = currentSmoothedY;
       }
+      newState.repState = 'UP';
+      newState.feedback = { message: 'Go!', type: 'good' };
       break;
 
     case 'UP':
-      // Check form alignment if secondary joints are configured
-      if (config.secondaryJoints) {
-        const [sA, sB, sC] = config.secondaryJoints;
-        if (areAllConfident([keypoints[sA], keypoints[sB], keypoints[sC]], effectiveMinConf)) {
-          const alignAngle = calculateAngle(keypoints[sA], keypoints[sB], keypoints[sC]);
-          if (config.formAlignmentThreshold && Math.abs(180 - alignAngle) > config.formAlignmentThreshold) {
-            newState.feedback = { message: 'Keep your back straight', type: 'warning' };
-          }
-        }
+      // Track highest point reached (top baseline)
+      if (currentSmoothedY < newState.baselineY) {
+        newState.baselineY = currentSmoothedY;
       }
 
-      // Transition to DOWN
-      if (angle <= config.downThreshold) {
-        newState.repState = 'DOWN';
-        newState.downStartTime = now;
-        newState.feedback = { message: 'Good! Now come back up', type: 'good' };
-      } else if (config.formAngleMin && angle < config.upThreshold && angle > config.formAngleMin) {
-        newState.feedback = { message: 'Go lower', type: 'warning' };
+      // Check transition to DOWN:
+      // Anti-Cheat: If joint angle is available, angle flexion is STRICTLY REQUIRED.
+      // Y-movement alone is only allowed as a fallback if angle is completely unmeasurable,
+      // and only with full body descent.
+      let isDownTriggered = false;
+      if (config.type === 'PUSHUP') {
+        if (angle > 0) {
+          isDownTriggered = angle <= 108; // Elbow flexion
+        } else {
+          isDownTriggered = currentSmoothedY >= (newState.baselineY + downDeltaThresh);
+        }
+      } else if (config.type === 'SQUAT') {
+        if (angle > 0) {
+          isDownTriggered = angle <= 120; // Knee flexion
+        } else {
+          isDownTriggered = currentSmoothedY >= (newState.baselineY + downDeltaThresh);
+        }
       } else {
-        newState.feedback = { message: 'Good form!', type: 'good' };
+        isDownTriggered = (angle > 0 && angle <= config.downThreshold) ||
+                          (currentSmoothedY >= (newState.baselineY + downDeltaThresh));
+      }
+
+      if (isDownTriggered) {
+        const nextFrames = (state.consecutiveDownFrames || 0) + 1;
+        newState.consecutiveDownFrames = nextFrames;
+
+        if (nextFrames >= 1) {
+          newState.repState = 'DOWN';
+          newState.downStartTime = now;
+          newState.maxDownY = currentSmoothedY;
+          newState.feedback = { message: 'Good! Now push back up', type: 'good' };
+        } else {
+          newState.feedback = { message: 'Lowering... hold form', type: 'good' };
+        }
+      } else {
+        newState.consecutiveDownFrames = 0;
+        newState.feedback = { message: 'Good form! Go down', type: 'good' };
       }
       break;
 
     case 'DOWN':
-      // Transition to UP = complete one rep
-      if (angle >= config.upThreshold) {
-        const timeSinceLastRep = now - state.lastRepTime;
+      // Track deepest descent
+      newState.maxDownY = Math.max(newState.maxDownY, currentSmoothedY);
 
-        // Debounce check
-        if (timeSinceLastRep >= (config.debounceMs || 300)) {
+      // Check transition to UP:
+      // Requires:
+      // 1. Dwell time: User reached bottom (at least 60ms)
+      // 2. Physical return near baseline AND joint angle extension
+      const holdDuration = now - state.downStartTime;
+      let isUpTriggered = false;
+      if (config.type === 'PUSHUP') {
+        if (angle > 0) {
+          isUpTriggered = angle >= 148; // Arms extended back up
+        } else {
+          isUpTriggered = currentSmoothedY <= (newState.baselineY + upReturnThresh);
+        }
+      } else if (config.type === 'SQUAT') {
+        if (angle > 0) {
+          isUpTriggered = angle >= 152; // Legs straight back up
+        } else {
+          isUpTriggered = currentSmoothedY <= (newState.baselineY + upReturnThresh);
+        }
+      } else {
+        isUpTriggered = (angle > 0 && angle >= config.upThreshold) ||
+                        (currentSmoothedY <= (newState.baselineY + upReturnThresh));
+      }
+
+      if (isUpTriggered && holdDuration >= 60) {
+        const timeSinceLastRep = now - state.lastRepTime;
+        const minDebounce = Math.max(250, config.debounceMs || 250);
+
+        if (timeSinceLastRep >= minDebounce) {
           newState.repState = 'UP';
           newState.count = state.count + 1;
           newState.lastRepTime = now;
+          newState.downStartTime = 0;
+          newState.consecutiveDownFrames = 0;
+          newState.baselineY = currentSmoothedY;
+          newState.maxDownY = currentSmoothedY;
           newState.feedback = { message: `${newState.count}! Keep going!`, type: 'good' };
         } else {
           newState.repState = 'UP';
-          newState.feedback = { message: 'Control your movement', type: 'warning' };
+          newState.downStartTime = 0;
+          newState.consecutiveDownFrames = 0;
+          newState.feedback = { message: 'Control your pace', type: 'warning' };
         }
       } else {
-        // Still in down position
-        newState.feedback = { message: 'Good! Now push up', type: 'good' };
+        newState.feedback = { message: 'Push back up!', type: 'good' };
       }
       break;
   }

@@ -135,7 +135,7 @@ const initialMockState: Record<string, any[]> = {
       hapticsEnabled: 1,
       notificationsEnabled: 0,
       onboardingCompleted: 0,
-      dailyBudgetMinutes: 120,
+      dailyBudgetMinutes: 30,
       theme: 'dark',
     },
   ],

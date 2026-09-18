@@ -14,6 +14,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { useEffect } from 'react';
+import { Swords, Shield, Target, Heart, BookOpen, Activity } from 'lucide-react-native';
 
 const STAT_COLORS: Record<string, string> = {
   strength: '#EF4444',
@@ -31,12 +32,12 @@ const STAT_LABELS: Record<string, string> = {
   knowledge: 'KNW',
 };
 
-const STAT_ICONS: Record<string, string> = {
-  strength: '⚔️',
-  discipline: '🛡️',
-  focus: '🎯',
-  health: '❤️',
-  knowledge: '📚',
+const STAT_ICON_COMPONENTS: Record<string, React.ComponentType<any>> = {
+  strength: Swords,
+  discipline: Shield,
+  focus: Target,
+  health: Heart,
+  knowledge: BookOpen,
 };
 
 interface StatBarProps {
@@ -50,7 +51,7 @@ function StatBar({ name, value, maxValue = 100, compact = false }: StatBarProps)
   const progress = useSharedValue(0);
   const color = STAT_COLORS[name] || '#00F0FF';
   const label = STAT_LABELS[name] || name.toUpperCase();
-  const icon = STAT_ICONS[name] || '📊';
+  const IconComp = STAT_ICON_COMPONENTS[name] || Activity;
 
   useEffect(() => {
     progress.value = withTiming(Math.min(value / maxValue, 1), {
@@ -66,7 +67,9 @@ function StatBar({ name, value, maxValue = 100, compact = false }: StatBarProps)
   return (
     <View style={[styles.statRow, compact && styles.statRowCompact]}>
       <View style={styles.statLabelRow}>
-        <Text style={styles.statIcon}>{icon}</Text>
+        <View style={{ marginRight: 6 }}>
+          <IconComp size={13} color={color} />
+        </View>
         <Text style={[styles.statLabel, { color }]}>{label}</Text>
         <Text style={styles.statValue}>{value}</Text>
       </View>

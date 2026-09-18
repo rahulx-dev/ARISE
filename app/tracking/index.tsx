@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -13,13 +14,70 @@ import {
   ChevronLeft,
   ChevronRight,
   TrendingUp,
+  Dumbbell,
+  Brain,
+  Target,
 } from 'lucide-react-native';
 import { MasterCard } from '../../src/components/master/MasterCard';
-import { CognitiveLineChart } from '../../src/components/master/CognitiveLineChart';
 import { colors } from '../../src/theme/colors';
+import { historyService } from '../../src/services/historyService';
+
+interface TodayStats {
+  focusMinutes: number;
+  focusSessionsCount: number;
+  workoutMinutes: number;
+  workoutCount: number;
+  completedQuests: number;
+  totalQuests: number;
+}
+
+function formatDate(date: Date): string {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+}
+
+function formatMinutes(mins: number): string {
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
 
 export default function TrackingScreen() {
   const router = useRouter();
+  const [stats, setStats] = useState<TodayStats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const todayStr = formatDate(new Date());
+
+  const loadStats = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await historyService.getTodayRealStats();
+      setStats(data);
+    } catch (e) {
+      console.warn('Failed to load tracking stats:', e);
+      setStats({
+        focusMinutes: 0,
+        focusSessionsCount: 0,
+        workoutMinutes: 0,
+        workoutCount: 0,
+        completedQuests: 0,
+        totalQuests: 0,
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
+
+  const totalActiveMinutes = (stats?.focusMinutes ?? 0) + (stats?.workoutMinutes ?? 0);
+  const questCompletion = stats && stats.totalQuests > 0
+    ? Math.round((stats.completedQuests / stats.totalQuests) * 100)
+    : 0;
 
   return (
     <View style={styles.container}>
@@ -29,65 +87,90 @@ export default function TrackingScreen() {
           <Text style={styles.headerTitle}>Tracking</Text>
         </View>
 
-        {/* Date Selector Row */}
+        {/* Date Display */}
         <View style={styles.dateSelectorRow}>
-          <TouchableOpacity style={styles.dateArrowBtn}>
-            <ChevronLeft size={18} color={colors.textSecondary} />
-          </TouchableOpacity>
-          <Text style={styles.dateText}>May 20, 2024</Text>
-          <TouchableOpacity style={styles.dateArrowBtn}>
-            <ChevronRight size={18} color={colors.textSecondary} />
-          </TouchableOpacity>
+          <Text style={styles.dateText}>{todayStr}</Text>
         </View>
 
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Card 1: Cognitive Score */}
-          <MasterCard style={styles.cognitiveCard}>
-            <Text style={styles.cardHeaderTitle}>Cognitive Score</Text>
-            <View style={styles.scoreRow}>
-              <Text style={styles.scoreBigText}>83%</Text>
-              <Text style={styles.scoreBadgeText}>Excellent</Text>
-            </View>
-
-            {/* Glowing Green Line Chart */}
-            <CognitiveLineChart />
-
-            {/* Sub-Metrics Row */}
-            <View style={styles.subMetricsRow}>
-              <View style={styles.subMetricCol}>
-                <Text style={styles.subMetricLabel}>Focus</Text>
-                <Text style={styles.subMetricVal}>79%</Text>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        ) : (
+          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            {/* Card 1: Focus Time */}
+            <MasterCard style={styles.statCard}>
+              <View style={styles.cardRow}>
+                <View style={styles.cardMeta}>
+                  <Text style={styles.cardHeaderTitle}>Focus Time</Text>
+                  <Text style={styles.cardBigNum}>
+                    {formatMinutes(stats?.focusMinutes ?? 0)}
+                  </Text>
+                  <Text style={styles.cardSubText}>
+                    {stats?.focusSessionsCount ?? 0} session{(stats?.focusSessionsCount ?? 0) !== 1 ? 's' : ''} today
+                  </Text>
+                </View>
+                <View style={[styles.iconCircle, { backgroundColor: '#1E2230' }]}>
+                  <Brain size={24} color={colors.primary} strokeWidth={2.5} />
+                </View>
               </View>
+            </MasterCard>
 
-              <View style={styles.subMetricCol}>
-                <Text style={styles.subMetricLabel}>Concentration</Text>
-                <Text style={styles.subMetricVal}>1.15</Text>
+            {/* Card 2: Workout Time */}
+            <MasterCard style={styles.statCard}>
+              <View style={styles.cardRow}>
+                <View style={styles.cardMeta}>
+                  <Text style={styles.cardHeaderTitle}>Workout Time</Text>
+                  <Text style={styles.cardBigNum}>
+                    {formatMinutes(stats?.workoutMinutes ?? 0)}
+                  </Text>
+                  <Text style={styles.cardSubText}>
+                    {stats?.workoutCount ?? 0} exercise{(stats?.workoutCount ?? 0) !== 1 ? 's' : ''} completed
+                  </Text>
+                </View>
+                <View style={[styles.iconCircle, { backgroundColor: '#2A1E1E' }]}>
+                  <Dumbbell size={24} color="#E11D48" strokeWidth={2.5} />
+                </View>
               </View>
+            </MasterCard>
 
-              <View style={styles.subMetricCol}>
-                <Text style={styles.subMetricLabel}>Fatigue</Text>
-                <Text style={styles.subMetricVal}>
-                  17% <Text style={{ color: colors.primary, fontSize: 11 }}>Low</Text>
-                </Text>
+            {/* Card 3: Total Active Time */}
+            <MasterCard style={styles.statCard}>
+              <View style={styles.cardRow}>
+                <View style={styles.cardMeta}>
+                  <Text style={styles.cardHeaderTitle}>Total Active Time</Text>
+                  <Text style={styles.cardBigNum}>
+                    {formatMinutes(totalActiveMinutes)}
+                  </Text>
+                  <Text style={styles.cardSubText}>Focus + Workout combined</Text>
+                </View>
+                <View style={[styles.iconCircle, { backgroundColor: '#1E2F22' }]}>
+                  <TrendingUp size={24} color={colors.primary} strokeWidth={2.5} />
+                </View>
               </View>
-            </View>
-          </MasterCard>
+            </MasterCard>
 
-          {/* Card 2: Productive Time */}
-          <MasterCard style={styles.productiveCard}>
-            <View style={styles.productiveMeta}>
-              <Text style={styles.cardHeaderTitle}>Productive Time</Text>
-              <Text style={styles.productiveBigNum}>4h 32m</Text>
-              <Text style={styles.productiveDeltaText}>+12% from yesterday</Text>
-            </View>
+            {/* Card 4: Quest Progress */}
+            <MasterCard style={styles.statCard}>
+              <View style={styles.cardRow}>
+                <View style={styles.cardMeta}>
+                  <Text style={styles.cardHeaderTitle}>Quest Progress</Text>
+                  <Text style={styles.cardBigNum}>
+                    {stats?.completedQuests ?? 0}/{stats?.totalQuests ?? 0}
+                  </Text>
+                  <Text style={styles.cardSubText}>
+                    {questCompletion}% completion rate
+                  </Text>
+                </View>
+                <View style={[styles.iconCircle, { backgroundColor: '#2A2A1E' }]}>
+                  <Target size={24} color="#FBBF24" strokeWidth={2.5} />
+                </View>
+              </View>
+            </MasterCard>
 
-            <View style={styles.productiveIconCircle}>
-              <TrendingUp size={24} color={colors.primary} strokeWidth={2.5} />
-            </View>
-          </MasterCard>
-
-          <View style={{ height: 40 }} />
-        </ScrollView>
+            <View style={{ height: 40 }} />
+          </ScrollView>
+        )}
       </SafeAreaView>
     </View>
   );
@@ -113,87 +196,51 @@ const styles = StyleSheet.create({
     gap: 16,
     paddingVertical: 10,
   },
-  dateArrowBtn: {
-    padding: 6,
-  },
   dateText: {
     fontSize: 13,
     fontWeight: '700',
     color: colors.textSecondary,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   scrollContent: {
     paddingHorizontal: 18,
     gap: 16,
   },
-  cognitiveCard: {
-    padding: 18,
-    gap: 12,
+  statCard: {
+    padding: 20,
+  },
+  cardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  cardMeta: {
+    gap: 4,
+    flex: 1,
   },
   cardHeaderTitle: {
     fontSize: 13,
     fontWeight: '700',
     color: colors.textMuted,
   },
-  scoreRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 10,
-  },
-  scoreBigText: {
-    fontSize: 34,
-    fontWeight: '900',
-    color: colors.primary,
-    fontVariant: ['tabular-nums'],
-  },
-  scoreBadgeText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: colors.primary,
-  },
-  subMetricsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#202020',
-  },
-  subMetricCol: {
-    gap: 4,
-  },
-  subMetricLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.textMuted,
-  },
-  subMetricVal: {
-    fontSize: 15,
-    fontWeight: '900',
-    color: colors.textPrimary,
-  },
-  productiveCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-  },
-  productiveMeta: {
-    gap: 4,
-  },
-  productiveBigNum: {
+  cardBigNum: {
     fontSize: 28,
     fontWeight: '900',
     color: colors.textPrimary,
   },
-  productiveDeltaText: {
+  cardSubText: {
     fontSize: 12,
     fontWeight: '700',
     color: colors.primary,
   },
-  productiveIconCircle: {
+  iconCircle: {
     width: 52,
     height: 52,
     borderRadius: 16,
-    backgroundColor: '#1E2F22',
     justifyContent: 'center',
     alignItems: 'center',
   },

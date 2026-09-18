@@ -32,7 +32,7 @@ export const colors = {
   backgroundGradientTop: '#0B0C10',
   backgroundGradientBottom: '#000000',
 
-  // Velvety Solid Dark Slate Charcoal Cards (Zero blur, zero transparency)
+  // Velvety Solid Dark Slate Charcoal Cards
   card: '#111218',
   surface: '#000000',
   surfaceLight: '#111218',

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ARISE — Anatomical Pose Validator
  * 
  * Prevents false skeleton rendering and phantom rep counts when only a face
@@ -52,17 +52,19 @@ export function validateExercisePose(
   const bestKnee = conf(lKnee) > conf(rKnee) ? lKnee : rKnee;
   const bestAnkle = conf(lAnkle) > conf(rAnkle) ? lAnkle : rAnkle;
 
-  // 1. REJECT FACE-ONLY CLOSE-UPS
-  // In a real full/half body frame, head-to-torso and hips are physically separated.
-  const hasConfidentFace = conf(nose) > 0.45;
-  const hasConfidentTorso = conf(bestShoulder) > 0.45 && conf(bestHip) > 0.38;
+  // 1. REJECT FACE-ONLY CLOSE-UPS & SITTING FACE POSES
+  // Reject if only face is close to screen, or shoulders/hips are absent/weak
+  const hasConfidentFace = conf(nose) > 0.50;
+  const hasConfidentShoulder = conf(bestShoulder) >= 0.22;
+  const hasConfidentHip = conf(bestHip) >= 0.20;
+  const hasConfidentTorso = hasConfidentShoulder && hasConfidentHip;
   const torsoSpan = hasConfidentTorso && bestShoulder && bestHip ? distance(bestShoulder, bestHip) : 0;
 
-  // If camera is close to the face (or only sees neck up), hips are missing or squashed into the head:
-  if (hasConfidentFace && (!hasConfidentTorso || torsoSpan < 0.10)) {
+  // Reject face close-ups where shoulders are barely visible
+  if (hasConfidentFace && conf(bestShoulder) < 0.22 && conf(bestHip) < 0.20) {
     return {
       valid: false,
-      message: 'Step back! Show your full body in frame',
+      message: 'Step back! Position your body in frame',
       isFaceOnly: true,
     };
   }
@@ -71,22 +73,11 @@ export function validateExercisePose(
   const normType = exerciseType.toUpperCase();
 
   if (normType === 'SQUAT') {
-    // For squats, we MUST clearly see at least one full leg with realistic length:
-    const leftLegValid =
-      conf(lHip) >= 0.40 &&
-      conf(lKnee) >= 0.42 &&
-      conf(lAnkle) >= 0.35 &&
-      distance(lHip, lKnee) >= 0.08 &&
-      distance(lKnee, lAnkle) >= 0.08;
+    // For squats: Need visible hips & knees
+    const hasLeg = (conf(lHip) >= 0.22 && conf(lKnee) >= 0.22) || (conf(rHip) >= 0.22 && conf(rKnee) >= 0.22);
+    const hasLowerTorso = conf(bestHip) >= 0.25 && (conf(bestKnee) >= 0.20 || conf(bestAnkle) >= 0.20);
 
-    const rightLegValid =
-      conf(rHip) >= 0.40 &&
-      conf(rKnee) >= 0.42 &&
-      conf(rAnkle) >= 0.35 &&
-      distance(rHip, rKnee) >= 0.08 &&
-      distance(rKnee, rAnkle) >= 0.08;
-
-    if (!leftLegValid && !rightLegValid) {
+    if (!hasLeg && !hasLowerTorso) {
       return {
         valid: false,
         message: 'Step back until hips & knees are visible',
@@ -98,33 +89,24 @@ export function validateExercisePose(
   }
 
   if (normType === 'PUSHUP') {
-    // For pushups, we MUST clearly see at least one arm with realistic length:
-    const leftArmValid =
-      conf(lShoulder) >= 0.40 &&
-      conf(lElbow) >= 0.42 &&
-      conf(lWrist) >= 0.35 &&
-      distance(lShoulder, lElbow) >= 0.06 &&
-      distance(lElbow, lWrist) >= 0.06;
+    // Pushups strictly require visible arms (elbows & shoulders)
+    const hasVisibleArm =
+      (conf(lShoulder) >= 0.22 && conf(lElbow) >= 0.22) ||
+      (conf(rShoulder) >= 0.22 && conf(rElbow) >= 0.22);
 
-    const rightArmValid =
-      conf(rShoulder) >= 0.40 &&
-      conf(rElbow) >= 0.42 &&
-      conf(rWrist) >= 0.35 &&
-      distance(rShoulder, rElbow) >= 0.06 &&
-      distance(rElbow, rWrist) >= 0.06;
-
-    if (!leftArmValid && !rightArmValid) {
+    if (!hasVisibleArm) {
       return {
         valid: false,
-        message: 'Position camera to see your arms & chest',
+        message: 'Position camera to see your arms & shoulders',
         isFaceOnly: false,
       };
     }
 
-    if (torsoSpan < 0.09 && conf(bestHip) < 0.30) {
+    // Reject sitting upright close to screen: if nose is far above shoulders and arms are just hanging down
+    if (nose && bestShoulder && conf(nose) > 0.65 && conf(bestHip) < 0.15 && (bestShoulder.y - nose.y) > 0.18) {
       return {
         valid: false,
-        message: 'Step back so full upper body is visible',
+        message: 'Get into horizontal pushup position',
         isFaceOnly: false,
       };
     }
@@ -133,14 +115,13 @@ export function validateExercisePose(
   }
 
   if (normType === 'JUMPING_JACK') {
-    const hasArms = (conf(lWrist) > 0.35 || conf(rWrist) > 0.35) && conf(bestShoulder) > 0.40;
-    const hasLegs = (conf(lAnkle) > 0.35 || conf(rAnkle) > 0.35) && conf(bestHip) > 0.35;
-    const fullHeight = bestAnkle && bestShoulder ? Math.abs(bestAnkle.y - bestShoulder.y) : 0;
+    const hasArms = (conf(lWrist) >= 0.20 || conf(rWrist) >= 0.20) && conf(bestShoulder) >= 0.20;
+    const hasLegs = (conf(lKnee) >= 0.20 || conf(rKnee) >= 0.20 || conf(bestHip) >= 0.20);
 
-    if (!hasArms || !hasLegs || fullHeight < 0.28) {
+    if (!hasArms && !hasLegs) {
       return {
         valid: false,
-        message: 'Step back so full body is visible head-to-toe',
+        message: 'Step back so your body is visible',
         isFaceOnly: false,
       };
     }
@@ -149,13 +130,12 @@ export function validateExercisePose(
   }
 
   if (normType === 'PLANK' || normType === 'SITUP') {
-    const hasTorso = conf(bestShoulder) >= 0.42 && conf(bestHip) >= 0.40 && torsoSpan >= 0.10;
-    const hasLeg = conf(bestKnee) >= 0.35 || conf(bestAnkle) >= 0.35;
+    const hasTorso = conf(bestShoulder) >= 0.20 && (conf(bestHip) >= 0.20 || torsoSpan >= 0.05);
 
-    if (!hasTorso || !hasLeg) {
+    if (!hasTorso) {
       return {
         valid: false,
-        message: 'Position phone to see your full side profile',
+        message: 'Position phone to see your body profile',
         isFaceOnly: false,
       };
     }
@@ -163,8 +143,8 @@ export function validateExercisePose(
     return { valid: true, message: 'Position locked! Hold form', isFaceOnly: false };
   }
 
-  // Generic fallback: Must have visible shoulders and hips with realistic distance
-  if (!hasConfidentTorso || torsoSpan < 0.10) {
+  // Generic fallback: Must have visible shoulders
+  if (!hasConfidentShoulder) {
     return {
       valid: false,
       message: 'Step back into camera view',

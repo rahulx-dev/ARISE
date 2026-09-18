@@ -1,25 +1,34 @@
 <!DOCTYPE html>
 
-<html class="dark" lang="en"><head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
-<title>ARISE - AI Tracker</title>
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<style>
+<html class="dark" lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+        name="viewport" />
+    <title>ARISE - AI Tracker</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <style>
         .material-symbols-outlined {
             font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
         }
-        
+
         /* Inner Glow Utility for Glass Elements */
         .glass-inner-glow {
             box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.2);
-            background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 100%);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 100%);
         }
     </style>
-<script id="tailwind-config">
+    <script id="tailwind-config">
         tailwind.config = {
             darkMode: "class",
             theme: {
@@ -112,82 +121,107 @@
         }
     </script>
 </head>
-<body class="bg-background text-on-background font-body-md h-screen w-screen overflow-hidden flex flex-col relative antialiased select-none touch-none">
-<!-- Full Screen Camera Background -->
-<div class="absolute inset-0 z-0 bg-black">
-<div class="w-full h-full bg-cover bg-center opacity-70" data-alt="A cinematic, high-contrast medium shot of an athletic male doing push-ups in a dimly lit, minimalist industrial gym space. The lighting is dramatic, emphasizing muscle definition with cool white rim lighting and deep shadows, fitting a premium dark-mode fitness app aesthetic. The floor is dark matte rubber, and the background falls into deep shadow." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDpZgPYKpD_nCp9CyT7QjUyX0lAVLstUVO0RLJHM98DEnqotS4hk_L2lkARwp35qxSjkKZkUcMmSztPkLv_bY5nWcJlOo8FizU4alREafuIQiJHPbPodk_4VX3rC6gLAjWr-7oUjDDe-GimpXcncNhCiuw0ddMAIPu2FUsw7uxRoUBRI9F2ZAyWYQZtg4xV4kd1rDhLVW4K33KuWj1OXyC2SHX20LC4NHXy1P3aPUBjHXN9cGaP4Rzi')"></div>
-<!-- Overlay Gradient for better UI visibility -->
-<div class="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/90"></div>
-<!-- Simulated AI Skeletal Tracking Overlay -->
-<svg class="absolute inset-0 w-full h-full z-10 pointer-events-none" preserveaspectratio="none" viewbox="0 0 100 100">
-<!-- Simulated skeletal lines - stylized for demonstration -->
-<polyline class="opacity-80 drop-shadow-[0_0_2px_rgba(204,255,0,0.5)]" fill="none" points="30,45 50,40 70,45" stroke="#CCFF00" stroke-width="0.5"></polyline>
-<polyline class="opacity-80 drop-shadow-[0_0_2px_rgba(204,255,0,0.5)]" fill="none" points="50,40 50,70" stroke="#CCFF00" stroke-width="0.5"></polyline>
-<polyline class="opacity-80 drop-shadow-[0_0_2px_rgba(204,255,0,0.5)]" fill="none" points="50,70 35,90" stroke="#CCFF00" stroke-width="0.5"></polyline>
-<polyline class="opacity-80 drop-shadow-[0_0_2px_rgba(204,255,0,0.5)]" fill="none" points="50,70 65,90" stroke="#CCFF00" stroke-width="0.5"></polyline>
-<!-- Nodes -->
-<circle class="drop-shadow-[0_0_3px_rgba(204,255,0,0.8)]" cx="30" cy="45" fill="#CCFF00" r="1.5"></circle>
-<circle class="drop-shadow-[0_0_3px_rgba(204,255,0,0.8)]" cx="50" cy="40" fill="#CCFF00" r="1.5"></circle>
-<circle class="drop-shadow-[0_0_3px_rgba(204,255,0,0.8)]" cx="70" cy="45" fill="#CCFF00" r="1.5"></circle>
-<circle class="drop-shadow-[0_0_3px_rgba(204,255,0,0.8)]" cx="50" cy="70" fill="#CCFF00" r="1.5"></circle>
-<circle class="drop-shadow-[0_0_3px_rgba(204,255,0,0.8)]" cx="35" cy="90" fill="#CCFF00" r="1.5"></circle>
-<circle class="drop-shadow-[0_0_3px_rgba(204,255,0,0.8)]" cx="65" cy="90" fill="#CCFF00" r="1.5"></circle>
-</svg>
-</div>
-<!-- Top Navigation Overlay -->
-<header class="relative z-20 flex justify-between items-center w-full px-container-margin py-6">
-<button class="w-10 h-10 rounded-full bg-surface-container/40 backdrop-blur-md flex items-center justify-center glass-inner-glow text-primary transition-transform active:scale-95">
-<span class="material-symbols-outlined">arrow_back</span>
-</button>
-<h1 class="font-headline-md text-headline-md text-primary tracking-tight">Push-ups</h1>
-<button class="w-10 h-10 rounded-full bg-surface-container/40 backdrop-blur-md flex items-center justify-center glass-inner-glow text-primary transition-transform active:scale-95">
-<span class="material-symbols-outlined">more_horiz</span>
-</button>
-</header>
-<!-- Main Content Area -->
-<main class="flex-1 relative z-20 flex flex-col justify-between px-container-margin pb-[env(safe-area-inset-bottom,32px)] pt-4 pointer-events-none">
-<!-- Metrics Header -->
-<div class="flex justify-between items-start w-full">
-<div class="flex flex-col gap-1">
-<span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-widest">Reps</span>
-<div class="flex items-baseline gap-2">
-<span class="font-display-lg-mobile text-display-lg-mobile text-primary">05</span>
-<span class="font-headline-md text-headline-md text-on-surface-variant">/ 20</span>
-</div>
-</div>
-<div class="flex flex-col items-end gap-2">
-<div class="px-3 py-1 rounded-full bg-electric-lime/10 border border-electric-lime/30 text-electric-lime font-label-md text-[12px] uppercase tracking-wider backdrop-blur-md flex items-center gap-1.5 shadow-[0_0_10px_rgba(204,255,0,0.15)]">
-<div class="w-1.5 h-1.5 rounded-full bg-electric-lime animate-pulse"></div>
+
+<body
+    class="bg-background text-on-background font-body-md h-screen w-screen overflow-hidden flex flex-col relative antialiased select-none touch-none">
+    <!-- Full Screen Camera Background -->
+    <div class="absolute inset-0 z-0 bg-black">
+        <div class="w-full h-full bg-cover bg-center opacity-70"
+            data-alt="A cinematic, high-contrast medium shot of an athletic male doing push-ups in a dimly lit, minimalist industrial gym space. The lighting is dramatic, emphasizing muscle definition with cool white rim lighting and deep shadows, fitting a premium dark-mode fitness app aesthetic. The floor is dark matte rubber, and the background falls into deep shadow."
+            style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDpZgPYKpD_nCp9CyT7QjUyX0lAVLstUVO0RLJHM98DEnqotS4hk_L2lkARwp35qxSjkKZkUcMmSztPkLv_bY5nWcJlOo8FizU4alREafuIQiJHPbPodk_4VX3rC6gLAjWr-7oUjDDe-GimpXcncNhCiuw0ddMAIPu2FUsw7uxRoUBRI9F2ZAyWYQZtg4xV4kd1rDhLVW4K33KuWj1OXyC2SHX20LC4NHXy1P3aPUBjHXN9cGaP4Rzi')">
+        </div>
+        <!-- Overlay Gradient for better UI visibility -->
+        <div class="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/90"></div>
+        <!-- Simulated AI Skeletal Tracking Overlay -->
+        <svg class="absolute inset-0 w-full h-full z-10 pointer-events-none" preserveaspectratio="none"
+            viewbox="0 0 100 100">
+            <!-- Simulated skeletal lines - stylized for demonstration -->
+            <polyline class="opacity-80 drop-shadow-[0_0_2px_rgba(204,255,0,0.5)]" fill="none"
+                points="30,45 50,40 70,45" stroke="#CCFF00" stroke-width="0.5"></polyline>
+            <polyline class="opacity-80 drop-shadow-[0_0_2px_rgba(204,255,0,0.5)]" fill="none" points="50,40 50,70"
+                stroke="#CCFF00" stroke-width="0.5"></polyline>
+            <polyline class="opacity-80 drop-shadow-[0_0_2px_rgba(204,255,0,0.5)]" fill="none" points="50,70 35,90"
+                stroke="#CCFF00" stroke-width="0.5"></polyline>
+            <polyline class="opacity-80 drop-shadow-[0_0_2px_rgba(204,255,0,0.5)]" fill="none" points="50,70 65,90"
+                stroke="#CCFF00" stroke-width="0.5"></polyline>
+            <!-- Nodes -->
+            <circle class="drop-shadow-[0_0_3px_rgba(204,255,0,0.8)]" cx="30" cy="45" fill="#CCFF00" r="1.5"></circle>
+            <circle class="drop-shadow-[0_0_3px_rgba(204,255,0,0.8)]" cx="50" cy="40" fill="#CCFF00" r="1.5"></circle>
+            <circle class="drop-shadow-[0_0_3px_rgba(204,255,0,0.8)]" cx="70" cy="45" fill="#CCFF00" r="1.5"></circle>
+            <circle class="drop-shadow-[0_0_3px_rgba(204,255,0,0.8)]" cx="50" cy="70" fill="#CCFF00" r="1.5"></circle>
+            <circle class="drop-shadow-[0_0_3px_rgba(204,255,0,0.8)]" cx="35" cy="90" fill="#CCFF00" r="1.5"></circle>
+            <circle class="drop-shadow-[0_0_3px_rgba(204,255,0,0.8)]" cx="65" cy="90" fill="#CCFF00" r="1.5"></circle>
+        </svg>
+    </div>
+    <!-- Top Navigation Overlay -->
+    <header class="relative z-20 flex justify-between items-center w-full px-container-margin py-6">
+        <button
+            class="w-10 h-10 rounded-full bg-surface-container/40 backdrop-blur-md flex items-center justify-center glass-inner-glow text-primary transition-transform active:scale-95">
+            <span class="material-symbols-outlined">arrow_back</span>
+        </button>
+        <h1 class="font-headline-md text-headline-md text-primary tracking-tight">Push-ups</h1>
+        <button
+            class="w-10 h-10 rounded-full bg-surface-container/40 backdrop-blur-md flex items-center justify-center glass-inner-glow text-primary transition-transform active:scale-95">
+            <span class="material-symbols-outlined">more_horiz</span>
+        </button>
+    </header>
+    <!-- Main Content Area -->
+    <main
+        class="flex-1 relative z-20 flex flex-col justify-between px-container-margin pb-[env(safe-area-inset-bottom,32px)] pt-4 pointer-events-none">
+        <!-- Metrics Header -->
+        <div class="flex justify-between items-start w-full">
+            <div class="flex flex-col gap-1">
+                <span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-widest">Reps</span>
+                <div class="flex items-baseline gap-2">
+                    <span class="font-display-lg-mobile text-display-lg-mobile text-primary">05</span>
+                    <span class="font-headline-md text-headline-md text-on-surface-variant">/ 20</span>
+                </div>
+            </div>
+            <div class="flex flex-col items-end gap-2">
+                <div
+                    class="px-3 py-1 rounded-full bg-electric-lime/10 border border-electric-lime/30 text-electric-lime font-label-md text-[12px] uppercase tracking-wider backdrop-blur-md flex items-center gap-1.5 shadow-[0_0_10px_rgba(204,255,0,0.15)]">
+                    <div class="w-1.5 h-1.5 rounded-full bg-electric-lime animate-pulse"></div>
                     Good Form
                 </div>
-<div class="px-3 py-1 rounded-full bg-surface-container/60 border border-white/10 text-on-surface-variant font-label-md text-[10px] uppercase tracking-wider backdrop-blur-md">
+                <div
+                    class="px-3 py-1 rounded-full bg-surface-container/60 border border-white/10 text-on-surface-variant font-label-md text-[10px] uppercase tracking-wider backdrop-blur-md">
                     Body Detected
                 </div>
-</div>
-</div>
-<!-- Spacer for camera view -->
-<div class="flex-1"></div>
-<!-- Bottom Controls -->
-<div class="w-full flex justify-between items-center pb-8 pointer-events-auto">
-<!-- Flash Toggle -->
-<button class="w-14 h-14 rounded-full bg-surface/40 backdrop-blur-xl border border-white/10 flex flex-col items-center justify-center text-primary transition-all active:scale-90 hover:bg-white/5">
-<span class="material-symbols-outlined">flash_off</span>
-</button>
-<!-- End Set Action -->
-<button class="w-24 h-24 rounded-full bg-surface-container/60 backdrop-blur-2xl border border-white/20 flex flex-col items-center justify-center text-primary transition-all duration-300 active:scale-95 shadow-2xl shadow-black/50 group relative">
-<!-- Outer ring -->
-<div class="absolute inset-0 rounded-full border-2 border-electric-lime/30 group-hover:border-electric-lime/50 transition-colors"></div>
-<!-- Progress Arc Mockup -->
-<svg class="absolute inset-0 w-full h-full -rotate-90 pointer-events-none" viewbox="0 0 100 100">
-<circle class="drop-shadow-[0_0_4px_rgba(204,255,0,0.6)]" cx="50" cy="50" fill="none" r="48" stroke="#CCFF00" stroke-dasharray="301" stroke-dashoffset="220" stroke-width="2"></circle>
-</svg>
-<span class="font-headline-md text-[18px] font-bold text-primary group-hover:text-electric-lime transition-colors">End</span>
-<span class="font-label-md text-[12px] text-on-surface-variant uppercase tracking-widest mt-1">Set</span>
-</button>
-<!-- Camera Switch -->
-<button class="w-14 h-14 rounded-full bg-surface/40 backdrop-blur-xl border border-white/10 flex flex-col items-center justify-center text-primary transition-all active:scale-90 hover:bg-white/5">
-<span class="material-symbols-outlined">cameraswitch</span>
-</button>
-</div>
-</main>
-</body></html>
+            </div>
+        </div>
+        <!-- Spacer for camera view -->
+        <div class="flex-1"></div>
+        <!-- Bottom Controls -->
+        <div class="w-full flex justify-between items-center pb-8 pointer-events-auto">
+            <!-- Flash Toggle -->
+            <button
+                class="w-14 h-14 rounded-full bg-surface/40 backdrop-blur-xl border border-white/10 flex flex-col items-center justify-center text-primary transition-all active:scale-90 hover:bg-white/5">
+                <span class="material-symbols-outlined">flash_off</span>
+            </button>
+            <!-- End Set Action -->
+            <button
+                class="w-24 h-24 rounded-full bg-surface-container/60 backdrop-blur-2xl border border-white/20 flex flex-col items-center justify-center text-primary transition-all duration-300 active:scale-95 shadow-2xl shadow-black/50 group relative">
+                <!-- Outer ring -->
+                <div
+                    class="absolute inset-0 rounded-full border-2 border-electric-lime/30 group-hover:border-electric-lime/50 transition-colors">
+                </div>
+                <!-- Progress Arc Mockup -->
+                <svg class="absolute inset-0 w-full h-full -rotate-90 pointer-events-none" viewbox="0 0 100 100">
+                    <circle class="drop-shadow-[0_0_4px_rgba(204,255,0,0.6)]" cx="50" cy="50" fill="none" r="48"
+                        stroke="#CCFF00" stroke-dasharray="301" stroke-dashoffset="220" stroke-width="2"></circle>
+                </svg>
+                <span
+                    class="font-headline-md text-[18px] font-bold text-primary group-hover:text-electric-lime transition-colors">End</span>
+                <span
+                    class="font-label-md text-[12px] text-on-surface-variant uppercase tracking-widest mt-1">Set</span>
+            </button>
+            <!-- Camera Switch -->
+            <button
+                class="w-14 h-14 rounded-full bg-surface/40 backdrop-blur-xl border border-white/10 flex flex-col items-center justify-center text-primary transition-all active:scale-90 hover:bg-white/5">
+                <span class="material-symbols-outlined">cameraswitch</span>
+            </button>
+        </div>
+    </main>
+</body>
+
+</html>

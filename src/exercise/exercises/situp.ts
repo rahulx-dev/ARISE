@@ -41,7 +41,7 @@ export const situpConfig: ExerciseConfig = {
   minTarget: 1,
   
   // Rewards
-  coinsPerRep: 2,
+  coinsPerRep: 1,
   xpPerRep: 5,
   
   // Stat

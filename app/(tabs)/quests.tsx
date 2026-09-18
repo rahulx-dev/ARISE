@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,9 +6,10 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import {
   CheckSquare,
   CheckCircle,
@@ -21,16 +22,22 @@ import {
   Shield,
   Check,
   Camera,
+  Footprints,
+  Target,
 } from 'phosphor-react-native';
 import { GlassCard } from '../../src/components/ios/GlassCard';
 import { GlassButton } from '../../src/components/ios/GlassButton';
 import { IOSSegmentedControl } from '../../src/components/ios/IOSSegmentedControl';
 import { SwipeableTabScreen } from '../../src/components/navigation/SwipeableTabScreen';
+import { AriseBannerAd } from '../../src/components/ads/AriseBannerAd';
+import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
 import { useQuestStore } from '../../src/stores/useQuestStore';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { useSound } from '../../src/hooks/useSound';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTheme } from '../../src/hooks/useTheme';
+import { HoloLoader } from '../../src/components/ui/HoloLoader';
+import { useLanguageStore } from '../../src/services/i18n';
 
 const CATEGORY_ICONS: Record<string, any> = {
   strength: Barbell,
@@ -45,6 +52,7 @@ export default function QuestsTab() {
   const { colors, isDark } = useTheme();
   const sound = useSound();
   const haptics = useHaptics();
+  const t = useLanguageStore((s) => s.t);
 
   const dailyQuests = useQuestStore((s) => s.dailyQuests);
   const loadQuests = useQuestStore((s) => s.loadQuests);
@@ -53,22 +61,54 @@ export default function QuestsTab() {
 
   const [activeFilter, setActiveFilter] = useState<'ALL' | 'DAILY' | 'STRENGTH' | 'FOCUS'>('ALL');
   const [loading, setLoading] = useState<boolean>(false);
+  const lastFocusLoadRef = useRef<number>(0);
+
+  const reloadQuestsIfStale = () => {
+    const now = Date.now();
+    if (now - lastFocusLoadRef.current > 10000) {
+      lastFocusLoadRef.current = now;
+      loadQuests();
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      reloadQuestsIfStale();
+    }, [])
+  );
 
   useEffect(() => {
     loadQuests();
   }, []);
 
   const handleComplete = async (questId: number) => {
-    haptics.heavy();
-    sound.play('quest_complete');
-    await completeQuest(questId);
+    const q = dailyQuests.find((item) => item.id === questId);
+    if (!q || q.completed) return;
+    showIOSAlert(
+      t('confirmCompletion') || 'CONFIRM COMPLETION',
+      `Did you execute "${q.title}"?`,
+      [
+        { text: t('cancel') || 'CANCEL', style: 'cancel' },
+        {
+          text: t('confirm') || 'CONFIRM',
+          style: 'primary',
+          onPress: async () => {
+            haptics.heavy();
+            sound.play('quest_complete');
+            const res = await completeQuest(questId);
+            showIOSAlert(t('questComplete') || 'QUEST COMPLETE!', `+${res.coins} Coins, +${res.xp} XP added to your vault.`);
+          },
+        },
+      ]
+    );
   };
 
   const filteredQuests = dailyQuests.filter((q) => {
     if (activeFilter === 'ALL') return true;
     if (activeFilter === 'DAILY') return true;
-    if (activeFilter === 'STRENGTH') return q.category === 'strength' || q.category === 'fitness';
-    if (activeFilter === 'FOCUS') return q.category === 'focus';
+    const cat = (q.category || '').toUpperCase();
+    if (activeFilter === 'STRENGTH') return cat === 'STRENGTH' || cat === 'FITNESS';
+    if (activeFilter === 'FOCUS') return cat === 'FOCUS';
     return true;
   });
 
@@ -81,7 +121,7 @@ export default function QuestsTab() {
       <SafeAreaView style={styles.safeArea}>
         {/* Top Header */}
         <View style={[styles.header, { borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)' }]}>
-          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>MISSION DIRECTIVES</Text>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>{t('dailyQuests')}</Text>
           <View style={[styles.completionBadge, { backgroundColor: isDark ? 'rgba(10, 132, 255, 0.15)' : 'rgba(10, 132, 255, 0.1)' }]}>
             <Text style={[styles.completionBadgeText, { color: colors.primary }]}>
               {completedCount}/{dailyQuests.length} DONE
@@ -94,11 +134,11 @@ export default function QuestsTab() {
           <GlassCard variant="glow" style={styles.heroCard}>
             <View style={styles.heroTopRow}>
               <View style={styles.heroLeftCol}>
-                <Text style={[styles.heroSubTitle, { color: colors.textMuted }]}>DAILY PROTOCOL PROGRESS</Text>
+                <Text style={[styles.heroSubTitle, { color: colors.textMuted }]}>{t('todayProgress')}</Text>
                 <Text style={[styles.heroMainTitle, { color: colors.textPrimary }]}>
                   {completedCount === dailyQuests.length && dailyQuests.length > 0
-                    ? 'ALL MISSIONS COMPLETE'
-                    : `${dailyQuests.length - completedCount} Missions Remaining`}
+                    ? t('allQuestsCompleted')
+                    : `${dailyQuests.length - completedCount} ${t('questsRemaining')}`}
                 </Text>
               </View>
 
@@ -112,15 +152,75 @@ export default function QuestsTab() {
             </View>
           </GlassCard>
 
+          {/* Shadow Sprint Trial GPS Banner */}
+          <TouchableOpacity
+            onPress={() => {
+              haptics.heavy();
+              router.push('/run' as any);
+            }}
+            activeOpacity={0.85}
+          >
+            <GlassCard
+              variant="glow"
+              style={{
+                padding: 16,
+                borderColor: '#00D2EE',
+                backgroundColor: isDark ? '#080C16' : '#F0F9FF',
+                gap: 10,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Footprints size={20} color="#00D2EE" weight="fill" />
+                  <Text style={{ fontSize: 13, fontWeight: '900', color: colors.textPrimary, letterSpacing: 0.5 }}>
+                    SHADOW SPRINT TRIAL
+                  </Text>
+                </View>
+                <View
+                  style={{
+                    backgroundColor: 'rgba(0, 210, 238, 0.15)',
+                    paddingHorizontal: 8,
+                    paddingVertical: 3,
+                    borderRadius: 4,
+                    borderWidth: 1,
+                    borderColor: 'rgba(0, 210, 238, 0.4)',
+                  }}
+                >
+                  <Text style={{ fontSize: 9.5, fontWeight: '900', color: '#00D2EE', letterSpacing: 0.6 }}>
+                    GPS LIVE RUN
+                  </Text>
+                </View>
+              </View>
+
+              <Text style={{ fontSize: 11, color: colors.textSecondary, lineHeight: 16 }}>
+                Real-time distance tracking & pace counter. Set your distance goal to earn massive Hunter XP & Coins!
+              </Text>
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 2 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                  <Target size={14} color="#00D2EE" weight="bold" />
+                  <Text style={{ fontSize: 10.5, fontWeight: '800', color: '#00D2EE' }}>
+                    0.5k – 10.0k Distance Selector
+                  </Text>
+                </View>
+                <View style={{ backgroundColor: '#00D2EE', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }}>
+                  <Text style={{ fontSize: 10.5, fontWeight: '900', color: '#000000', letterSpacing: 0.5 }}>
+                    START RUN
+                  </Text>
+                </View>
+              </View>
+            </GlassCard>
+          </TouchableOpacity>
+
           {/* Apple iOS Segmented Control Filter */}
           <View style={{ paddingVertical: 2 }}>
             <IOSSegmentedControl<'ALL' | 'DAILY' | 'STRENGTH' | 'FOCUS'>
               values={['ALL', 'DAILY', 'STRENGTH', 'FOCUS']}
               labels={{
-                ALL: 'All',
-                DAILY: 'Daily',
-                STRENGTH: 'Strength',
-                FOCUS: 'Focus',
+                ALL: t('filterAll'),
+                DAILY: t('filterDaily'),
+                STRENGTH: t('filterStrength'),
+                FOCUS: t('filterFocus'),
               }}
               selectedValue={activeFilter}
               onChange={(val) => setActiveFilter(val)}
@@ -129,30 +229,40 @@ export default function QuestsTab() {
 
           {/* Quests List */}
           <View style={styles.questsList}>
-            {filteredQuests.length === 0 ? (
+            {loading ? (
+              <HoloLoader message="CALIBRATING DAILY QUESTS" subMessage="SYNCHRONIZING SYSTEM ARCHIVES..." />
+            ) : filteredQuests.length === 0 ? (
               <GlassCard variant="default" style={styles.emptyCard}>
                 <Sparkle size={28} color={colors.textMuted} weight="duotone" />
-                <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>No Missions Found</Text>
+                <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>{t('noMissions')}</Text>
                 <Text style={[styles.emptySub, { color: colors.textSecondary }]}>
-                  Check back tomorrow for newly calibrated daily missions.
+                  {t('noMissionsSub')}
                 </Text>
               </GlassCard>
             ) : (
               filteredQuests.map((q) => {
                 const isDone = q.completed === true;
                 const titleLower = q.title.toLowerCase();
-                const isExercise =
-                  q.category === 'strength' ||
-                  q.category === 'fitness' ||
-                  titleLower.includes('push') ||
-                  titleLower.includes('squat') ||
-                  titleLower.includes('pull') ||
-                  titleLower.includes('plank') ||
-                  titleLower.includes('jack') ||
-                  titleLower.includes('lunge') ||
-                  titleLower.includes('crunch');
+                const cat = (q.category || '').toUpperCase();
+                const isRunningQuest =
+                  cat === 'RUNNING' ||
+                  titleLower.includes('run') ||
+                  titleLower.includes('sprint') ||
+                  titleLower.includes('jog');
 
-                const isFocus = q.category === 'focus' || titleLower.includes('focus') || titleLower.includes('study');
+                const isExercise =
+                  !isRunningQuest &&
+                  (cat === 'STRENGTH' ||
+                    cat === 'FITNESS' ||
+                    titleLower.includes('push') ||
+                    titleLower.includes('squat') ||
+                    titleLower.includes('pull') ||
+                    titleLower.includes('plank') ||
+                    titleLower.includes('jack') ||
+                    titleLower.includes('lunge') ||
+                    titleLower.includes('crunch'));
+
+                const isFocus = cat === 'FOCUS' || titleLower.includes('focus') || titleLower.includes('study');
 
                 let exerciseType = 'PUSHUP';
                 if (titleLower.includes('squat')) exerciseType = 'SQUAT';
@@ -162,12 +272,14 @@ export default function QuestsTab() {
                 else if (titleLower.includes('lunge')) exerciseType = 'LUNGE';
                 else if (titleLower.includes('crunch')) exerciseType = 'CRUNCH';
 
-                const IconComp = isExercise ? Barbell : isFocus ? Brain : (CATEGORY_ICONS[q.category] || Lightning);
+                const IconComp = isRunningQuest ? Footprints : isExercise ? Barbell : isFocus ? Brain : (CATEGORY_ICONS[q.category] || Lightning);
 
                 const handleCardPress = () => {
                   if (isDone) return;
                   haptics.medium();
-                  if (isExercise) {
+                  if (isRunningQuest) {
+                    router.push('/run' as any);
+                  } else if (isExercise) {
                     router.push({
                       pathname: '/exercise/[type]',
                       params: {
@@ -252,9 +364,9 @@ export default function QuestsTab() {
                           </View>
 
                           {isExercise && !isDone && (
-                            <View style={[styles.aiBadge, { backgroundColor: isDark ? 'rgba(204, 255, 0, 0.15)' : 'rgba(16, 185, 129, 0.15)' }]}>
-                              <Camera size={11} color={colors.primary} weight="bold" />
-                              <Text style={[styles.aiBadgeText, { color: colors.primary }]}>AI CAMERA</Text>
+                            <View style={[styles.aiBadge, { backgroundColor: isDark ? 'rgba(10, 132, 255, 0.12)' : 'rgba(10, 132, 255, 0.08)', borderWidth: 1, borderColor: isDark ? 'rgba(10, 132, 255, 0.3)' : 'rgba(10, 132, 255, 0.2)' }]}>
+                              <Camera size={11} color="#0A84FF" weight="bold" />
+                              <Text style={[styles.aiBadgeText, { color: '#0A84FF' }]}>AI CAMERA</Text>
                             </View>
                           )}
                         </View>
@@ -265,6 +377,9 @@ export default function QuestsTab() {
               })
             )}
           </View>
+
+          {/* AdMob Non-Intrusive Adaptive Banner */}
+          <AriseBannerAd style={{ marginVertical: 8 }} />
 
           <View style={{ height: 100 }} />
         </ScrollView>

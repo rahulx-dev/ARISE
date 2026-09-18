@@ -4,10 +4,18 @@ import android.app.AppOpsManager
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Process
+import android.util.Log
+import java.util.Calendar
+import java.util.Locale
 
 object UsageStatsHelper {
+
+    private const val AUDIT_TAG = "ARISE BLOCKER"
+    private const val TAG = "UsageStatsHelper"
 
     fun hasUsagePermission(context: Context): Boolean {
         val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as? AppOpsManager ?: return false
@@ -28,50 +36,261 @@ object UsageStatsHelper {
         return mode == AppOpsManager.MODE_ALLOWED
     }
 
+    private val knownLauncherPackages = mutableSetOf(
+        "com.android.systemui",
+        "com.google.android.apps.nexuslauncher",
+        "com.android.launcher",
+        "com.android.launcher3",
+        "com.sec.android.app.launcher",
+        "com.miui.home",
+        "com.oppo.launcher",
+        "com.oneplus.launcher",
+        "com.huawei.android.launcher",
+        "com.motorola.launcher3",
+        "com.transsion.hilauncher",
+        "com.transsion.XOSLauncher",
+        "com.bbk.launcher2",
+        "com.vivo.launcher",
+        "com.nothing.launcher"
+    )
+
+    fun isSystemLauncherOrUi(context: Context, packageName: String): Boolean {
+        if (packageName == "com.android.systemui") return true
+        if (packageName.contains("launcher", ignoreCase = true)) return true
+        if (packageName.contains("quickstep", ignoreCase = true)) return true
+        if (packageName.contains("nexuslauncher", ignoreCase = true)) return true
+        if (knownLauncherPackages.contains(packageName)) return true
+
+        try {
+            val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+            val resolveInfos = context.packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
+            for (info in resolveInfos) {
+                val pkg = info.activityInfo?.packageName
+                if (pkg != null) {
+                    knownLauncherPackages.add(pkg)
+                    if (pkg == packageName) return true
+                }
+            }
+        } catch (_: Exception) {}
+        return false
+    }
+
+    private var cachedForegroundPackage: String? = null
+    private var lastForegroundTimestamp: Long = 0L
+
+    /**
+     * Real-time Chronological Foreground Detection:
+     * Queries recent events in the last 10 seconds to determine the exact currently active application.
+     */
     fun getForegroundPackage(context: Context): String? {
         val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager ?: return null
         val endTime = System.currentTimeMillis()
-        val startTime = endTime - 10_000 // 10-second lookback
+        val startTime = endTime - (10 * 1000L)
 
-        val usageEvents = usageStatsManager.queryEvents(startTime, endTime)
-        val event = UsageEvents.Event()
-        var lastForeground: String? = null
+        var latestEventTime = 0L
+        var latestPkg: String? = null
 
-        while (usageEvents.hasNextEvent()) {
-            usageEvents.getNextEvent(event)
-            if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED ||
-                event.eventType == UsageEvents.Event.MOVE_TO_FOREGROUND) {
-                lastForeground = event.packageName
+        try {
+            val usageEvents = usageStatsManager.queryEvents(startTime, endTime)
+            val ev = UsageEvents.Event()
+
+            while (usageEvents.hasNextEvent()) {
+                usageEvents.getNextEvent(ev)
+                val pkg = ev.packageName ?: continue
+                if (pkg == "com.android.systemui") continue
+
+                val type = ev.eventType
+                val time = ev.timeStamp
+
+                when (type) {
+                    UsageEvents.Event.ACTIVITY_RESUMED,
+                    UsageEvents.Event.MOVE_TO_FOREGROUND -> {
+                        if (time >= latestEventTime) {
+                            latestEventTime = time
+                            latestPkg = pkg
+                        }
+                    }
+                    UsageEvents.Event.ACTIVITY_PAUSED,
+                    UsageEvents.Event.ACTIVITY_STOPPED,
+                    UsageEvents.Event.MOVE_TO_BACKGROUND -> {
+                        if (time >= latestEventTime && latestPkg == pkg) {
+                            latestEventTime = time
+                            latestPkg = null
+                        }
+                    }
+                }
             }
+
+            if (latestPkg != null) {
+                if (isSystemLauncherOrUi(context, latestPkg)) {
+                    cachedForegroundPackage = null
+                    return null
+                }
+                cachedForegroundPackage = latestPkg
+                lastForegroundTimestamp = latestEventTime
+                return latestPkg
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "queryEvents error: ${e.message}")
         }
-        return lastForeground
+
+        // Secondary Real-Time Fallback: Query INTERVAL_BEST usage stats for instant lastTimeUsed detection
+        try {
+            val statsList = usageStatsManager.queryUsageStats(UsageStatsManager.INTERVAL_BEST, endTime - 3500L, endTime)
+            if (!statsList.isNullOrEmpty()) {
+                val topApp = statsList.filter { it.lastTimeUsed > 0 && it.packageName != "com.android.systemui" }
+                    .maxByOrNull { it.lastTimeUsed }
+                if (topApp != null && (endTime - topApp.lastTimeUsed) < 2500L) {
+                    if (isSystemLauncherOrUi(context, topApp.packageName)) {
+                        cachedForegroundPackage = null
+                        return null
+                    }
+                    cachedForegroundPackage = topApp.packageName
+                    lastForegroundTimestamp = topApp.lastTimeUsed
+                    return topApp.packageName
+                }
+            }
+        } catch (_: Exception) {}
+
+        return cachedForegroundPackage
     }
 
+    /**
+     * Authoritative Deterministic Daily Millisecond Usage Calculation:
+     * Computes usage strictly from 00:00:00 local time today.
+     * Uses stateful event transition tracking (avoiding depth desynchronization)
+     * and adds active session delta if the app is currently in foreground.
+     */
     fun getPackageTodayUsageMs(context: Context, packageName: String): Long {
         val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager ?: return 0L
-        val calendar = java.util.Calendar.getInstance().apply {
-            set(java.util.Calendar.HOUR_OF_DAY, 0)
-            set(java.util.Calendar.MINUTE, 0)
-            set(java.util.Calendar.SECOND, 0)
-            set(java.util.Calendar.MILLISECOND, 0)
+        val calendar = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val startTime = calendar.timeInMillis
+        val endTime = System.currentTimeMillis()
+        val maxPossibleMs = (endTime - startTime).coerceAtLeast(0L)
+
+        var totalUsageMs = 0L
+        var sessionStartTime = 0L
+        var isSessionActive = false
+        var hasEvents = false
+
+        try {
+            val usageEvents = usageStatsManager.queryEvents(startTime, endTime)
+            val event = UsageEvents.Event()
+
+            while (usageEvents.hasNextEvent()) {
+                usageEvents.getNextEvent(event)
+                if (event.packageName == packageName) {
+                    hasEvents = true
+                    val time = event.timeStamp.coerceIn(startTime, endTime)
+
+                    when (event.eventType) {
+                        UsageEvents.Event.ACTIVITY_RESUMED,
+                        UsageEvents.Event.MOVE_TO_FOREGROUND -> {
+                            if (!isSessionActive) {
+                                isSessionActive = true
+                                sessionStartTime = time
+                            }
+                        }
+                        UsageEvents.Event.ACTIVITY_PAUSED,
+                        UsageEvents.Event.ACTIVITY_STOPPED,
+                        UsageEvents.Event.MOVE_TO_BACKGROUND -> {
+                            if (isSessionActive) {
+                                isSessionActive = false
+                                if (time >= sessionStartTime && sessionStartTime > 0L) {
+                                    totalUsageMs += (time - sessionStartTime)
+                                }
+                                sessionStartTime = 0L
+                            }
+                        }
+                    }
+                }
+            }
+
+            // If app is currently active in the foreground right now, add active in-flight session time
+            if (isSessionActive && sessionStartTime > 0L && endTime >= sessionStartTime) {
+                totalUsageMs += (endTime - sessionStartTime)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error calculating usage events for $packageName", e)
+        }
+
+        // Fallback to queryAndAggregateUsageStats if queryEvents returned no events
+        if (!hasEvents && totalUsageMs == 0L) {
+            try {
+                val statsMap = usageStatsManager.queryAndAggregateUsageStats(startTime, endTime)
+                val pkgStat = statsMap[packageName]
+                if (pkgStat != null && pkgStat.totalTimeInForeground > 0L) {
+                    totalUsageMs = pkgStat.totalTimeInForeground
+                }
+            } catch (_: Exception) {}
+        }
+
+        return totalUsageMs.coerceIn(0L, maxPossibleMs)
+    }
+
+    fun getTotalTodayUsageMs(context: Context): Long {
+        val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager ?: return 0L
+        val calendar = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
         }
         val startTime = calendar.timeInMillis
         val endTime = System.currentTimeMillis()
 
-        val stats = usageStatsManager.queryUsageStats(
-            UsageStatsManager.INTERVAL_DAILY,
-            startTime,
-            endTime
-        )
-
-        var totalTime = 0L
-        if (stats != null) {
-            for (usageStat in stats) {
-                if (usageStat.packageName == packageName) {
-                    totalTime += usageStat.totalTimeInForeground
+        try {
+            val statsMap = usageStatsManager.queryAndAggregateUsageStats(startTime, endTime)
+            var total = 0L
+            for ((pkg, stats) in statsMap) {
+                if (!isSystemLauncherOrUi(context, pkg) && pkg != context.packageName) {
+                    total += stats.totalTimeInForeground
                 }
             }
-        }
-        return totalTime
+            val maxPossibleMs = (endTime - startTime).coerceAtLeast(0L)
+            return total.coerceIn(0L, maxPossibleMs)
+        } catch (_: Exception) {}
+        return 0L
+    }
+
+    /**
+     * Structured Debugging Logs as required by specification:
+     * Logs exact millisecond values, minutes, foreground state, and transition reason.
+     */
+    fun logAudit(
+        pkg: String,
+        usedMs: Long,
+        limitMs: Long,
+        isForeground: Boolean,
+        previousLocked: Boolean,
+        newLocked: Boolean,
+        reason: String
+    ) {
+        val ts = System.currentTimeMillis()
+        val remainingMs = limitMs - usedMs
+        val usedMinutes = String.format(Locale.US, "%.2f", usedMs / 60000.0)
+        val limitMinutes = String.format(Locale.US, "%.2f", limitMs / 60000.0)
+
+        Log.i(
+            AUDIT_TAG,
+            """
+[ARISE BLOCKER]
+package=$pkg
+actualUsedMs=$usedMs
+actualUsedMinutes=$usedMinutes
+limitMs=$limitMs
+limitMinutes=$limitMinutes
+remainingMs=$remainingMs
+isForeground=$isForeground
+previousLockState=$previousLocked
+newLockState=$newLocked
+reason=$reason
+            """.trimIndent()
+        )
     }
 }

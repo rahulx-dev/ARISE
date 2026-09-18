@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,10 +8,12 @@ import {
   ActivityIndicator,
   Modal,
   AppState,
-  Image,
+  ImageBackground,
+  Platform,
 } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import {
   Gear,
   Bell,
@@ -22,17 +24,23 @@ import {
   Sparkle,
   ShieldWarning,
   Coins,
-  Camera,
-  Check,
   Lightning,
   Barbell,
-  Brain,
   Timer,
-  Wallet,
   ShieldCheck,
-  Images,
+  Trophy,
+  Gift,
+  Check,
+  Camera,
+  Play,
+  Crown,
+  ClipboardText,
+  CheckCircle,
+  Brain,
+  Star,
+  Sword,
 } from 'phosphor-react-native';
-import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { useQuestStore } from '../../src/stores/useQuestStore';
 import { streakService } from '../../src/services/streakService';
@@ -40,20 +48,42 @@ import { notificationService, AppNotification } from '../../src/services/notific
 import { historyService } from '../../src/services/historyService';
 import { initializeDatabase } from '../../src/database/client';
 import { appBlockerService } from '../../src/native';
-import { photoRepository } from '../../src/database/repositories/photoRepository';
-import { photoService } from '../../src/services/photoService';
 import { GlassCard } from '../../src/components/ios/GlassCard';
 import { PlayerAvatar } from '../../src/components/ui/PlayerAvatar';
-import { WeatherWidget } from '../../src/components/home/WeatherWidget';
-import { DisciplineHeatmap } from '../../src/components/home/DisciplineHeatmap';
-import { IOSActivityRings } from '../../src/components/ios/IOSActivityRings';
 import { SwipeableTabScreen } from '../../src/components/navigation/SwipeableTabScreen';
+import { AriseBannerAd } from '../../src/components/ads/AriseBannerAd';
 import { useHaptics } from '../../src/hooks/useHaptics';
+import { useSound } from '../../src/hooks/useSound';
 import { useTheme } from '../../src/hooks/useTheme';
+import { HoloLoader } from '../../src/components/ui/HoloLoader';
+import { useLanguageStore } from '../../src/services/i18n';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withSequence,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
+import { getRankForLevel } from '../../src/constants/ranks';
+import { adMobService } from '../../src/services/adMobService';
+import { userRepository } from '../../src/database/repositories/userRepository';
+import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
+import { SoloLevelingWindow } from '../../src/components/ui/SoloLevelingWindow';
+import { getDailyQuote } from '../../src/constants/quotes';
+import { AnimatedStreakFlame } from '../../src/components/ui/AnimatedStreakFlame';
+import {
+  shouldShowDailyWelcome,
+  markDailyWelcomeShown,
+} from '../../src/services/dailyWelcomeService';
+
+const SUNSET_BANNER = require('../../assets/img/sunset_warrior_banner.jpg');
+const MOONLIT_BANNER = require('../../assets/img/moonlit_warrior_banner.jpg');
 
 export default function HomeDashboard() {
   const { colors, isDark } = useTheme();
   const haptics = useHaptics();
+  const t = useLanguageStore((s) => s.t);
 
   const profile = usePlayerStore((s) => s.profile);
   const loadProfile = usePlayerStore((s) => s.loadProfile);
@@ -65,6 +95,40 @@ export default function HomeDashboard() {
   const [isNotifSheetOpen, setIsNotifSheetOpen] = useState(false);
   const [hasAllPermissions, setHasAllPermissions] = useState(true);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [notifFilter, setNotifFilter] = useState<'ALL' | 'DIRECTIVES' | 'MOTIVATION'>('ALL');
+
+  const handleTriggerMotivationalAlert = async () => {
+    haptics.heavy();
+    sound.play('unlock');
+    await notificationService.sendMotivationalNotification();
+    const notifs = await notificationService.getNotifications(30);
+    setNotifications(notifs);
+  };
+
+  const handleTriggerTestAlert = async () => {
+    haptics.heavy();
+    sound.play('quest_complete');
+    await notificationService.sendTestNotification();
+    const notifs = await notificationService.getNotifications(30);
+    setNotifications(notifs);
+  };
+
+  const handleClearAllNotifs = async () => {
+    haptics.light();
+    await notificationService.clearAllNotifications();
+    setNotifications([]);
+  };
+
+  const filteredNotifications = useMemo(() => {
+    if (notifFilter === 'DIRECTIVES') {
+      return notifications.filter((n) => n.type === 'QUEST' || n.type === 'SYSTEM' || n.type === 'STREAK');
+    }
+    if (notifFilter === 'MOTIVATION') {
+      return notifications.filter((n) => n.type === 'MOTIVATION');
+    }
+    return notifications;
+  }, [notifications, notifFilter]);
+
   const [todayStats, setTodayStats] = useState({
     focusMinutes: 0,
     workoutMinutes: 0,
@@ -74,30 +138,84 @@ export default function HomeDashboard() {
     focusSessionsCount: 0,
   });
 
-  const [todayPhoto, setTodayPhoto] = useState<any | null>(null);
-  const [totalPhotosCount, setTotalPhotosCount] = useState<number>(0);
-
-  // Live time ticker
-  const [timeStr, setTimeStr] = useState('09:41');
-  const [dateStr, setDateStr] = useState('Wednesday, 2 September');
+  const lastFocusLoadRef = useRef<number>(0);
+  const [remainingTimeToMidnight, setRemainingTimeToMidnight] = useState('07h 37m');
 
   useEffect(() => {
-    const updateTime = () => {
+    const updateMidnightCountdown = () => {
       const now = new Date();
-      const hh = String(now.getHours()).padStart(2, '0');
-      const mm = String(now.getMinutes()).padStart(2, '0');
-      setTimeStr(`${hh}:${mm}`);
-
-      const weekday = now.toLocaleDateString('en-US', { weekday: 'long' });
-      const day = now.getDate();
-      const month = now.toLocaleDateString('en-US', { month: 'long' });
-      setDateStr(`${weekday}, ${day} ${month}`);
+      const midnight = new Date(now);
+      midnight.setHours(24, 0, 0, 0);
+      const diffMs = midnight.getTime() - now.getTime();
+      const hours = Math.floor(diffMs / (1000 * 60 * 60));
+      const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+      setRemainingTimeToMidnight(`${String(hours).padStart(2, '0')}h ${String(mins).padStart(2, '0')}m`);
     };
-
-    updateTime();
-    const timer = setInterval(updateTime, 1000);
-    return () => clearInterval(timer);
+    updateMidnightCountdown();
+    const interval = setInterval(updateMidnightCountdown, 60000);
+    return () => clearInterval(interval);
   }, []);
+
+  const { welcome } = useLocalSearchParams<{ welcome?: string }>();
+  const sound = useSound();
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [welcomeType, setWelcomeType] = useState<'awakening' | 'daily'>('awakening');
+  const todayQuote = useMemo(() => getDailyQuote(), []);
+
+  useEffect(() => {
+    (async () => {
+      if (welcome === 'true') {
+        sound.play('quest_complete');
+        haptics.heavy();
+        setWelcomeType('awakening');
+        setShowWelcomeModal(true);
+        markDailyWelcomeShown();
+      } else {
+        const shouldShow = await shouldShowDailyWelcome();
+        if (shouldShow) {
+          setWelcomeType('daily');
+          setShowWelcomeModal(true);
+          markDailyWelcomeShown();
+        }
+      }
+    })();
+  }, [welcome]);
+
+  const handleDismissWelcome = () => {
+    haptics.light();
+    markDailyWelcomeShown();
+    setShowWelcomeModal(false);
+  };
+
+  const flameScale = useSharedValue(1);
+  const flameOpacity = useSharedValue(1);
+
+  useEffect(() => {
+    flameScale.value = withRepeat(
+      withSequence(
+        withTiming(1.18, { duration: 600, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.95, { duration: 500, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1.12, { duration: 700, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1.0, { duration: 500, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      true
+    );
+    flameOpacity.value = withRepeat(
+      withSequence(
+        withTiming(0.85, { duration: 600 }),
+        withTiming(1.0, { duration: 500 }),
+        withTiming(0.9, { duration: 700 })
+      ),
+      -1,
+      true
+    );
+  }, []);
+
+  const animatedFlameStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: flameScale.value }],
+    opacity: flameOpacity.value,
+  }));
 
   const checkPermissions = async () => {
     try {
@@ -112,7 +230,7 @@ export default function HomeDashboard() {
   };
 
   const loadNotifications = async () => {
-    const notifs = await notificationService.getNotifications(20);
+    const notifs = await notificationService.getNotifications(30);
     setNotifications(notifs);
   };
 
@@ -125,49 +243,17 @@ export default function HomeDashboard() {
     }
   };
 
-  const loadPhotos = async () => {
-    try {
-      const today = await photoRepository.getTodaysPhoto();
-      setTodayPhoto(today || null);
-      const all = await photoRepository.getAllPhotos();
-      setTotalPhotosCount(all.length);
-    } catch (e) {
-      console.warn('Error loading photos on home:', e);
-    }
-  };
-
-  const handleTakeHomePhoto = async () => {
-    haptics.heavy();
-    try {
-      const perm = await ImagePicker.requestCameraPermissionsAsync();
-      if (!perm.granted) {
-        router.push('/photos' as any);
-        return;
-      }
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [3, 4],
-        quality: 0.8,
-      });
-      if (!result.canceled && result.assets[0]?.uri) {
-        await photoService.saveProgressPhoto(result.assets[0].uri, 'Daily Transformation Check-in');
-        haptics.success();
-        loadPhotos();
-      }
-    } catch (e) {
-      console.warn('Error capturing photo from home:', e);
-    }
-  };
-
   useFocusEffect(
     useCallback(() => {
-      loadProfile();
-      loadQuests();
-      loadStats();
-      loadPhotos();
-      checkPermissions();
-      loadNotifications();
+      const now = Date.now();
+      if (now - lastFocusLoadRef.current > 15000) {
+        lastFocusLoadRef.current = now;
+        loadProfile();
+        loadQuests();
+        loadStats();
+        checkPermissions();
+        loadNotifications();
+      }
     }, [])
   );
 
@@ -178,9 +264,9 @@ export default function HomeDashboard() {
         await loadProfile();
         await loadQuests();
         await loadStats();
-        await loadPhotos();
-        await streakService.checkAndUpdateStreak();
         await checkPermissions();
+        await notificationService.seedDefaultNotificationsIfEmpty();
+        await notificationService.scheduleDailyTimelyReminders();
         await loadNotifications();
       } catch (error) {
         console.error('Initialization error:', error);
@@ -190,45 +276,70 @@ export default function HomeDashboard() {
     };
     init();
 
-    const sub = AppState.addEventListener('change', (nextState) => {
+    const sub = AppState.addEventListener('change', async (nextState) => {
       if (nextState === 'active') {
         checkPermissions();
-        loadProfile();
-        loadQuests();
-        loadStats();
-        loadPhotos();
-        loadNotifications();
+        await loadProfile();
+        await loadQuests();
+        await loadStats();
+        await loadNotifications();
       }
     });
     return () => sub.remove();
   }, []);
 
+  const handleWatchAdQuick = () => {
+    haptics.medium();
+    const onReward = async () => {
+      const reward = 25; // Strictly 25 coins confirmed per user requirement
+      await userRepository.addCoins(reward, 'Watched Rewarded Video Ad', 'ad');
+      await loadProfile();
+      haptics.success();
+      showIOSAlert(
+        'VAULT REWARD CLAIMED!',
+        `+${reward} Gold Coins added to your vault!`,
+        [{ text: 'AWESOME', style: 'primary' }]
+      );
+    };
+
+    const shown = adMobService.showRewardedAd(onReward);
+    if (!shown) {
+      showIOSAlert(
+        'CONNECTING STREAM...',
+        'Buffering AdMob video reward. Tap again in 3 seconds to watch!',
+        [{ text: 'PROCEED', style: 'primary' }]
+      );
+      adMobService.preloadRewarded();
+    }
+  };
+
+  const level = profile?.level ?? 1;
+  const currentXP = profile?.currentXP ?? 0;
+  const coins = profile?.coins ?? 0;
+  const streak = profile?.currentStreak ?? 0;
+  const displayName = profile?.displayName || 'Hunter';
+  const avatarIcon = profile?.avatarIcon || 'img_pfp_01';
+  const completedQuestsCount = dailyQuests.filter((q) => q.completed).length;
+  const totalQuestsCount = dailyQuests.length || 3;
+
+  const rank = getRankForLevel(level);
+  const xpNeeded = Math.round(500 * Math.pow(1.25, Math.max(0, level - 1)));
+  const xpPercent = Math.min(100, Math.round((currentXP / Math.max(1, xpNeeded)) * 100));
+
   if (loading) {
     return (
       <View style={[styles.container, styles.center, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <HoloLoader message="SYNCHRONIZING HUNTER MATRIX" subMessage="ACCESSING SHADOW REALM ARCHIVES..." size="large" />
       </View>
     );
   }
 
-  const level = profile?.level || 1;
-  const currentXP = profile?.currentXP || 0;
-  const coins = profile?.coins || 0;
-  const streak = profile?.currentStreak || 0;
-  const displayName = profile?.displayName || 'Warrior';
-  const avatarIcon = profile?.avatarIcon || 'img_pfp_01';
-  const completedQuestsCount = dailyQuests.filter((q) => q.completed).length;
-  const totalQuestsCount = dailyQuests.length || 1;
-  const winRate = totalQuestsCount > 0 ? Math.round((completedQuestsCount / totalQuestsCount) * 100) : 0;
-
-  // Find next pending quest
-  const nextPendingQuest = dailyQuests.find((q) => !q.completed);
-
   return (
     <SwipeableTabScreen nextTab="/(tabs)/quests" style={[styles.container, { backgroundColor: colors.background }]}>
       <SafeAreaView style={styles.safeArea}>
-        {/* Top App Bar */}
-        <View style={[styles.topHeader, { borderBottomColor: isDark ? '#232532' : '#E5E7EB' }]}>
+        {/* 1. TOP STATUS BAR (EXACT MOCKUP) */}
+        <View style={styles.topHeader}>
+          {/* Left: Avatar & Sovereign Title */}
           <TouchableOpacity
             style={styles.headerLeftCol}
             onPress={() => router.push('/(tabs)/profile')}
@@ -236,40 +347,84 @@ export default function HomeDashboard() {
           >
             <PlayerAvatar
               iconId={avatarIcon}
-              size={40}
+              size={44}
               glow={true}
-              glowColor={colors.primary}
+              glowColor="#F59E0B"
             />
-            <View style={{ gap: 1 }}>
-              <Text style={[styles.greetingSub, { color: colors.textMuted }]}>Good day,</Text>
-              <Text style={[styles.greetingTitle, { color: colors.textPrimary }]}>
-                {displayName}
+            <View style={{ gap: 2 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={[styles.hunterCallsignText, { color: colors.textPrimary }]}>
+                  {displayName.toUpperCase()}
+                </Text>
+                <View style={styles.nationalTag}>
+                  <Text style={styles.nationalTagText}>{rank.rankCode}-RANK</Text>
+                </View>
+              </View>
+              <Text style={styles.sovereignSubText}>
+                {rank.title} • LVL {level}
               </Text>
             </View>
           </TouchableOpacity>
 
-          <View style={styles.headerRightActions}>
-            <TouchableOpacity
-              style={[styles.headerIconBtn, { backgroundColor: isDark ? '#14151C' : '#FFFFFF', borderColor: colors.border }]}
-              onPress={() => router.push('/settings')}
-              activeOpacity={0.8}
-            >
-              <Gear size={20} color={colors.textPrimary} weight="regular" />
-            </TouchableOpacity>
+          {/* Right: Coins, Bell, Settings & Rank Pill */}
+          <View style={styles.headerRightCol}>
+            {/* Top Action Row */}
+            <View style={styles.headerTopActionRow}>
+              {/* Gold Coin Capsule */}
+              <TouchableOpacity
+                style={[styles.headerCoinsCapsule, { backgroundColor: isDark ? '#1C1608' : '#FEF3C7', borderColor: isDark ? '#F59E0B' : '#D97706' }]}
+                onPress={() => {
+                  haptics.light();
+                  router.push('/shop' as any);
+                }}
+                activeOpacity={0.8}
+              >
+                <Coins size={14} color="#F59E0B" weight="fill" />
+                <Text style={styles.headerCoinsAmount}>{coins.toLocaleString()}</Text>
+                <View style={styles.headerPlusCircle}>
+                  <Text style={styles.headerPlusText}>+</Text>
+                </View>
+              </TouchableOpacity>
 
+              {/* Notification Bell */}
+              <TouchableOpacity
+                style={[styles.headerCircleBtn, { backgroundColor: isDark ? '#11141E' : colors.surfaceLight, borderColor: isDark ? '#1F2536' : colors.border }]}
+                onPress={() => {
+                  haptics.light();
+                  loadNotifications();
+                  setIsNotifSheetOpen(true);
+                }}
+                activeOpacity={0.8}
+              >
+                <Bell size={18} color={colors.textPrimary} weight="bold" />
+                <View style={styles.bellBadge}>
+                  <Text style={styles.bellBadgeText}>1</Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Settings Gear */}
+              <TouchableOpacity
+                style={[styles.headerCircleBtn, { backgroundColor: isDark ? '#11141E' : colors.surfaceLight, borderColor: isDark ? '#1F2536' : colors.border }]}
+                onPress={() => router.push('/settings')}
+                activeOpacity={0.8}
+              >
+                <Gear size={18} color={colors.textPrimary} weight="bold" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Rank Capsule */}
             <TouchableOpacity
-              style={[styles.headerIconBtn, { backgroundColor: isDark ? '#14151C' : '#FFFFFF', borderColor: colors.border }]}
+              style={[styles.headerRankPill, { backgroundColor: isDark ? '#11141E' : colors.surfaceLight, borderColor: isDark ? '#1F2536' : colors.border }]}
               onPress={() => {
                 haptics.light();
-                loadNotifications();
-                setIsNotifSheetOpen(true);
+                router.push('/leaderboard' as any);
               }}
               activeOpacity={0.8}
             >
-              <Bell size={20} color={colors.textPrimary} weight="regular" />
-              {notifications.some((n) => !n.isRead) && (
-                <View style={[styles.bellDot, { backgroundColor: colors.primary }]} />
-              )}
+              <Crown size={12} color="#F59E0B" weight="fill" />
+              <Text style={styles.headerRankLabel}>
+                Rank <Text style={[styles.headerRankVal, { color: colors.textPrimary }]}>#{rank.rankCode}</Text>
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -278,476 +433,622 @@ export default function HomeDashboard() {
           {/* Permission Shield Alert (if missing) */}
           {!hasAllPermissions && (
             <TouchableOpacity
-              style={[styles.permAlertCard, { backgroundColor: isDark ? '#450A0A' : '#FEE2E2', borderColor: '#EF4444' }]}
+              style={styles.permAlertCard}
               onPress={() => router.push('/permissions' as any)}
               activeOpacity={0.85}
             >
               <ShieldWarning size={20} color="#EF4444" weight="fill" />
               <View style={{ flex: 1 }}>
-                <Text style={[styles.permAlertTitle, { color: '#FFFFFF' }]}>Shield Inactive</Text>
-                <Text style={[styles.permAlertSub, { color: isDark ? '#FCA5A5' : '#7F1D1D' }]}>
-                  App blocker requires system permissions to protect focus.
+                <Text style={styles.permAlertTitle}>SHIELD INACTIVE</Text>
+                <Text style={styles.permAlertSub}>
+                  App blocker requires system overlay & usage access to lock distractions.
                 </Text>
               </View>
-              <View style={[styles.permAlertBadge, { backgroundColor: '#EF4444' }]}>
-                <Text style={styles.permAlertBadgeText}>GRANT</Text>
+              <View style={styles.permAlertBadge}>
+                <Text style={styles.permAlertBadgeText}>ACTIVATE</Text>
               </View>
             </TouchableOpacity>
           )}
 
-          {/* Big Display Time & Date */}
-          <View style={styles.timeHeroSection}>
-            <Text style={[styles.timeHeroDisplay, { color: colors.textPrimary }]}>{timeStr}</Text>
-            <Text style={[styles.dateHeroDisplay, { color: colors.textMuted }]}>{dateStr}</Text>
+          {/* 2. DISCIPLINE AT RISK // SUNSET ANIME HERO BANNER */}
+          <View style={styles.heroBannerWrap}>
+            <ImageBackground
+              source={SUNSET_BANNER}
+              style={styles.heroBannerBg}
+              imageStyle={{ borderRadius: 24 }}
+            >
+              <LinearGradient
+                colors={['rgba(8, 10, 15, 0.88)', 'rgba(8, 10, 15, 0.55)', 'rgba(6, 8, 14, 0.95)']}
+                style={styles.heroBannerOverlay}
+              >
+                {/* Top Status Row */}
+                <View style={styles.heroBannerTopRow}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+                    <AnimatedStreakFlame size={20} color="#FF5500" />
+                    <Text style={styles.disciplineRiskTitle}>DISCIPLINE AT RISK</Text>
+                  </View>
+
+                  <View style={styles.countdownPill}>
+                    <Timer size={13} color="#F59E0B" weight="bold" />
+                    <Text style={styles.countdownText}>{remainingTimeToMidnight}</Text>
+                  </View>
+                </View>
+
+                {/* Big Days Counter & Milestones */}
+                <View style={styles.heroDaysRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.daysHugeText}>
+                      {streak}{' '}
+                      <Text style={styles.daysLabelText}>DAYS</Text>
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.milestonesBtn}
+                    onPress={() => {
+                      haptics.light();
+                      router.push('/rewards/streak-milestones' as any);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Gift size={14} color="#F59E0B" weight="fill" />
+                    <Text style={styles.milestonesBtnText}>MILESTONES</Text>
+                    <ArrowRight size={12} color="#F59E0B" weight="bold" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Rank Ascension XP Section */}
+                <View style={styles.rankXpSection}>
+                  <View style={styles.rankXpTextRow}>
+                    <Text style={styles.rankXpLabel}>RANK ASCENSION XP</Text>
+                    <Text style={styles.rankXpAmount}>
+                      {currentXP} / {xpNeeded} XP ({xpPercent}%)
+                    </Text>
+                  </View>
+                  <View style={styles.rankXpTrack}>
+                    <View
+                      style={[
+                        styles.rankXpFill,
+                        { width: `${Math.max(3, Math.min(100, xpPercent || 4))}%` },
+                      ]}
+                    />
+                  </View>
+                </View>
+              </LinearGradient>
+            </ImageBackground>
           </View>
 
-          {/* Next UPI Payout Goal Progress Banner */}
-          <TouchableOpacity
-            onPress={() => {
-              haptics.light();
-              router.push('/shop' as any);
-            }}
-            activeOpacity={0.88}
-          >
-            <GlassCard variant="elevated" style={styles.cashoutGoalCard}>
-              <View style={styles.cashoutGoalTopRow}>
-                <View style={styles.cashoutGoalTag}>
-                  <Wallet size={13} color="#F59E0B" weight="fill" />
-                  <Text style={styles.cashoutGoalTagText}>NEXT CASHOUT: ₹50 UPI</Text>
-                </View>
-                <Text style={styles.cashoutGoalPercentText}>
-                  {Math.min(100, Math.round((coins / 5000) * 100))}%
-                </Text>
+          {/* 3. TRIO METRIC CARDS */}
+          <View style={styles.trioMetricsRow}>
+            {/* Workout */}
+            <View style={[styles.trioMetricCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={[styles.trioIconSquircle, { backgroundColor: 'rgba(0, 242, 254, 0.12)' }]}>
+                <Barbell size={18} color="#00F2FE" weight="duotone" />
               </View>
+              <Text style={[styles.trioMetricVal, { color: colors.textPrimary }]}>{todayStats.workoutMinutes}m</Text>
+              <Text style={styles.trioMetricLabel}>{t('workout')}</Text>
+              <Text style={[styles.trioMetricSub, { color: colors.textMuted }]}>Today</Text>
+            </View>
 
-              <View style={styles.cashoutGoalBarTrack}>
-                <View
-                  style={[
-                    styles.cashoutGoalBarFill,
-                    {
-                      width: `${Math.max(4, Math.min(100, (coins / 5000) * 100))}%`,
-                    },
-                  ]}
-                />
+            {/* Focus */}
+            <View style={[styles.trioMetricCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={[styles.trioIconSquircle, { backgroundColor: 'rgba(168, 85, 247, 0.12)' }]}>
+                <Timer size={18} color="#A855F7" weight="duotone" />
               </View>
+              <Text style={[styles.trioMetricVal, { color: colors.textPrimary }]}>{todayStats.focusMinutes}m</Text>
+              <Text style={styles.trioMetricLabel}>{t('focus')}</Text>
+              <Text style={[styles.trioMetricSub, { color: colors.textMuted }]}>Today</Text>
+            </View>
 
-              <View style={styles.cashoutGoalFooter}>
-                <Text style={styles.cashoutGoalMeta}>
-                  {coins.toLocaleString()} / 5,000 Coins
-                </Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <Text style={styles.cashoutGoalAction}>REDEEM VAULT</Text>
-                  <ArrowRight size={11} color="#F59E0B" weight="bold" />
-                </View>
+            {/* Tasks Cleared */}
+            <View style={[styles.trioMetricCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={[styles.trioIconSquircle, { backgroundColor: 'rgba(16, 185, 129, 0.12)' }]}>
+                <CheckCircle size={18} color="#10B981" weight="fill" />
               </View>
-            </GlassCard>
-          </TouchableOpacity>
+              <Text style={[styles.trioMetricVal, { color: colors.textPrimary }]}>
+                {completedQuestsCount}/{totalQuestsCount}
+              </Text>
+              <Text style={styles.trioMetricLabel}>{t('cleared')}</Text>
+              <Text style={[styles.trioMetricSub, { color: colors.textMuted }]}>Daily Goals</Text>
+            </View>
+          </View>
 
-          {/* 4 Big Command Center Quick Action Tiles */}
-          <View style={styles.commandTilesGrid}>
-            {/* 1. AI Workout */}
+          {/* 4. PRIMARY CTA: FULL-WIDTH START AI WORKOUT */}
+          <View style={styles.ctaRowContainer}>
             <TouchableOpacity
-              style={styles.commandTile}
+              style={styles.primaryWorkoutBtnFull}
               onPress={() => {
                 haptics.heavy();
                 router.push('/(tabs)/progress');
               }}
-              activeOpacity={0.8}
+              activeOpacity={0.88}
             >
-              <View style={[styles.commandIconCircle, { backgroundColor: 'rgba(10, 132, 255, 0.15)' }]}>
-                <Barbell size={22} color="#0A84FF" weight="duotone" />
-              </View>
-              <Text style={styles.commandTileTitle}>AI Workout</Text>
-              <Text style={styles.commandTileSub}>Pose Tracker</Text>
+              <LinearGradient
+                colors={['#007AFF', '#0055FF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.primaryWorkoutBtnGradient}
+              >
+                <Lightning size={20} color="#FFFFFF" weight="fill" />
+                <Text style={styles.primaryWorkoutBtnText}>{t('startWorkout')}</Text>
+                <ArrowRight size={18} color="#FFFFFF" weight="bold" />
+              </LinearGradient>
             </TouchableOpacity>
+          </View>
 
-            {/* 2. Deep Focus */}
+          {/* 5. FOUR QUICK ACTION TACTICAL SQUIRCLE BUTTONS */}
+          <View style={styles.tacticalGrid}>
             <TouchableOpacity
-              style={styles.commandTile}
+              style={[styles.tacticalCard, { backgroundColor: colors.card, borderColor: colors.border }]}
               onPress={() => {
                 haptics.heavy();
                 router.push('/focus/session');
               }}
               activeOpacity={0.8}
             >
-              <View style={[styles.commandIconCircle, { backgroundColor: 'rgba(99, 102, 241, 0.15)' }]}>
-                <Timer size={22} color="#6366F1" weight="duotone" />
+              <View style={[styles.tacticalIconWrap, { backgroundColor: 'rgba(168, 85, 247, 0.15)' }]}>
+                <Brain size={18} color="#A855F7" weight="fill" />
               </View>
-              <Text style={styles.commandTileTitle}>Deep Focus</Text>
-              <Text style={styles.commandTileSub}>Siri Ring</Text>
+              <Text style={[styles.tacticalTitle, { color: colors.textPrimary }]}>{t('deepFocus')}</Text>
+              <Text style={styles.tacticalSub}>Block Distractions</Text>
             </TouchableOpacity>
 
-            {/* 3. Lock Apps */}
             <TouchableOpacity
-              style={styles.commandTile}
+              style={[styles.tacticalCard, { backgroundColor: colors.card, borderColor: colors.border }]}
               onPress={() => {
                 haptics.heavy();
                 router.push('/settings/apps');
               }}
               activeOpacity={0.8}
             >
-              <View style={[styles.commandIconCircle, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
-                <ShieldCheck size={22} color="#10B981" weight="duotone" />
+              <View style={[styles.tacticalIconWrap, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
+                <ShieldCheck size={18} color="#10B981" weight="fill" />
               </View>
-              <Text style={styles.commandTileTitle}>Lock Apps</Text>
-              <Text style={styles.commandTileSub}>Screen Time</Text>
+              <Text style={[styles.tacticalTitle, { color: colors.textPrimary }]}>{t('lockApps')}</Text>
+              <Text style={styles.tacticalSub}>Stay Focused</Text>
             </TouchableOpacity>
 
-            {/* 4. Daily Physique Photo Log */}
             <TouchableOpacity
-              style={styles.commandTile}
+              style={[styles.tacticalCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+              onPress={() => {
+                haptics.heavy();
+                router.push('/leaderboard' as any);
+              }}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.tacticalIconWrap, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
+                <Trophy size={18} color="#F59E0B" weight="fill" />
+              </View>
+              <Text style={[styles.tacticalTitle, { color: colors.textPrimary }]}>{t('arena')}</Text>
+              <Text style={styles.tacticalSub}>Compete & Grow</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.tacticalCard, { backgroundColor: colors.card, borderColor: colors.border }]}
               onPress={() => {
                 haptics.heavy();
                 router.push('/photos' as any);
               }}
               activeOpacity={0.8}
             >
-              <View style={[styles.commandIconCircle, { backgroundColor: 'rgba(236, 72, 153, 0.15)' }]}>
-                <Camera size={22} color="#EC4899" weight="duotone" />
+              <View style={[styles.tacticalIconWrap, { backgroundColor: 'rgba(236, 72, 153, 0.15)' }]}>
+                <MaterialCommunityIcons name="arm-flex" size={18} color="#EC4899" />
               </View>
-              <Text style={styles.commandTileTitle}>Physique</Text>
-              <Text style={styles.commandTileSub}>Photo Log</Text>
+              <Text style={[styles.tacticalTitle, { color: colors.textPrimary }]}>{t('physique')}</Text>
+              <Text style={styles.tacticalSub}>Track Progress</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Dynamic Next Up Card */}
-          <GlassCard variant="glow" style={styles.nextUpCard}>
-            <View style={styles.nextUpTopRow}>
-              <Text style={[styles.nextUpLabel, { color: colors.textMuted }]}>NEXT UP</Text>
-              <CaretRight size={18} color={colors.primary} weight="bold" />
-            </View>
-
-            {nextPendingQuest ? (
-              <>
-                <Text style={[styles.nextUpHeading, { color: colors.textPrimary }]}>Daily Mission</Text>
-                <Text style={[styles.nextUpHighlight, { color: colors.primary }]}>{nextPendingQuest.title}</Text>
-
-                <TouchableOpacity
-                  style={[styles.startPillBtn, { backgroundColor: colors.primary }]}
-                  onPress={() => {
-                    haptics.heavy();
-                    if (nextPendingQuest.category === 'FITNESS' || nextPendingQuest.category === 'strength') {
-                      router.push('/(tabs)/progress');
-                    } else if (nextPendingQuest.category === 'FOCUS' || nextPendingQuest.category === 'focus') {
-                      router.push('/focus/session');
-                    } else {
-                      router.push('/(tabs)/quests');
-                    }
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.startPillBtnText}>Start Mission</Text>
-                  <ArrowRight size={15} color="#FFFFFF" weight="bold" />
-                </TouchableOpacity>
-              </>
-            ) : (
-              <>
-                <Text style={[styles.nextUpHeading, { color: colors.textPrimary }]}>All Daily Quests</Text>
-                <Text style={[styles.nextUpHighlight, { color: colors.success }]}>Completed! Great Discipline.</Text>
-
-                <TouchableOpacity
-                  style={[styles.startPillBtn, { backgroundColor: colors.secondary }]}
-                  onPress={() => {
-                    haptics.heavy();
-                    router.push('/focus/session');
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.startPillBtnText}>Deep Focus</Text>
-                  <ArrowRight size={15} color="#FFFFFF" weight="bold" />
-                </TouchableOpacity>
-              </>
-            )}
-          </GlassCard>
-
-          {/* 4-Column Live Real Metrics Grid from SQLite */}
-          <View style={styles.metricsGridRow}>
-            {/* Focus */}
-            <GlassCard variant="default" style={styles.metricGridItem}>
-              <View style={styles.metricIconHeader}>
-                <Timer size={14} color={colors.secondary} weight="duotone" />
-                <Text style={[styles.metricGridLabel, { color: colors.textMuted }]}>FOCUS</Text>
-              </View>
-              <Text style={[styles.metricGridVal, { color: colors.textPrimary }]}>
-                {todayStats.focusMinutes}m
-              </Text>
-            </GlassCard>
-
-            {/* Workout */}
-            <GlassCard variant="default" style={styles.metricGridItem}>
-              <View style={styles.metricIconHeader}>
-                <Barbell size={14} color={colors.primary} weight="duotone" />
-                <Text style={[styles.metricGridLabel, { color: colors.textMuted }]}>WORKOUT</Text>
-              </View>
-              <Text style={[styles.metricGridVal, { color: colors.primary }]}>
-                {todayStats.workoutMinutes}m
-              </Text>
-            </GlassCard>
-
-            {/* Quests */}
-            <GlassCard variant="default" style={styles.metricGridItem}>
-              <View style={styles.metricIconHeader}>
-                <Sparkle size={14} color={colors.success} weight="duotone" />
-                <Text style={[styles.metricGridLabel, { color: colors.textMuted }]}>QUESTS</Text>
-              </View>
-              <Text style={[styles.metricGridVal, { color: colors.textPrimary }]}>
-                {completedQuestsCount}/{dailyQuests.length}
-              </Text>
-            </GlassCard>
-
-            {/* Coins */}
-            <GlassCard variant="default" style={styles.metricGridItem}>
-              <View style={styles.metricIconHeader}>
-                <Coins size={14} color={colors.tertiary} weight="duotone" />
-                <Text style={[styles.metricGridLabel, { color: colors.tertiary }]}>COINS</Text>
-              </View>
-              <Text style={[styles.metricGridVal, { color: colors.tertiary }]}>
-                {coins.toLocaleString()}
-              </Text>
-            </GlassCard>
-          </View>
-
-          {/* Quick Shop Access */}
+          {/* GUILD SYNDICATE & RED GATE CARD */}
           <TouchableOpacity
-            style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-end', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 100, backgroundColor: '#111218', borderWidth: 1, borderColor: '#1C1E2A' }}
-            onPress={() => { haptics.light(); router.push('/shop' as any); }}
-            activeOpacity={0.8}
-          >
-            <Coins size={14} color="#F59E0B" weight="duotone" />
-            <Text style={{ fontSize: 11, fontWeight: '800', color: '#F59E0B', letterSpacing: 0.3 }}>SHOP</Text>
-          </TouchableOpacity>
-
-          {/* Apple Fitness 3-Ring Activity Component with Live Data */}
-          <GlassCard variant="elevated" style={styles.activityRingsCard}>
-            <View style={styles.ringsHeaderRow}>
-              <Text style={[styles.ringsCardTitle, { color: colors.textPrimary }]}>ACTIVITY RINGS</Text>
-              <Text style={[styles.ringsCardDate, { color: colors.textMuted }]}>
-                {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase()}
-              </Text>
-            </View>
-            <IOSActivityRings
-              workoutProgress={Math.min(100, Math.round((todayStats.workoutMinutes / 30) * 100))}
-              focusProgress={Math.min(100, Math.round((todayStats.focusMinutes / Math.max(1, profile?.dailyFocusGoal || 25)) * 100))}
-              questProgress={winRate}
-              size={130}
-            />
-          </GlassCard>
-
-          {/* Daily Physique Transformation Check-In Card */}
-          <TouchableOpacity
-            onPress={() => {
-              haptics.light();
-              router.push('/photos' as any);
+            style={{
+              marginHorizontal: 0,
+              borderRadius: 16,
+              overflow: 'hidden',
+              borderWidth: 1,
+              borderColor: isDark ? '#EF444455' : colors.border,
+              backgroundColor: colors.card,
+              padding: 14,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
             }}
-            activeOpacity={0.88}
+            onPress={() => {
+              haptics.heavy();
+              router.push('/guild' as any);
+            }}
+            activeOpacity={0.85}
           >
-            <GlassCard variant="elevated" style={styles.photoSectionCard}>
-              <View style={styles.photoSectionHeader}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <View style={[styles.photoBadgeIcon, { backgroundColor: isDark ? 'rgba(236, 72, 153, 0.15)' : '#FCE7F3' }]}>
-                    <Camera size={18} color="#EC4899" weight="duotone" />
-                  </View>
-                  <View>
-                    <Text style={[styles.photoSectionTitle, { color: colors.textPrimary }]}>
-                      Daily Physique Check-In
-                    </Text>
-                    <Text style={[styles.photoSectionSub, { color: colors.textMuted }]}>
-                      Private 100% On-Device Visual Tracker
-                    </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(239, 68, 68, 0.15)', borderWidth: 1, borderColor: '#EF4444', alignItems: 'center', justifyContent: 'center' }}>
+                <Sword size={20} color="#EF4444" weight="fill" />
+              </View>
+              <View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '900', color: colors.textPrimary, letterSpacing: 0.5 }}>HUNTER GUILD HALL</Text>
+                  <View style={{ backgroundColor: '#EF4444', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                    <Text style={{ fontSize: 9, fontWeight: '900', color: '#FFFFFF' }}>RAID ACTIVE</Text>
                   </View>
                 </View>
+                <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textSecondary, marginTop: 2 }}>
+                  Enlist in top syndicates & strike Red Gate bosses
+                </Text>
+              </View>
+            </View>
+            <CaretRight size={18} color={colors.textMuted} />
+          </TouchableOpacity>
 
-                <View style={[styles.photoPillBadge, { backgroundColor: isDark ? '#1C1E2A' : '#F3F4F6' }]}>
-                  <Text style={[styles.photoPillText, { color: colors.primary }]}>
-                    {totalPhotosCount > 0 ? `${totalPhotosCount} LOGGED` : 'START'}
-                  </Text>
-                  <CaretRight size={12} color={colors.primary} weight="bold" />
+          {/* 6. DAILY QUESTS SECTION (BLUE BORDER CONTAINER) */}
+          <View style={[styles.dailyQuestsContainer, { backgroundColor: colors.card, borderColor: isDark ? '#0A84FF' : colors.primary }]}>
+            {/* Header */}
+            <View style={styles.questsHeader}>
+              <View style={styles.questsHeaderLeft}>
+                <ClipboardText size={20} color="#0A84FF" weight="fill" />
+                <View style={{ gap: 2 }}>
+                  <Text style={[styles.questsMainTitle, { color: colors.textPrimary }]}>{t('dailyQuests')}</Text>
+                  <Text style={[styles.questsSubTitle, { color: colors.textSecondary }]}>Complete tasks. Earn XP. Level up.</Text>
                 </View>
               </View>
 
-              {todayPhoto ? (
-                <View style={styles.todayPhotoRow}>
-                  <Image source={{ uri: todayPhoto.filePath }} style={styles.todayPhotoThumbnail} />
-                  <View style={{ flex: 1, justifyContent: 'center', gap: 4 }}>
-                    <View style={styles.todayLoggedBadge}>
-                      <Check size={11} color="#FFFFFF" weight="bold" />
-                      <Text style={styles.todayLoggedBadgeText}>TODAY LOGGED</Text>
-                    </View>
-                    <Text style={[styles.photoRowTitle, { color: colors.textPrimary }]}>
-                      Physique Check-in Completed
-                    </Text>
-                    <Text style={[styles.photoRowSub, { color: colors.textMuted }]}>
-                      Tap to open full transformation timeline & compare before/after
-                    </Text>
-                  </View>
-                </View>
-              ) : (
-                <View style={styles.emptyPhotoRow}>
-                  <View style={[styles.photoPlaceholderBox, { borderColor: colors.border, backgroundColor: isDark ? '#111218' : '#F8FAFC' }]}>
-                    <Camera size={26} color={colors.textMuted} weight="duotone" />
-                  </View>
-                  <View style={{ flex: 1, gap: 6 }}>
-                    <Text style={[styles.photoPromptHeading, { color: colors.textPrimary }]}>
-                      Capture Today's Progress
-                    </Text>
-                    <Text style={[styles.photoPromptDescription, { color: colors.textMuted }]}>
-                      Log 1 photo daily to track muscle definition & visual body transformation.
-                    </Text>
-                    <View style={styles.photoBtnRow}>
-                      <TouchableOpacity
-                        style={[styles.quickSnapBtn, { backgroundColor: colors.primary }]}
-                        onPress={handleTakeHomePhoto}
-                        activeOpacity={0.8}
-                      >
-                        <Camera size={13} color="#FFFFFF" weight="bold" />
-                        <Text style={styles.quickSnapBtnText}>Snap Photo</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={[styles.quickGalleryBtn, { borderColor: colors.border, backgroundColor: isDark ? '#14151C' : '#FFFFFF' }]}
-                        onPress={() => {
-                          haptics.light();
-                          router.push('/photos' as any);
-                        }}
-                        activeOpacity={0.8}
-                      >
-                        <Images size={13} color={colors.textPrimary} weight="bold" />
-                        <Text style={[styles.quickGalleryBtnText, { color: colors.textPrimary }]}>Timeline</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </View>
-              )}
-            </GlassCard>
-          </TouchableOpacity>
-
-          {/* 14-Day Discipline Heatmap with Real SQLite Activity */}
-          <DisciplineHeatmap />
-
-          {/* Weather Widget */}
-          <WeatherWidget />
-
-          {/* Today's Quests Section */}
-          <View style={styles.questsSection}>
-            <View style={styles.sectionHeaderRow}>
-              <Text style={[styles.sectionHeading, { color: colors.textPrimary }]}>Today's Quests</Text>
-              <TouchableOpacity onPress={() => router.push('/(tabs)/quests')}>
-                <Text style={[styles.seeAllText, { color: colors.primary }]}>See All</Text>
+              <TouchableOpacity
+                onPress={() => router.push('/(tabs)/quests')}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.questsViewAllText}>{t('viewAll')} →</Text>
               </TouchableOpacity>
             </View>
 
-            {dailyQuests.slice(0, 3).map((quest) => {
-              const isExercise = quest.category === 'FITNESS' || quest.category === 'strength';
-              const isFocus = quest.category === 'FOCUS' || quest.category === 'focus';
-              const exType = quest.title.toLowerCase().includes('squat')
-                ? 'SQUAT'
-                : quest.title.toLowerCase().includes('pull')
-                ? 'PULLUP'
-                : quest.title.toLowerCase().includes('plank')
-                ? 'PLANK'
-                : 'PUSHUP';
-
-              const handleAction = () => {
-                if (quest.completed) return;
-                haptics.heavy();
-                if (isExercise) {
-                  router.push({
-                    pathname: '/exercise/[type]',
-                    params: { type: exType, target: 20, questId: String(quest.id) },
-                  } as any);
-                } else if (isFocus) {
-                  router.push('/focus/session');
-                } else {
-                  haptics.success();
-                  completeQuest(quest.id);
-                }
-              };
-
-              return (
-                <GlassCard key={quest.id} variant="default" style={styles.questCard}>
+            {/* Quest Item Rows (Distinct items, anti-cheat enforcement) */}
+            <View style={styles.questsList}>
+              {dailyQuests.length === 0 ? (
+                <View style={{ padding: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0B0D14', borderRadius: 16, borderWidth: 1, borderColor: '#1F2438' }}>
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: '#0A84FF', letterSpacing: 0.8, marginBottom: 4 }}>
+                    [ SYSTEM: ALL PROTOCOLS CLEARED ]
+                  </Text>
+                  <Text style={{ fontSize: 11, fontWeight: '600', color: '#64748B', textAlign: 'center' }}>
+                    No pending daily quests. Tap below to inspect your Hunter Quest Log.
+                  </Text>
                   <TouchableOpacity
-                    style={[styles.questCheckbox, quest.completed && { backgroundColor: colors.success, borderColor: colors.success }]}
-                    onPress={handleAction}
+                    style={{ marginTop: 12, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 100, backgroundColor: 'rgba(10, 132, 255, 0.15)', borderWidth: 1, borderColor: '#0A84FF' }}
+                    onPress={() => { haptics.light(); router.push('/(tabs)/quests'); }}
                   >
-                    {quest.completed && <Check size={14} color="#FFFFFF" weight="bold" />}
+                    <Text style={{ fontSize: 11, fontWeight: '800', color: '#0A84FF', letterSpacing: 0.5 }}>OPEN QUEST LOG</Text>
                   </TouchableOpacity>
+                </View>
+              ) : (
+                dailyQuests.slice(0, 5).map((q) => {
+                const isFitness = q.exerciseType === 'PUSHUP' || q.exerciseType === 'SQUAT' || q.category === 'FITNESS';
+                const isFocus = q.category === 'FOCUS';
 
-                  <View style={styles.questTextCol}>
-                    <Text
+                const handleLaunch = () => {
+                  if (q.completed) return;
+                  if (isFitness) {
+                    haptics.heavy();
+                    router.push({
+                      pathname: '/exercise/[type]',
+                      params: {
+                        type: q.exerciseType || 'PUSHUP',
+                        target: q.target || 20,
+                        questId: String(q.id),
+                      },
+                    } as any);
+                  } else if (isFocus) {
+                    haptics.heavy();
+                    router.push('/focus/session');
+                  } else {
+                    // Manual habit verification dialog
+                    haptics.medium();
+                    showIOSAlert(
+                      t('confirmCompletion') || 'CONFIRM COMPLETION',
+                      `Did you execute "${q.title}"?`,
+                      [
+                        { text: t('cancel') || 'CANCEL', style: 'cancel' },
+                        {
+                          text: t('confirm') || 'CONFIRM',
+                          style: 'primary',
+                          onPress: async () => {
+                            haptics.success();
+                            const res = await completeQuest(q.id);
+                            showIOSAlert(
+                              t('questComplete') || 'QUEST COMPLETE!',
+                              `Protocol "${q.title}" verified! +${res.coins} Coins, +${res.xp} XP added to your vault.`,
+                              [{ text: 'PROCEED', style: 'primary' }]
+                            );
+                          },
+                        },
+                      ]
+                    );
+                  }
+                };
+
+                return (
+                  <View key={q.id} style={[styles.questItemRow, { backgroundColor: isDark ? '#0D121F' : colors.surfaceLight, borderColor: colors.border }]}>
+                    <TouchableOpacity
+                      style={[styles.questCheckboxRing, q.completed && styles.questCheckboxRingCompleted]}
+                      onPress={() => {
+                        if (q.completed) return;
+                        if (isFitness) {
+                          haptics.warning();
+                          showIOSAlert(
+                            t('aiMotionProtocol') || 'AI MOTION PROTOCOL',
+                            `To complete "${q.title}", you must execute ${q.target} repetitions using the AI Motion Tracker camera.`,
+                            [
+                              { text: t('cancel') || 'CANCEL', style: 'cancel' },
+                              {
+                                text: t('startAiCam') || 'START AI CAM',
+                                style: 'primary',
+                                onPress: () => {
+                                  router.push({
+                                    pathname: '/exercise/[type]',
+                                    params: {
+                                      type: q.exerciseType || 'PUSHUP',
+                                      target: q.target || 20,
+                                      questId: String(q.id),
+                                    },
+                                  } as any);
+                                },
+                              },
+                            ]
+                          );
+                        } else if (isFocus) {
+                          haptics.medium();
+                          router.push('/focus/session');
+                        } else {
+                          handleLaunch();
+                        }
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      {q.completed && <Check size={12} color="#FFFFFF" weight="bold" />}
+                    </TouchableOpacity>
+
+                    <View
                       style={[
-                        styles.questTitle,
-                        { color: colors.textPrimary },
-                        quest.completed && styles.questCompletedText,
+                        styles.questCategorySquircle,
+                        {
+                          backgroundColor:
+                            q.category === 'FOCUS'
+                              ? 'rgba(168, 85, 247, 0.15)'
+                              : q.exerciseType === 'SQUAT'
+                              ? 'rgba(168, 85, 247, 0.15)'
+                              : 'rgba(255, 107, 0, 0.15)',
+                        },
                       ]}
                     >
-                      {quest.title}
-                    </Text>
-                    <Text style={[styles.questSub, { color: colors.textSecondary }]}>
-                      +{quest.rewardXP} XP • +{quest.rewardCoins} Coins
-                    </Text>
-                  </View>
+                      {q.category === 'FOCUS' ? (
+                        <Timer size={18} color="#A855F7" weight="bold" />
+                      ) : q.exerciseType === 'SQUAT' ? (
+                        <MaterialCommunityIcons name="human-handsdown" size={19} color="#A855F7" />
+                      ) : (
+                        <MaterialCommunityIcons name="arm-flex" size={18} color="#FF6B00" />
+                      )}
+                    </View>
 
-                  {isExercise && !quest.completed && (
                     <TouchableOpacity
-                      style={[styles.aiTrackBtn, { backgroundColor: isDark ? 'rgba(10, 132, 255, 0.15)' : '#EFF6FF', borderColor: '#0A84FF' }]}
-                      onPress={() => {
-                        haptics.heavy();
-                        const exType = quest.title.toLowerCase().includes('squat')
-                          ? 'SQUAT'
-                          : quest.title.toLowerCase().includes('pull')
-                          ? 'PULLUP'
-                          : quest.title.toLowerCase().includes('plank')
-                          ? 'PLANK'
-                          : 'PUSHUP';
-                        router.push({
-                          pathname: '/exercise/[type]',
-                          params: { type: exType, target: 20 },
-                        } as any);
-                      }}
+                      style={{ flex: 1, gap: 3 }}
+                      onPress={handleLaunch}
                       activeOpacity={0.8}
                     >
-                      <Camera size={13} color="#0A84FF" weight="bold" />
-                      <Text style={[styles.aiTrackBtnText, { color: '#0A84FF' }]}>AI CAM</Text>
+                      <Text style={[styles.questTitleText, { color: colors.textPrimary }, q.completed && styles.questCompletedTitle]} numberOfLines={1}>
+                        {q.title}
+                      </Text>
+                      <Text style={[styles.questRewardText, { color: colors.textSecondary }]}>
+                        +{q.rewardXP} XP • +{q.rewardCoins} Coins
+                      </Text>
                     </TouchableOpacity>
-                  )}
-                </GlassCard>
-              );
-            })}
+
+                    {q.completed ? (
+                      <View style={[styles.aiCamBtn, { borderColor: '#10B981', backgroundColor: '#06281E' }]}>
+                        <Check size={13} color="#10B981" weight="bold" />
+                        <Text style={[styles.aiCamBtnText, { color: '#10B981' }]}>DONE</Text>
+                      </View>
+                    ) : isFitness ? (
+                      <TouchableOpacity
+                        style={styles.aiCamBtn}
+                        onPress={handleLaunch}
+                        activeOpacity={0.8}
+                      >
+                        <Camera size={13} color="#0A84FF" weight="bold" />
+                        <Text style={styles.aiCamBtnText}>AI CAM</Text>
+                      </TouchableOpacity>
+                    ) : isFocus ? (
+                      <TouchableOpacity
+                        style={[styles.aiCamBtn, { borderColor: '#A855F7', backgroundColor: '#180D28' }]}
+                        onPress={handleLaunch}
+                        activeOpacity={0.8}
+                      >
+                        <Play size={12} color="#A855F7" weight="fill" />
+                        <Text style={[styles.aiCamBtnText, { color: '#A855F7' }]}>START</Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <TouchableOpacity
+                        style={[styles.aiCamBtn, { borderColor: '#06B6D4', backgroundColor: '#082630' }]}
+                        onPress={handleLaunch}
+                        activeOpacity={0.8}
+                      >
+                        <Check size={13} color="#06B6D4" weight="bold" />
+                        <Text style={[styles.aiCamBtnText, { color: '#06B6D4' }]}>LOG</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                );
+              }))}
+            </View>
           </View>
+
+          {/* 8. DAILY MOTIVATIONAL BANNER (ROTATING DAILY) */}
+          <View style={styles.motivationBannerWrap}>
+            <ImageBackground
+              source={new Date().getDate() % 2 === 0 ? MOONLIT_BANNER : SUNSET_BANNER}
+              style={styles.motivationBannerBg}
+              imageStyle={{ borderRadius: 18 }}
+            >
+              <LinearGradient
+                colors={['rgba(4, 6, 12, 0.92)', 'rgba(4, 6, 12, 0.60)', 'rgba(4, 6, 12, 0.95)']}
+                style={styles.motivationBannerOverlay}
+              >
+                <View style={styles.quoteTagPill}>
+                  <Text style={styles.quoteTagText}>[ {todayQuote.tag} ]</Text>
+                </View>
+                <Text style={styles.motivationQuote}>
+                  “{todayQuote.quote.toUpperCase()}”
+                </Text>
+                <Text style={styles.motivationAuthor}>— {todayQuote.author}</Text>
+              </LinearGradient>
+            </ImageBackground>
+          </View>
+
+          {/* Non-intrusive AdMob Banner */}
+          <AriseBannerAd style={{ marginVertical: 6 }} />
 
           <View style={{ height: 110 }} />
         </ScrollView>
 
-        {/* Notifications Sheet Modal */}
-        <Modal visible={isNotifSheetOpen} transparent animationType="slide">
-          <View style={styles.modalOverlay}>
-            <GlassCard variant="elevated" style={styles.modalSheet}>
-              <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Notifications</Text>
-                <TouchableOpacity onPress={() => setIsNotifSheetOpen(false)} style={styles.closeBtn}>
-                  <X size={18} color={colors.textSecondary} weight="bold" />
-                </TouchableOpacity>
-              </View>
+        {/* Solo Leveling Notifications Modal */}
+        <Modal
+          visible={isNotifSheetOpen}
+          transparent
+          animationType="fade"
+          statusBarTranslucent
+          onRequestClose={() => setIsNotifSheetOpen(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setIsNotifSheetOpen(false)}
+          >
+            <TouchableOpacity activeOpacity={1} style={{ width: '100%', maxWidth: 360, alignItems: 'center' }}>
+              <SoloLevelingWindow
+                variant="default"
+                tag="SYSTEM CONDUIT // NOTIFICATION LOG"
+                subtag="TIMELY REMINDERS & MONARCH MOTIVATION"
+                title="HUNTER NOTIFICATIONS"
+                buttons={[
+                  {
+                    text: 'CLOSE LOG',
+                    style: 'primary',
+                    onPress: () => setIsNotifSheetOpen(false),
+                  },
+                ]}
+                onClose={() => setIsNotifSheetOpen(false)}
+              >
+                {/* Category Filter Pills */}
+                <View style={styles.notifFilterRow}>
+                  {(['ALL', 'DIRECTIVES', 'MOTIVATION'] as const).map((filter) => (
+                    <TouchableOpacity
+                      key={filter}
+                      style={[styles.notifFilterPill, notifFilter === filter && styles.notifFilterPillActive]}
+                      onPress={() => {
+                        haptics.light();
+                        setNotifFilter(filter);
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.notifFilterPillText, notifFilter === filter && styles.notifFilterPillTextActive]}>
+                        {filter}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
 
-              <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
-                {notifications.length === 0 ? (
-                  <Text style={[styles.emptyNotifText, { color: colors.textMuted }]}>
-                    No notifications yet.
-                  </Text>
-                ) : (
-                  notifications.map((n) => (
-                    <View key={n.id} style={[styles.notifItem, { borderBottomColor: colors.border }]}>
-                      <Text style={[styles.notifTitle, { color: colors.textPrimary }]}>{n.title}</Text>
-                      <Text style={[styles.notifBody, { color: colors.textSecondary }]}>{n.message}</Text>
-                      <Text style={[styles.notifTime, { color: colors.textMuted }]}>
-                        {new Date(n.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                {/* Quick Actions Row */}
+                <View style={styles.notifActionRow}>
+                  <TouchableOpacity
+                    style={[styles.notifActionBtn, { flex: 1 }]}
+                    onPress={handleTriggerMotivationalAlert}
+                    activeOpacity={0.8}
+                  >
+                    <Sparkle size={12} color="#A855F7" weight="fill" />
+                    <Text style={[styles.notifActionBtnText, { color: '#A855F7' }]}>MOTIVATE ME</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.notifActionBtn, { borderColor: '#EF444430', paddingHorizontal: 16 }]}
+                    onPress={handleClearAllNotifs}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.notifActionBtnText, { color: '#EF4444' }]}>CLEAR LOG</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Notifications Scroll */}
+                <ScrollView style={{ maxHeight: 310, width: '100%' }} showsVerticalScrollIndicator={false}>
+                  {filteredNotifications.length === 0 ? (
+                    <View style={styles.emptyNotifBox}>
+                      <Bell size={22} color="#64748B" />
+                      <Text style={[styles.emptyNotifText, { color: colors.textMuted }]}>
+                        No notifications in this category.
                       </Text>
                     </View>
-                  ))
-                )}
-              </ScrollView>
-            </GlassCard>
-          </View>
+                  ) : (
+                    filteredNotifications.map((n) => {
+                      const isMotiv = n.type === 'MOTIVATION';
+                      const isQuest = n.type === 'QUEST';
+                      const isStreak = n.type === 'STREAK';
+                      const dotColor = isMotiv ? '#A855F7' : isQuest ? '#F59E0B' : isStreak ? '#EA580C' : '#00D2EE';
+
+                      return (
+                        <View key={n.id} style={styles.soloNotifItem}>
+                          <View style={styles.notifHeaderRow}>
+                            <View style={[styles.notifCyanDot, { backgroundColor: dotColor }]} />
+                            <Text style={[styles.soloNotifTitle, isMotiv && { color: '#E9D5FF' }]} numberOfLines={1}>
+                              {n.title}
+                            </Text>
+                          </View>
+                          <Text style={styles.soloNotifBody}>{n.message}</Text>
+                          <Text style={[styles.soloNotifTime, { color: dotColor }]}>
+                            [ {new Date(n.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ]
+                          </Text>
+                        </View>
+                      );
+                    })
+                  )}
+                </ScrollView>
+              </SoloLevelingWindow>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </Modal>
+
+        {/* Solo Leveling Unified Welcome Modal (Single Instance) */}
+        <Modal
+          visible={showWelcomeModal}
+          transparent
+          animationType="fade"
+          statusBarTranslucent
+          onRequestClose={handleDismissWelcome}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={handleDismissWelcome}
+          >
+            <TouchableOpacity activeOpacity={1} style={{ width: '100%', maxWidth: 350, alignItems: 'center' }}>
+              <SoloLevelingWindow
+                variant={welcomeType === 'awakening' ? 'default' : 'quest'}
+                accentColor="#0284C7"
+                tag="SYSTEM NOTIFICATION"
+                subtag={welcomeType === 'awakening' ? 'ARISE OS // MONARCH AWAKENING' : 'DAILY LOG // PROTOCOL'}
+                title={welcomeType === 'awakening' ? 'WELCOME, HUNTER' : 'WELCOME BACK, HUNTER'}
+                message={
+                  welcomeType === 'awakening'
+                    ? 'The Monarch System has recognized your vessel. Complete your daily directives to grow stronger and conquer dimensional gates.'
+                    : 'The System has re-calibrated your parameters. Your daily quests have arrived. Forge your discipline today, Sovereign.'
+                }
+                buttons={[
+                  {
+                    text: welcomeType === 'awakening' ? 'CONTINUE' : 'ACCEPT QUESTS',
+                    style: 'primary',
+                    onPress: () => {
+                      haptics.heavy();
+                      sound.play('quest_complete');
+                      handleDismissWelcome();
+                    },
+                  },
+                ]}
+                onClose={handleDismissWelcome}
+              />
+            </TouchableOpacity>
+          </TouchableOpacity>
         </Modal>
       </SafeAreaView>
     </SwipeableTabScreen>
@@ -758,55 +1059,150 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   safeArea: { flex: 1 },
   center: { alignItems: 'center', justifyContent: 'center' },
+
+  // Top Bar (Exact Match)
   topHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 12,
     borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
   },
   headerLeftCol: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 12,
+    flex: 1,
   },
-  greetingSub: {
-    fontSize: 11,
-    fontWeight: '500',
+  hunterCallsignText: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
   },
-  greetingTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: -0.3,
+  nationalTag: {
+    backgroundColor: '#1E1B10',
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
   },
-  headerRightActions: {
+  nationalTagText: {
+    fontSize: 9.5,
+    fontWeight: '900',
+    color: '#F59E0B',
+    letterSpacing: 0.5,
+  },
+  sovereignSubText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#F59E0B',
+    marginTop: 1,
+  },
+  headerQuoteText: {
+    fontSize: 10.5,
+    fontStyle: 'italic',
+    color: '#8E9BB0',
+    marginTop: 2,
+  },
+  headerRightCol: {
+    alignItems: 'flex-end',
+    gap: 6,
+  },
+  headerTopActionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 7,
   },
-  headerIconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+  headerCoinsCapsule: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#1C1608',
     borderWidth: 1,
+    borderColor: '#F59E0B',
+    borderRadius: 100,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  headerCoinsAmount: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#F59E0B',
+    letterSpacing: 0.3,
+  },
+  headerPlusCircle: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#F59E0B',
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
   },
-  bellDot: {
+  headerPlusText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#000000',
+    lineHeight: 11,
+  },
+  headerCircleBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#11141E',
+    borderWidth: 1,
+    borderColor: '#1F2536',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bellBadge: {
     position: 'absolute',
-    top: 9,
-    right: 9,
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
+    top: -2,
+    right: -2,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  bellBadgeText: {
+    fontSize: 8.5,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  headerRankPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#11141E',
+    borderWidth: 1,
+    borderColor: '#1F2536',
+    borderRadius: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+  },
+  headerRankLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#8E9BB0',
+  },
+  headerRankVal: {
+    color: '#FFFFFF',
+    fontWeight: '900',
+  },
+
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    gap: 16,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    gap: 14,
   },
+
+  // Missing Permission Alert
   permAlertCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -814,461 +1210,536 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 16,
     borderWidth: 1,
+    borderColor: '#EF4444',
+    backgroundColor: '#2A0D0D',
   },
   permAlertTitle: {
-    fontSize: 13,
-    fontWeight: '800',
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: 0.8,
   },
   permAlertSub: {
     fontSize: 11,
-    lineHeight: 14,
+    color: '#FCA5A5',
+    lineHeight: 15,
   },
   permAlertBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-  },
-  permAlertBadgeText: {
-    fontSize: 10,
-    fontWeight: '900',
-    color: '#FFFFFF',
-  },
-  timeHeroSection: {
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 8,
-  },
-  timeHeroDisplay: {
-    fontSize: 50,
-    fontWeight: '900',
-    letterSpacing: -1.5,
-    fontVariant: ['tabular-nums'],
-  },
-  dateHeroDisplay: {
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  cashoutGoalCard: {
-    padding: 16,
-    borderRadius: 20,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.25)',
-    backgroundColor: '#121118',
-  },
-  cashoutGoalTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  cashoutGoalTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
-  },
-  cashoutGoalTagText: {
-    fontSize: 9,
-    fontWeight: '900',
-    color: '#F59E0B',
-    letterSpacing: 0.8,
-  },
-  cashoutGoalPercentText: {
-    fontSize: 12,
-    fontWeight: '900',
-    color: '#F59E0B',
-  },
-  cashoutGoalBarTrack: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#1C1E2A',
-    overflow: 'hidden',
-  },
-  cashoutGoalBarFill: {
-    height: '100%',
-    borderRadius: 3,
-    backgroundColor: '#F59E0B',
-  },
-  cashoutGoalFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  cashoutGoalMeta: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#8E8E93',
-  },
-  cashoutGoalAction: {
-    fontSize: 10,
-    fontWeight: '900',
-    color: '#F59E0B',
-    letterSpacing: 0.6,
-  },
-  commandTilesGrid: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  commandTile: {
-    flex: 1,
-    backgroundColor: '#111218',
-    borderWidth: 1,
-    borderColor: '#1C1E2A',
-    borderRadius: 18,
-    paddingVertical: 14,
-    paddingHorizontal: 8,
-    alignItems: 'center',
-    gap: 4,
-  },
-  commandIconCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  commandTileTitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    textAlign: 'center',
-  },
-  commandTileSub: {
-    fontSize: 9,
-    fontWeight: '600',
-    color: '#8E8E93',
-    textAlign: 'center',
-  },
-  nextUpCard: {
-    padding: 20,
-    borderRadius: 22,
-    gap: 8,
-  },
-  nextUpTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  nextUpLabel: {
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1.2,
-  },
-  nextUpHeading: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  nextUpHighlight: {
-    fontSize: 22,
-    fontWeight: '900',
-    letterSpacing: -0.5,
-  },
-  startPillBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 22,
-    borderRadius: 100,
-    alignSelf: 'flex-start',
-    marginTop: 8,
-  },
-  startPillBtnText: {
-    fontSize: 13,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    letterSpacing: 0.3,
-  },
-  metricsGridRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  metricGridItem: {
-    flex: 1,
-    padding: 14,
-    borderRadius: 18,
-    gap: 8,
-  },
-  metricIconHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  metricGridLabel: {
-    fontSize: 9.5,
-    fontWeight: '800',
-    letterSpacing: 0.6,
-  },
-  metricGridVal: {
-    fontSize: 17,
-    fontWeight: '900',
-    letterSpacing: -0.4,
-  },
-  activityRingsCard: {
-    padding: 20,
-    borderRadius: 22,
-    gap: 14,
-  },
-  ringsHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  ringsCardTitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-  },
-  ringsCardDate: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  photoSectionCard: {
-    padding: 16,
-    borderRadius: 22,
-    gap: 12,
-  },
-  photoSectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  photoBadgeIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  photoSectionTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  photoSectionSub: {
-    fontSize: 10,
-    fontWeight: '500',
-  },
-  photoPillBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 100,
-  },
-  photoPillText: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  todayPhotoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingTop: 4,
-  },
-  todayPhotoThumbnail: {
-    width: 68,
-    height: 90,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#10B981',
-  },
-  todayLoggedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    alignSelf: 'flex-start',
-    backgroundColor: '#10B981',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
     borderRadius: 6,
+    backgroundColor: '#EF4444',
   },
-  todayLoggedBadgeText: {
-    fontSize: 9,
+  permAlertBadgeText: {
+    fontSize: 9.5,
     fontWeight: '900',
     color: '#FFFFFF',
-    letterSpacing: 0.5,
   },
-  photoRowTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  photoRowSub: {
-    fontSize: 11,
-    lineHeight: 15,
-  },
-  emptyPhotoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingTop: 4,
-  },
-  photoPlaceholderBox: {
-    width: 68,
-    height: 90,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  photoPromptHeading: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  photoPromptDescription: {
-    fontSize: 11,
-    lineHeight: 15,
-  },
-  photoBtnRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 4,
-  },
-  quickSnapBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 8,
-  },
-  quickSnapBtnText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  quickGalleryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 8,
+
+  // 2. Hero Banner Wrap
+  heroBannerWrap: {
+    borderRadius: 24,
+    overflow: 'hidden',
     borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.10)',
   },
-  quickGalleryBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
+  heroBannerBg: {
+    width: '100%',
   },
-  questsSection: {
+  heroBannerOverlay: {
+    padding: 18,
     gap: 12,
   },
-  sectionHeaderRow: {
+  heroBannerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  disciplineRiskTitle: {
+    fontSize: 12.5,
+    fontWeight: '900',
+    color: '#FF5500',
+    letterSpacing: 0.8,
+  },
+  countdownPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(28, 20, 10, 0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+    borderRadius: 100,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  countdownText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#F59E0B',
+  },
+  heroDaysRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 2,
+  },
+  daysHugeText: {
+    fontSize: 42,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: -1,
+  },
+  daysLabelText: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#8E9BB0',
+    letterSpacing: 0.5,
+  },
+  flameProtectSub: {
+    fontSize: 11.5,
+    color: '#CBD5E1',
+    maxWidth: '85%',
+    lineHeight: 16,
+    marginTop: 2,
+  },
+  milestonesBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#1E1B10',
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+    borderRadius: 100,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  milestonesBtnText: {
+    fontSize: 10.5,
+    fontWeight: '900',
+    color: '#F59E0B',
+    letterSpacing: 0.5,
+  },
+  watermarkWrap: {
+    position: 'absolute',
+    right: 18,
+    bottom: 40,
+    alignItems: 'flex-end',
+    opacity: 0.85,
+  },
+  watermarkScript: {
+    fontSize: 18,
+    fontStyle: 'italic',
+    fontWeight: '800',
+    color: '#FDE68A',
+    letterSpacing: 0.5,
+    fontFamily: Platform.OS === 'ios' ? 'Snell Roundhand' : 'serif',
+  },
+  watermarkScriptSub: {
+    fontSize: 14.5,
+    fontStyle: 'italic',
+    fontWeight: '700',
+    color: '#F59E0B',
+    fontFamily: Platform.OS === 'ios' ? 'Snell Roundhand' : 'serif',
+  },
+  rankXpSection: {
+    gap: 6,
+    marginTop: 8,
+  },
+  rankXpTextRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 2,
   },
-  sectionHeading: {
-    fontSize: 17,
-    fontWeight: '900',
-    letterSpacing: -0.3,
-  },
-  seeAllText: {
-    fontSize: 12.5,
+  rankXpLabel: {
+    fontSize: 9.5,
     fontWeight: '800',
+    color: '#7E8B9B',
+    letterSpacing: 0.8,
   },
-  questCard: {
+  rankXpAmount: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#F59E0B',
+  },
+  rankXpTrack: {
+    height: 4,
+    backgroundColor: '#181E2B',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  rankXpFill: {
+    height: '100%',
+    backgroundColor: '#F59E0B',
+    borderRadius: 2,
+  },
+
+  // 3. Trio Metrics
+  trioMetricsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    borderRadius: 18,
-    gap: 14,
+    gap: 10,
   },
-  questCheckbox: {
+  trioMetricCard: {
+    flex: 1,
+    backgroundColor: '#090D17',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#161D2E',
+    padding: 12,
+    gap: 3,
+  },
+  trioIconSquircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  trioMetricVal: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: -0.3,
+  },
+  trioMetricLabel: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#7E8B9B',
+    letterSpacing: 0.5,
+  },
+  trioMetricSub: {
+    fontSize: 9,
+    color: '#556070',
+  },
+
+  // 4. Primary Workout CTA Row
+  ctaRowContainer: {
+    width: '100%',
+  },
+  primaryWorkoutBtnFull: {
+    width: '100%',
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  primaryWorkoutBtn: {
+    flex: 1,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  primaryWorkoutBtnGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+  },
+  primaryWorkoutBtnText: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: 0.6,
+  },
+
+  // 5. Tactical 4 Quick Actions
+  tacticalGrid: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  tacticalCard: {
+    flex: 1,
+    backgroundColor: '#090D17',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#161D2E',
+    padding: 10,
+    alignItems: 'center',
+    gap: 4,
+  },
+  tacticalIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+  },
+  tacticalTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  tacticalSub: {
+    fontSize: 8.5,
+    color: '#64748B',
+    textAlign: 'center',
+  },
+
+  // 6. Daily Quests Container (Blue Border)
+  dailyQuestsContainer: {
+    backgroundColor: '#070A12',
+    borderWidth: 1,
+    borderColor: '#0A84FF',
+    borderRadius: 20,
+    padding: 14,
+    gap: 12,
+  },
+  questsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  questsHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+  },
+  questsMainTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  questsSubTitle: {
+    fontSize: 10.5,
+    color: '#7E8B9B',
+  },
+  questsViewAllText: {
+    fontSize: 11.5,
+    fontWeight: '900',
+    color: '#0A84FF',
+    letterSpacing: 0.3,
+  },
+  questsList: {
+    gap: 9,
+  },
+  questItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0D121F',
+    borderWidth: 1,
+    borderColor: '#172238',
+    borderRadius: 14,
+    padding: 10,
+    gap: 10,
+  },
+  questCheckboxRing: {
     width: 22,
     height: 22,
     borderRadius: 11,
     borderWidth: 1.5,
-    borderColor: '#94A3B8',
+    borderColor: '#475569',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  questTextCol: {
-    flex: 1,
-    gap: 2,
+  questCheckboxRingCompleted: {
+    backgroundColor: '#0A84FF',
+    borderColor: '#0A84FF',
   },
-  questTitle: {
-    fontSize: 14,
-    fontWeight: '700',
+  questCategorySquircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  questCompletedText: {
+  questTitleText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  questCompletedTitle: {
     textDecorationLine: 'line-through',
-    opacity: 0.5,
+    color: '#64748B',
   },
-  questSub: {
-    fontSize: 11,
+  questRewardText: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: '#8E9BB0',
   },
-  aiTrackBtn: {
+  aiCamBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
+    backgroundColor: '#07162C',
     borderWidth: 1,
+    borderColor: '#0A84FF',
+    borderRadius: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
   },
-  aiTrackBtnText: {
-    fontSize: 10,
+  aiCamBtnText: {
+    fontSize: 9.5,
     fontWeight: '900',
+    color: '#0A84FF',
+    letterSpacing: 0.5,
   },
+
+  // 8. Motivation Banner
+  motivationBannerWrap: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  motivationBannerBg: {
+    width: '100%',
+  },
+  motivationBannerOverlay: {
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    gap: 4,
+  },
+  quoteTagPill: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(0, 242, 254, 0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 242, 254, 0.3)',
+    marginBottom: 4,
+  },
+  quoteTagText: {
+    fontSize: 9.5,
+    fontWeight: '900',
+    color: '#00F2FE',
+    letterSpacing: 1.2,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  },
+  motivationQuote: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+    lineHeight: 20,
+  },
+  motivationAuthor: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#94A3B8',
+    alignSelf: 'flex-end',
+    marginTop: 4,
+    letterSpacing: 0.5,
+  },
+
+  // Notifications Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.75)',
-    justifyContent: 'flex-end',
-  },
-  modalSheet: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
-    gap: 16,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    backgroundColor: 'rgba(0,0,0,0.82)',
+    justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 20,
   },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '800',
+  notifFilterRow: {
+    flexDirection: 'row',
+    gap: 8,
+    width: '100%',
+    marginBottom: 10,
   },
-  closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  notifFilterPill: {
+    flex: 1,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: '#0F172A',
+    borderWidth: 1,
+    borderColor: '#1E293B',
     alignItems: 'center',
     justifyContent: 'center',
   },
+  notifFilterPillActive: {
+    backgroundColor: '#0284C7',
+    borderColor: '#00D2EE',
+  },
+  notifFilterPillText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#64748B',
+    letterSpacing: 0.5,
+  },
+  notifFilterPillTextActive: {
+    color: '#FFFFFF',
+  },
+  notifActionRow: {
+    flexDirection: 'row',
+    gap: 6,
+    width: '100%',
+    marginBottom: 12,
+  },
+  notifActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#111218',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#1C1E2A',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  notifActionBtnText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  emptyNotifBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 32,
+    gap: 8,
+  },
   emptyNotifText: {
     textAlign: 'center',
-    paddingVertical: 20,
-    fontSize: 13,
-  },
-  notifItem: {
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    gap: 2,
-  },
-  notifTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  notifBody: {
     fontSize: 12,
-    lineHeight: 16,
   },
-  notifTime: {
-    fontSize: 10,
+  soloNotifItem: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 242, 254, 0.15)',
+    gap: 4,
+    width: '100%',
+  },
+  notifHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  notifCyanDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#00F2FE',
+  },
+  soloNotifTitle: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
+    flex: 1,
+  },
+  soloNotifBody: {
+    fontSize: 11.5,
+    lineHeight: 16,
+    color: '#94A3B8',
+  },
+  soloNotifTime: {
+    fontSize: 9.5,
+    color: '#00F2FE',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    letterSpacing: 0.5,
     marginTop: 2,
   },
 });

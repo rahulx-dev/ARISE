@@ -1,4 +1,5 @@
 import React from 'react';
+import { View } from 'react-native';
 import { Tabs, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -7,102 +8,116 @@ import {
   Timer,
   Barbell,
   User,
+  Trophy,
+  Sword,
 } from 'phosphor-react-native';
 import { useTheme } from '../../src/hooks/useTheme';
+import { useLanguageStore } from '../../src/services/i18n';
 
 /**
- * Modern Solid Charcoal Floating Navigation Bar (Royal Sapphire Pro Tier)
+ * Solid AMOLED Full-Bleed Navigation Bar matching Mockup 1:1
  */
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
-  const { isDark } = useTheme();
+  const { colors, isDark } = useTheme();
+  const t = useLanguageStore((s) => s.t);
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        animation: 'shift',
         tabBarStyle: {
-          backgroundColor: isDark ? '#111218' : '#FFFFFF',
-          borderTopWidth: 0,
-          borderWidth: 1,
-          borderColor: isDark ? '#1C1E2A' : '#E5E5EA',
-          borderRadius: 24,
-          marginHorizontal: 16,
-          marginBottom: insets.bottom > 0 ? insets.bottom + 4 : 14,
-          height: 64,
-          paddingBottom: 8,
+          backgroundColor: isDark ? '#030509' : '#FFFFFF',
+          borderTopWidth: 1,
+          borderTopColor: isDark ? '#0E1422' : '#E5E7EB',
+          borderWidth: 0,
+          borderRadius: 0,
+          marginHorizontal: 0,
+          marginBottom: 0,
+          height: 60 + (insets.bottom > 0 ? insets.bottom : 8),
+          paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
           paddingTop: 8,
-          position: 'absolute',
-          shadowColor: '#000000',
-          shadowOffset: { width: 0, height: 6 },
-          shadowOpacity: isDark ? 0.4 : 0.06,
-          shadowRadius: 14,
-          elevation: 10,
+          elevation: 0,
         },
-        tabBarActiveTintColor: '#0A84FF', // Royal Sapphire Accent
-        tabBarInactiveTintColor: isDark ? '#636675' : '#8E8E93',
+        tabBarActiveTintColor: '#0A84FF',
+        tabBarInactiveTintColor: '#636675',
         tabBarLabelStyle: {
-          fontSize: 10,
+          fontSize: 10.5,
           fontWeight: '700',
           letterSpacing: -0.2,
-          marginTop: 2,
+          marginTop: 3,
         },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: t('tabHome'),
           tabBarIcon: ({ color, focused }) => (
-            <House
-              size={22}
-              color={focused ? '#0A84FF' : color}
-              weight={focused ? 'fill' : 'regular'}
-            />
+            <View style={{ alignItems: 'center' }}>
+              <House
+                size={22}
+                color={focused ? '#0A84FF' : color}
+                weight={focused ? 'fill' : 'regular'}
+              />
+              {focused && (
+                <View style={{ width: 18, height: 2.5, borderRadius: 1.5, backgroundColor: '#0A84FF', marginTop: 3 }} />
+              )}
+            </View>
           ),
         }}
       />
       <Tabs.Screen
         name="quests"
         options={{
-          title: 'Quests',
+          title: t('tabQuests'),
           tabBarIcon: ({ color, focused }) => (
             <Lightning
               size={22}
-              color={focused ? '#0A84FF' : color}
+              color={focused ? colors.primary : color}
               weight={focused ? 'fill' : 'regular'}
             />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="gates"
+        options={{
+          title: 'Dungeon',
+          tabBarIcon: ({ color, focused }) => (
+            <View style={{ alignItems: 'center' }}>
+              <Sword
+                size={22}
+                color={focused ? '#0284C7' : color}
+                weight={focused ? 'fill' : 'regular'}
+              />
+              {focused && (
+                <View style={{ width: 18, height: 2.5, borderRadius: 1.5, backgroundColor: '#0284C7', marginTop: 3 }} />
+              )}
+            </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="leaderboard"
+        options={{
+          href: null,
         }}
       />
       <Tabs.Screen
         name="rewards"
         options={{
-          title: 'Focus',
-          tabBarIcon: ({ color, focused }) => (
-            <Timer
-              size={22}
-              color={focused ? '#0A84FF' : color}
-              weight={focused ? 'fill' : 'regular'}
-            />
-          ),
-        }}
-        listeners={{
-          tabPress: (e) => {
-            e.preventDefault();
-            router.push('/focus/session');
-          },
+          href: null,
         }}
       />
       <Tabs.Screen
         name="progress"
         options={{
-          title: 'Gym',
+          title: t('workout'),
           tabBarIcon: ({ color, focused }) => (
             <Barbell
               size={22}
-              color={focused ? '#0A84FF' : color}
+              color={focused ? colors.primary : color}
               weight={focused ? 'fill' : 'regular'}
             />
           ),
@@ -111,11 +126,11 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
+          title: t('tabProfile'),
           tabBarIcon: ({ color, focused }) => (
             <User
               size={22}
-              color={focused ? '#0A84FF' : color}
+              color={focused ? colors.primary : color}
               weight={focused ? 'fill' : 'regular'}
             />
           ),

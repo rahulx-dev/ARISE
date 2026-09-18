@@ -67,7 +67,7 @@ class HistoryService {
           title: `${ex.completedReps} ${ex.exerciseType}`,
           subtitle: `Duration: ${Math.floor(ex.durationSeconds / 60)}m ${ex.durationSeconds % 60}s`,
           timestamp: ex.timestamp,
-          rewardCoins: ex.completedReps * 2,
+          rewardCoins: Math.max(1, Math.floor(ex.completedReps / 5)),
           rewardXP: ex.completedReps * 5,
         });
       }

@@ -17,7 +17,8 @@ export type SoundEffectName =
   | 'achievement'
   | 'purchase'
   | 'quest_start'
-  | 'unlock';
+  | 'unlock'
+  | 'app_intro';
 
 // Helper to generate a 16-bit Mono PCM WAV Data URI with Base64 encoding
 function generateWavUri(
@@ -82,70 +83,108 @@ function generateWavUri(
   return `data:audio/wav;base64,${result}`;
 }
 
-// 8 Studio Quality Waveform Generators
+// 8 Studio Quality Velvet Harmonic Waveform Generators
 const NATIVE_WAV_CACHE: Record<SoundEffectName, string> = {
-  // 1. Coin Earn: Crystalline High Double Chime with harmonic sparkle
+  // 1. Coin Earn: Crisp Crystal Double Chime (High punch + velvet tail)
   coin_earn: generateWavUri(0.35, (t) => {
-    const env1 = Math.exp(-t * 18);
-    const env2 = t > 0.08 ? Math.exp(-(t - 0.08) * 14) : 0;
-    const osc1 = Math.sin(2 * Math.PI * 1318.5 * t) + 0.3 * Math.sin(2 * Math.PI * 2637 * t);
-    const osc2 = Math.sin(2 * Math.PI * 1760.0 * (t - 0.08)) + 0.3 * Math.sin(2 * Math.PI * 3520 * (t - 0.08));
-    return (osc1 * env1 + osc2 * env2) * 0.7;
+    const attack = Math.min(1, t / 0.002);
+    const env1 = Math.exp(-t * 14);
+    const env2 = t > 0.06 ? Math.exp(-(t - 0.06) * 12) : 0;
+    const osc1 = Math.sin(2 * Math.PI * 1480 * t) + 0.3 * Math.sin(2 * Math.PI * 2960 * t);
+    const osc2 = t > 0.06 ? Math.sin(2 * Math.PI * 1975.5 * (t - 0.06)) + 0.25 * Math.sin(2 * Math.PI * 3951 * (t - 0.06)) : 0;
+    return attack * (osc1 * env1 * 0.55 + osc2 * env2 * 0.65);
   }),
 
-  // 2. Rep Count: Deep Punchy Tactile Mechanical Click + 440Hz pulse
-  rep_count: generateWavUri(0.18, (t) => {
-    const env = Math.exp(-t * 24);
-    const body = Math.sin(2 * Math.PI * (520 - t * 1200) * t);
-    const click = (Math.random() * 2 - 1) * Math.exp(-t * 90);
-    return (body * 0.75 + click * 0.25) * env;
+  // 2. Rep Count: Punchy Mechanical Switch Click + Sub-bass impact
+  rep_count: generateWavUri(0.14, (t) => {
+    const attack = Math.min(1, t / 0.001);
+    const env = Math.exp(-t * 28);
+    // Tactile kick transient + punchy body
+    const body = Math.sin(2 * Math.PI * (160 - t * 380) * t);
+    const click = Math.sin(2 * Math.PI * 1200 * t) * Math.exp(-t * 120) * 0.4;
+    return attack * (body * 0.75 + click) * env;
   }),
 
-  // 3. Quest Complete: Triumphant Major Triad Arpeggio (A4 -> C#5 -> E5 -> A5)
-  quest_complete: generateWavUri(0.65, (t) => {
+  // 3. Quest Complete: Triumphant Major Fanfare (Warm Brass + Shimmering Chime)
+  quest_complete: generateWavUri(0.75, (t) => {
     let s = 0;
-    if (t >= 0.0 && t < 0.14) s += Math.sin(2 * Math.PI * 554.37 * t) * Math.exp(-t * 6);
-    if (t >= 0.12 && t < 0.28) s += Math.sin(2 * Math.PI * 659.25 * (t - 0.12)) * Math.exp(-(t - 0.12) * 6);
-    if (t >= 0.24 && t < 0.42) s += Math.sin(2 * Math.PI * 880.0 * (t - 0.24)) * Math.exp(-(t - 0.24) * 6);
-    if (t >= 0.36) s += (Math.sin(2 * Math.PI * 1108.7 * (t - 0.36)) + 0.3 * Math.sin(2 * Math.PI * 2217 * (t - 0.36))) * Math.exp(-(t - 0.36) * 4);
-    return s * 0.65;
+    if (t >= 0.0 && t < 0.22) s += (Math.sin(2 * Math.PI * 587.33 * t) + 0.2 * Math.sin(2 * Math.PI * 1174.66 * t)) * Math.exp(-t * 5.0) * 0.55;
+    if (t >= 0.12 && t < 0.38) s += (Math.sin(2 * Math.PI * 739.99 * (t - 0.12)) + 0.2 * Math.sin(2 * Math.PI * 1479.98 * (t - 0.12))) * Math.exp(-(t - 0.12) * 4.5) * 0.55;
+    if (t >= 0.24 && t < 0.55) s += (Math.sin(2 * Math.PI * 880.0 * (t - 0.24)) + 0.2 * Math.sin(2 * Math.PI * 1760.0 * (t - 0.24))) * Math.exp(-(t - 0.24) * 4.0) * 0.6;
+    if (t >= 0.36) {
+      const dt = t - 0.36;
+      s += (Math.sin(2 * Math.PI * 1174.66 * dt) + 0.3 * Math.sin(2 * Math.PI * 2349.32 * dt)) * Math.exp(-dt * 3.2) * 0.7;
+    }
+    return s * 0.85;
   }),
 
-  // 4. Level Up: Cinematic Sub-Bass Drop + Shimmering Laser Surge
-  level_up: generateWavUri(0.85, (t) => {
-    const subFreq = 220 + t * 400;
-    const sub = Math.sin(2 * Math.PI * subFreq * t) * Math.exp(-t * 2.5);
-    const shimmer = Math.sin(2 * Math.PI * (1760 + Math.sin(t * 40) * 80) * t) * Math.exp(-t * 3.5) * 0.35;
-    return (sub * 0.7 + shimmer) * 0.8;
+  // 4. Level Up: Majestic Solo Leveling Cinematic Awakening (Sub Rumble + Grand Ascending Chord)
+  level_up: generateWavUri(1.1, (t) => {
+    const attack = Math.min(1, t / 0.005);
+    // Deep physical sub-bass rumble (65Hz - 130Hz)
+    const sub = (Math.sin(2 * Math.PI * 65 * t) * 0.5 + Math.sin(2 * Math.PI * 130 * t) * 0.35) * Math.exp(-t * 1.8);
+    // Soaring celestial chord progression
+    let chime = 0;
+    if (t >= 0.0) chime += (Math.sin(2 * Math.PI * 261.63 * t) + 0.2 * Math.sin(2 * Math.PI * 523.25 * t)) * Math.exp(-t * 3.5) * 0.35;
+    if (t >= 0.12) chime += (Math.sin(2 * Math.PI * 329.63 * (t - 0.12)) + 0.2 * Math.sin(2 * Math.PI * 659.25 * (t - 0.12))) * Math.exp(-(t - 0.12) * 3.2) * 0.4;
+    if (t >= 0.24) chime += (Math.sin(2 * Math.PI * 392.00 * (t - 0.24)) + 0.2 * Math.sin(2 * Math.PI * 784.00 * (t - 0.24))) * Math.exp(-(t - 0.24) * 2.8) * 0.45;
+    if (t >= 0.36) chime += (Math.sin(2 * Math.PI * 523.25 * (t - 0.36)) + 0.25 * Math.sin(2 * Math.PI * 1046.5 * (t - 0.36))) * Math.exp(-(t - 0.36) * 2.4) * 0.55;
+    if (t >= 0.48) chime += (Math.sin(2 * Math.PI * 659.25 * (t - 0.48)) + 0.25 * Math.sin(2 * Math.PI * 1318.5 * (t - 0.48))) * Math.exp(-(t - 0.48) * 2.0) * 0.6;
+    if (t >= 0.60) chime += (Math.sin(2 * Math.PI * 1046.5 * (t - 0.60)) + 0.3 * Math.sin(2 * Math.PI * 2093.0 * (t - 0.60))) * Math.exp(-(t - 0.60) * 1.8) * 0.7;
+    return attack * (sub * 0.8 + chime * 0.7);
   }),
 
-  // 5. Achievement: Grand Fanfare with Rich Shimmer
-  achievement: generateWavUri(0.75, (t) => {
-    const base = Math.sin(2 * Math.PI * 784 * t) * Math.exp(-t * 5);
-    const fifth = t > 0.15 ? Math.sin(2 * Math.PI * 1046.5 * (t - 0.15)) * Math.exp(-(t - 0.15) * 4) : 0;
-    const high = t > 0.3 ? Math.sin(2 * Math.PI * 1568 * (t - 0.3)) * Math.exp(-(t - 0.3) * 3) : 0;
-    return (base + fifth + high) * 0.5;
+  // 5. Achievement: Grand Velvet Fanfare
+  achievement: generateWavUri(0.85, (t) => {
+    const attack = Math.min(1, t / 0.004);
+    const root = Math.sin(2 * Math.PI * 523.25 * t) * Math.exp(-t * 3.5);
+    const third = t > 0.1 ? Math.sin(2 * Math.PI * 659.25 * (t - 0.1)) * Math.exp(-(t - 0.1) * 3.2) : 0;
+    const fifth = t > 0.22 ? Math.sin(2 * Math.PI * 783.99 * (t - 0.22)) * Math.exp(-(t - 0.22) * 3.0) : 0;
+    const octave = t > 0.34 ? (Math.sin(2 * Math.PI * 1046.5 * (t - 0.34)) + 0.2 * Math.sin(2 * Math.PI * 2093.0 * (t - 0.34))) * Math.exp(-(t - 0.34) * 2.5) : 0;
+    return attack * (root * 0.35 + third * 0.35 + fifth * 0.4 + octave * 0.5);
   }),
 
-  // 6. Purchase: Cash Register Cybernetic Swipe
-  purchase: generateWavUri(0.35, (t) => {
-    const sweep = Math.sin(2 * Math.PI * (400 + t * 1800) * t) * Math.exp(-t * 12);
-    const chime = t > 0.1 ? Math.sin(2 * Math.PI * 2093 * (t - 0.1)) * Math.exp(-(t - 0.1) * 16) : 0;
-    return (sweep * 0.5 + chime * 0.6) * 0.8;
+  // 6. Purchase: Cash Register Sparkle + Clean Confirmation Chime
+  purchase: generateWavUri(0.38, (t) => {
+    const attack = Math.min(1, t / 0.002);
+    const tone1 = Math.sin(2 * Math.PI * 880.0 * t) * Math.exp(-t * 14) * 0.5;
+    const tone2 = t > 0.07 ? (Math.sin(2 * Math.PI * 1174.66 * (t - 0.07)) + 0.2 * Math.sin(2 * Math.PI * 2349.32 * (t - 0.07))) * Math.exp(-(t - 0.07) * 12) * 0.65 : 0;
+    return attack * (tone1 + tone2);
   }),
 
-  // 7. Quest Start: Tactical Cybernetic Boot Hum
-  quest_start: generateWavUri(0.4, (t) => {
-    const hum = Math.sin(2 * Math.PI * (180 + t * 450) * t) * Math.exp(-t * 7);
-    const tick = Math.sin(2 * Math.PI * 1200 * t) * Math.exp(-t * 30) * 0.3;
-    return (hum + tick) * 0.7;
+  // 7. Quest Start: Deep Tactical Awakening Pulse
+  quest_start: generateWavUri(0.45, (t) => {
+    const attack = Math.min(1, t / 0.008);
+    const hum = Math.sin(2 * Math.PI * (110 + t * 180) * t) * Math.exp(-t * 3.8);
+    const warmth = Math.sin(2 * Math.PI * 220 * t) * Math.exp(-t * 5.0) * 0.4;
+    return attack * (hum * 0.75 + warmth);
   }),
 
-  // 8. Unlock: Pneumatic Depressurization + High Tone
-  unlock: generateWavUri(0.45, (t) => {
-    const bass = Math.sin(2 * Math.PI * (350 - t * 400) * t) * Math.exp(-t * 8);
-    const high = t > 0.08 ? Math.sin(2 * Math.PI * 1480 * (t - 0.08)) * Math.exp(-(t - 0.08) * 12) : 0;
-    return (bass * 0.6 + high * 0.5) * 0.75;
+  // 8. Unlock: Pneumatic Release & Pure Crystal Bell
+  unlock: generateWavUri(0.42, (t) => {
+    const attack = Math.min(1, t / 0.002);
+    const thud = Math.sin(2 * Math.PI * (180 - t * 280) * t) * Math.exp(-t * 20) * 0.65;
+    const bell = t > 0.05 ? Math.sin(2 * Math.PI * 1174.66 * (t - 0.05)) * Math.exp(-(t - 0.05) * 12) * 0.5 : 0;
+    return attack * (thud + bell);
+  }),
+
+  // 9. App Intro: Cinematic Anime Opening Stinger (Sub-bass impact + soaring crystal chords)
+  app_intro: generateWavUri(1.6, (t) => {
+    const attack = Math.min(1, t / 0.004);
+    // Sub-bass impact
+    const sub = Math.sin(2 * Math.PI * (55 - t * 8) * t) * Math.exp(-t * 2.2) * 0.5;
+    // Cyber riser
+    const riserFreq = 300 + Math.pow(Math.min(1, t / 0.4), 2) * 700;
+    const riser = t < 0.4 ? Math.sin(2 * Math.PI * riserFreq * t) * Math.exp(-t * 1.5) * 0.25 : 0;
+    // Soaring major triad chord entering at t = 0.2
+    const chordTime = t - 0.2;
+    const chord = chordTime > 0 ? (
+      Math.sin(2 * Math.PI * 440.0 * chordTime) * 0.3 +
+      Math.sin(2 * Math.PI * 659.25 * chordTime) * 0.25 +
+      Math.sin(2 * Math.PI * 880.0 * chordTime) * 0.22 +
+      Math.sin(2 * Math.PI * 1108.73 * chordTime) * 0.18
+    ) * Math.exp(-chordTime * 1.8) : 0;
+    return attack * Math.min(1, Math.max(-1, sub + riser + chord));
   }),
 };
 
@@ -165,7 +204,7 @@ function getWebAudioContext(): any {
   return webAudioCtx;
 }
 
-export function playSound(effectName: SoundEffectName, volume = 0.8) {
+export function playSound(effectName: SoundEffectName, volume = 0.75) {
   if (Platform.OS === 'web') {
     const ctx = getWebAudioContext();
     if (!ctx) return;
@@ -183,13 +222,13 @@ export function playSound(effectName: SoundEffectName, volume = 0.8) {
           const g1 = ctx.createGain();
           const g2 = ctx.createGain();
 
-          osc1.frequency.setValueAtTime(1318.5, now); // E6
-          osc2.frequency.setValueAtTime(1760.0, now + 0.08); // A6
+          osc1.frequency.setValueAtTime(1318.5, now);
+          osc2.frequency.setValueAtTime(1760.0, now + 0.07);
 
-          g1.gain.setValueAtTime(0.7, now);
-          g1.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
-          g2.gain.setValueAtTime(0.7, now + 0.08);
-          g2.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+          g1.gain.setValueAtTime(0.5, now);
+          g1.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+          g2.gain.setValueAtTime(0.55, now + 0.07);
+          g2.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
 
           osc1.connect(g1);
           g1.connect(gain);
@@ -197,57 +236,61 @@ export function playSound(effectName: SoundEffectName, volume = 0.8) {
           g2.connect(gain);
 
           osc1.start(now);
-          osc1.stop(now + 0.3);
-          osc2.start(now + 0.08);
-          osc2.stop(now + 0.35);
+          osc1.stop(now + 0.28);
+          osc2.start(now + 0.07);
+          osc2.stop(now + 0.32);
           break;
         }
 
         case 'rep_count': {
           const osc = ctx.createOscillator();
           const g = ctx.createGain();
-          osc.frequency.setValueAtTime(520, now);
-          osc.frequency.exponentialRampToValueAtTime(120, now + 0.15);
-          g.gain.setValueAtTime(0.9, now);
-          g.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+          osc.frequency.setValueAtTime(180, now);
+          osc.frequency.exponentialRampToValueAtTime(70, now + 0.1);
+          g.gain.setValueAtTime(0.7, now);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
 
           osc.connect(g);
           g.connect(gain);
           osc.start(now);
-          osc.stop(now + 0.15);
+          osc.stop(now + 0.12);
           break;
         }
 
         case 'quest_complete': {
-          const freqs = [554.37, 659.25, 880.0, 1108.7];
+          const freqs = [587.33, 739.99, 880.0, 1174.66];
           freqs.forEach((f, i) => {
             const osc = ctx.createOscillator();
             const g = ctx.createGain();
             const start = now + i * 0.12;
             osc.frequency.setValueAtTime(f, start);
-            g.gain.setValueAtTime(0.6, start);
-            g.gain.exponentialRampToValueAtTime(0.001, start + 0.4);
+            g.gain.setValueAtTime(0.5, start);
+            g.gain.exponentialRampToValueAtTime(0.001, start + 0.45);
 
             osc.connect(g);
             g.connect(gain);
             osc.start(start);
-            osc.stop(start + 0.4);
+            osc.stop(start + 0.45);
           });
           break;
         }
 
         case 'level_up': {
-          const osc = ctx.createOscillator();
-          const g = ctx.createGain();
-          osc.frequency.setValueAtTime(220, now);
-          osc.frequency.exponentialRampToValueAtTime(880, now + 0.5);
-          g.gain.setValueAtTime(0.8, now);
-          g.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+          // Warm harmonic chord instead of harsh sweep
+          const notes = [220, 329.63, 440, 554.37, 659.25, 880];
+          notes.forEach((freq, idx) => {
+            const osc = ctx.createOscillator();
+            const g = ctx.createGain();
+            const start = now + idx * 0.1;
+            osc.frequency.setValueAtTime(freq, start);
+            g.gain.setValueAtTime(0.4, start);
+            g.gain.exponentialRampToValueAtTime(0.001, start + 0.6);
 
-          osc.connect(g);
-          g.connect(gain);
-          osc.start(now);
-          osc.stop(now + 0.8);
+            osc.connect(g);
+            g.connect(gain);
+            osc.start(start);
+            osc.stop(start + 0.6);
+          });
           break;
         }
 
@@ -255,13 +298,13 @@ export function playSound(effectName: SoundEffectName, volume = 0.8) {
           const osc = ctx.createOscillator();
           const g = ctx.createGain();
           osc.frequency.setValueAtTime(440, now);
-          g.gain.setValueAtTime(0.5, now);
-          g.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+          g.gain.setValueAtTime(0.4, now);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
 
           osc.connect(g);
           g.connect(gain);
           osc.start(now);
-          osc.stop(now + 0.2);
+          osc.stop(now + 0.18);
           break;
         }
       }

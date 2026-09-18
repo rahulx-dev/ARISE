@@ -19,6 +19,8 @@ class AdMobService {
   public isInterstitialLoaded = false;
   private isRewardedLoading = false;
   private isInterstitialLoading = false;
+  private rewardedAdUnitId: string = PRODUCTION_REWARDED_ID || TestIds.REWARDED;
+  private interstitialAdUnitId: string = PRODUCTION_INTERSTITIAL_ID || TestIds.INTERSTITIAL;
 
   public async initialize(): Promise<void> {
     if (this.isInitialized || Platform.OS !== 'android') return;
@@ -33,12 +35,12 @@ class AdMobService {
     }
   }
 
-  public preloadRewarded(useFallbackTestId = false) {
+  public preloadRewarded() {
     if (this.isRewardedLoading) return;
     this.isRewardedLoading = true;
 
-    const adUnitId = useFallbackTestId ? TestIds.REWARDED : PRODUCTION_REWARDED_ID;
-    console.log(`[AdMobService] Preloading Rewarded Ad with unit: ${adUnitId}`);
+    const adUnitId = this.rewardedAdUnitId;
+    console.log(`[AdMobService] Preloading Rewarded Ad: ${adUnitId}`);
 
     try {
       this.rewardedAd = RewardedAd.createForAdRequest(adUnitId, {
@@ -48,7 +50,7 @@ class AdMobService {
       this.rewardedAd.addAdEventListener(RewardedAdEventType.LOADED, () => {
         this.isRewardedLoaded = true;
         this.isRewardedLoading = false;
-        console.log('[AdMobService] Rewarded Ad successfully LOADED and READY!');
+        console.log('[AdMobService] Rewarded Ad LOADED successfully!');
       });
 
       this.rewardedAd.addAdEventListener(RewardedAdEventType.EARNED_REWARD, () => {
@@ -61,11 +63,11 @@ class AdMobService {
         console.warn(`[AdMobService] Rewarded ad load error on ${adUnitId}:`, error);
         this.isRewardedLoaded = false;
         this.isRewardedLoading = false;
-
-        // If production ad unit failed (e.g. Error code 3: No Fill for new account), fallback to Google Test Ad Unit!
-        if (!useFallbackTestId) {
-          console.log('[AdMobService] Falling back to Google Test Rewarded Ad Unit for 100% fill guarantee');
-          this.preloadRewarded(true);
+        // Fallback to test ID if production ad unit failed (e.g. error code 3 no fill on pre-launch)
+        if (this.rewardedAdUnitId !== TestIds.REWARDED) {
+          console.log('[AdMobService] Switching to Test Rewarded Ad Unit');
+          this.rewardedAdUnitId = TestIds.REWARDED;
+          setTimeout(() => this.preloadRewarded(), 1000);
         }
       });
 
@@ -76,12 +78,12 @@ class AdMobService {
     }
   }
 
-  public preloadInterstitial(useFallbackTestId = false) {
+  public preloadInterstitial() {
     if (this.isInterstitialLoading) return;
     this.isInterstitialLoading = true;
 
-    const adUnitId = useFallbackTestId ? TestIds.INTERSTITIAL : PRODUCTION_INTERSTITIAL_ID;
-    console.log(`[AdMobService] Preloading Interstitial Ad with unit: ${adUnitId}`);
+    const adUnitId = this.interstitialAdUnitId;
+    console.log(`[AdMobService] Preloading Interstitial Ad: ${adUnitId}`);
 
     try {
       this.interstitialAd = InterstitialAd.createForAdRequest(adUnitId, {
@@ -91,7 +93,7 @@ class AdMobService {
       this.interstitialAd.addAdEventListener(AdEventType.LOADED, () => {
         this.isInterstitialLoaded = true;
         this.isInterstitialLoading = false;
-        console.log('[AdMobService] Interstitial Ad successfully LOADED and READY!');
+        console.log('[AdMobService] Interstitial Ad LOADED successfully!');
       });
 
       this.interstitialAd.addAdEventListener(AdEventType.CLOSED, () => {
@@ -104,10 +106,11 @@ class AdMobService {
         console.warn(`[AdMobService] Interstitial ad load error on ${adUnitId}:`, error);
         this.isInterstitialLoaded = false;
         this.isInterstitialLoading = false;
-
-        if (!useFallbackTestId) {
-          console.log('[AdMobService] Falling back to Google Test Interstitial Ad Unit');
-          this.preloadInterstitial(true);
+        // Fallback to test ID if production ad unit failed
+        if (this.interstitialAdUnitId !== TestIds.INTERSTITIAL) {
+          console.log('[AdMobService] Switching to Test Interstitial Ad Unit');
+          this.interstitialAdUnitId = TestIds.INTERSTITIAL;
+          setTimeout(() => this.preloadInterstitial(), 1000);
         }
       });
 
@@ -128,7 +131,7 @@ class AdMobService {
       const unsubscribeEarned = this.rewardedAd.addAdEventListener(
         RewardedAdEventType.EARNED_REWARD,
         () => {
-          onRewardEarned(50);
+          onRewardEarned(25);
           unsubscribeEarned();
         }
       );

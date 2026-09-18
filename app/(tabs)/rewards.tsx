@@ -167,7 +167,8 @@ export default function RewardsTab() {
                         </View>
                       ) : (
                         <View style={styles.rewardChip}>
-                          <Text style={styles.rewardChipText}>+{item.rewardCoins} 🪙</Text>
+                          <Coins size={11} color="#F59E0B" />
+                          <Text style={styles.rewardChipText}>+{item.rewardCoins}</Text>
                         </View>
                       )}
                     </View>
@@ -362,9 +363,12 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   rewardChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     backgroundColor: '#1E1E1E',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 100,
     borderWidth: 1,
     borderColor: '#2A2A2A',

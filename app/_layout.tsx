@@ -12,25 +12,32 @@ import {
   SpaceGrotesk_700Bold,
 } from '@expo-google-fonts/space-grotesk';
 import { initializeDatabase, db } from '../src/database/client';
-import { appRestriction } from '../src/database/schema';
+import { appRestriction, settings } from '../src/database/schema';
 import { appBlockerService } from '../src/native';
 import { useSettingsStore } from '../src/stores/useSettingsStore';
 import { usePlayerStore } from '../src/stores/usePlayerStore';
 import { ErrorBoundary } from '../src/components/ui/ErrorBoundary';
 import { colors } from '../src/theme/colors';
 
-import { IOSAlertProvider } from '../src/components/ios/IOSAlertModal';
+import { IOSAlertProvider, showIOSAlert } from '../src/components/ios/IOSAlertModal';
 import { getIsOnboardingCompleted } from '../src/services/appStateService';
 import { adMobService } from '../src/services/adMobService';
-
+import { coinService } from '../src/services/coinService';
+import * as Linking from 'expo-linking';
+import { Camera } from 'expo-camera';
+import { AriseLogo } from '../src/components/ui/AriseLogo';
+import { PermissionsGateModal } from '../src/components/permissions/PermissionsGateModal';
+import { LevelUpModal } from '../src/components/level/LevelUpModal';
+import { syncService } from '../src/services/syncService';
 /**
  * ARISE App Startup States:
  *
- * INITIALIZING     - DB init + font loading + settings/profile load from SQLite
- * PROFILE_REQUIRED - onboardingCompleted === false -> show onboarding
- * READY            - onboardingCompleted === true  -> show home tabs
+ * INITIALIZING         - DB init + font loading + settings/profile load from SQLite
+ * PROFILE_REQUIRED     - onboardingCompleted === false -> show onboarding
+ * PERMISSIONS_REQUIRED - mandatory 4-permissions not yet granted -> show gate
+ * READY                - all ready -> show home tabs
  */
-type AppState = 'INITIALIZING' | 'PROFILE_REQUIRED' | 'READY';
+type AppState = 'INITIALIZING' | 'PROFILE_REQUIRED' | 'PERMISSIONS_REQUIRED' | 'READY';
 
 export default function RootLayout() {
   const [appState, setAppState] = useState<AppState>('INITIALIZING');
@@ -64,9 +71,14 @@ export default function RootLayout() {
       try {
         const restrictions = await db.select().from(appRestriction);
         const activeBlocked = restrictions.filter((r) => r.isRestricted === 1).map((r) => r.packageName);
+        const settingsRec = await db.select().from(settings).limit(1);
+        const dailyBudget = settingsRec.length > 0 ? settingsRec[0].dailyBudgetMinutes : 0;
+        appBlockerService.setAppBudget?.(null, dailyBudget);
         if (activeBlocked.length > 0) {
           appBlockerService.startMonitoring(activeBlocked);
-          console.log(`[ARISE Startup] Background app blocker restored for ${activeBlocked.length} apps`);
+          console.log(`[ARISE Startup] Background app blocker restored for ${activeBlocked.length} apps with ${dailyBudget}m daily budget`);
+        } else {
+          appBlockerService.setRestrictedPackages([]);
         }
       } catch (blockerErr) {
         console.warn('[ARISE Startup] Blocker restore note:', blockerErr);
@@ -82,7 +94,19 @@ export default function RootLayout() {
       }
 
       if (onboardingCompleted) {
-        setAppState('READY');
+        // Enforce mandatory 4-permissions check before allowing Home Screen
+        const usage = await appBlockerService.hasUsagePermission();
+        const overlay = await appBlockerService.hasOverlayPermission();
+        const battery = (await appBlockerService.hasBatteryOptimizationExemption?.()) ?? true;
+        const cam = await Camera.getCameraPermissionsAsync();
+        const allPermsGranted = usage && overlay && battery && cam.granted;
+
+        if (allPermsGranted) {
+          setAppState('READY');
+          syncService.syncAll().catch(() => {});
+        } else {
+          setAppState('PERMISSIONS_REQUIRED');
+        }
       } else {
         setAppState('PROFILE_REQUIRED');
       }
@@ -92,15 +116,19 @@ export default function RootLayout() {
     }
   };
 
-  // Wait for both fonts AND bootstrap to complete
-  if (!fontsLoaded || appState === 'INITIALIZING') {
+  if (!fontsLoaded) {
+    return null;
+  }
+
+  // Mandatory 4-permissions gate: user CANNOT reach home until all 4 are granted
+  if (appState === 'PERMISSIONS_REQUIRED') {
     return (
-      <View style={styles.splashContainer}>
-        <StatusBar style="light" />
-        <Text style={styles.splashLogo}>ARISE</Text>
-        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 24 }} />
-        <Text style={styles.splashSubtext}>INITIALIZING PROTOCOL</Text>
-      </View>
+      <ErrorBoundary>
+        <SafeAreaProvider>
+          <StatusBar style="light" />
+          <PermissionsGateModal onAllGranted={() => setAppState('READY')} />
+        </SafeAreaProvider>
+      </ErrorBoundary>
     );
   }
 
@@ -129,7 +157,10 @@ export default function RootLayout() {
               <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
               <Stack.Screen name="permissions" options={{ animation: 'slide_from_right' }} />
               <Stack.Screen name="photos" options={{ animation: 'slide_from_right' }} />
+              <Stack.Screen name="leaderboard" options={{ animation: 'slide_from_right' }} />
+              <Stack.Screen name="rewards" options={{ animation: 'slide_from_right' }} />
             </Stack>
+            <LevelUpModal />
           </IOSAlertProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>

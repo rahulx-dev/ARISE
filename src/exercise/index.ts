@@ -60,8 +60,10 @@ export function calculateRewards(
 ): { coins: number; xp: number } {
   const config = getExerciseConfig(type);
   const reps = Math.min(completedReps, target); // Don't reward beyond target
+  // Calibrated unit economics: 1 coin per 5 reps (min 1 coin per set)
+  const earnedCoins = Math.max(1, Math.floor(reps / 5));
   return {
-    coins: reps * config.coinsPerRep,
+    coins: earnedCoins,
     xp: reps * config.xpPerRep,
   };
 }
@@ -72,6 +74,6 @@ export { squatConfig } from './exercises/squat';
 export { situpConfig } from './exercises/situp';
 export { jumpingJackConfig } from './exercises/jumpingJack';
 export { plankConfig, type PlankState, createPlankState, processPlankFrame } from './exercises/plank';
-export { createInitialState, processFrame, resetState, type RepCounterState, type FormFeedback } from './repCounter';
+export { createInitialState, processFrame, resetState, extractBodyY, type RepCounterState, type FormFeedback } from './repCounter';
 export { calculateAngle, distance, isConfident, areAllConfident, normalizeKeypoints, type Point } from './angleUtils';
 export { validateExercisePose, type PoseValidationResult } from './poseValidator';

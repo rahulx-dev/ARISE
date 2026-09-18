@@ -37,7 +37,7 @@ export function distance(a: Point, b: Point): number {
  */
 export function midpoint(a: Point, b: Point): Point {
   return {
-    x: (a.x + a.y) / 2,
+    x: (a.x + b.x) / 2,
     y: (a.y + b.y) / 2,
     confidence: Math.min(a.confidence, b.confidence),
   };

@@ -51,6 +51,7 @@ export default function FocusModeScreen() {
   const [isAudioSheetOpen, setIsAudioSheetOpen] = useState<boolean>(false);
   const [isPresetSheetOpen, setIsPresetSheetOpen] = useState<boolean>(false);
   const [selectedTrackId, setSelectedTrackId] = useState<string>('deep_focus');
+  const [isMuted, setIsMuted] = useState<boolean>(false);
   const [todayStats, setTodayStats] = useState({ focusMinutes: 0, focusSessionsCount: 0 });
 
   const timerRef = useRef<any>(null);
@@ -152,7 +153,11 @@ export default function FocusModeScreen() {
   useEffect(() => {
     if (isActive) {
       startTimeRef.current = Date.now();
-      audioService.play(selectedTrackId);
+      if (!isMuted) {
+        audioService.play(selectedTrackId);
+      } else {
+        audioService.pause();
+      }
 
       timerRef.current = setInterval(() => {
         setRemainingMs((prev) => {
@@ -172,7 +177,20 @@ export default function FocusModeScreen() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isActive]);
+  }, [isActive, isMuted, selectedTrackId]);
+
+  const toggleMute = () => {
+    haptics.light();
+    if (isMuted) {
+      setIsMuted(false);
+      if (isActive) {
+        audioService.play(selectedTrackId);
+      }
+    } else {
+      setIsMuted(true);
+      audioService.pause();
+    }
+  };
 
   const handleStartPause = () => {
     haptics.heavy();
@@ -273,13 +291,38 @@ export default function FocusModeScreen() {
 
           <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Deep Focus</Text>
 
-          <TouchableOpacity
-            style={[styles.circleBtn, { backgroundColor: isDark ? '#14151C' : '#FFFFFF', borderColor: colors.border }]}
-            onPress={() => setIsAudioSheetOpen(true)}
-            activeOpacity={0.8}
-          >
-            <Headphones size={20} color={colors.secondary} weight="duotone" />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {/* Mute / Unmute Button */}
+            <TouchableOpacity
+              style={[
+                styles.circleBtn,
+                {
+                  backgroundColor: isMuted
+                    ? 'rgba(239, 68, 68, 0.12)'
+                    : isDark
+                    ? '#14151C'
+                    : '#FFFFFF',
+                  borderColor: isMuted ? 'rgba(239, 68, 68, 0.4)' : colors.border,
+                },
+              ]}
+              onPress={toggleMute}
+              activeOpacity={0.8}
+            >
+              {isMuted ? (
+                <SpeakerSlash size={19} color="#EF4444" weight="bold" />
+              ) : (
+                <SpeakerHigh size={19} color={colors.primary} weight="duotone" />
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.circleBtn, { backgroundColor: isDark ? '#14151C' : '#FFFFFF', borderColor: colors.border }]}
+              onPress={() => setIsAudioSheetOpen(true)}
+              activeOpacity={0.8}
+            >
+              <Headphones size={20} color={colors.secondary} weight="duotone" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.mainContent}>
@@ -295,46 +338,30 @@ export default function FocusModeScreen() {
             <CaretDown size={14} color={colors.textMuted} weight="bold" />
           </TouchableOpacity>
 
-          {/* 120 FPS Siri Live Ring Timer Display */}
+          {/* Sleek Minimalist Obsidian & Sapphire Focus Ring */}
           <View style={styles.timerWrap}>
-            {/* Layer 1: Outer Rotating Siri Iridescent Halo Ring */}
-            <Animated.View
+            {/* Ambient Subtle Sapphire Backlight */}
+            <View
               style={[
-                styles.siriHaloRing,
+                styles.focusBacklight,
                 {
-                  opacity: glowAnim,
-                  transform: [
-                    { scale: pulseAnim },
-                    { rotate: rotateInterpolate },
-                  ],
+                  opacity: isActive ? 0.35 : 0.15,
+                  backgroundColor: '#0A84FF',
                 },
               ]}
             />
 
-            {/* Layer 2: Ambient Inner Siri Orb Pulse Glow */}
-            <Animated.View
-              style={[
-                styles.siriInnerOrb,
-                {
-                  opacity: glowAnim,
-                  transform: [{ scale: pulseAnim }],
-                },
-              ]}
-            />
-
-            {/* Layer 3: Precision Native-Driven SVG Ring with Breathing Physics */}
-            <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+            {/* Precision Native SVG Ring */}
+            <View>
               <Svg width={270} height={270} viewBox="0 0 270 270">
                 <Defs>
-                  <SvgLinearGradient id="siriGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <Stop offset="0%" stopColor="#00F2FE" />
-                    <Stop offset="30%" stopColor="#0A84FF" />
-                    <Stop offset="70%" stopColor="#6366F1" />
-                    <Stop offset="100%" stopColor="#A855F7" />
+                  <SvgLinearGradient id="sapphireGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <Stop offset="0%" stopColor="#389BFF" />
+                    <Stop offset="100%" stopColor="#0A84FF" />
                   </SvgLinearGradient>
                   <SvgLinearGradient id="trackGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <Stop offset="0%" stopColor={isDark ? '#14151F' : '#E5E5EA'} />
-                    <Stop offset="100%" stopColor={isDark ? '#1A1C28' : '#D1D1D6'} />
+                    <Stop offset="0%" stopColor={isDark ? '#121522' : '#E5E5EA'} />
+                    <Stop offset="100%" stopColor={isDark ? '#161928' : '#D1D1D6'} />
                   </SvgLinearGradient>
                 </Defs>
 
@@ -344,18 +371,18 @@ export default function FocusModeScreen() {
                   cy="135"
                   r={ringRadius}
                   stroke="url(#trackGradient)"
-                  strokeWidth="12"
+                  strokeWidth="10"
                   fill="none"
                 />
 
-                {/* Siri Multi-Color Gradient Active Progress Ring */}
+                {/* Sapphire Active Progress Ring */}
                 {progressFraction > 0 && (
                   <SvgCircle
                     cx="135"
                     cy="135"
                     r={ringRadius}
-                    stroke="url(#siriGradient)"
-                    strokeWidth="12"
+                    stroke="url(#sapphireGradient)"
+                    strokeWidth="10"
                     strokeDasharray={`${ringCircumference} ${ringCircumference}`}
                     strokeDashoffset={strokeDashoffset}
                     strokeLinecap="round"
@@ -388,7 +415,7 @@ export default function FocusModeScreen() {
                   </>
                 )}
               </Svg>
-            </Animated.View>
+            </View>
 
             {/* Layer 4: Center Digits & Status Pill */}
             <View style={styles.timerCenterContent} pointerEvents="none">
@@ -479,7 +506,42 @@ export default function FocusModeScreen() {
                 </TouchableOpacity>
               </View>
 
-              <ScrollView style={{ maxHeight: 360 }} contentContainerStyle={{ gap: 8 }}>
+              {/* Quick Mute / Unmute Pill Banner */}
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  paddingVertical: 9,
+                  paddingHorizontal: 12,
+                  borderRadius: 8,
+                  backgroundColor: isMuted ? 'rgba(239, 68, 68, 0.12)' : 'rgba(2, 132, 199, 0.12)',
+                  borderWidth: 1,
+                  borderColor: isMuted ? '#EF4444' : '#0284C7',
+                  marginBottom: 8,
+                }}
+                onPress={toggleMute}
+                activeOpacity={0.8}
+              >
+                {isMuted ? (
+                  <>
+                    <SpeakerSlash size={16} color="#EF4444" weight="bold" />
+                    <Text style={{ fontSize: 11, fontWeight: '800', color: '#EF4444', letterSpacing: 0.5 }}>
+                      AMBIENT AUDIO MUTED (TAP TO UNMUTE)
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <SpeakerHigh size={16} color="#0284C7" weight="bold" />
+                    <Text style={{ fontSize: 11, fontWeight: '800', color: '#0284C7', letterSpacing: 0.5 }}>
+                      AMBIENT AUDIO PLAYING (TAP TO MUTE)
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <ScrollView style={{ maxHeight: 340 }} contentContainerStyle={{ gap: 8 }}>
                 {AUDIO_TRACKS.map((t) => {
                   const isSelected = selectedTrackId === t.id;
                   return (
@@ -621,31 +683,14 @@ const styles = StyleSheet.create({
     position: 'relative',
     marginVertical: 10,
   },
-  siriHaloRing: {
+  focusBacklight: {
     position: 'absolute',
-    width: 252,
-    height: 252,
-    borderRadius: 126,
-    borderWidth: 5,
-    borderColor: '#0A84FF',
-    borderTopColor: '#00F2FE',
-    borderRightColor: '#6366F1',
-    borderBottomColor: '#A855F7',
+    width: 220,
+    height: 220,
+    borderRadius: 110,
     shadowColor: '#0A84FF',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.9,
-    shadowRadius: 28,
-    elevation: 8,
-  },
-  siriInnerOrb: {
-    position: 'absolute',
-    width: 170,
-    height: 170,
-    borderRadius: 85,
-    backgroundColor: 'rgba(10, 132, 255, 0.12)',
-    shadowColor: '#6366F1',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
+    shadowOpacity: 0.5,
     shadowRadius: 36,
   },
   statusPillWrap: {

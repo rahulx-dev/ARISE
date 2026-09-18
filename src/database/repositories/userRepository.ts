@@ -52,12 +52,15 @@ export const userRepository = {
       if (results.length === 0) return;
 
       const profile = results[0];
+      const isAd = source === 'ad' || source === 'sponsor_video' || source.includes('ad');
+      const currentPasses = profile.sponsorPasses ?? 0;
 
       await tx
         .update(userProfile)
         .set({
           coins: profile.coins + amount,
           totalCoinsEarned: profile.totalCoinsEarned + amount,
+          sponsorPasses: isAd ? currentPasses + 1 : currentPasses,
         })
         .where(eq(userProfile.id, profile.id));
 
@@ -68,6 +71,40 @@ export const userRepository = {
         source,
         timestamp: new Date().toISOString(),
       });
+    });
+  },
+
+  async getSponsorPasses(): Promise<number> {
+    const profile = await this.getProfile();
+    return profile?.sponsorPasses ?? 0;
+  },
+
+  async addSponsorPass(count: number = 1): Promise<number> {
+    return await db.transaction(async (tx) => {
+      const results = await tx.select().from(userProfile).limit(1);
+      if (results.length === 0) return 0;
+      const profile = results[0];
+      const newPasses = (profile.sponsorPasses ?? 0) + count;
+      await tx
+        .update(userProfile)
+        .set({ sponsorPasses: newPasses })
+        .where(eq(userProfile.id, profile.id));
+      return newPasses;
+    });
+  },
+
+  async consumeSponsorPasses(count: number): Promise<boolean> {
+    return await db.transaction(async (tx) => {
+      const results = await tx.select().from(userProfile).limit(1);
+      if (results.length === 0) return false;
+      const profile = results[0];
+      const current = profile.sponsorPasses ?? 0;
+      if (current < count) return false;
+      await tx
+        .update(userProfile)
+        .set({ sponsorPasses: current - count })
+        .where(eq(userProfile.id, profile.id));
+      return true;
     });
   },
 
@@ -211,9 +248,10 @@ export const userRepository = {
           requiredXP = Math.floor(100 * Math.pow(1.5, currentLevel - 1));
         }
 
+        const finalCoins = Math.max(0, rewardCoins);
         const updates: any = {
-          coins: profile.coins + rewardCoins,
-          totalCoinsEarned: profile.totalCoinsEarned + rewardCoins,
+          coins: profile.coins + finalCoins,
+          totalCoinsEarned: profile.totalCoinsEarned + finalCoins,
           currentXP: newXP,
           totalXP: newTotalXP,
           level: currentLevel,
@@ -227,7 +265,7 @@ export const userRepository = {
 
         // 3. Insert transaction
         await tx.insert(coinTransaction).values({
-          amount: rewardCoins,
+          amount: finalCoins,
           type: 'earn',
           description: `Completed Quest: ${qRows[0].title}`,
           source: 'quest_reward',
@@ -258,31 +296,28 @@ export const userRepository = {
       if (results.length === 0) return;
 
       const profile = results[0];
-      const today = new Date().toISOString().split('T')[0];
+      const now = new Date();
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const getLocalDateStr = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      const today = getLocalDateStr(now);
 
-      if (profile.lastActiveDate === today) {
+      const lastActiveDateStr = profile.lastActiveDate ? profile.lastActiveDate.split('T')[0] : null;
+
+      if (lastActiveDateStr === today) {
         return; // Already active today
       }
 
-      let newStreak = profile.currentStreak;
-      if (profile.lastActiveDate) {
-        const lastActive = new Date(profile.lastActiveDate);
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const yesterday = getLocalDateStr(yesterdayDate);
 
-        if (
-          lastActive.toISOString().split('T')[0] ===
-          yesterday.toISOString().split('T')[0]
-        ) {
-          newStreak += 1;
-        } else {
-          newStreak = 1;
-        }
-      } else {
-        newStreak = 1;
+      let newStreak = 1;
+      if (lastActiveDateStr === yesterday) {
+        newStreak = (profile.currentStreak || 0) + 1;
+      } else if (lastActiveDateStr && lastActiveDateStr < yesterday) {
+        newStreak = 1; // streak reset
       }
 
-      const newLongest = Math.max(newStreak, profile.longestStreak);
+      const newLongest = Math.max(newStreak, profile.longestStreak || 0);
 
       await tx
         .update(userProfile)
@@ -294,6 +329,7 @@ export const userRepository = {
         .where(eq(userProfile.id, profile.id));
     });
   },
+
 
   async resetProfile(): Promise<void> {
     await db.transaction(async (tx) => {

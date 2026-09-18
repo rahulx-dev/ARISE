@@ -63,6 +63,10 @@ export class MockAppBlockerDriver implements IAppBlockerDriver {
     this.restrictedPackages = [...restrictedPackages];
   }
 
+  setAppBudget(packageName: string | null, budgetMinutes: number): void {
+    console.log(`⚡ [PREVIEW MODE] setAppBudget for ${packageName || 'all'}: ${budgetMinutes}m`);
+  }
+
   async getInstalledApps(): Promise<InstalledAppItem[]> {
     return MOCK_INSTALLED_APPS;
   }

@@ -1,4 +1,11 @@
-export type ThemeMode = 'dark' | 'light' | 'system';
+export type ThemeMode =
+  | 'dark'
+  | 'light'
+  | 'system'
+  | 'cyber_gold'
+  | 'neon_purple'
+  | 'crimson_berserk'
+  | 'emerald_hunter';
 
 export interface ThemeColors {
   primary: string;
@@ -50,8 +57,11 @@ export interface ThemeColors {
   isDark: boolean;
 }
 
+/**
+ * Pure Stealth OLED Dark Theme
+ * Pure. Minimal. Timeless.
+ */
 export const darkThemeColors: ThemeColors = {
-  // Signature Royal Sapphire
   primary: '#0A84FF',
   primaryLight: '#389BFF',
   primaryDark: '#0066CC',
@@ -61,13 +71,11 @@ export const darkThemeColors: ThemeColors = {
   primaryPurple: '#0A84FF',
   purpleGlow: 'rgba(10, 132, 255, 0.15)',
 
-  // Pure OLED Black
   background: '#000000',
   backgroundElevated: '#08090C',
   backgroundGradientTop: '#0B0C10',
   backgroundGradientBottom: '#000000',
 
-  // Solid Slate Charcoal
   card: '#111218',
   surface: '#000000',
   surfaceLight: '#111218',
@@ -76,7 +84,6 @@ export const darkThemeColors: ThemeColors = {
   border: '#1C1E2A',
   borderGlow: 'rgba(10, 132, 255, 0.25)',
 
-  // Crisp High Contrast Typography
   textPrimary: '#FFFFFF',
   textSecondary: '#8E8E93',
   textMuted: '#555866',
@@ -104,15 +111,19 @@ export const darkThemeColors: ThemeColors = {
   isDark: true,
 };
 
+/**
+ * Crisp Apple Light Theme
+ * Light. Clear. Fresh.
+ */
 export const lightThemeColors: ThemeColors = {
-  primary: '#007AFF',
+  primary: '#0A84FF',
   primaryLight: '#389BFF',
-  primaryDark: '#0055B3',
-  primaryGlow: 'rgba(0, 122, 255, 0.15)',
+  primaryDark: '#0066CC',
+  primaryGlow: 'rgba(10, 132, 255, 0.15)',
   tertiary: '#F59E0B',
 
-  primaryPurple: '#007AFF',
-  purpleGlow: 'rgba(0, 122, 255, 0.15)',
+  primaryPurple: '#0A84FF',
+  purpleGlow: 'rgba(10, 132, 255, 0.15)',
 
   background: '#F2F2F7',
   backgroundElevated: '#FFFFFF',
@@ -121,20 +132,20 @@ export const lightThemeColors: ThemeColors = {
 
   card: '#FFFFFF',
   surface: '#FFFFFF',
-  surfaceLight: '#F2F2F7',
+  surfaceLight: '#F8F9FA',
   surfaceElevated: '#FFFFFF',
   surfaceBorder: '#E5E5EA',
   border: '#E5E5EA',
-  borderGlow: 'rgba(0, 122, 255, 0.2)',
+  borderGlow: 'rgba(10, 132, 255, 0.2)',
 
   textPrimary: '#000000',
   textSecondary: '#3C3C43',
   textMuted: '#8E8E93',
 
-  accent: '#007AFF',
+  accent: '#0A84FF',
   accentGold: '#D97706',
   accentGlow: 'rgba(217, 119, 6, 0.2)',
-  secondary: '#007AFF',
+  secondary: '#389BFF',
   danger: '#DC2626',
   dangerGlow: 'rgba(220, 38, 38, 0.2)',
   warning: '#D97706',
@@ -142,9 +153,9 @@ export const lightThemeColors: ThemeColors = {
   neonGreen: '#10B981',
 
   stats: {
-    strength: '#007AFF',
-    discipline: '#007AFF',
-    focus: '#007AFF',
+    strength: '#0A84FF',
+    discipline: '#0A84FF',
+    focus: '#389BFF',
     health: '#10B981',
     knowledge: '#0284C7',
   },
@@ -154,8 +165,76 @@ export const lightThemeColors: ThemeColors = {
   isDark: false,
 };
 
-export function getThemeColors(mode: ThemeMode, systemIsDark: boolean = true): ThemeColors {
-  if (mode === 'light') return lightThemeColors;
-  if (mode === 'dark') return darkThemeColors;
-  return systemIsDark ? darkThemeColors : lightThemeColors;
+/** Solar Monarch Gold Theme (Shop Item) */
+export const goldThemeColors: ThemeColors = {
+  ...darkThemeColors,
+  primary: '#F59E0B',
+  primaryLight: '#FBBF24',
+  primaryDark: '#D97706',
+  primaryGlow: 'rgba(245, 158, 11, 0.25)',
+  primaryPurple: '#F59E0B',
+  purpleGlow: 'rgba(245, 158, 11, 0.18)',
+  accent: '#F59E0B',
+  borderGlow: 'rgba(245, 158, 11, 0.3)',
+};
+
+/** Shadow Sovereign Violet Theme (Shop Item) */
+export const purpleThemeColors: ThemeColors = {
+  ...darkThemeColors,
+  primary: '#8B5CF6',
+  primaryLight: '#A78BFA',
+  primaryDark: '#6D28D9',
+  primaryGlow: 'rgba(139, 92, 246, 0.25)',
+  primaryPurple: '#8B5CF6',
+  purpleGlow: 'rgba(139, 92, 246, 0.2)',
+  accent: '#8B5CF6',
+  borderGlow: 'rgba(139, 92, 246, 0.3)',
+};
+
+/** Blood Monarch Crimson Theme (Shop Item) */
+export const crimsonThemeColors: ThemeColors = {
+  ...darkThemeColors,
+  primary: '#FF2E54',
+  primaryLight: '#FF5E7E',
+  primaryDark: '#D90429',
+  primaryGlow: 'rgba(255, 46, 84, 0.25)',
+  primaryPurple: '#FF2E54',
+  purpleGlow: 'rgba(255, 46, 84, 0.2)',
+  accent: '#FF2E54',
+  borderGlow: 'rgba(255, 46, 84, 0.3)',
+};
+
+/** S-Rank Hunter Emerald Theme (Shop Item) */
+export const emeraldThemeColors: ThemeColors = {
+  ...darkThemeColors,
+  primary: '#10B981',
+  primaryLight: '#34D399',
+  primaryDark: '#059669',
+  primaryGlow: 'rgba(16, 185, 129, 0.25)',
+  primaryPurple: '#10B981',
+  purpleGlow: 'rgba(16, 185, 129, 0.2)',
+  accent: '#10B981',
+  borderGlow: 'rgba(16, 185, 129, 0.3)',
+};
+
+export function getThemeColors(mode: string = 'dark', systemIsDark: boolean = true): ThemeColors {
+  if (mode === 'light') {
+    return lightThemeColors;
+  }
+  if (mode === 'system') {
+    return systemIsDark ? darkThemeColors : lightThemeColors;
+  }
+  if (mode === 'cyber_gold') {
+    return goldThemeColors;
+  }
+  if (mode === 'neon_purple') {
+    return purpleThemeColors;
+  }
+  if (mode === 'crimson_berserk' || mode === 'crimson_shadow') {
+    return crimsonThemeColors;
+  }
+  if (mode === 'emerald_hunter') {
+    return emeraldThemeColors;
+  }
+  return darkThemeColors;
 }

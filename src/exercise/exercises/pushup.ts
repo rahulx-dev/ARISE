@@ -30,10 +30,10 @@ export const pushupConfig: ExerciseConfig = {
   
   // Angle thresholds
   upThreshold: 145,      // Arms extended
-  downThreshold: 110,    // Arms bent (~90-110°)
+  downThreshold: 105,    // Arms bent (~90-105°)
   
   // Confidence
-  minConfidence: 0.22,
+  minConfidence: 0.20,
   
   // Timing
   debounceMs: 300,       // Fast responsive rep debounce
@@ -45,7 +45,7 @@ export const pushupConfig: ExerciseConfig = {
   minTarget: 1,
   
   // Rewards
-  coinsPerRep: 2,        // 10 reps = 20 coins
+  coinsPerRep: 1,        // 1 rep = 1 coin
   xpPerRep: 5,
   
   // Stat

@@ -22,6 +22,7 @@ module.exports = function withArisePermissions(config) {
       'android.permission.CAMERA',
       'android.permission.VIBRATE',
       'android.permission.QUERY_ALL_PACKAGES',
+      'android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS',
     ];
 
     permissionsToAdd.forEach((perm) => {

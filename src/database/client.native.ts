@@ -28,6 +28,7 @@ export async function initializeDatabase(): Promise<void> {
       total_xp INTEGER NOT NULL DEFAULT 0,
       coins INTEGER NOT NULL DEFAULT 0,
       total_coins_earned INTEGER NOT NULL DEFAULT 0,
+      sponsor_passes INTEGER NOT NULL DEFAULT 0,
       current_streak INTEGER NOT NULL DEFAULT 0,
       longest_streak INTEGER NOT NULL DEFAULT 0,
       last_active_date TEXT,
@@ -240,9 +241,79 @@ export async function initializeDatabase(): Promise<void> {
       amount_inr INTEGER NOT NULL,
       coins_spent INTEGER NOT NULL,
       upi_id TEXT NOT NULL,
+      sponsor_passes_used INTEGER NOT NULL DEFAULT 0,
       status TEXT NOT NULL DEFAULT 'PENDING',
       created_at TEXT NOT NULL,
       paid_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS user_inventory (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      item_id TEXT NOT NULL UNIQUE,
+      item_type TEXT NOT NULL,
+      unlocked_at TEXT NOT NULL,
+      is_equipped INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS guild (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      tag TEXT NOT NULL UNIQUE,
+      description TEXT NOT NULL,
+      banner_color TEXT NOT NULL DEFAULT '#0A84FF',
+      rank_requirement TEXT NOT NULL DEFAULT 'E',
+      leader_name TEXT NOT NULL DEFAULT 'Hunter Master',
+      member_count INTEGER NOT NULL DEFAULT 1,
+      max_members INTEGER NOT NULL DEFAULT 50,
+      total_xp INTEGER NOT NULL DEFAULT 0,
+      level INTEGER NOT NULL DEFAULT 1,
+      is_user_member INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS guild_raid (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      guild_id INTEGER NOT NULL,
+      gate_rank TEXT NOT NULL DEFAULT 'C',
+      boss_name TEXT NOT NULL,
+      boss_max_hp INTEGER NOT NULL,
+      boss_current_hp INTEGER NOT NULL,
+      reward_xp INTEGER NOT NULL DEFAULT 500,
+      reward_coins INTEGER NOT NULL DEFAULT 100,
+      status TEXT NOT NULL DEFAULT 'ACTIVE',
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS guild_member (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      guild_id INTEGER NOT NULL,
+      hunter_name TEXT NOT NULL,
+      hunter_rank TEXT NOT NULL DEFAULT 'E',
+      role TEXT NOT NULL DEFAULT 'MEMBER',
+      contribution_points INTEGER NOT NULL DEFAULT 0,
+      joined_at TEXT NOT NULL,
+      is_current_user INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS crystal_redemption (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL DEFAULT 'default_user',
+      amount_inr INTEGER NOT NULL,
+      crystals_spent INTEGER NOT NULL,
+      method TEXT NOT NULL DEFAULT 'UPI',
+      destination TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'PENDING',
+      created_at TEXT NOT NULL,
+      paid_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS crystal_transaction (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      amount INTEGER NOT NULL,
+      type TEXT NOT NULL,
+      description TEXT NOT NULL,
+      gate_id TEXT,
+      timestamp TEXT NOT NULL
     );
 
     CREATE INDEX IF NOT EXISTS idx_quest_date_freq ON quest(date, frequency);
@@ -251,6 +322,12 @@ export async function initializeDatabase(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_focus_session_time ON focus_session(start_time);
     CREATE INDEX IF NOT EXISTS idx_app_restriction_pkg ON app_restriction(package_name);
     CREATE INDEX IF NOT EXISTS idx_payout_status ON payout_request(status);
+    CREATE INDEX IF NOT EXISTS idx_inventory_item ON user_inventory(item_id);
+    CREATE INDEX IF NOT EXISTS idx_guild_name ON guild(name);
+    CREATE INDEX IF NOT EXISTS idx_guild_member_gid ON guild_member(guild_id);
+    CREATE INDEX IF NOT EXISTS idx_guild_raid_gid ON guild_raid(guild_id);
+    CREATE INDEX IF NOT EXISTS idx_crystal_tx_id ON crystal_transaction(id DESC);
+    CREATE INDEX IF NOT EXISTS idx_crystal_redemption_status ON crystal_redemption(status);
   `;
 
   expoDb.execSync(createTablesSql);
@@ -262,10 +339,15 @@ export async function initializeDatabase(): Promise<void> {
     "ALTER TABLE user_profile ADD COLUMN workout_goal TEXT DEFAULT 'strength';",
     "ALTER TABLE user_profile ADD COLUMN daily_focus_goal INTEGER DEFAULT 30;",
     "ALTER TABLE user_profile ADD COLUMN daily_quest_target INTEGER DEFAULT 4;",
+    "ALTER TABLE user_profile ADD COLUMN sponsor_passes INTEGER DEFAULT 0;",
+    "ALTER TABLE user_profile ADD COLUMN mana_crystals INTEGER DEFAULT 0;",
+    "ALTER TABLE payout_request ADD COLUMN sponsor_passes_used INTEGER DEFAULT 0;",
     "ALTER TABLE settings ADD COLUMN bg_music_enabled INTEGER DEFAULT 0;",
     "ALTER TABLE settings ADD COLUMN bg_music_volume REAL DEFAULT 0.5;",
     "ALTER TABLE settings ADD COLUMN focus_music_track TEXT DEFAULT 'deep_focus';",
     "ALTER TABLE settings ADD COLUMN focus_music_volume REAL DEFAULT 0.6;",
+    "ALTER TABLE settings ADD COLUMN voice_language TEXT DEFAULT 'hi-IN';",
+    "ALTER TABLE settings ADD COLUMN language TEXT DEFAULT 'en-US';",
   ];
 
   for (const sql of migrationStatements) {
@@ -301,7 +383,7 @@ export async function initializeDatabase(): Promise<void> {
       hapticsEnabled: 1,
       notificationsEnabled: 0,
       onboardingCompleted: 0,
-      dailyBudgetMinutes: 120,
+      dailyBudgetMinutes: 30,
       theme: 'system',
       bgMusicEnabled: 0,
       bgMusicVolume: 0.5,

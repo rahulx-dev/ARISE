@@ -8,6 +8,8 @@ interface QuestState {
   isLoading: boolean;
   loadQuests: () => Promise<void>;
   completeQuest: (questId: number) => Promise<{ coins: number; xp: number }>;
+  resetTodayQuests: () => Promise<void>;
+  rerollDailyQuests: () => Promise<void>;
 }
 
 export const useQuestStore = create<QuestState>((set, get) => ({
@@ -43,5 +45,15 @@ export const useQuestStore = create<QuestState>((set, get) => ({
       console.error('Failed to complete quest', error);
       return { coins: 0, xp: 0 };
     }
+  },
+
+  resetTodayQuests: async () => {
+    await questService.resetTodayQuests();
+    await get().loadQuests();
+  },
+
+  rerollDailyQuests: async () => {
+    await questService.rerollDailyQuests();
+    await get().loadQuests();
   },
 }));

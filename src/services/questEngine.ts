@@ -7,10 +7,10 @@ export const questEngine = {
     const today = new Date().toISOString().split('T')[0];
 
     const REWARDS = {
-      EASY: { coins: 20, xp: 50 },
-      MEDIUM: { coins: 40, xp: 100 },
-      HARD: { coins: 60, xp: 150 },
-      EPIC: { coins: 100, xp: 250 },
+      EASY: { coins: 2, xp: 50 },
+      MEDIUM: { coins: 4, xp: 100 },
+      HARD: { coins: 6, xp: 150 },
+      EPIC: { coins: 10, xp: 250 },
     };
 
     if (prefs.fitness) {

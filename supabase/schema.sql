@@ -95,3 +95,29 @@ SELECT
 FROM public.payout_requests
 WHERE status = 'PENDING'
 ORDER BY created_at ASC;
+
+-- ==============================================================================
+-- 4. CPX Research Survey Postback Audit Log
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.cpx_postback_log (
+    id BIGSERIAL PRIMARY KEY,
+    trans_id TEXT UNIQUE NOT NULL,
+    user_id TEXT NOT NULL,
+    amount_crystals INTEGER NOT NULL DEFAULT 0,
+    amount_usd NUMERIC(10, 4) NOT NULL DEFAULT 0.0000,
+    status TEXT NOT NULL DEFAULT 'completed',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW())
+);
+
+CREATE INDEX IF NOT EXISTS idx_cpx_postback_user ON public.cpx_postback_log (user_id);
+CREATE INDEX IF NOT EXISTS idx_cpx_postback_trans ON public.cpx_postback_log (trans_id);
+
+ALTER TABLE public.cpx_postback_log ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow public insert for cpx postback"
+ON public.cpx_postback_log FOR INSERT
+WITH CHECK (true);
+
+CREATE POLICY "Allow public select for cpx postback"
+ON public.cpx_postback_log FOR SELECT
+USING (true);

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,465 +7,470 @@ import {
   StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import {
   Gear,
-  Shield,
-  DeviceMobile,
-  Info,
   CaretRight,
-  DownloadSimple,
-  Camera,
-  PencilSimple,
-  Barbell,
+  User,
+  Image as ImageIcon,
+  Trophy,
+  Gift,
+  Package,
   Fire,
-  Coins,
-  ShieldCheck,
+  Barbell,
+  Star,
+  Diamond,
 } from 'phosphor-react-native';
-import { GlassCard } from '../../src/components/ios/GlassCard';
-import { GlassButton } from '../../src/components/ios/GlassButton';
 import { PlayerAvatar } from '../../src/components/ui/PlayerAvatar';
-import { XPBar } from '../../src/components/design-system/XPBar';
-import { AboutAriseSheet } from '../../src/components/ui/AboutAriseSheet';
-import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
-import { backupService } from '../../src/services/backupService';
 import { SwipeableTabScreen } from '../../src/components/navigation/SwipeableTabScreen';
 import { useHaptics } from '../../src/hooks/useHaptics';
-import { useTheme } from '../../src/hooks/useTheme';
+import { db } from '../../src/database/client';
+import { exerciseSession, achievement } from '../../src/database/schema';
 
-export default function ProfileTab() {
+export default function WarriorProfileTab() {
   const profile = usePlayerStore((s) => s.profile);
   const loadProfile = usePlayerStore((s) => s.loadProfile);
   const haptics = useHaptics();
-  const { colors, isDark } = useTheme();
 
-  useEffect(() => {
-    loadProfile();
-  }, []);
+  const [totalWorkouts, setTotalWorkouts] = useState<number>(0);
+  const [totalAchievements, setTotalAchievements] = useState<number>(0);
+  const lastFocusLoadRef = useRef<number>(0);
 
-  const level = profile?.level || 1;
-  const displayName = profile?.displayName || 'Warrior';
-  const currentXP = profile?.currentXP || 0;
-  const xpNeeded = Math.max(100, level * 100);
-  const xpPercent = Math.min(100, Math.round((currentXP / xpNeeded) * 100));
-  const [isAboutSheetOpen, setIsAboutSheetOpen] = useState(false);
-
-  const coins = profile?.coins || 0;
-  const streak = profile?.currentStreak || 0;
-  const avatarIcon = profile?.avatarIcon || 'img_pfp_01';
-
-  const handleExportBackup = async () => {
-    haptics.medium();
-    const success = await backupService.exportBackup();
-    if (success) {
-      haptics.success();
-      showIOSAlert('Backup Created', 'Your local ARISE database was exported successfully.');
-    } else {
-      showIOSAlert('Export Failed', 'Could not create offline backup file.');
+  const fetchStats = async () => {
+    try {
+      const [workouts, achs] = await Promise.all([
+        db.select().from(exerciseSession),
+        db.select().from(achievement),
+      ]);
+      setTotalWorkouts(workouts.length);
+      setTotalAchievements(achs.length);
+    } catch (e) {
+      console.warn('Error fetching warrior stats:', e);
     }
   };
 
-  const sections = [
-    {
-      title: 'IDENTITY & TRANSFORMATION',
-      items: [
-        {
-          title: 'Edit Callsign & Bio',
-          sub: 'Change display name, manifesto & avatar',
-          icon: PencilSimple,
-          color: colors.primary,
-          action: () => router.push('/settings/profile-edit' as any),
-        },
-        {
-          title: 'Physique Transformation Photos',
-          sub: 'Private 100% on-device daily check-in photos',
-          icon: Camera,
-          color: '#EC4899',
-          action: () => router.push('/photos' as any),
-        },
-        {
-          title: 'Redeem Vault & Shop',
-          sub: 'Convert coins to screen passes & cashouts',
-          icon: Coins,
-          color: '#F59E0B',
-          action: () => {
-            haptics.light();
-            router.push('/shop' as any);
-          },
-        },
-      ],
-    },
-    {
-      title: 'DISCIPLINE & SHIELD PROTOCOLS',
-      items: [
-        {
-          title: 'Gym Workout Protocol',
-          sub: 'Custom splits, weekly schedules & 200+ exercises',
-          icon: Barbell,
-          color: colors.danger,
-          action: () => router.push('/(tabs)/progress'),
-        },
-        {
-          title: 'Blocked Distraction Apps',
-          sub: 'Real installed Android apps locked behind focus',
-          icon: DeviceMobile,
-          color: '#A855F7',
-          action: () => router.push('/settings/apps'),
-        },
-        {
-          title: 'Permissions Hub',
-          sub: 'Usage access, overlay shield & camera',
-          icon: Shield,
-          color: colors.secondary,
-          action: () => router.push('/permissions' as any),
-        },
-      ],
-    },
-    {
-      title: 'SYSTEM & PREFERENCES',
-      items: [
-        {
-          title: 'Appearance, Sound & Settings',
-          sub: 'Themes (Dark/Light/System), SFX & ambient music',
-          icon: Gear,
-          color: colors.textPrimary,
-          action: () => router.push('/settings'),
-        },
-        {
-          title: 'Export Offline Backup',
-          sub: 'Save progress, PRs and streak history to JSON',
-          icon: DownloadSimple,
-          color: colors.textSecondary,
-          action: handleExportBackup,
-        },
-        {
-          title: 'About ARISE System',
-          sub: 'Architecture telemetry, version & policies',
-          icon: Info,
-          color: colors.textMuted,
-          action: () => {
-            haptics.light();
-            setIsAboutSheetOpen(true);
-          },
-        },
-      ],
-    },
-  ];
+  useFocusEffect(
+    useCallback(() => {
+      const now = Date.now();
+      if (now - lastFocusLoadRef.current > 10000) {
+        lastFocusLoadRef.current = now;
+        loadProfile();
+        fetchStats();
+      }
+    }, [])
+  );
+
+  useEffect(() => {
+    loadProfile();
+    fetchStats();
+  }, []);
+
+  const level = profile?.level || 1;
+  const displayName = profile?.displayName || 'ARISE HUNTER';
+  const currentXP = profile?.currentXP || 0;
+  const xpNeeded = Math.max(100, level * 100);
+  const xpPercent = Math.min(100, Math.round((currentXP / xpNeeded) * 100));
+  const coins = profile?.coins || 0;
+  const streak = profile?.currentStreak || 0;
+  const avatarIcon = profile?.avatarIcon || 'img_pfp_01';
+  const userHandle = `@${displayName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'arise.hunter'}`;
 
   return (
-    <SwipeableTabScreen prevTab="/(tabs)/progress" style={[styles.container, { backgroundColor: colors.background }]}>
+    <SwipeableTabScreen prevTab="/(tabs)/progress" style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        {/* Header */}
-        <View style={[styles.header, { borderBottomColor: isDark ? '#232532' : '#E5E7EB' }]}>
-          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>WARRIOR IDENTITY</Text>
+        {/* Top Header */}
+        <View style={styles.headerRow}>
+          <View>
+            <Text style={styles.headerTitle}>WARRIOR</Text>
+            <Text style={styles.headerSubtitle}>DISCIPLINE IN ACTION</Text>
+          </View>
           <TouchableOpacity
-            onPress={() => router.push('/settings')}
-            style={[styles.headerIconBtn, { backgroundColor: isDark ? '#14151C' : '#FFFFFF', borderColor: colors.border }]}
-            activeOpacity={0.8}
+            onPress={() => {
+              haptics.light();
+              router.push('/settings');
+            }}
+            style={styles.settingsIconBtn}
+            activeOpacity={0.7}
           >
-            <Gear size={18} color={colors.textPrimary} />
+            <Gear size={20} color="#F5F5F2" weight="bold" />
           </TouchableOpacity>
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Hero Profile Card */}
-          <GlassCard variant="glow" style={styles.profileHeroCard}>
-            <View style={styles.avatarRow}>
+          {/* Identity Hero Card */}
+          <View style={styles.heroCard}>
+            <View style={styles.avatarWrapper}>
               <PlayerAvatar
                 iconId={avatarIcon}
-                size={76}
+                size={84}
                 glow={true}
-                glowColor={colors.primary}
+                glowColor="#9AAEFF"
               />
-
-              <View style={styles.profileMeta}>
-                <View style={styles.nameBadgeRow}>
-                  <Text style={[styles.playerName, { color: colors.textPrimary }]} numberOfLines={1}>
-                    {displayName}
-                  </Text>
-                  <View style={[styles.levelBadge, { backgroundColor: isDark ? 'rgba(10, 132, 255, 0.15)' : 'rgba(10, 132, 255, 0.1)' }]}>
-                    <Text style={[styles.levelBadgeText, { color: colors.primary }]}>LV. {level}</Text>
-                  </View>
-                </View>
-
-                <Text style={[styles.bioText, { color: colors.textSecondary }]} numberOfLines={2}>
-                  {profile?.bio || 'Disciplined warrior in training.'}
-                </Text>
-
-                <View style={styles.statPillsRow}>
-                  <View style={[styles.statPill, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.12)' : '#FEE2E2' }]}>
-                    <Fire size={13} color="#EF4444" weight="fill" />
-                    <Text style={[styles.statPillText, { color: isDark ? '#FCA5A5' : '#DC2626' }]}>{streak}d Streak</Text>
-                  </View>
-                  <View style={[styles.statPill, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.12)' : '#FEF3C7' }]}>
-                    <Coins size={13} color="#F59E0B" weight="fill" />
-                    <Text style={[styles.statPillText, { color: isDark ? '#FCD34D' : '#D97706' }]}>{coins.toLocaleString()} Coins</Text>
-                  </View>
-                </View>
-              </View>
             </View>
 
-            {/* XP Progress Indicator */}
-            <View style={styles.xpSection}>
-              <View style={styles.xpMetaRow}>
-                <Text style={[styles.xpLabel, { color: colors.textMuted }]}>EXPERIENCE PROGRESS</Text>
-                <Text style={[styles.xpValue, { color: colors.textPrimary }]}>
-                  {currentXP} / {xpNeeded} XP ({xpPercent}%)
+            <Text style={styles.heroDisplayName}>{displayName.toUpperCase()}</Text>
+            <Text style={styles.heroHandle}>{userHandle}</Text>
+            <Text style={styles.heroQuote}>"{profile?.bio || 'A better me. Every day.'}"</Text>
+
+            {/* Level & XP Gauge */}
+            <View style={styles.xpBlock}>
+              <View style={styles.xpLabelRow}>
+                <Text style={styles.levelBadgeText}>Level {level}</Text>
+                <Text style={styles.xpNumbersText}>
+                  {currentXP.toLocaleString()} / {xpNeeded.toLocaleString()} XP
                 </Text>
               </View>
-              <XPBar progress={xpPercent} />
-            </View>
-
-            <GlassButton
-              title="EDIT CALLSIGN & BIO"
-              onPress={() => router.push('/settings/profile-edit' as any)}
-              variant="outline"
-              size="sm"
-              icon={<PencilSimple size={14} color={colors.primary} weight="bold" />}
-            />
-          </GlassCard>
-
-          {/* On-Device Privacy Architecture Card (No external links) */}
-          <GlassCard variant="elevated" style={styles.privacyCard}>
-            <View style={styles.privacyTopRow}>
-              <View style={[styles.shieldBadge, { backgroundColor: isDark ? 'rgba(10, 132, 255, 0.15)' : '#EFF6FF' }]}>
-                <ShieldCheck size={22} color="#0A84FF" weight="duotone" />
-              </View>
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text style={[styles.privacyTitle, { color: colors.textPrimary }]}>
-                  Private On-Device Architecture
-                </Text>
-                <Text style={[styles.privacySubtitle, { color: colors.textSecondary }]}>
-                  Zero Cloud Telemetry • Offline SQLite SSOT • Hardware ML Kit
-                </Text>
+              <View style={styles.xpTrack}>
+                <View style={[styles.xpFill, { width: `${Math.max(4, Math.min(100, xpPercent))}%` }]} />
               </View>
             </View>
+          </View>
 
-            <Text style={[styles.privacyDesc, { color: colors.textSecondary }]}>
-              All workout telemetry, biometric camera tracking, and discipline records are strictly computed and stored locally on your device. Your data never leaves your phone.
-            </Text>
-          </GlassCard>
-
-          {/* Grouped System Protocols Menu */}
-          {sections.map((section) => (
-            <View key={section.title} style={styles.sectionGroup}>
-              <Text style={[styles.sectionHeading, { color: colors.textMuted }]}>{section.title}</Text>
-              <GlassCard variant="default" style={styles.groupedCard}>
-                {section.items.map((item, idx) => {
-                  const IconComp = item.icon;
-                  const isLast = idx === section.items.length - 1;
-                  return (
-                    <React.Fragment key={item.title}>
-                      <TouchableOpacity
-                        style={styles.menuRow}
-                        onPress={item.action}
-                        activeOpacity={0.7}
-                      >
-                        <View style={[styles.menuIconCircle, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)' }]}>
-                          <IconComp size={18} color={item.color} weight="duotone" />
-                        </View>
-
-                        <View style={styles.menuTextCol}>
-                          <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>{item.title}</Text>
-                          <Text style={[styles.menuSub, { color: colors.textSecondary }]}>{item.sub}</Text>
-                        </View>
-
-                        <CaretRight size={16} color={colors.textMuted} weight="bold" />
-                      </TouchableOpacity>
-                      {!isLast && <View style={[styles.menuDivider, { backgroundColor: colors.border }]} />}
-                    </React.Fragment>
-                  );
-                })}
-              </GlassCard>
+          {/* 4 Stat Cards Row */}
+          <View style={styles.statsGrid}>
+            <View style={styles.statCard}>
+              <Fire size={18} color="#FF6B00" weight="fill" />
+              <Text style={styles.statNumber}>{streak}</Text>
+              <Text style={styles.statLabel}>Day Streak</Text>
             </View>
-          ))}
 
-          <View style={{ height: 110 }} />
+            <View style={styles.statCard}>
+              <Barbell size={18} color="#00F2FE" weight="fill" />
+              <Text style={styles.statNumber}>{totalWorkouts}</Text>
+              <Text style={styles.statLabel}>Workouts</Text>
+            </View>
+
+            <View style={styles.statCard}>
+              <Star size={18} color="#FFD700" weight="fill" />
+              <Text style={styles.statNumber}>{totalAchievements}</Text>
+              <Text style={styles.statLabel}>Achievements</Text>
+            </View>
+
+            <View style={styles.statCard}>
+              <Diamond size={18} color="#9AAEFF" weight="fill" />
+              <Text style={styles.statNumber}>
+                {coins >= 1000 ? `${(coins / 1000).toFixed(1)}K` : coins}
+              </Text>
+              <Text style={styles.statLabel}>Mana Crystals</Text>
+            </View>
+          </View>
+
+          {/* Section 1: PROFILE */}
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>PROFILE</Text>
+            <Text style={styles.sectionSub}>BUILD YOURSELF</Text>
+          </View>
+          <View style={styles.cardGroup}>
+            <TouchableOpacity
+              style={styles.menuRow}
+              activeOpacity={0.75}
+              onPress={() => {
+                haptics.light();
+                router.push('/settings/profile-edit' as any);
+              }}
+            >
+              <View style={styles.iconCircle}>
+                <User size={19} color="#9AAEFF" weight="duotone" />
+              </View>
+              <View style={styles.menuTextCol}>
+                <Text style={styles.menuTitle}>Edit Profile & Avatar</Text>
+                <Text style={styles.menuDesc}>Callsign, bio, goals & custom PFP</Text>
+              </View>
+              <CaretRight size={18} color="#A6A9AE" weight="bold" />
+            </TouchableOpacity>
+
+            <View style={styles.rowDivider} />
+
+            <TouchableOpacity
+              style={styles.menuRow}
+              activeOpacity={0.75}
+              onPress={() => {
+                haptics.light();
+                router.push('/photos' as any);
+              }}
+            >
+              <View style={styles.iconCircle}>
+                <ImageIcon size={19} color="#9AAEFF" weight="duotone" />
+              </View>
+              <View style={styles.menuTextCol}>
+                <Text style={styles.menuTitle}>Physique Transformation</Text>
+                <Text style={styles.menuDesc}>Track your real progress</Text>
+              </View>
+              <CaretRight size={18} color="#A6A9AE" weight="bold" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Section 2: PROGRESSION */}
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>PROGRESSION</Text>
+            <Text style={styles.sectionSub}>TURN EFFORT INTO PROOF</Text>
+          </View>
+          <View style={styles.cardGroup}>
+            <TouchableOpacity
+              style={styles.menuRow}
+              activeOpacity={0.75}
+              onPress={() => {
+                haptics.light();
+                router.push('/rewards' as any);
+              }}
+            >
+              <View style={styles.iconCircle}>
+                <Trophy size={19} color="#9AAEFF" weight="duotone" />
+              </View>
+              <View style={styles.menuTextCol}>
+                <Text style={styles.menuTitle}>Achievements & Badges</Text>
+                <Text style={styles.menuDesc}>Your milestones and rewards</Text>
+              </View>
+              <CaretRight size={18} color="#A6A9AE" weight="bold" />
+            </TouchableOpacity>
+
+            <View style={styles.rowDivider} />
+
+            <TouchableOpacity
+              style={styles.menuRow}
+              activeOpacity={0.75}
+              onPress={() => {
+                haptics.light();
+                router.push('/rewards/streak-milestones' as any);
+              }}
+            >
+              <View style={styles.iconCircle}>
+                <Gift size={19} color="#9AAEFF" weight="duotone" />
+              </View>
+              <View style={styles.menuTextCol}>
+                <Text style={styles.menuTitle}>Streak Milestones</Text>
+                <Text style={styles.menuDesc}>Claim rewards (Day 3, 7, 14, 30...)</Text>
+              </View>
+              <CaretRight size={18} color="#A6A9AE" weight="bold" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Section 3: REWARDS */}
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>REWARDS</Text>
+            <Text style={styles.sectionSub}>DISCIPLINE PAYS</Text>
+          </View>
+          <View style={styles.cardGroup}>
+            <TouchableOpacity
+              style={styles.menuRow}
+              activeOpacity={0.75}
+              onPress={() => {
+                haptics.light();
+                router.push('/shop' as any);
+              }}
+            >
+              <View style={styles.iconCircle}>
+                <Package size={19} color="#9AAEFF" weight="duotone" />
+              </View>
+              <View style={styles.menuTextCol}>
+                <Text style={styles.menuTitle}>Redeem Vault & Shop</Text>
+                <Text style={styles.menuDesc}>Use Mana Crystals for themes, passes & more</Text>
+              </View>
+              <CaretRight size={18} color="#A6A9AE" weight="bold" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={{ height: 40 }} />
         </ScrollView>
-
-        {/* Stitch v2 Custom About ARISE Bottom Sheet */}
-        <AboutAriseSheet
-          visible={isAboutSheetOpen}
-          onClose={() => setIsAboutSheetOpen(false)}
-        />
       </SafeAreaView>
     </SwipeableTabScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  safeArea: { flex: 1 },
-  header: {
+  container: {
+    flex: 1,
+    backgroundColor: '#050607',
+  },
+  safeArea: {
+    flex: 1,
+  },
+  headerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
+    justifyContent: 'space-between',
+    paddingHorizontal: 22,
+    paddingTop: 12,
+    paddingBottom: 14,
   },
   headerTitle: {
-    fontSize: 16,
-    fontWeight: '900',
-    letterSpacing: 1.2,
-  },
-  headerIconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  scrollContent: {
-    paddingHorizontal: 18,
-    paddingTop: 16,
-    gap: 16,
-  },
-  profileHeroCard: {
-    padding: 18,
-    borderRadius: 22,
-    gap: 14,
-  },
-  avatarRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  profileMeta: {
-    flex: 1,
-    gap: 4,
-  },
-  nameBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  playerName: {
     fontSize: 18,
     fontWeight: '900',
-    flex: 1,
+    color: '#F5F5F2',
+    letterSpacing: 2,
   },
-  levelBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  levelBadgeText: {
-    fontSize: 9.5,
-    fontWeight: '900',
-  },
-  bioText: {
-    fontSize: 11.5,
-    lineHeight: 15,
-  },
-  statPillsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 4,
-  },
-  statPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  statPillText: {
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  xpSection: {
-    gap: 6,
-    width: '100%',
-  },
-  xpMetaRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  xpLabel: {
-    fontSize: 9.5,
-    fontWeight: '800',
-    letterSpacing: 0.6,
-  },
-  xpValue: {
+  headerSubtitle: {
     fontSize: 10,
     fontWeight: '700',
+    color: '#A6A9AE',
+    letterSpacing: 1.2,
+    marginTop: 2,
   },
-  privacyCard: {
-    padding: 16,
-    borderRadius: 22,
-    gap: 10,
-  },
-  privacyTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  shieldBadge: {
+  settingsIconBtn: {
     width: 38,
     height: 38,
     borderRadius: 12,
-    alignItems: 'center',
+    backgroundColor: '#0E1115',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     justifyContent: 'center',
+    alignItems: 'center',
   },
-  privacyTitle: {
-    fontSize: 13.5,
-    fontWeight: '800',
+  scrollContent: {
+    paddingHorizontal: 18,
+    paddingTop: 4,
   },
-  privacySubtitle: {
-    fontSize: 10,
-    lineHeight: 14,
-  },
-  privacyDesc: {
-    fontSize: 11,
-    lineHeight: 16,
-  },
-  sectionGroup: {
-    gap: 8,
-  },
-  sectionHeading: {
-    fontSize: 10.5,
-    fontWeight: '900',
-    letterSpacing: 1.2,
-    marginLeft: 4,
-  },
-  groupedCard: {
+  heroCard: {
+    backgroundColor: '#0E1115',
     borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    padding: 20,
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  avatarWrapper: {
+    marginBottom: 12,
+  },
+  heroDisplayName: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#F5F5F2',
+    letterSpacing: 1.5,
+  },
+  heroHandle: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: '#A6A9AE',
+    marginTop: 2,
+  },
+  heroQuote: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    color: '#A6A9AE',
+    textAlign: 'center',
+    marginTop: 6,
+    marginBottom: 16,
+  },
+  xpBlock: {
+    width: '100%',
+    gap: 6,
+  },
+  xpLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  levelBadgeText: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#9AAEFF',
+  },
+  xpNumbersText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#A6A9AE',
+  },
+  xpTrack: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     overflow: 'hidden',
-    padding: 0,
+  },
+  xpFill: {
+    height: '100%',
+    borderRadius: 3,
+    backgroundColor: '#9AAEFF',
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 20,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: '#0E1115',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    paddingVertical: 12,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    gap: 4,
+  },
+  statNumber: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#F5F5F2',
+    marginTop: 2,
+  },
+  statLabel: {
+    fontSize: 9.5,
+    fontWeight: '600',
+    color: '#A6A9AE',
+    textAlign: 'center',
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+    marginTop: 6,
+    paddingHorizontal: 4,
+  },
+  sectionTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#F5F5F2',
+    letterSpacing: 1.2,
+  },
+  sectionSub: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#A6A9AE',
+    letterSpacing: 1,
+  },
+  cardGroup: {
+    backgroundColor: '#0E1115',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    marginBottom: 16,
+    overflow: 'hidden',
   },
   menuRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
     paddingVertical: 14,
+    paddingHorizontal: 16,
     gap: 12,
   },
-  menuIconCircle: {
+  iconCircle: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
+    borderRadius: 10,
+    backgroundColor: 'rgba(154, 174, 255, 0.08)',
     justifyContent: 'center',
+    alignItems: 'center',
   },
   menuTextCol: {
     flex: 1,
     gap: 2,
   },
   menuTitle: {
-    fontSize: 13,
-    fontWeight: '800',
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#F5F5F2',
   },
-  menuSub: {
-    fontSize: 10.5,
+  menuDesc: {
+    fontSize: 11.5,
+    fontWeight: '500',
+    color: '#A6A9AE',
   },
-  menuDivider: {
+  rowDivider: {
     height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     marginLeft: 64,
-    marginRight: 16,
   },
 });

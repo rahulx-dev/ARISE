@@ -6,7 +6,7 @@ import { FocusSession } from '../types';
 export const focusService = {
   startFocusSession: async (targetMinutes: number): Promise<number> => {
     const rewards = {
-      rewardCoins: targetMinutes * 2,
+      rewardCoins: Math.max(1, Math.floor(targetMinutes / 10)),
       rewardXP: targetMinutes * 4,
     };
 
@@ -27,7 +27,7 @@ export const focusService = {
     const session = record[0];
 
     const targetMinutes = session ? session.targetMinutes : 25;
-    const coins = session ? session.rewardCoins : targetMinutes * 2;
+    const coins = session ? session.rewardCoins : Math.max(1, Math.floor(targetMinutes / 10));
     const xp = session ? session.rewardXP : targetMinutes * 4;
 
     await db.update(focusSession)

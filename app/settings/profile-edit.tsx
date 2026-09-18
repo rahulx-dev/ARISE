@@ -25,6 +25,7 @@ import {
   Moon,
   Smartphone,
   Save,
+  Flame,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
@@ -36,6 +37,9 @@ import { AVATAR_IMAGES, AVATAR_ICONS } from '../../src/components/profile/Avatar
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTheme } from '../../src/hooks/useTheme';
 import { ThemeMode } from '../../src/theme/themeEngine';
+import { appBlockerService } from '../../src/native';
+import { db } from '../../src/database/client';
+import { appRestriction } from '../../src/database/schema';
 
 export default function ProfileEditScreen() {
   const router = useRouter();
@@ -107,6 +111,7 @@ export default function ProfileEditScreen() {
       });
 
       haptics.success();
+      showIOSAlert('Profile Saved!', 'Your Hunter Identity has been successfully updated.');
       router.back();
     } catch (e) {
       console.warn('Failed to save profile:', e);
@@ -352,97 +357,6 @@ export default function ProfileEditScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
-            </View>
-          </GlassCard>
-
-          {/* Theme & System Preferences */}
-          <GlassCard variant="default" style={styles.formCard}>
-            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>APPEARANCE & THEME</Text>
-            <View style={styles.themeSelectorRow}>
-              {[
-                { id: 'dark' as ThemeMode, label: 'Dark Void', icon: Moon },
-                { id: 'light' as ThemeMode, label: 'Light Clean', icon: Sun },
-                { id: 'system' as ThemeMode, label: 'System Auto', icon: Smartphone },
-              ].map((t) => {
-                const isSelected = settingsState.theme === t.id;
-                const IconC = t.icon;
-                return (
-                  <TouchableOpacity
-                    key={t.id}
-                    onPress={() => {
-                      haptics.medium();
-                      settingsState.setTheme(t.id);
-                    }}
-                    style={[
-                      styles.themeCard,
-                      { backgroundColor: colors.surfaceLight, borderColor: colors.border },
-                      isSelected && { borderColor: colors.primary, backgroundColor: isDark ? 'rgba(10, 132, 255, 0.15)' : '#EFF6FF' },
-                    ]}
-                  >
-                    <IconC size={20} color={isSelected ? colors.primary : colors.textMuted} />
-                    <Text style={[styles.themeCardText, { color: isSelected ? colors.primary : colors.textSecondary }]}>
-                      {t.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            <View style={[styles.settingRowDivider, { backgroundColor: colors.border }]} />
-
-            {/* Audio Toggles */}
-            <View style={styles.settingToggleRow}>
-              <View style={styles.settingTextCol}>
-                <Text style={[styles.settingMainText, { color: colors.textPrimary }]}>Audio Sound Effects (SFX)</Text>
-                <Text style={[styles.settingSubText, { color: colors.textMuted }]}>Quests, rep counts, level up sounds</Text>
-              </View>
-              <TouchableOpacity
-                onPress={settingsState.toggleSfx}
-                style={[
-                  styles.toggleBadge,
-                  { backgroundColor: settingsState.sfxEnabled ? colors.primary : colors.surfaceLight },
-                ]}
-              >
-                <Text style={[styles.toggleBadgeText, { color: settingsState.sfxEnabled ? '#FFFFFF' : colors.textMuted }]}>
-                  {settingsState.sfxEnabled ? 'ON' : 'OFF'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.settingToggleRow}>
-              <View style={styles.settingTextCol}>
-                <Text style={[styles.settingMainText, { color: colors.textPrimary }]}>Haptic Tactile Feedback</Text>
-                <Text style={[styles.settingSubText, { color: colors.textMuted }]}>Device vibrations on actions</Text>
-              </View>
-              <TouchableOpacity
-                onPress={settingsState.toggleHaptics}
-                style={[
-                  styles.toggleBadge,
-                  { backgroundColor: settingsState.hapticsEnabled ? colors.primary : colors.surfaceLight },
-                ]}
-              >
-                <Text style={[styles.toggleBadgeText, { color: settingsState.hapticsEnabled ? '#FFFFFF' : colors.textMuted }]}>
-                  {settingsState.hapticsEnabled ? 'ON' : 'OFF'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.settingToggleRow}>
-              <View style={styles.settingTextCol}>
-                <Text style={[styles.settingMainText, { color: colors.textPrimary }]}>Background Ambient Music</Text>
-                <Text style={[styles.settingSubText, { color: colors.textMuted }]}>Subtle ambient music while using app</Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => settingsState.setBgMusic(!settingsState.bgMusicEnabled)}
-                style={[
-                  styles.toggleBadge,
-                  { backgroundColor: settingsState.bgMusicEnabled ? colors.primary : colors.surfaceLight },
-                ]}
-              >
-                <Text style={[styles.toggleBadgeText, { color: settingsState.bgMusicEnabled ? '#FFFFFF' : colors.textMuted }]}>
-                  {settingsState.bgMusicEnabled ? 'ON' : 'OFF'}
-                </Text>
-              </TouchableOpacity>
             </View>
           </GlassCard>
 

@@ -13,7 +13,9 @@ export const userProfile = sqliteTable('user_profile', {
   currentXP: integer('current_xp').notNull().default(0),
   totalXP: integer('total_xp').notNull().default(0),
   coins: integer('coins').notNull().default(0),
+  manaCrystals: integer('mana_crystals').notNull().default(0),
   totalCoinsEarned: integer('total_coins_earned').notNull().default(0),
+  sponsorPasses: integer('sponsor_passes').notNull().default(0),
   currentStreak: integer('current_streak').notNull().default(0),
   longestStreak: integer('longest_streak').notNull().default(0),
   lastActiveDate: text('last_active_date'),
@@ -129,7 +131,7 @@ export const settings = sqliteTable('settings', {
   hapticsEnabled: integer('haptics_enabled').notNull().default(1),
   notificationsEnabled: integer('notifications_enabled').notNull().default(0),
   onboardingCompleted: integer('onboarding_completed').notNull().default(0),
-  dailyBudgetMinutes: integer('daily_budget_minutes').notNull().default(120),
+  dailyBudgetMinutes: integer('daily_budget_minutes').notNull().default(30),
   theme: text('theme').notNull().default('system'), // 'dark' | 'light' | 'system'
   bgMusicEnabled: integer('bg_music_enabled').notNull().default(0),
   bgMusicVolume: real('bg_music_volume').notNull().default(0.5),
@@ -228,7 +230,74 @@ export const payoutRequest = sqliteTable('payout_request', {
   amountInr: integer('amount_inr').notNull(),
   coinsSpent: integer('coins_spent').notNull(),
   upiId: text('upi_id').notNull(),
+  sponsorPassesUsed: integer('sponsor_passes_used').notNull().default(0),
   status: text('status').notNull().default('PENDING'), // 'PENDING' | 'PAID' | 'REJECTED'
   createdAt: text('created_at').notNull(),
   paidAt: text('paid_at'),
 });
+
+// ================= HUNTER GUILD TABLES =================
+
+export const guild = sqliteTable('guild', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull().unique(),
+  tag: text('tag').notNull().unique(),
+  description: text('description').notNull(),
+  bannerColor: text('banner_color').notNull().default('#0A84FF'),
+  rankRequirement: text('rank_requirement').notNull().default('E'),
+  leaderName: text('leader_name').notNull().default('Hunter Master'),
+  memberCount: integer('member_count').notNull().default(1),
+  maxMembers: integer('max_members').notNull().default(50),
+  totalXP: integer('total_xp').notNull().default(0),
+  level: integer('level').notNull().default(1),
+  isUserMember: integer('is_user_member').notNull().default(0),
+  createdAt: text('created_at').notNull(),
+});
+
+export const guildRaid = sqliteTable('guild_raid', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  guildId: integer('guild_id').notNull(),
+  gateRank: text('gate_rank').notNull().default('C'),
+  bossName: text('boss_name').notNull(),
+  bossMaxHp: integer('boss_max_hp').notNull(),
+  bossCurrentHp: integer('boss_current_hp').notNull(),
+  rewardXP: integer('reward_xp').notNull().default(500),
+  rewardCoins: integer('reward_coins').notNull().default(100),
+  status: text('status').notNull().default('ACTIVE'), // 'ACTIVE' | 'CLEARED'
+  createdAt: text('created_at').notNull(),
+});
+
+export const guildMember = sqliteTable('guild_member', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  guildId: integer('guild_id').notNull(),
+  hunterName: text('hunter_name').notNull(),
+  hunterRank: text('hunter_rank').notNull().default('E'),
+  role: text('role').notNull().default('MEMBER'), // 'MASTER' | 'VICE_MASTER' | 'ELITE' | 'MEMBER'
+  contributionPoints: integer('contribution_points').notNull().default(0),
+  joinedAt: text('joined_at').notNull(),
+  isCurrentUser: integer('is_current_user').notNull().default(0),
+});
+
+// ================= MANA CRYSTALS & REDEMPTION TABLES =================
+
+export const crystalRedemption = sqliteTable('crystal_redemption', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('user_id').notNull().default('default_user'),
+  amountInr: integer('amount_inr').notNull(),
+  crystalsSpent: integer('crystals_spent').notNull(),
+  method: text('method').notNull().default('UPI'), // 'UPI' | 'AMAZON' | 'GOOGLE_PLAY' | 'COINS'
+  destination: text('destination').notNull(),
+  status: text('status').notNull().default('PENDING'), // 'PENDING' | 'PAID' | 'REJECTED'
+  createdAt: text('created_at').notNull(),
+  paidAt: text('paid_at'),
+});
+
+export const crystalTransaction = sqliteTable('crystal_transaction', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  amount: integer('amount').notNull(),
+  type: text('type').notNull(), // 'earn' | 'spend'
+  description: text('description').notNull(),
+  gateId: text('gate_id'),
+  timestamp: text('timestamp').notNull(),
+});
+

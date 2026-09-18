@@ -1,5 +1,17 @@
-import { requireNativeModule } from 'expo-modules-core';
+import { requireNativeModule, requireNativeViewManager } from 'expo-modules-core';
 import { NativeModules, Platform } from 'react-native';
+
+// Real-time CameraX native view with built-in ML Kit pose streaming
+export const PoseCameraView = Platform.OS === 'android'
+  ? requireNativeViewManager('PoseDetector')
+  : null;
+
+export interface PoseCameraViewProps {
+  style?: any;
+  facing?: 'front' | 'back';
+  enableTorch?: boolean;
+  onPoseDetected?: (event: { nativeEvent: { landmarks: PoseLandmark[] } }) => void;
+}
 
 let PoseDetector: any = null;
 try {
@@ -14,6 +26,8 @@ export interface PoseLandmark {
   z: number;
   confidence: number;
   type: number;
+  frameWidth?: number;
+  frameHeight?: number;
 }
 
 export interface MoveNetKeypoint {
@@ -61,11 +75,11 @@ export async function initialize(): Promise<boolean> {
   return await PoseDetector.initialize();
 }
 
-export async function processBase64Frame(base64: string): Promise<PoseLandmark[]> {
+export async function processBase64Frame(base64: string, facing: string = 'front'): Promise<PoseLandmark[]> {
   if (Platform.OS !== 'android' || !PoseDetector) {
     return [];
   }
-  return await PoseDetector.processBase64Frame(base64);
+  return await PoseDetector.processBase64Frame(base64, facing);
 }
 
 export function muteShutter(): void {

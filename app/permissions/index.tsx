@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -77,9 +77,69 @@ export default function PermissionsScreen() {
     }
   };
 
+  const permPollRef = useRef<any>(null);
+
+  const startFastPermissionPolling = (type: 'battery' | 'usage' | 'overlay') => {
+    if (permPollRef.current) clearInterval(permPollRef.current);
+    const startTime = Date.now();
+    permPollRef.current = setInterval(async () => {
+      try {
+        if (type === 'battery') {
+          const granted = (await appBlockerService.hasBatteryOptimizationExemption?.()) ?? false;
+          if (granted) {
+            setBatteryGranted(true);
+            haptics.success();
+            if (permPollRef.current) {
+              clearInterval(permPollRef.current);
+              permPollRef.current = null;
+            }
+          }
+        } else if (type === 'usage') {
+          const granted = await appBlockerService.hasUsagePermission();
+          if (granted) {
+            setUsageGranted(true);
+            haptics.success();
+            if (permPollRef.current) {
+              clearInterval(permPollRef.current);
+              permPollRef.current = null;
+            }
+          }
+        } else if (type === 'overlay') {
+          const granted = await appBlockerService.hasOverlayPermission();
+          if (granted) {
+            setOverlayGranted(true);
+            haptics.success();
+            if (permPollRef.current) {
+              clearInterval(permPollRef.current);
+              permPollRef.current = null;
+            }
+          }
+        }
+        if (Date.now() - startTime > 25000) {
+          if (permPollRef.current) {
+            clearInterval(permPollRef.current);
+            permPollRef.current = null;
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+    }, 400);
+  };
+
   useFocusEffect(
     useCallback(() => {
       checkAllPermissions();
+      const heartbeat = setInterval(() => {
+        checkAllPermissions();
+      }, 1500);
+      return () => {
+        clearInterval(heartbeat);
+        if (permPollRef.current) {
+          clearInterval(permPollRef.current);
+          permPollRef.current = null;
+        }
+      };
     }, [])
   );
 
@@ -94,35 +154,44 @@ export default function PermissionsScreen() {
 
     return () => {
       subscription.remove();
+      if (permPollRef.current) {
+        clearInterval(permPollRef.current);
+        permPollRef.current = null;
+      }
     };
   }, []);
 
   const triggerNativeUsage = () => {
     if (Platform.OS === 'android') {
       appBlockerService.requestUsagePermission();
+      startFastPermissionPolling('usage');
     }
   };
 
   const triggerNativeOverlay = () => {
     if (Platform.OS === 'android') {
       appBlockerService.requestOverlayPermission();
+      startFastPermissionPolling('overlay');
     }
   };
 
   const triggerNativeBattery = () => {
     if (Platform.OS === 'android') {
       appBlockerService.requestBatteryOptimizationExemption?.();
+      startFastPermissionPolling('battery');
     }
   };
 
   const triggerNativeCamera = async () => {
     const res = await Camera.requestCameraPermissionsAsync();
     setCameraGranted(res.granted);
+    checkAllPermissions();
   };
 
   const triggerNativeNotif = async () => {
     const res = await Notifications.requestPermissionsAsync();
     setNotifGranted(res.granted);
+    checkAllPermissions();
   };
 
   const requestWithExplanation = (perm: PendingPerm) => {

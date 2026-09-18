@@ -19,7 +19,9 @@ export interface PlayerProfile extends PlayerStats {
   currentXP: number;
   totalXP: number;
   coins: number;
+  manaCrystals?: number;
   totalCoinsEarned: number;
+  sponsorPasses?: number;
   currentStreak: number;
   longestStreak: number;
   lastActiveDate: string;

@@ -130,6 +130,33 @@ export function isCurrentlyUnlocked(): boolean {
   return false;
 }
 
+export function getPackageTodayUsageMs(packageName: string): number {
+  if (Platform.OS !== 'android' || !AppBlocker?.getPackageTodayUsageMs) return 0;
+  try {
+    return AppBlocker.getPackageTodayUsageMs(packageName) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function getTotalTodayUsageMs(): number {
+  if (Platform.OS !== 'android' || !AppBlocker?.getTotalTodayUsageMs) return 0;
+  try {
+    return AppBlocker.getTotalTodayUsageMs() || 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function showTestOverlay(targetPackage?: string): boolean {
+  if (Platform.OS !== 'android' || !AppBlocker?.showTestOverlay) return false;
+  try {
+    return AppBlocker.showTestOverlay(targetPackage || 'com.instagram.android');
+  } catch {
+    return false;
+  }
+}
+
 export default {
   hasUsagePermission,
   hasOverlayPermission,
@@ -140,7 +167,11 @@ export default {
   startMonitoring,
   stopMonitoring,
   setRestrictedPackages,
+  setAppBudget,
   temporaryUnlock,
   unlockUntil,
   isCurrentlyUnlocked,
+  getPackageTodayUsageMs,
+  getTotalTodayUsageMs,
+  showTestOverlay,
 };

@@ -3,9 +3,12 @@ import { userRepository } from '../database/repositories/userRepository';
 export const streakService = {
   checkAndUpdateStreak: async (): Promise<{ streak: number; isNewDay: boolean; streakBroken: boolean }> => {
     const profile = await userRepository.getProfile();
-    const today = new Date().toISOString().split('T')[0];
-
     if (!profile) return { streak: 0, isNewDay: false, streakBroken: false };
+
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const getLocalDateStr = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const today = getLocalDateStr(now);
 
     const lastActive = profile.lastActiveDate ? profile.lastActiveDate.split('T')[0] : null;
 
@@ -13,7 +16,7 @@ export const streakService = {
       return { streak: profile.currentStreak, isNewDay: false, streakBroken: false };
     }
 
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    const yesterday = getLocalDateStr(new Date(now.getTime() - 24 * 60 * 60 * 1000));
     const streakBroken = !!lastActive && lastActive < yesterday;
 
     await userRepository.updateStreak();

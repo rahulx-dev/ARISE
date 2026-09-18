@@ -12,14 +12,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ArrowLeft,
   ShieldAlert,
-  Mic,
   Dumbbell,
   Zap,
 } from 'lucide-react-native';
 import { SerqBackdrop } from '../../src/components/serq/SerqBackdrop';
 import { SerqCard } from '../../src/components/serq/SerqCard';
 import { SerqButton } from '../../src/components/serq/SerqButton';
-import { voiceCoach } from '../../src/services/voiceCoach';
 import { userRepository } from '../../src/database/repositories/userRepository';
 import { screenTimerService } from '../../src/native';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
@@ -27,6 +25,7 @@ import { useSound } from '../../src/hooks/useSound';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
 import { colors } from '../../src/theme/colors';
+import { temporaryUnlock } from '../../modules/app-blocker';
 
 export default function EmergencyOverrideScreen() {
   const router = useRouter();
@@ -46,14 +45,11 @@ export default function EmergencyOverrideScreen() {
     return () => {
       if (cadenceRef.current) clearInterval(cadenceRef.current);
       if (timerRef.current) clearInterval(timerRef.current);
-      voiceCoach.stop();
     };
   }, []);
 
   useEffect(() => {
     if (isActive) {
-      voiceCoach.speak(`Emergency Override active. Complete 20 push-ups to unlock 5 minutes of phone time. Let's do this!`);
-
       timerRef.current = setInterval(() => {
         setElapsedSeconds((prev) => prev + 1);
       }, 1000);
@@ -63,11 +59,6 @@ export default function EmergencyOverrideScreen() {
           const next = prev + 1;
           haptics.light();
           sound.play('rep_count');
-          voiceCoach.speakRep(next);
-
-          if (next === 10) {
-            voiceCoach.speakHalfway(10);
-          }
 
           if (next >= targetReps) {
             handleUnlockPass();
@@ -90,7 +81,6 @@ export default function EmergencyOverrideScreen() {
     setIsActive(false);
     haptics.heavy();
     sound.play('unlock');
-    voiceCoach.speakEmergencyUnlocked();
 
     const durationMs = 5 * 60 * 1000;
     const now = new Date();
@@ -101,6 +91,11 @@ export default function EmergencyOverrideScreen() {
       await userRepository.addXP(40);
       await userRepository.updateStat('strength', 1);
       screenTimerService.startSessionTimer(durationMs, 'Emergency 5m Pass');
+      try {
+        temporaryUnlock(durationMs);
+      } catch (err) {
+        console.warn('Native temporaryUnlock error:', err);
+      }
       await loadProfile();
 
       showIOSAlert(
@@ -149,14 +144,6 @@ export default function EmergencyOverrideScreen() {
               </View>
             </View>
           </View>
-
-          {/* Live Voice Coach Status */}
-          <SerqCard variant="subtle" style={styles.coachCard}>
-            <Mic size={18} color={colors.primary} />
-            <Text style={styles.coachText}>
-              {isActive ? 'Female Voice Coach: Live Guidance' : 'Female Voice Coach: Standby'}
-            </Text>
-          </SerqCard>
 
           <View style={{ height: 100 }} />
         </ScrollView>

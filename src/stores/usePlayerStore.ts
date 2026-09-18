@@ -1,11 +1,26 @@
 import { create } from 'zustand';
 import { PlayerProfile, StatName } from '../types';
 import { userRepository } from '../database/repositories/userRepository';
+import { getRankForLevel } from '../constants/ranks';
+import { streakService } from '../services/streakService';
+
+export interface LevelUpData {
+  oldLevel: number;
+  newLevel: number;
+  rankTitle: string;
+  transformationName: string;
+  auraColor: string;
+  rewardCoins: number;
+}
 
 interface PlayerState {
   profile: PlayerProfile | null;
   isLoading: boolean;
   error: string | null;
+  levelUpData: LevelUpData | null;
+  dismissLevelUp: () => void;
+  triggerLevelUpModal: (data: LevelUpData) => void;
+  triggerTestLevelUp: () => void;
   loadProfile: () => Promise<void>;
   updateProfile: (updates: Partial<PlayerProfile>) => Promise<void>;
   addXP: (amount: number) => Promise<void>;
@@ -21,10 +36,33 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   profile: null,
   isLoading: false,
   error: null,
+  levelUpData: null,
+
+  dismissLevelUp: () => set({ levelUpData: null }),
+
+  triggerLevelUpModal: (data: LevelUpData) => set({ levelUpData: data }),
+
+  triggerTestLevelUp: () => {
+    const profile = get().profile;
+    const currentLvl = profile?.level || 1;
+    const newLvl = currentLvl + 1;
+    const rank = getRankForLevel(newLvl);
+    set({
+      levelUpData: {
+        oldLevel: currentLvl,
+        newLevel: newLvl,
+        rankTitle: rank.title,
+        transformationName: rank.transformationName,
+        auraColor: rank.auraColor,
+        rewardCoins: 250,
+      },
+    });
+  },
 
   loadProfile: async () => {
     set({ isLoading: true, error: null });
     try {
+      await streakService.checkAndUpdateStreak();
       const profile = (await userRepository.getProfile()) as PlayerProfile | undefined;
       set({ profile: profile || null, isLoading: false });
     } catch (error: any) {
@@ -44,9 +82,38 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   addXP: async (amount: number) => {
     try {
+      const oldProfile = get().profile;
+      const oldLevel = oldProfile?.level || 1;
+
       await userRepository.addXP(amount);
-      const profile = (await userRepository.getProfile()) as PlayerProfile | undefined;
-      set({ profile: profile || null });
+      const newProfile = (await userRepository.getProfile()) as PlayerProfile | undefined;
+      set({ profile: newProfile || null });
+
+      if (newProfile && newProfile.level > oldLevel) {
+        const newRank = getRankForLevel(newProfile.level);
+        const bonusCoins = (newProfile.level - oldLevel) * 100;
+
+        try {
+          await userRepository.addCoins(
+            bonusCoins,
+            `Level ${newProfile.level} Rank Ascension Bonus`,
+            'level_up'
+          );
+        } catch {}
+
+        const refreshed = (await userRepository.getProfile()) as PlayerProfile | undefined;
+        set({
+          profile: refreshed || newProfile,
+          levelUpData: {
+            oldLevel,
+            newLevel: newProfile.level,
+            rankTitle: newRank.title,
+            transformationName: newRank.transformationName,
+            auraColor: newRank.auraColor,
+            rewardCoins: bonusCoins,
+          },
+        });
+      }
     } catch (error: any) {
       set({ error: error.message });
     }

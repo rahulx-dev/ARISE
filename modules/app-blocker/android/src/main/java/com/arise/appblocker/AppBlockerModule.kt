@@ -110,7 +110,8 @@ class AppBlockerModule : Module() {
             val context = appContext.reactContext ?: appContext.currentActivity
             val granted = if (context != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
-                powerManager?.isIgnoringBatteryOptimizations(context.packageName) ?: false
+                val pkg = context.packageName ?: appContext.currentActivity?.packageName ?: "com.arise.app"
+                powerManager?.isIgnoringBatteryOptimizations(pkg) ?: false
             } else {
                 true
             }
@@ -206,15 +207,31 @@ class AppBlockerModule : Module() {
         }
 
         Function("setAppBudget") { packageName: String?, budgetMinutes: Double ->
-            AppMonitorService.setBudget(packageName, budgetMinutes)
+            val context = appContext.reactContext ?: appContext.currentActivity
+            AppMonitorService.setBudget(context, packageName, budgetMinutes)
+            if (context != null) {
+                val intent = Intent(context, AppMonitorService::class.java).apply {
+                    putExtra("UPDATED_BUDGET_MINUTES", budgetMinutes)
+                    if (packageName != null) putExtra("UPDATED_PACKAGE_NAME", packageName)
+                }
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        context.startForegroundService(intent)
+                    } else {
+                        context.startService(intent)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error sending budget update to service", e)
+                }
+            }
             Log.d(TAG, "setAppBudget: $packageName -> $budgetMinutes min")
             Unit
         }
 
         Function("temporaryUnlock") { durationMs: Double ->
             val epochTarget = System.currentTimeMillis() + durationMs.toLong()
-            AppMonitorService.setUnlockUntil(epochTarget)
             val context = appContext.reactContext ?: appContext.currentActivity
+            AppMonitorService.setUnlockUntil(context, epochTarget)
             if (context != null) {
                 val intent = Intent(context, AppMonitorService::class.java).apply {
                     putExtra("UNLOCKED_UNTIL_EPOCH", epochTarget)
@@ -235,8 +252,8 @@ class AppBlockerModule : Module() {
 
         Function("unlockUntil") { epochMs: Double ->
             val epochTarget = epochMs.toLong()
-            AppMonitorService.setUnlockUntil(epochTarget)
             val context = appContext.reactContext ?: appContext.currentActivity
+            AppMonitorService.setUnlockUntil(context, epochTarget)
             if (context != null) {
                 val intent = Intent(context, AppMonitorService::class.java).apply {
                     putExtra("UNLOCKED_UNTIL_EPOCH", epochTarget)
@@ -256,9 +273,44 @@ class AppBlockerModule : Module() {
         }
 
         Function("isCurrentlyUnlocked") {
-            val isUnlocked = System.currentTimeMillis() < AppMonitorService.unlockedUntilEpochMs
+            val context = appContext.reactContext ?: appContext.currentActivity
+            val unlockedUntil = AppMonitorService.getUnlockUntil(context)
+            val isUnlocked = System.currentTimeMillis() < unlockedUntil
             Log.d(TAG, "isCurrentlyUnlocked: $isUnlocked")
             isUnlocked
+        }
+
+        Function("showTestOverlay") { targetPackage: String? ->
+            val context = appContext.reactContext ?: appContext.currentActivity
+            if (context != null) {
+                val overlayIntent = Intent(context, BlockOverlayService::class.java).apply {
+                    putExtra("PACKAGE_NAME", targetPackage ?: "com.instagram.android")
+                    putExtra("BUDGET_MS", 0L)
+                    putExtra("USED_MS", 35 * 60 * 1000L)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startService(overlayIntent)
+                Log.d(TAG, "showTestOverlay launched for ${targetPackage ?: "com.instagram.android"}")
+            }
+            true
+        }
+
+        Function("getPackageTodayUsageMs") { packageName: String ->
+            val context = appContext.reactContext ?: appContext.currentActivity
+            if (context != null) {
+                UsageStatsHelper.getPackageTodayUsageMs(context, packageName).toDouble()
+            } else {
+                0.0
+            }
+        }
+
+        Function("getTotalTodayUsageMs") {
+            val context = appContext.reactContext ?: appContext.currentActivity
+            if (context != null) {
+                UsageStatsHelper.getTotalTodayUsageMs(context).toDouble()
+            } else {
+                0.0
+            }
         }
 
         Function("isAppInstalled") { packageName: String ->
@@ -274,10 +326,10 @@ class AppBlockerModule : Module() {
             }
         }
 
-        Function("getInstalledApps") {
+        AsyncFunction("getInstalledApps") {
             val context = appContext.reactContext ?: appContext.currentActivity
             if (context == null) {
-                return@Function emptyList<Map<String, Any?>>()
+                return@AsyncFunction emptyList<Map<String, Any?>>()
             }
             val pm = context.packageManager
             val apps = mutableListOf<Map<String, Any?>>()
@@ -353,19 +405,14 @@ class AppBlockerModule : Module() {
 
     private fun drawableToBase64(drawable: Drawable): String? {
         return try {
-            val bitmap = if (drawable is BitmapDrawable && drawable.bitmap != null) {
-                drawable.bitmap
-            } else {
-                val width = if (drawable.intrinsicWidth > 0) drawable.intrinsicWidth.coerceAtMost(96) else 72
-                val height = if (drawable.intrinsicHeight > 0) drawable.intrinsicHeight.coerceAtMost(96) else 72
-                val b = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-                val canvas = Canvas(b)
-                drawable.setBounds(0, 0, canvas.width, canvas.height)
-                drawable.draw(canvas)
-                b
-            }
+            val width = 48
+            val height = 48
+            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bitmap)
+            drawable.setBounds(0, 0, width, height)
+            drawable.draw(canvas)
             val outputStream = ByteArrayOutputStream()
-            bitmap.compress(Bitmap.CompressFormat.PNG, 85, outputStream)
+            bitmap.compress(Bitmap.CompressFormat.PNG, 75, outputStream)
             val byteArray = outputStream.toByteArray()
             "data:image/png;base64," + Base64.encodeToString(byteArray, Base64.NO_WRAP)
         } catch (e: Exception) {

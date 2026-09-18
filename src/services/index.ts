@@ -9,3 +9,4 @@ export * from './voiceCoach';
 export * from './soundSynthesizer';
 export * from './focusMusic';
 export * from './backupService';
+export * from './gateSpawnService';
