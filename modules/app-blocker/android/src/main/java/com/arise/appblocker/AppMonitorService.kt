@@ -213,7 +213,8 @@ class AppMonitorService : Service() {
                 }
             }
 
-            handler.postDelayed(this, 50)
+            val pollIntervalMs = if (fgPackage != null && isPackageRestricted(fgPackage)) 100L else 250L
+            handler.postDelayed(this, pollIntervalMs)
         }
     }
 

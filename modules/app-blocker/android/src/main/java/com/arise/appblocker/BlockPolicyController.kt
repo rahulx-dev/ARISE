@@ -1,4 +1,4 @@
-﻿package com.arise.appblocker
+package com.arise.appblocker
 
 import android.content.Context
 import android.util.Log
@@ -56,7 +56,7 @@ object BlockPolicyController {
         packageBudgetsMs[packageName]?.let { return it }
         try {
             val prefs = context.getSharedPreferences("arise_blocker_prefs", Context.MODE_PRIVATE)
-            val savedMs = prefs.getLong("budget_", -1L)
+            val savedMs = prefs.getLong("budget_" + packageName, -1L)
             if (savedMs >= 0L) {
                 packageBudgetsMs[packageName] = savedMs
                 return savedMs
@@ -80,7 +80,7 @@ object BlockPolicyController {
             packageBudgetsMs[packageName] = ms
             try {
                 context?.getSharedPreferences("arise_blocker_prefs", Context.MODE_PRIVATE)
-                    ?.edit()?.putLong("budget_", ms)?.apply()
+                    ?.edit()?.putLong("budget_" + packageName, ms)?.apply()
             } catch (_: Exception) {}
         } else {
             defaultBudgetMs = ms
@@ -107,14 +107,11 @@ object BlockPolicyController {
 
         Log.i(
             TAG_LIMIT_UPDATE,
-            """
-            [ARISE_LIMIT_UPDATE]
-            package=
-            oldLimitMs=
-            newLimitMs=
-            currentUsageMs=
-            newLockDecision=
-            """.trimIndent()
+            "[ARISE_LIMIT_UPDATE] package=" + targetPkg +
+            " oldLimitMs=" + oldLimit +
+            " newLimitMs=" + ms +
+            " currentUsageMs=" + currentUsage +
+            " newLockDecision=" + newDecision
         )
 
         return ms
@@ -164,17 +161,14 @@ object BlockPolicyController {
         // Log structured audit log
         Log.i(
             TAG_BLOCKER,
-            """
-            [ARISE_BLOCKER]
-            package=
-            actualUsageMs=
-            limitMs=
-            remainingMs=
-            foreground=
-            previousState=
-            newState=
-            reason=
-            """.trimIndent()
+            "[ARISE_BLOCKER] package=" + packageName +
+            " actualUsageMs=" + usageMs +
+            " limitMs=" + limitMs +
+            " remainingMs=" + remainingMs +
+            " foreground=" + isForeground +
+            " previousState=" + previousState.name +
+            " newState=" + lockState.name +
+            " reason=" + reason
         )
 
         return policy
@@ -183,13 +177,10 @@ object BlockPolicyController {
     fun logEnforcement(packageName: String, locked: Boolean, presentationRestored: Boolean, reason: String) {
         Log.i(
             TAG_ENFORCEMENT,
-            """
-            [ARISE_ENFORCEMENT]
-            package=
-            locked=
-            presentationRestored=
-            reason=
-            """.trimIndent()
+            "[ARISE_ENFORCEMENT] package=" + packageName +
+            " locked=" + locked +
+            " presentationRestored=" + presentationRestored +
+            " reason=" + reason
         )
     }
 
