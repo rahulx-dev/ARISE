@@ -10,7 +10,7 @@ import { Card } from '../../src/components/ui/Card';
 import { Button } from '../../src/components/ui/Button';
 import { Badge } from '../../src/components/ui/Badge';
 import { AriseIcon } from '../../src/components/ui/AriseIcon';
-import { getExerciseConfig, ExerciseType } from '../../src/exercise';
+import { getExerciseConfig, ExerciseType, EXERCISE_REGISTRY } from '../../src/exercise';
 import { exerciseRepository } from '../../src/database/repositories/exerciseRepository';
 import { userRepository } from '../../src/database/repositories/userRepository';
 import { adMobService } from '../../src/services/adMobService';
@@ -29,6 +29,7 @@ export default function QuestCompleteScreen() {
     earnedXP,
     durationSeconds,
     questId,
+    alreadyAwarded,
   } = useLocalSearchParams<{
     exerciseType: string;
     completedReps: string;
@@ -37,6 +38,7 @@ export default function QuestCompleteScreen() {
     earnedXP: string;
     durationSeconds: string;
     questId?: string;
+    alreadyAwarded?: string;
   }>();
 
   const profile = usePlayerStore((s) => s.profile);
@@ -47,8 +49,21 @@ export default function QuestCompleteScreen() {
   const reps = parseInt(completedReps || '0', 10);
   const targetNum = parseInt(target || '0', 10);
   const duration = parseInt(durationSeconds || '0', 10);
-  const validExerciseType = (exerciseType?.toUpperCase() || 'PUSHUP') as ExerciseType;
-  const config = getExerciseConfig(validExerciseType);
+  const normalizedType = exerciseType?.toUpperCase() || 'PUSHUP';
+  const isTrackedExerciseType = normalizedType in EXERCISE_REGISTRY;
+  const validExerciseType = (isTrackedExerciseType ? normalizedType : 'PUSHUP') as ExerciseType;
+  const exerciseConfig = getExerciseConfig(validExerciseType);
+  const fallbackDisplayName = normalizedType
+    .toLowerCase()
+    .split('_')
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+    .join(' ');
+  const config = isTrackedExerciseType
+    ? exerciseConfig
+    : {
+        displayName: fallbackDisplayName,
+        statType: normalizedType === 'DEEP_FOCUS' ? 'focus' : 'discipline',
+      };
 
   const hasAwarded = useRef(false);
 
@@ -58,19 +73,22 @@ export default function QuestCompleteScreen() {
 
     const grantRewards = async () => {
       try {
+        const shouldGrantRewards = alreadyAwarded !== '1';
         let awarded = false;
         if (questId && parseInt(questId, 10)) {
-          // Atomic quest completion in SQLite
-          awarded = await userRepository.completeQuestAndGrantRewards(
-            parseInt(questId, 10),
-            coins,
-            xp,
-            config.statType as any
-          );
+          if (shouldGrantRewards) {
+            // Atomic quest completion in SQLite
+            awarded = await userRepository.completeQuestAndGrantRewards(
+              parseInt(questId, 10),
+              coins,
+              xp,
+              config.statType as any
+            );
+          }
         }
 
         // If not a quest or quest was already completed, grant workout coins & XP directly
-        if (!awarded) {
+        if (!awarded && shouldGrantRewards) {
           if (coins > 0) {
             await userRepository.addCoins(coins, `${config.displayName} Workout`, 'exercise');
           }
@@ -82,16 +100,18 @@ export default function QuestCompleteScreen() {
 
         await userRepository.updateStreak();
 
-        // Record exercise session to SQLite
-        await exerciseRepository.createSession({
-          exerciseType: validExerciseType,
-          target: targetNum,
-          completedReps: reps,
-          durationSeconds: duration,
-          formScore: 95,
-          timestamp: new Date().toISOString(),
-          questId: questId ? parseInt(questId, 10) : undefined,
-        });
+        // Record tracked exercise sessions to SQLite (non-tracked flows are already persisted elsewhere)
+        if (isTrackedExerciseType && alreadyAwarded !== '1') {
+          await exerciseRepository.createSession({
+            exerciseType: validExerciseType,
+            target: targetNum,
+            completedReps: reps,
+            durationSeconds: duration,
+            formScore: 95,
+            timestamp: new Date().toISOString(),
+            questId: questId ? parseInt(questId, 10) : undefined,
+          });
+        }
 
         await loadProfile();
 
