@@ -21,6 +21,7 @@ import {
   Radio,
   CheckCircle2,
   AlertTriangle,
+  Coins,
 } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useTheme } from '../../src/hooks/useTheme';
@@ -35,6 +36,7 @@ import { ManaCrystalIcon } from '../../src/components/ui/ManaCrystalIcon';
 import { AriseBannerAd } from '../../src/components/ads/AriseBannerAd';
 import { getRankForLevel } from '../../src/constants/ranks';
 import { gateSpawnService, SpawnedDungeonGate } from '../../src/services/gateSpawnService';
+import { supabase, isSupabaseConfigured } from '../../src/services/supabaseClient';
 
 export default function DungeonScreen() {
   const { colors, isDark } = useTheme();
@@ -152,6 +154,28 @@ export default function DungeonScreen() {
       refreshData();
     }, [loadProfile, refreshData])
   );
+
+  // Supabase Realtime live sync for crystal leaderboard
+  useEffect(() => {
+    if (!isSupabaseConfigured() || !supabase) return;
+
+    const channel = supabase
+      .channel('public:gates_crystal_leaderboard_live')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'crystal_leaderboard' },
+        () => {
+          refreshData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      if (supabase) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [refreshData]);
 
   // Hunter Association Radar Pulse scan
   const handleRadarPulse = async () => {
@@ -296,8 +320,8 @@ export default function DungeonScreen() {
                     <Text style={styles.redGateAlertPillText}>EMERGENCY RED GATE ACTIVE</Text>
                   </View>
                   <View style={styles.redGateBountyPill}>
-                    <ManaCrystalIcon size={14} color="#00D2EE" secondaryColor="#0284C7" />
-                    <Text style={styles.redGateBountyPillText}>+{activeRedGate.bountyCrystals} Crystals</Text>
+                    <Coins size={14} color="#F59E0B" />
+                    <Text style={[styles.redGateBountyPillText, { color: '#F59E0B' }]}>+{activeRedGate.bountyCoins} Coins</Text>
                   </View>
                 </View>
 

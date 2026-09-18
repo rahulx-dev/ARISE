@@ -1,8 +1,11 @@
 import { AppState } from 'react-native';
-import { supabase, isSupabaseConfigured, getCloudUserId } from './supabaseClient';
+import { supabase, isSupabaseConfigured, getCloudUserId, ensureAuthenticatedUser } from './supabaseClient';
 import { userRepository } from '../database/repositories/userRepository';
 import { payoutRepository } from '../database/repositories/payoutRepository';
 import { getRankForLevel } from '../constants/ranks';
+import { db } from '../database/client';
+import { userProfile } from '../database/schema';
+import { eq } from 'drizzle-orm';
 
 class SyncService {
   private isSyncing = false;
@@ -27,8 +30,7 @@ class SyncService {
   }
 
   /**
-   * Main sync method: Uploads local profile stats & pending payouts to Supabase
-   * and downloads latest payout statuses & rankings.
+   * Main sync method: Synchronizes local profile stats & retrieves authoritative cloud balance
    */
   async syncAll(): Promise<boolean> {
     if (!isSupabaseConfigured() || !supabase || this.isSyncing) {
@@ -45,49 +47,44 @@ class SyncService {
     this.lastSyncTime = now;
 
     try {
-      const cloudUserId = await getCloudUserId();
+      await ensureAuthenticatedUser();
       const profile = await userRepository.getProfile();
 
       if (profile) {
         const rankInfo = getRankForLevel(profile.level || 1);
         const userName = profile.displayName || 'Hunter';
-        const userCrystals = (profile as any).manaCrystals || 0;
+        const totalReps = ((profile.strength || 0) * 15) + ((profile.discipline || 0) * 20);
+        const totalXP = profile.totalXP || (profile.currentXP || 0);
 
-        // 1. Sync User Wallet / Profile to Supabase
-        const { error: walletError } = await supabase.from('user_wallets').upsert({
-          user_id: cloudUserId,
-          display_name: userName,
-          cloud_coins: profile.coins || 0,
-          total_earned: profile.totalXP || 0,
-          last_synced_at: new Date().toISOString(),
+        // 1. Call secure server-authoritative sync RPC
+        const { data: syncRes, error: syncErr } = await supabase.rpc('sync_hunter_profile_secure', {
+          p_display_name: userName,
+          p_avatar_icon: profile.avatarIcon || 'img_pfp_01',
+          p_level: profile.level || 1,
+          p_rank_code: rankInfo.rankCode,
+          p_title: rankInfo.title,
+          p_current_streak: profile.currentStreak || 0,
+          p_total_reps: totalReps,
+          p_total_xp: totalXP,
+          p_cloud_coins: profile.coins || 0,
         });
 
-        if (walletError) {
-          console.warn('[AutoSync] Wallet sync error:', walletError.message);
-        } else {
-          console.log('[AutoSync] Profile & coins synced to Supabase Cloud!');
-        }
-
-        // 2. Sync to crystal_leaderboard table for 100% authentic live leaderboard
-        const { error: crystalError } = await supabase.from('crystal_leaderboard').upsert({
-          user_id: cloudUserId,
-          name: userName,
-          avatar_icon: profile.avatarIcon || 'img_pfp_01',
-          rank_code: rankInfo.rankCode,
-          level: profile.level || 1,
-          crystals_mined: userCrystals,
-          title: rankInfo.title,
-          updated_at: new Date().toISOString(),
-        });
-
-        if (crystalError) {
-          console.warn('[AutoSync] Crystal leaderboard sync error:', crystalError.message);
-        } else {
-          console.log('[AutoSync] Crystal leaderboard live synced!');
+        if (syncErr) {
+          console.warn('[AutoSync] Server profile sync error:', syncErr.message);
+        } else if (syncRes && syncRes.success) {
+          const authCrystals = Number(syncRes.authoritative_mana_crystals);
+          // Apply authoritative cloud crystal balance to local SQLite cache
+          if (typeof authCrystals === 'number' && !isNaN(authCrystals)) {
+            await db
+              .update(userProfile)
+              .set({ manaCrystals: authCrystals } as any)
+              .where(eq(userProfile.id, profile.id));
+          }
+          console.log('[AutoSync] Profile & authoritative crystals synchronized!');
         }
       }
 
-      // 3. Refresh pending payout status from Cloud (e.g. PAID or REJECTED)
+      // 2. Refresh pending payout status from Cloud (e.g. PAID or REJECTED)
       await payoutRepository.getUserRequests();
 
       return true;
@@ -101,3 +98,4 @@ class SyncService {
 }
 
 export const syncService = new SyncService();
+

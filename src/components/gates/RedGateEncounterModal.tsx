@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -19,8 +19,8 @@ import {
   Clock,
   Sparkles,
   Swords,
+  Coins,
 } from 'lucide-react-native';
-import { ManaCrystalIcon } from '../ui/ManaCrystalIcon';
 import { RedGateEncounter, RedGateTrial } from '../../services/redGateService';
 import { useHaptics } from '../../hooks/useHaptics';
 import { useSound } from '../../hooks/useSound';
@@ -102,13 +102,13 @@ export function RedGateEncounterModal({
                 </View>
 
                 <View style={styles.vaultGrid}>
-                  {/* Mana Crystals Bounty */}
+                  {/* System Coins Bounty */}
                   <View style={styles.vaultCol}>
-                    <View style={styles.vaultIconWrap}>
-                      <ManaCrystalIcon size={18} color="#00D2EE" secondaryColor="#0284C7" />
+                    <View style={[styles.vaultIconWrap, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
+                      <Coins size={18} color="#F59E0B" />
                     </View>
-                    <Text style={styles.vaultValText}>+{encounter.bountyCrystals}</Text>
-                    <Text style={styles.vaultSubText}>Crystals (₹{Math.floor(encounter.bountyCrystals / 10)})</Text>
+                    <Text style={[styles.vaultValText, { color: '#F59E0B' }]}>+{encounter.bountyCoins}</Text>
+                    <Text style={styles.vaultSubText}>Coins</Text>
                   </View>
 
                   <View style={styles.vaultDivider} />

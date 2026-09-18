@@ -22,7 +22,7 @@ export interface RedGateEncounter {
   rankCode: string;
   expiresAt: number;
   isCleared: boolean;
-  bountyCrystals: number;
+  bountyCoins: number;
   rewardXP: number;
   unlockedTitle: string;
   trials: RedGateTrial[];
@@ -117,7 +117,7 @@ class RedGateService {
 
   /**
    * Spawns an Emergency Red Gate encounter (24-hour survival event)
-   * with Mega 750 Mana Crystal Bounty & High-Priority Red System Notification!
+   * with Mega 2,500 Coins Bounty & High-Priority Red System Notification!
    */
   async triggerEmergencyGate(force = false): Promise<RedGateEncounter> {
     const existing = await this.getActiveGate();
@@ -134,7 +134,7 @@ class RedGateService {
       rankCode: 'S',
       expiresAt: now + 24 * 60 * 60 * 1000,
       isCleared: false,
-      bountyCrystals: 750, // Mega Bounty!
+      bountyCoins: 2500, // Mega Coins Bounty!
       rewardXP: 2500, // Massive XP boost
       unlockedTitle: 'Red Gate Conqueror',
       trials: [
@@ -203,7 +203,7 @@ class RedGateService {
         await Notifications.scheduleNotificationAsync({
           content: {
             title: '🚨 [ EMERGENCY RED GATE DETECTED ]',
-            body: 'Atmospheric mana overload! Crimson Dimension Rift has materialized. 750 Mana Crystals Bounty active for 24h. Enter the trial now!',
+            body: 'Atmospheric mana overload! Crimson Dimension Rift has materialized. 2,500 Coins & 2,500 XP Bounty active for 24h. Enter the trial now!',
             color: '#FF1E44',
             sound: true,
             priority: Notifications.AndroidNotificationPriority.MAX,
@@ -219,7 +219,7 @@ class RedGateService {
       await notificationService.createNotification(
         'SYSTEM',
         '🚨 EMERGENCY RED GATE MATERIALIZED',
-        'Demon Monarch Baran has sealed the dimensional rift. 750 Mana Crystals & 2,500 XP mega bounty unlocked for 24 hours!',
+        'Demon Monarch Baran has sealed the dimensional rift. 2,500 Coins & 2,500 XP mega bounty unlocked for 24 hours!',
         gate.id
       );
 
@@ -230,11 +230,11 @@ class RedGateService {
   }
 
   /**
-   * Complete the Red Gate trial and award massive Mana Crystals & XP.
+   * Complete the Red Gate trial and award massive Coins & XP.
    */
   async claimVictory(trialId: string): Promise<{
     success: boolean;
-    crystalsAwarded: number;
+    coinsAwarded: number;
     rewardXP: number;
     title: string;
     error?: string;
@@ -242,22 +242,22 @@ class RedGateService {
     try {
       const active = await this.getActiveGate();
       if (!active) {
-        return { success: false, crystalsAwarded: 0, rewardXP: 0, title: '', error: 'No active Red Gate found.' };
+        return { success: false, coinsAwarded: 0, rewardXP: 0, title: '', error: 'No active Red Gate found.' };
       }
 
       if (active.isCleared) {
-        return { success: false, crystalsAwarded: 0, rewardXP: 0, title: '', error: 'Red Gate already conquered.' };
+        return { success: false, coinsAwarded: 0, rewardXP: 0, title: '', error: 'Red Gate already conquered.' };
       }
 
       active.isCleared = true;
       setKv(RED_GATE_STORAGE_KEY, JSON.stringify(active));
       setKv(RED_GATE_LAST_CLEARED_KEY, new Date().toISOString());
 
-      // Award Mega Mana Crystals
-      await crystalRepository.addCrystals(
-        active.bountyCrystals,
+      // Award In-Game Coins
+      await userRepository.addCoins(
+        active.bountyCoins,
         `Conquered Emergency Red Gate: ${active.threatName}`,
-        active.id
+        'quest'
       );
 
       // Award Massive System XP
@@ -269,12 +269,12 @@ class RedGateService {
 
       return {
         success: true,
-        crystalsAwarded: active.bountyCrystals,
+        coinsAwarded: active.bountyCoins,
         rewardXP: active.rewardXP,
         title: active.unlockedTitle,
       };
     } catch (e: any) {
-      return { success: false, crystalsAwarded: 0, rewardXP: 0, title: '', error: e?.message || 'Failed to claim victory' };
+      return { success: false, coinsAwarded: 0, rewardXP: 0, title: '', error: e?.message || 'Failed to claim victory' };
     }
   }
 

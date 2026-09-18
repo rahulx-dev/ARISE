@@ -63,9 +63,21 @@ export const supabase = client;
 const USER_DEVICE_ID_KEY = '@arise_user_cloud_id';
 
 /**
- * Get or generate a persistent device UUID for anonymous cloud sync
+ * Get or generate a persistent user UUID for authenticated cloud sync
  */
 export async function getCloudUserId(): Promise<string> {
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      const sessionRes = await supabase.auth.getSession();
+      if (sessionRes.data?.session?.user?.id) {
+        return sessionRes.data.session.user.id;
+      }
+      // If no active session, ensure anonymous auth session
+      const authId = await ensureAuthenticatedUser();
+      if (authId) return authId;
+    } catch {}
+  }
+
   try {
     let id = await sqliteStorage.getItem(USER_DEVICE_ID_KEY);
     if (!id) {
@@ -78,4 +90,36 @@ export async function getCloudUserId(): Promise<string> {
   } catch {
     return 'warrior_local_device';
   }
+}
+
+/**
+ * Ensures client has active authenticated / anonymous session
+ */
+export async function ensureAuthenticatedUser(): Promise<string> {
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      const { data } = await supabase.auth.getSession();
+      if (data?.session?.user?.id) {
+        await sqliteStorage.setItem(USER_DEVICE_ID_KEY, data.session.user.id);
+        return data.session.user.id;
+      }
+
+      // Create anonymous session so auth.uid() is populated on PostgreSQL
+      const signInRes = await supabase.auth.signInAnonymously();
+      if (signInRes.data?.user?.id) {
+        await sqliteStorage.setItem(USER_DEVICE_ID_KEY, signInRes.data.user.id);
+        return signInRes.data.user.id;
+      }
+
+      const currentUser = (await supabase.auth.getUser()).data?.user;
+      if (currentUser?.id) {
+        await sqliteStorage.setItem(USER_DEVICE_ID_KEY, currentUser.id);
+        return currentUser.id;
+      }
+    } catch (authErr) {
+      console.warn('[SupabaseAuth] Anonymous auth session note:', authErr);
+    }
+  }
+
+  return getCloudUserId();
 }

@@ -1,7 +1,7 @@
 import { db } from '../client';
 import { userProfile, crystalRedemption, crystalTransaction } from '../schema';
 import { eq, desc } from 'drizzle-orm';
-import { supabase, isSupabaseConfigured, getCloudUserId } from '../../services/supabaseClient';
+import { supabase, isSupabaseConfigured, getCloudUserId, ensureAuthenticatedUser } from '../../services/supabaseClient';
 import { getRankForLevel } from '../../constants/ranks';
 
 export interface CrystalRedemptionItem {
@@ -45,18 +45,75 @@ export const crystalRepository = {
   },
 
   /**
-   * Add Mana Crystals atomically from a conquered gate
+   * Add Mana Crystals atomically from a conquered gate or verified source
    */
   async addCrystals(
     amount: number,
     description: string,
-    gateId?: string
+    gateId?: string,
+    sourceId?: string,
+    source: string = 'gate_recon'
   ): Promise<{ success: boolean; newBalance: number }> {
     try {
       const records = await db.select().from(userProfile).limit(1);
       if (records.length === 0) return { success: false, newBalance: 0 };
 
       const profile = records[0];
+      let cloudUserId = 'default_user';
+      try {
+        cloudUserId = await ensureAuthenticatedUser();
+      } catch {}
+
+      const deterministicSourceId =
+        sourceId || (gateId ? `${source}:${gateId}:${cloudUserId}` : `manual:${Date.now()}:${cloudUserId}`);
+
+      // 1. If Supabase is connected, call server-authoritative RPC
+      if (isSupabaseConfigured() && supabase) {
+        try {
+          const rankInfo = getRankForLevel(profile.level || 1);
+          const { data: rpcRes, error: rpcErr } = await supabase.rpc('grant_crystals_secure', {
+            p_amount: amount,
+            p_source: source,
+            p_source_id: deterministicSourceId,
+            p_description: description,
+            p_user_name: profile.displayName || 'Warrior',
+            p_avatar_icon: profile.avatarIcon || 'img_pfp_01',
+            p_rank_code: rankInfo.rankCode,
+            p_level: profile.level || 1,
+            p_streak: profile.currentStreak || 0,
+            p_total_reps: ((profile.strength || 0) * 15) + ((profile.discipline || 0) * 20),
+            p_total_xp: profile.totalXP || (profile.currentXP || 0),
+          });
+
+          if (!rpcErr && rpcRes && rpcRes.success) {
+            const authoritativeBalance = Number(rpcRes.new_balance);
+
+            // Update local SQLite cache with authoritative server balance
+            await db
+              .update(userProfile)
+              .set({ manaCrystals: authoritativeBalance } as any)
+              .where(eq(userProfile.id, profile.id));
+
+            if (!rpcRes.already_processed) {
+              await db.insert(crystalTransaction).values({
+                amount,
+                type: 'earn',
+                description,
+                gateId: gateId ?? null,
+                timestamp: new Date().toISOString(),
+              });
+            }
+
+            return { success: true, newBalance: authoritativeBalance };
+          } else if (rpcErr) {
+            console.warn('[CrystalRPC] grant_crystals_secure error:', rpcErr.message);
+          }
+        } catch (cloudErr) {
+          console.warn('[CrystalRPC] Cloud RPC exception:', cloudErr);
+        }
+      }
+
+      // 2. Offline Fallback: Update local SQLite cache
       const currentCrystals = (profile as any).manaCrystals ?? 0;
       const newBalance = currentCrystals + amount;
 
@@ -72,35 +129,6 @@ export const crystalRepository = {
         gateId: gateId ?? null,
         timestamp: new Date().toISOString(),
       });
-
-      // Sync to Supabase Cloud crystal_leaderboard
-      if (isSupabaseConfigured() && supabase) {
-        try {
-          const cloudUserId = await getCloudUserId();
-          const rankInfo = getRankForLevel((profile as any).level ?? 1);
-          const userName = (profile as any).displayName || 'Hunter';
-
-          await supabase.from('crystal_leaderboard').upsert({
-            user_id: cloudUserId,
-            name: userName,
-            avatar_icon: (profile as any).avatarIcon || 'img_pfp_01',
-            rank_code: rankInfo.rankCode,
-            level: (profile as any).level ?? 1,
-            crystals_mined: newBalance,
-            title: rankInfo.title,
-            updated_at: new Date().toISOString(),
-          });
-
-          // Delete stale duplicate rows with same name but different user_id
-          await supabase
-            .from('crystal_leaderboard')
-            .delete()
-            .eq('name', userName)
-            .neq('user_id', cloudUserId);
-        } catch (cloudErr) {
-          console.warn('[CrystalCloudSync] Sync error:', cloudErr);
-        }
-      }
 
       return { success: true, newBalance };
     } catch (e) {
@@ -122,31 +150,6 @@ export const crystalRepository = {
         .update(userProfile)
         .set({ manaCrystals: 0 } as any)
         .where(eq(userProfile.id, profile.id));
-
-      if (isSupabaseConfigured() && supabase) {
-        try {
-          const cloudUserId = await getCloudUserId();
-          const userName = (profile as any).displayName || 'Hunter';
-          const rankInfo = getRankForLevel((profile as any).level ?? 1);
-
-          await supabase.from('crystal_leaderboard').upsert({
-            user_id: cloudUserId,
-            name: userName,
-            avatar_icon: (profile as any).avatarIcon || 'img_pfp_01',
-            rank_code: rankInfo.rankCode,
-            level: (profile as any).level ?? 1,
-            crystals_mined: 0,
-            title: rankInfo.title,
-            updated_at: new Date().toISOString(),
-          });
-
-          await supabase
-            .from('crystal_leaderboard')
-            .delete()
-            .eq('name', userName)
-            .neq('user_id', cloudUserId);
-        } catch {}
-      }
 
       return 0;
     } catch (e) {
@@ -204,6 +207,61 @@ export const crystalRepository = {
         return { success: false, error: 'Insufficient Mana Crystals' };
       }
 
+      // 1. Cloud-authoritative atomic redemption via RPC
+      if (isSupabaseConfigured() && supabase) {
+        try {
+          await ensureAuthenticatedUser();
+          const requestUuid = `redemption:${Date.now()}:${Math.random().toString(36).substring(2, 8)}`;
+          const { data: rpcRes, error: rpcErr } = await supabase.rpc('request_redemption_secure', {
+            p_amount_inr: params.amountInr,
+            p_crystals_spent: params.crystalsSpent,
+            p_method: params.method,
+            p_destination: params.destination,
+            p_request_uuid: requestUuid,
+          });
+
+          if (!rpcErr && rpcRes && rpcRes.success) {
+            const authoritativeBalance = Number(rpcRes.new_balance);
+
+            // Update local SQLite cache
+            const records = await db.select().from(userProfile).limit(1);
+            if (records.length > 0) {
+              await db
+                .update(userProfile)
+                .set({ manaCrystals: authoritativeBalance } as any)
+                .where(eq(userProfile.id, records[0].id));
+            }
+
+            await db.insert(crystalTransaction).values({
+              amount: params.crystalsSpent,
+              type: 'spend',
+              description: `Redemption: ₹${params.amountInr} via ${params.method}`,
+              gateId: null,
+              timestamp: new Date().toISOString(),
+            });
+
+            await db.insert(crystalRedemption).values({
+              userId: 'default_user',
+              amountInr: params.amountInr,
+              crystalsSpent: params.crystalsSpent,
+              method: params.method,
+              destination: params.destination,
+              status: 'PENDING',
+              createdAt: new Date().toISOString(),
+              paidAt: null,
+            });
+
+            return { success: true };
+          } else if (rpcErr || (rpcRes && !rpcRes.success)) {
+            const errMsg = rpcRes?.error || rpcErr?.message || 'Cloud redemption failed';
+            return { success: false, error: errMsg };
+          }
+        } catch (cloudErr: any) {
+          console.warn('[CrystalRedemption] RPC exception:', cloudErr);
+        }
+      }
+
+      // 2. Local Fallback if offline
       const spent = await this.spendCrystals(
         params.crystalsSpent,
         `Redemption: ₹${params.amountInr} via ${params.method}`
@@ -223,24 +281,6 @@ export const crystalRepository = {
         createdAt: new Date().toISOString(),
         paidAt: null,
       });
-
-      // Sync redemption to Supabase Cloud for Admin Dashboard
-      if (isSupabaseConfigured() && supabase) {
-        try {
-          const cloudUserId = await getCloudUserId();
-          await supabase.from('crystal_redemptions').insert({
-            user_id: cloudUserId,
-            amount_inr: params.amountInr,
-            crystals_spent: params.crystalsSpent,
-            method: params.method,
-            destination: params.destination,
-            status: 'PENDING',
-            created_at: new Date().toISOString(),
-          });
-        } catch (cloudErr) {
-          console.warn('[CrystalRedemptionCloudSync] Sync warning:', cloudErr);
-        }
-      }
 
       return { success: true };
     } catch (e) {
@@ -285,7 +325,7 @@ export const crystalRepository = {
 
   /**
    * Get Crystal Mining Hall of Fame Leaderboard from Supabase Cloud (Top 100)
-   * Strictly real hunters from Supabase database. Zero duplicates.
+   * Strictly real hunters from Supabase database. Deduplication strictly by user_id.
    */
   async getCrystalLeaderboard(
     currentUserCrystals: number,
@@ -302,12 +342,10 @@ export const crystalRepository = {
     const userLevel = records.length > 0 ? (records[0] as any).level ?? 1 : 1;
     const rankInfo = getRankForLevel(userLevel);
 
-    const normalizedCurrentName = (currentUserName || 'Hunter').trim().toLowerCase();
+    // Map strictly by user_id to avoid deleting or merging different hunters who share names
+    const userMap = new Map<string, CrystalLeaderboardHunter>();
 
-    // Map by normalized name to guarantee 100% deduplication
-    const nameMap = new Map<string, CrystalLeaderboardHunter>();
-
-    // Current user entry is always authoritative for their slot
+    // Current user entry
     const currentUserEntry: CrystalLeaderboardHunter = {
       id: cloudUserId,
       name: currentUserName || 'Warrior',
@@ -318,23 +356,10 @@ export const crystalRepository = {
       title: rankInfo.title,
       isCurrentUser: true,
     };
-    nameMap.set(normalizedCurrentName, currentUserEntry);
+    userMap.set(cloudUserId, currentUserEntry);
 
     if (isSupabaseConfigured() && supabase) {
       try {
-        // Clean any stale duplicate rows for current user in background
-        if (currentUserName) {
-          supabase
-            .from('crystal_leaderboard')
-            .delete()
-            .eq('name', currentUserName)
-            .neq('user_id', cloudUserId)
-            .then(
-              () => {},
-              () => {}
-            );
-        }
-
         const { data, error } = await supabase
           .from('crystal_leaderboard')
           .select('*')
@@ -343,30 +368,25 @@ export const crystalRepository = {
 
         if (!error && data && data.length > 0) {
           for (const row of data) {
-            const rowName = (row.name || 'Hunter').trim();
-            const normalizedRowName = rowName.toLowerCase();
-
-            // If this is current user (by ID or by name), skip (already added with local data)
-            if (row.user_id === cloudUserId || normalizedRowName === normalizedCurrentName) {
+            const uid = row.user_id || 'unknown';
+            if (uid === cloudUserId) {
+              // Current user is already set with authoritative local stats
               continue;
             }
 
             const crystals = Number(row.crystals_mined) || 0;
-            const existing = nameMap.get(normalizedRowName);
+            const rInfo = getRankForLevel(row.level || 1);
 
-            // Deduplicate: only store the highest crystal count for a unique hunter name
-            if (!existing || crystals > existing.crystalsMined) {
-              nameMap.set(normalizedRowName, {
-                id: row.user_id,
-                name: rowName,
-                rankCode: row.rank_code || 'E',
-                avatarIcon: row.avatar_icon || 'img_pfp_01',
-                level: row.level || 1,
-                crystalsMined: crystals,
-                title: row.title || 'Hunter',
-                isCurrentUser: false,
-              });
-            }
+            userMap.set(uid, {
+              id: uid,
+              name: (row.name || 'Hunter').trim(),
+              rankCode: row.rank_code || rInfo.rankCode,
+              avatarIcon: row.avatar_icon || 'img_pfp_01',
+              level: row.level || 1,
+              crystalsMined: crystals,
+              title: row.title || rInfo.title,
+              isCurrentUser: false,
+            });
           }
         }
       } catch (e) {
@@ -374,7 +394,7 @@ export const crystalRepository = {
       }
     }
 
-    const hunters = Array.from(nameMap.values());
+    const hunters = Array.from(userMap.values());
     hunters.sort((a, b) => b.crystalsMined - a.crystalsMined);
     return hunters.slice(0, 100);
   },

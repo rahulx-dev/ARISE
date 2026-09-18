@@ -702,7 +702,9 @@ class GateSpawnService {
       await crystalRepository.addCrystals(
         mission.hunterCrystals,
         `Cleared Gate Recon: ${mission.title}`,
-        gate.id
+        gate.id,
+        `recon:${gate.id}:${mission.id}`,
+        'gate_recon'
       );
 
       // Award System XP

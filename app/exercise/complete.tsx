@@ -52,7 +52,7 @@ export default function QuestCompleteScreen() {
   const loadProfile = usePlayerStore((s) => s.loadProfile);
 
   const [redGateVictory, setRedGateVictory] = useState<{
-    crystals: number;
+    coins: number;
     xp: number;
     title: string;
   } | null>(null);
@@ -85,7 +85,7 @@ export default function QuestCompleteScreen() {
           const res = await redGateService.claimVictory('exercise');
           if (res.success) {
             setRedGateVictory({
-              crystals: res.crystalsAwarded,
+              coins: res.coinsAwarded,
               xp: res.rewardXP,
               title: res.title,
             });
@@ -197,10 +197,10 @@ export default function QuestCompleteScreen() {
             </View>
             <Text style={styles.redGateTitleText}>SOVEREIGN MONARCH SLAIN</Text>
             <View style={styles.redGateRewardRow}>
-              <View style={styles.redGateRewardPill}>
-                <ManaCrystalIcon size={16} color="#00D2EE" secondaryColor="#0284C7" />
-                <Text style={styles.redGateRewardVal}>
-                  +{redGateVictory.crystals} Crystals (₹{Math.floor(redGateVictory.crystals / 10)})
+              <View style={[styles.redGateRewardPill, { borderColor: '#F59E0B', backgroundColor: 'rgba(245, 158, 11, 0.12)' }]}>
+                <AriseIcon name="coin" size={16} color={colors.accentGold} glowIntensity="none" />
+                <Text style={[styles.redGateRewardVal, { color: '#F59E0B' }]}>
+                  +{redGateVictory.coins} Coins
                 </Text>
               </View>
               <View style={[styles.redGateRewardPill, { borderColor: '#F59E0B', backgroundColor: 'rgba(245, 158, 11, 0.12)' }]}>

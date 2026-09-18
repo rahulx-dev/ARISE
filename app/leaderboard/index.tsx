@@ -42,6 +42,7 @@ import {
 } from '../../src/services/tournamentService';
 import { AVATAR_IMAGES } from '../../src/components/profile/AvatarPicker';
 import { AriseBannerAd } from '../../src/components/ads/AriseBannerAd';
+import { supabase, isSupabaseConfigured } from '../../src/services/supabaseClient';
 
 const { width } = Dimensions.get('window');
 
@@ -116,6 +117,28 @@ export default function LeaderboardScreen() {
       loadData();
     }, [loadData])
   );
+
+  // Supabase Realtime live sync
+  useEffect(() => {
+    if (!isSupabaseConfigured() || !supabase) return;
+
+    const channel = supabase
+      .channel('public:crystal_leaderboard_live')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'crystal_leaderboard' },
+        () => {
+          loadData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      if (supabase) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [loadData]);
 
   const topThree = entries.slice(0, 3);
   const remainder = entries.length >= 3 ? entries.slice(3) : entries;
