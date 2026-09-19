@@ -165,26 +165,28 @@ export default function HomeDashboard() {
         {/* 2. LEVEL & IDENTITY CARD */}
         <View style={[styles.levelCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.levelCardTop}>
-            <View style={[styles.levelBadge, { backgroundColor: 'rgba(229, 57, 53, 0.12)' }]}>
-              <Crown size={16} color={colors.primary} weight="fill" />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: '#FFF1F2', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#FFE4E6' }}>
+                <Crown size={20} color="#E53935" weight="fill" />
+              </View>
               <View>
-                <Text style={[styles.levelNumberText, { color: colors.primary }]}>Level {level}</Text>
-                <Text style={[styles.rankTagText, { color: colors.textSecondary }]}>{rank.rankCode}-Rank Hunter</Text>
+                <Text style={{ fontSize: 16, fontWeight: '900', color: colors.textPrimary }}>Level {level}</Text>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textSecondary }}>{rank.rankCode}-Rank Hunter</Text>
               </View>
             </View>
 
-            <Text style={[styles.xpCounterText, { color: colors.textSecondary }]}>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textSecondary }}>
               {currentXP} / {xpNeeded} XP  <Text style={{ color: colors.primary, fontWeight: '900' }}>{xpPercent}%</Text>
             </Text>
           </View>
 
           {/* XP Progress Bar */}
-          <View style={[styles.xpTrack, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#F3F4F6' }]}>
-            <View style={[styles.xpFill, { width: `${xpPercent}%`, backgroundColor: colors.primary }]} />
+          <View style={[styles.xpTrack, { backgroundColor: '#F3F4F6' }]}>
+            <View style={[styles.xpFill, { width: `${xpPercent}%`, backgroundColor: '#E53935' }]} />
           </View>
 
           {/* Quote Block */}
-          <View style={[styles.quoteBlock, { backgroundColor: isDark ? '#161824' : '#F9FAFB', borderColor: colors.border }]}>
+          <View style={[styles.quoteBlock, { backgroundColor: '#F9FAFB', borderColor: colors.border }]}>
             <Text style={[styles.quoteText, { color: colors.textSecondary }]}>
               “Small steps today, big changes tomorrow.”
             </Text>
@@ -209,7 +211,7 @@ export default function HomeDashboard() {
 
           {/* Metric 2: Reps Today */}
           <View style={[styles.metricCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={[styles.metricCircle, { backgroundColor: 'rgba(16, 185, 129, 0.12)' }]}>
+            <View style={[styles.metricCircle, { backgroundColor: '#ECFDF5' }]}>
               <Barbell size={20} color="#10B981" weight="fill" />
             </View>
             <Text style={[styles.metricValueText, { color: colors.textPrimary }]}>125</Text>
@@ -218,7 +220,7 @@ export default function HomeDashboard() {
 
           {/* Metric 3: Focus Time */}
           <View style={[styles.metricCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={[styles.metricCircle, { backgroundColor: 'rgba(10, 132, 255, 0.12)' }]}>
+            <View style={[styles.metricCircle, { backgroundColor: '#EFF6FF' }]}>
               <Timer size={20} color="#0A84FF" weight="fill" />
             </View>
             <Text style={[styles.metricValueText, { color: colors.textPrimary }]}>2h 30m</Text>
@@ -278,8 +280,8 @@ export default function HomeDashboard() {
 
             {/* Quest 3 */}
             <View style={styles.questRow}>
-              <View style={[styles.questCheckCircle, { borderColor: colors.border }]}>
-                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.primary }} />
+              <View style={[styles.questCheckCircle, { borderColor: '#E5E7EB', backgroundColor: '#FFFFFF' }]}>
+                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#E53935' }} />
               </View>
               <Text style={[styles.questTitleText, { color: colors.textPrimary }]}>No social media (2h)</Text>
               <View style={styles.questBountyTag}>
@@ -297,8 +299,8 @@ export default function HomeDashboard() {
             }}
             activeOpacity={0.7}
           >
-            <Text style={[styles.viewAllQuestsText, { color: colors.primary }]}>View All Quests</Text>
-            <ArrowRight size={13} color={colors.primary} />
+            <Text style={[styles.viewAllQuestsText, { color: '#E53935' }]}>View All Quests</Text>
+            <ArrowRight size={13} color="#E53935" />
           </TouchableOpacity>
         </View>
 
@@ -308,47 +310,47 @@ export default function HomeDashboard() {
           <View style={styles.quickActionsRow}>
             {/* Action 1: Workout */}
             <TouchableOpacity
-              style={[styles.quickActionBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+              style={[styles.quickActionBtn, { backgroundColor: '#FFF1F2', borderColor: '#FFE4E6' }]}
               onPress={() => {
                 haptics.light();
                 router.push('/exercise/pushup' as any);
               }}
               activeOpacity={0.8}
             >
-              <View style={[styles.quickActionIconCircle, { backgroundColor: 'rgba(229, 57, 53, 0.12)' }]}>
-                <Barbell size={20} color={colors.primary} weight="fill" />
+              <View style={[styles.quickActionIconCircle, { backgroundColor: '#FFE4E6' }]}>
+                <Barbell size={22} color="#E53935" weight="fill" />
               </View>
-              <Text style={[styles.quickActionBtnText, { color: colors.textPrimary }]}>Workout</Text>
+              <Text style={[styles.quickActionBtnText, { color: '#E53935' }]}>Workout</Text>
             </TouchableOpacity>
 
             {/* Action 2: Focus */}
             <TouchableOpacity
-              style={[styles.quickActionBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+              style={[styles.quickActionBtn, { backgroundColor: '#EFF6FF', borderColor: '#DBEAFE' }]}
               onPress={() => {
                 haptics.light();
                 router.push('/(tabs)/focus' as any);
               }}
               activeOpacity={0.8}
             >
-              <View style={[styles.quickActionIconCircle, { backgroundColor: 'rgba(10, 132, 255, 0.12)' }]}>
-                <Timer size={20} color="#0A84FF" weight="fill" />
+              <View style={[styles.quickActionIconCircle, { backgroundColor: '#DBEAFE' }]}>
+                <Timer size={22} color="#0A84FF" weight="fill" />
               </View>
-              <Text style={[styles.quickActionBtnText, { color: colors.textPrimary }]}>Focus</Text>
+              <Text style={[styles.quickActionBtnText, { color: '#0A84FF' }]}>Focus</Text>
             </TouchableOpacity>
 
             {/* Action 3: Shop */}
             <TouchableOpacity
-              style={[styles.quickActionBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+              style={[styles.quickActionBtn, { backgroundColor: '#FEFCE8', borderColor: '#FEF08A' }]}
               onPress={() => {
                 haptics.light();
                 router.push('/shop' as any);
               }}
               activeOpacity={0.8}
             >
-              <View style={[styles.quickActionIconCircle, { backgroundColor: 'rgba(245, 158, 11, 0.12)' }]}>
-                <ShoppingBag size={20} color="#F59E0B" weight="fill" />
+              <View style={[styles.quickActionIconCircle, { backgroundColor: '#FEF08A' }]}>
+                <ShoppingBag size={22} color="#D97706" weight="fill" />
               </View>
-              <Text style={[styles.quickActionBtnText, { color: colors.textPrimary }]}>Shop</Text>
+              <Text style={[styles.quickActionBtnText, { color: '#D97706' }]}>Shop</Text>
             </TouchableOpacity>
           </View>
         </View>
