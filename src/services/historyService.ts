@@ -259,10 +259,13 @@ class HistoryService {
       }
 
       let completedQuests = 0;
-      const totalQuests = quests.length;
+      let totalQuests = 0;
       for (const q of quests) {
-        if (q.completed === 1) {
-          completedQuests += 1;
+        if (q.date === todayIso || q.frequency === 'DAILY' || (q.createdAt && q.createdAt.startsWith(todayIso))) {
+          totalQuests += 1;
+          if (q.completed === 1) {
+            completedQuests += 1;
+          }
         }
       }
 

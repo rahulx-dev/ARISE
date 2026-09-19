@@ -1,7 +1,7 @@
-import { create } from 'zustand';
-import { CoinTransaction } from '../types';
-import { coinRepository } from '../database/repositories/coinRepository';
-import { usePlayerStore } from './usePlayerStore';
+import { create } from "zustand";
+import { CoinTransaction } from "../types";
+import { coinRepository } from "../database/repositories/coinRepository";
+import { usePlayerStore } from "./usePlayerStore";
 
 interface CoinState {
   transactions: CoinTransaction[];
@@ -20,10 +20,10 @@ export const useCoinStore = create<CoinState>((set, get) => ({
     try {
       const records = await coinRepository.getTransactions(limit);
       set({
-        transactions: records.map((r) => ({
+        transactions: records.map((r: any) => ({
           id: r.id,
           amount: r.amount,
-          type: r.type as 'earn' | 'spend',
+          type: r.type as "earn" | "spend",
           description: r.description,
           source: r.source,
           timestamp: r.timestamp,
@@ -31,7 +31,7 @@ export const useCoinStore = create<CoinState>((set, get) => ({
         isLoading: false,
       });
     } catch (error) {
-      console.error('Failed to load transactions', error);
+      console.error("Failed to load transactions", error);
       set({ isLoading: false });
     }
   },
@@ -46,10 +46,10 @@ export const useCoinStore = create<CoinState>((set, get) => ({
     try {
       const records = await coinRepository.getTransactionsByDate(date);
       set({
-        transactions: records.map((r) => ({
+        transactions: records.map((r: any) => ({
           id: r.id,
           amount: r.amount,
-          type: r.type as 'earn' | 'spend',
+          type: r.type as "earn" | "spend",
           description: r.description,
           source: r.source,
           timestamp: r.timestamp,
@@ -57,7 +57,7 @@ export const useCoinStore = create<CoinState>((set, get) => ({
         isLoading: false,
       });
     } catch (error) {
-      console.error('Failed to load transactions by date', error);
+      console.error("Failed to load transactions by date", error);
       set({ isLoading: false });
     }
   },

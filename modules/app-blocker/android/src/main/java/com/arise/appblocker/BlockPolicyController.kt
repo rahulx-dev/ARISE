@@ -3,7 +3,6 @@ package com.arise.appblocker
 import android.content.Context
 import android.util.Log
 import java.util.Calendar
-import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
 enum class LockState {
@@ -158,7 +157,6 @@ object BlockPolicyController {
 
         activePolicies[packageName] = policy
 
-        // Log structured audit log
         Log.i(
             TAG_BLOCKER,
             "[ARISE_BLOCKER] package=" + packageName +

@@ -1,6 +1,6 @@
 import { db } from '../client';
 import { payoutRequest } from '../schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 import { userRepository } from './userRepository';
 import { supabase, isSupabaseConfigured, getCloudUserId } from '../../services/supabaseClient';
 
@@ -29,52 +29,38 @@ export const payoutRepository = {
     sponsorPassesUsed: number = 0
   ): Promise<PayoutResult> {
     try {
-      // 1. Strict amount limits validation (Phase 6: Min ₹29, Max ₹1000)
-      if (typeof amountInr !== 'number' || isNaN(amountInr) || !isFinite(amountInr)) {
-        return { success: false, error: 'Invalid cashout amount.' };
-      }
-      if (amountInr < 29 || amountInr > 1000) {
-        return { success: false, error: 'Cashout amount must be between ₹29 and ₹1,000.' };
-      }
-      if (typeof coinsSpent !== 'number' || isNaN(coinsSpent) || coinsSpent <= 0) {
-        return { success: false, error: 'Invalid coins amount.' };
+      const trimmedUpi = upiId.trim();
+
+      // 1. Basic validation
+      if (!trimmedUpi || !trimmedUpi.includes('@')) {
+        return { success: false, error: 'Invalid UPI ID format. Must contain @ (e.g. name@upi)' };
       }
 
-      // 2. UPI format validation
-      const trimmedUpi = upiId?.trim();
-      if (!trimmedUpi || !trimmedUpi.includes('@') || trimmedUpi.length < 5) {
-        return { success: false, error: 'Please enter a valid UPI ID (e.g. name@upi).' };
+      if (amountInr <= 0 || coinsSpent <= 0) {
+        return { success: false, error: 'Invalid payout amount.' };
       }
 
-      // 3. User balance verification
+      // 2. Fetch fresh user profile
       const user = await userRepository.getProfile();
       if (!user) {
-        return { success: false, error: 'Hunter profile not found.' };
-      }
-      if (user.coins < coinsSpent) {
-        return {
-          success: false,
-          error: `Insufficient Coins. You need ${coinsSpent.toLocaleString()} Coins (Current: ${user.coins.toLocaleString()}).`,
-        };
-      }
-      if ((user.sponsorPasses ?? 0) < sponsorPassesUsed) {
-        return { success: false, error: 'Insufficient sponsor passes.' };
+        return { success: false, error: 'User profile not found.' };
       }
 
-      // 4. Duplicate pending check
-      const recentPending = await db
+      // 3. Verify balance
+      if (user.coins < coinsSpent) {
+        return { success: false, error: `Insufficient coins. You have ${user.coins.toLocaleString()} coins, but need ${coinsSpent.toLocaleString()}.` };
+      }
+
+      // 4. Rate-limit check: Only 1 pending request at a time
+      const pendingRequests = await db
         .select()
         .from(payoutRequest)
-        .where(eq(payoutRequest.status, 'PENDING'))
-        .limit(20);
+        .where(eq(payoutRequest.status, 'PENDING'));
 
-      const isDuplicate = recentPending.some(
-        (r) => r.upiId.toLowerCase() === trimmedUpi.toLowerCase() && r.amountInr === amountInr
-      );
-      if (isDuplicate) {
+      if (pendingRequests.length > 0) {
         return {
           success: false,
-          error: 'A pending cashout request for this amount and UPI ID already exists.',
+          error: 'You already have a pending withdrawal request under review. Please wait for it to be processed before submitting another.',
         };
       }
 
@@ -94,6 +80,8 @@ export const payoutRepository = {
         await userRepository.consumeSponsorPasses(sponsorPassesUsed);
       }
 
+      const createdAt = new Date().toISOString();
+
       // 7. Insert into local SQLite
       await db.insert(payoutRequest).values({
         amountInr,
@@ -101,7 +89,7 @@ export const payoutRepository = {
         upiId: trimmedUpi,
         sponsorPassesUsed,
         status: 'PENDING',
-        createdAt: new Date().toISOString(),
+        createdAt,
       });
 
       // 8. Sync to Supabase Cloud Database (Live Admin Dashboard)
@@ -115,6 +103,7 @@ export const payoutRepository = {
             coins_spent: coinsSpent,
             upi_id: trimmedUpi,
             status: 'PENDING',
+            created_at: createdAt,
           });
 
           if (error) {
@@ -148,16 +137,20 @@ export const payoutRepository = {
 
           if (data && data.length > 0) {
             for (const item of data) {
+              const condition = item.created_at
+                ? and(eq(payoutRequest.upiId, item.upi_id), eq(payoutRequest.createdAt, item.created_at))
+                : and(eq(payoutRequest.upiId, item.upi_id), eq(payoutRequest.amountInr, Number(item.amount_inr)));
+
               if (item.status === 'PAID') {
                 await db
                   .update(payoutRequest)
                   .set({ status: 'PAID', paidAt: item.paid_at })
-                  .where(eq(payoutRequest.upiId, item.upi_id));
+                  .where(condition);
               } else if (item.status === 'REJECTED') {
                 await db
                   .update(payoutRequest)
                   .set({ status: 'REJECTED' })
-                  .where(eq(payoutRequest.upiId, item.upi_id));
+                  .where(condition);
               }
             }
           }

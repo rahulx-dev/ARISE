@@ -9,7 +9,7 @@ import {
   Animated,
   Easing,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle as SvgCircle, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import {
@@ -40,13 +40,15 @@ const DURATION_PRESETS = [15, 25, 45, 60];
 export default function FocusModeScreen() {
   useKeepAwake();
   const router = useRouter();
+  const params = useLocalSearchParams<{ questId?: string; targetMinutes?: string }>();
   const sound = useSound();
   const haptics = useHaptics();
   const { colors, isDark } = useTheme();
   const profile = usePlayerStore((s) => s.profile);
 
-  const [targetMinutes, setTargetMinutes] = useState<number>(25);
-  const [remainingMs, setRemainingMs] = useState<number>(25 * 60 * 1000);
+  const initialMinutes = params.targetMinutes ? parseInt(params.targetMinutes, 10) || 25 : 25;
+  const [targetMinutes, setTargetMinutes] = useState<number>(initialMinutes);
+  const [remainingMs, setRemainingMs] = useState<number>(initialMinutes * 60 * 1000);
   const [isActive, setIsActive] = useState<boolean>(false);
   const [isAudioSheetOpen, setIsAudioSheetOpen] = useState<boolean>(false);
   const [isPresetSheetOpen, setIsPresetSheetOpen] = useState<boolean>(false);
@@ -256,6 +258,7 @@ export default function FocusModeScreen() {
         earnedCoins: coinsEarned.toString(),
         earnedXP: xpEarned.toString(),
         durationSeconds: (targetMinutes * 60).toString(),
+        ...(params.questId ? { questId: params.questId } : {}),
       },
     });
   };

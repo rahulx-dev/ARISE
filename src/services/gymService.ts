@@ -1,4 +1,4 @@
-import { db } from '../database/client';
+import { db } from "../database/client";
 import {
   workoutPreferences,
   workoutPlans,
@@ -8,8 +8,8 @@ import {
   workoutSets,
   personalRecords,
   exerciseSession,
-} from '../database/schema';
-import { eq, desc, and } from 'drizzle-orm';
+} from "../database/schema";
+import { eq, desc, and } from "drizzle-orm";
 import {
   WorkoutPreferences,
   WorkoutPlan,
@@ -18,12 +18,12 @@ import {
   ActiveWorkoutSession,
   WorkoutSetLog,
   PersonalRecord,
-} from '../types/gym';
-import { WorkoutEngine } from '../gym/workoutEngine';
-import { coinService } from './coinService';
-import { progressionService } from './progressionService';
-import { questService } from './questService';
-import { notificationService } from './notificationService';
+} from "../types/gym";
+import { WorkoutEngine } from "../gym/workoutEngine";
+import { coinService } from "./coinService";
+import { progressionService } from "./progressionService";
+import { questService } from "./questService";
+import { notificationService } from "./notificationService";
 
 export class GymService {
   /**
@@ -47,9 +47,9 @@ export class GymService {
 
     // Default fallback
     return {
-      goal: 'strength',
-      experience: 'beginner',
-      equipment: 'full_gym',
+      goal: "strength",
+      experience: "beginner",
+      equipment: "full_gym",
       daysPerWeek: 4,
       workoutDurationMinutes: 45,
       createdAt: new Date().toISOString(),
@@ -60,7 +60,9 @@ export class GymService {
   /**
    * Saves or updates workout preferences and regenerates the active weekly plan.
    */
-  async savePreferences(prefs: Omit<WorkoutPreferences, 'createdAt' | 'updatedAt'>): Promise<WorkoutPlan> {
+  async savePreferences(
+    prefs: Omit<WorkoutPreferences, "createdAt" | "updatedAt">,
+  ): Promise<WorkoutPlan> {
     const now = new Date().toISOString();
     const existing = await db.select().from(workoutPreferences).limit(1);
 
@@ -104,7 +106,10 @@ export class GymService {
     const generated = WorkoutEngine.generateWeeklyPlan(prefs);
 
     // Deactivate existing plans
-    await db.update(workoutPlans).set({ isActive: 0 }).where(eq(workoutPlans.isActive, 1));
+    await db
+      .update(workoutPlans)
+      .set({ isActive: 0 })
+      .where(eq(workoutPlans.isActive, 1));
 
     // Insert new plan
     const insertedPlan = await db
@@ -201,7 +206,7 @@ export class GymService {
         .from(workoutExercises)
         .where(eq(workoutExercises.dayId, d.id));
 
-      const exercises: WorkoutExerciseItem[] = exRows.map((e) => ({
+      const exercises: WorkoutExerciseItem[] = exRows.map((e: any) => ({
         id: e.id.toString(),
         exerciseId: e.exerciseId,
         exerciseName: e.exerciseName,
@@ -218,7 +223,7 @@ export class GymService {
         planId: d.planId,
         dayOfWeek: d.dayOfWeek,
         dayName: d.dayName,
-        targetMuscleGroups: JSON.parse(d.targetMuscleGroups || '[]'),
+        targetMuscleGroups: JSON.parse(d.targetMuscleGroups || "[]"),
         isRestDay: d.isRestDay === 1,
         exercises,
       });
@@ -250,12 +255,16 @@ export class GymService {
   /**
    * Starts or resumes a workout session.
    */
-  async startOrResumeSession(planId: number, dayId: number, title: string): Promise<ActiveWorkoutSession> {
+  async startOrResumeSession(
+    planId: number,
+    dayId: number,
+    title: string,
+  ): Promise<ActiveWorkoutSession> {
     // Check if there is an active session
     const active = await db
       .select()
       .from(workoutSessions)
-      .where(eq(workoutSessions.status, 'ACTIVE'))
+      .where(eq(workoutSessions.status, "ACTIVE"))
       .limit(1);
 
     if (active.length > 0) {
@@ -272,13 +281,13 @@ export class GymService {
         title: s.title,
         startTime: s.startTime,
         durationSeconds: s.durationSeconds,
-        status: 'ACTIVE',
+        status: "ACTIVE",
         totalVolumeKg: s.totalVolumeKg,
         totalReps: s.totalReps,
         totalSets: s.totalSets,
         rewardCoins: s.rewardCoins,
         rewardXP: s.rewardXP,
-        sets: setRows.map((sr) => ({
+        sets: setRows.map((sr: any) => ({
           id: sr.id,
           sessionId: sr.sessionId,
           exerciseId: sr.exerciseId,
@@ -301,7 +310,7 @@ export class GymService {
         dayId,
         title,
         startTime: new Date().toISOString(),
-        status: 'ACTIVE',
+        status: "ACTIVE",
         totalVolumeKg: 0,
         totalReps: 0,
         totalSets: 0,
@@ -317,7 +326,7 @@ export class GymService {
       title,
       startTime: inserted[0].startTime,
       durationSeconds: 0,
-      status: 'ACTIVE',
+      status: "ACTIVE",
       totalVolumeKg: 0,
       totalReps: 0,
       totalSets: 0,
@@ -337,7 +346,7 @@ export class GymService {
     setNumber: number,
     targetReps: number,
     completedReps: number,
-    weightKg: number
+    weightKg: number,
   ): Promise<{ setLog: WorkoutSetLog; isNewPR: boolean }> {
     const timestamp = new Date().toISOString();
 
@@ -356,7 +365,12 @@ export class GymService {
       })
       .returning();
 
-    const isNewPR = await this.checkAndRecordPR(exerciseId, exerciseName, weightKg, completedReps);
+    const isNewPR = await this.checkAndRecordPR(
+      exerciseId,
+      exerciseName,
+      weightKg,
+      completedReps,
+    );
 
     return {
       setLog: {
@@ -382,21 +396,26 @@ export class GymService {
     exerciseId: string,
     exerciseName: string,
     weightKg: number,
-    reps: number
+    reps: number,
   ): Promise<boolean> {
     if (weightKg <= 0 && reps <= 0) return false;
 
     const existingPRs = await db
       .select()
       .from(personalRecords)
-      .where(and(eq(personalRecords.exerciseId, exerciseId), eq(personalRecords.recordType, 'MAX_WEIGHT')))
+      .where(
+        and(
+          eq(personalRecords.exerciseId, exerciseId),
+          eq(personalRecords.recordType, "MAX_WEIGHT"),
+        ),
+      )
       .limit(1);
 
     if (existingPRs.length === 0 || weightKg > existingPRs[0].weightKg) {
       await db.insert(personalRecords).values({
         exerciseId,
         exerciseName,
-        recordType: 'MAX_WEIGHT',
+        recordType: "MAX_WEIGHT",
         value: weightKg,
         weightKg,
         reps,
@@ -413,13 +432,16 @@ export class GymService {
    */
   async completeWorkoutSession(
     sessionId: number,
-    durationSeconds: number
+    durationSeconds: number,
   ): Promise<{ coinsEarned: number; xpEarned: number; totalVolumeKg: number }> {
-    const sets = await db.select().from(workoutSets).where(eq(workoutSets.sessionId, sessionId));
+    const sets = await db
+      .select()
+      .from(workoutSets)
+      .where(eq(workoutSets.sessionId, sessionId));
 
     let totalVolumeKg = 0;
     let totalReps = 0;
-    const completedSets = sets.filter((s) => s.completed === 1);
+    const completedSets = sets.filter((s: any) => s.completed === 1);
 
     for (const s of completedSets) {
       totalVolumeKg += (s.weightKg || 0) * (s.completedReps || 0);
@@ -439,7 +461,7 @@ export class GymService {
     await db
       .update(workoutSessions)
       .set({
-        status: 'COMPLETED',
+        status: "COMPLETED",
         endTime: now,
         durationSeconds,
         totalVolumeKg,
@@ -452,7 +474,7 @@ export class GymService {
 
     // Record in exercise_session for unified progress
     await db.insert(exerciseSession).values({
-      exerciseType: 'GYM_WORKOUT',
+      exerciseType: "GYM_WORKOUT",
       target: completedSets.length,
       completedReps: totalReps,
       durationSeconds,
@@ -461,14 +483,21 @@ export class GymService {
     });
 
     // Grant Coins & XP idempotently
-    await coinService.addCoins(coinsEarned, 'Completed Gym Workout', 'gym_workout');
+    await coinService.addCoins(
+      coinsEarned,
+      "Completed Gym Workout",
+      "gym_workout",
+    );
     await progressionService.addXP(xpEarned);
 
     // Check if daily quest exists for workout
     try {
       const todayQuests = await questService.getDailyQuests();
       const workoutQuest = todayQuests.find(
-        (q) => !q.completed && (q.category === 'strength' || q.category === 'fitness')
+        (q) =>
+          !q.completed &&
+          (q.category?.toUpperCase() === "STRENGTH" ||
+            q.category?.toUpperCase() === "FITNESS"),
       );
       if (workoutQuest) {
         await questService.completeQuest(workoutQuest.id);
@@ -477,9 +506,9 @@ export class GymService {
 
     // Send persistent notification
     await notificationService.createNotification(
-      'SYSTEM',
-      'Workout Crushed!',
-      `You earned +${coinsEarned} Coins and +${xpEarned} XP. Total volume: ${Math.round(totalVolumeKg)}kg.`
+      "SYSTEM",
+      "Workout Crushed!",
+      `You earned +${coinsEarned} Coins and +${xpEarned} XP. Total volume: ${Math.round(totalVolumeKg)}kg.`,
     );
 
     return { coinsEarned, xpEarned, totalVolumeKg };
@@ -495,7 +524,7 @@ export class GymService {
       .orderBy(desc(personalRecords.achievedAt))
       .limit(30);
 
-    return rows.map((r) => ({
+    return rows.map((r: any) => ({
       id: r.id,
       exerciseId: r.exerciseId,
       exerciseName: r.exerciseName,
@@ -510,15 +539,17 @@ export class GymService {
   /**
    * Retrieves past completed workout sessions.
    */
-  async getWorkoutHistory(limitCount: number = 20): Promise<ActiveWorkoutSession[]> {
+  async getWorkoutHistory(
+    limitCount: number = 20,
+  ): Promise<ActiveWorkoutSession[]> {
     const rows = await db
       .select()
       .from(workoutSessions)
-      .where(eq(workoutSessions.status, 'COMPLETED'))
+      .where(eq(workoutSessions.status, "COMPLETED"))
       .orderBy(desc(workoutSessions.startTime))
       .limit(limitCount);
 
-    return rows.map((r) => ({
+    return rows.map((r: any) => ({
       id: r.id,
       planId: r.planId || undefined,
       dayId: r.dayId || undefined,
@@ -526,7 +557,7 @@ export class GymService {
       startTime: r.startTime,
       endTime: r.endTime || undefined,
       durationSeconds: r.durationSeconds,
-      status: 'COMPLETED',
+      status: "COMPLETED",
       totalVolumeKg: r.totalVolumeKg,
       totalReps: r.totalReps,
       totalSets: r.totalSets,

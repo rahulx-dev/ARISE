@@ -1,4 +1,4 @@
-import { expoDb } from '../database/client.native';
+import { expoDb } from "../database/client";
 
 /**
  * Authoritative synchronous SQLite helper for startup state routing.
@@ -6,9 +6,9 @@ import { expoDb } from '../database/client.native';
  */
 export function getIsOnboardingCompleted(): boolean {
   try {
-    const row = expoDb.getFirstSync<{ onboarding_completed: number }>(
-      'SELECT onboarding_completed FROM settings LIMIT 1;'
-    );
+    const row = (expoDb as any).getFirstSync(
+      "SELECT onboarding_completed FROM settings LIMIT 1;",
+    ) as { onboarding_completed: number } | null;
     return row?.onboarding_completed === 1;
   } catch {
     return false;
@@ -20,6 +20,6 @@ export function setIsOnboardingCompletedSync(completed: boolean): void {
     const val = completed ? 1 : 0;
     expoDb.execSync(`UPDATE settings SET onboarding_completed = ${val};`);
   } catch (e) {
-    console.error('Failed to set onboarding completed sync:', e);
+    console.error("Failed to set onboarding completed sync:", e);
   }
 }

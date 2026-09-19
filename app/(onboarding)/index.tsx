@@ -8,7 +8,6 @@ import {
   TextInput,
   Image,
   ActivityIndicator,
-  Dimensions,
   Platform,
   AppState,
   Keyboard,
@@ -17,16 +16,16 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Camera } from 'expo-camera';
 import * as Notifications from 'expo-notifications';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 import {
   Shield,
   Zap,
   Flame,
-  Crown,
-  Swords,
-  Brain,
-  Target,
-  Dumbbell,
-  Trophy,
   User,
   Check,
   Sparkles,
@@ -36,45 +35,27 @@ import {
   Clock,
   Camera as CameraIcon,
   Bell,
-  Layers,
   Dices,
   Search,
+  ImagePlus,
 } from 'lucide-react-native';
 import { useSettingsStore } from '../../src/stores/useSettingsStore';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useSound } from '../../src/hooks/useSound';
+import { useTheme } from '../../src/hooks/useTheme';
 import { appBlockerService, InstalledAppItem } from '../../src/native';
 import { db } from '../../src/database/client';
 import { appRestriction } from '../../src/database/schema';
-import { GlassCard } from '../../src/components/ios/GlassCard';
-import { GlassButton } from '../../src/components/ios/GlassButton';
 import { AriseLogo } from '../../src/components/ui/AriseLogo';
-import { AVATAR_IMAGES, AVATAR_ICONS } from '../../src/components/profile/AvatarPicker';
+import { ALL_AVATARS, getAvatarSource } from '../../src/constants/avatars';
+import { HUNTER_ALIASES, getRandomHunterName } from '../../src/constants/names';
 import { getIsOnboardingCompleted, setIsOnboardingCompletedSync } from '../../src/services/appStateService';
 import { LanguageSelectorModal } from '../../src/components/ui/LanguageSelectorModal';
 import { useLanguageStore } from '../../src/services/i18n';
 import { Globe } from 'phosphor-react-native';
-import { colors } from '../../src/theme/colors';
 import * as ImagePicker from 'expo-image-picker';
 import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
-
-const { width } = Dimensions.get('window');
-
-const HUNTER_ALIASES = [
-  'SungJinWoo',
-  'ShadowMonarch',
-  'IronFang',
-  'Ashborne',
-  'VoidKnight',
-  'StormBreaker',
-  'NightStalker',
-  'FrostViper',
-  'AbyssHunter',
-  'TitanSlayer',
-  'GhostBlade',
-  'CrimsonReaper',
-];
 
 const APP_CATEGORIES = ['ALL', 'SOCIAL', 'GAMES', 'STREAMING'] as const;
 
@@ -86,6 +67,7 @@ export default function OnboardingScreen() {
   const router = useRouter();
   const haptics = useHaptics();
   const sound = useSound();
+  const { colors, isDark } = useTheme();
 
   const onboardingCompleted = useSettingsStore((s) => s.onboardingCompleted);
   const setOnboardingCompleted = useSettingsStore((s) => s.setOnboardingCompleted);
@@ -93,18 +75,38 @@ export default function OnboardingScreen() {
   const updateProfile = usePlayerStore((s) => s.updateProfile);
 
   // 3-Step Flow:
-  // 1: Name Creation & Avatar
-  // 2: 5-in-1 Unified Permissions Gate
-  // 3: Time Set + Distraction Apps
+  // 1: Profile & Name
+  // 2: Core Permissions
+  // 3: Daily Goals & Distraction Apps
   const [step, setStep] = useState<number>(1);
   const totalSteps = 3;
 
   // Step 1: Identity States
   const [userName, setUserName] = useState<string>('');
   const [nameError, setNameError] = useState<string>('');
-  const [selectedAvatar, setSelectedAvatar] = useState<string>('img_pfp_01');
+  const [selectedAvatar, setSelectedAvatar] = useState<string>('pfp_01');
   const [customPhotoUri, setCustomPhotoUri] = useState<string | null>(null);
-  const [avatarTab, setAvatarTab] = useState<'images' | 'icons'>('images');
+  const [isInputFocused, setIsInputFocused] = useState<boolean>(false);
+
+  // Animated Dice Rotation
+  const diceRotation = useSharedValue(0);
+  const animatedDiceStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ rotate: `${diceRotation.value}deg` }],
+    };
+  });
+
+  const handleRollDice = () => {
+    haptics.light();
+    sound.play('coin_earn');
+    diceRotation.value = withTiming(diceRotation.value + 360, {
+      duration: 400,
+      easing: Easing.out(Easing.cubic),
+    });
+    const randomName = getRandomHunterName();
+    setUserName(randomName);
+    setNameError('');
+  };
 
   // Step 2: 5 Core Permissions
   const [usageGranted, setUsageGranted] = useState<boolean>(false);
@@ -338,25 +340,28 @@ export default function OnboardingScreen() {
     }
   };
 
-  const getSelectedAvatarSource = () => {
+  const handleGoogleSignIn = async () => {
+    haptics.medium();
+    showIOSAlert('Google Sign-In', 'Connecting to Google Authentication...');
+  };
+
+  const getSelectedAvatar = () => {
     if (selectedAvatar === 'custom' && customPhotoUri) {
       return { type: 'custom' as const, uri: customPhotoUri };
     }
-    const imgObj = AVATAR_IMAGES.find((img) => img.id === selectedAvatar);
-    if (imgObj) return { type: 'image' as const, source: imgObj.source };
-    return { type: 'icon' as const, iconName: selectedAvatar };
+    return { type: 'image' as const, source: getAvatarSource(selectedAvatar) };
   };
 
   const handleNext = () => {
     Keyboard.dismiss();
     haptics.medium();
 
-    // Step 1 Validation: Hunter Name is strictly required
+    // Step 1 Validation: Name is required
     if (step === 1) {
       const trimmed = userName.trim();
       if (!trimmed || trimmed.length < 2) {
         haptics.warning();
-        setNameError('Please enter your Hunter Callsign (minimum 2 characters)');
+        setNameError('Please enter your name (at least 2 characters)');
         return;
       }
       setNameError('');
@@ -382,7 +387,7 @@ export default function OnboardingScreen() {
     const finalName = userName.trim();
     if (!finalName || finalName.length < 2) {
       setStep(1);
-      setNameError('Hunter Callsign is required to initialize protocol');
+      setNameError('Please enter your name to continue');
       return;
     }
 
@@ -443,7 +448,7 @@ export default function OnboardingScreen() {
     }
   };
 
-  const avatarInfo = getSelectedAvatarSource();
+  const currentAvatar = getSelectedAvatar();
 
   // Filter installed apps
   const filteredApps = installedApps.filter((a) => {
@@ -466,27 +471,27 @@ export default function OnboardingScreen() {
   });
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <SafeAreaView style={styles.safeArea}>
         {/* Top Header Progress Bar */}
-        <View style={styles.headerBar}>
+        <View style={[styles.headerBar, { borderBottomColor: colors.border }]}>
           <View style={styles.headerLeft}>
             {step > 1 ? (
               <TouchableOpacity
-                style={styles.iconBtn}
+                style={[styles.iconBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
                 onPress={() => {
                   haptics.light();
                   setStep((prev) => prev - 1);
                 }}
                 activeOpacity={0.8}
               >
-                <ArrowLeft size={18} color="#FFFFFF" />
+                <ArrowLeft size={18} color={colors.textPrimary} />
               </TouchableOpacity>
             ) : (
-              <AriseLogo size={32} glow />
+              <AriseLogo size={28} glow={false} />
             )}
-            <Text style={styles.headerStageText}>
-              PHASE {step} OF {totalSteps}
+            <Text style={[styles.headerStageText, { color: colors.primary }]}>
+              {step} / {totalSteps}
             </Text>
           </View>
 
@@ -497,25 +502,36 @@ export default function OnboardingScreen() {
                   key={s}
                   style={[
                     styles.stepDot,
-                    s <= step && styles.stepDotActive,
-                    s === step && styles.stepDotCurrent,
+                    { backgroundColor: colors.border },
+                    s <= step && { backgroundColor: colors.primary },
+                    s === step && { width: 22, backgroundColor: colors.primary },
                   ]}
                 />
               ))}
             </View>
 
             <TouchableOpacity
-              style={styles.langPickerPill}
+              style={[styles.langPickerPill, { backgroundColor: colors.card, borderColor: colors.border }]}
               onPress={() => {
                 haptics.light();
                 setShowLangModal(true);
               }}
               activeOpacity={0.8}
             >
-              <Globe size={13} color="#0284C7" />
-              <Text style={styles.langPickerText}>
+              <Globe size={13} color={colors.primary} />
+              <Text style={[styles.langPickerText, { color: colors.primary }]}>
                 {currentLang === 'hi' ? 'हिंदी' : 'EN'}
               </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                haptics.light();
+                if (step < 3) setStep((s) => s + 1);
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.skipText, { color: colors.textMuted }]}>Skip</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -525,89 +541,70 @@ export default function OnboardingScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="always"
         >
-          {/* ================= STEP 1: IDENTITY & NAME CREATION ================= */}
+          {/* ================= STEP 1: CLEAN PROFILE & NAME ================= */}
           {step === 1 && (
             <View style={styles.stepContainer}>
-              <View style={styles.heroBadge}>
-                <Sparkles size={14} color="#0284C7" />
-                <Text style={styles.heroBadgeText}>[ MONARCH IDENTITY ]</Text>
-              </View>
-
-              <Text style={styles.heroTitle}>HUNTER AWAKENING</Text>
-              <Text style={styles.heroSubtitle}>
-                Establish your vessel callsign and awaken your avatar to initiate system directives.
+              <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>Welcome to ARISE</Text>
+              <Text style={[styles.heroSubtitle, { color: colors.textSecondary }]}>
+                A stronger mind. A healthier you. A better tomorrow.
               </Text>
 
-              {/* Holographic Identity Card Live Preview */}
-              <GlassCard variant="glow" style={styles.holographicCard}>
-                <View style={styles.holoTopRow}>
-                  <View style={styles.holoAvatarWrapper}>
-                    {avatarInfo.type === 'custom' && avatarInfo.uri ? (
-                      <Image source={{ uri: avatarInfo.uri }} style={styles.holoAvatarImg} />
-                    ) : avatarInfo.type === 'image' ? (
-                      <Image source={avatarInfo.source} style={styles.holoAvatarImg} />
-                    ) : (
-                      <View style={styles.holoAvatarFallback}>
-                        <User size={32} color="#0284C7" />
-                      </View>
-                    )}
-                    <View style={styles.onlinePill} />
-                  </View>
-
-                  <View style={styles.holoMeta}>
-                    <View style={styles.tagRow}>
-                      <Text style={styles.holoRankTag}>E-RANK • VESSEL RECOGNIZED</Text>
-                    </View>
-                    <Text style={styles.holoCallsignText} numberOfLines={1}>
-                      {userName.toUpperCase() || 'UNKNOWN HUNTER'}
-                    </Text>
-                    <Text style={styles.holoIdText}>ID: ARISE-001 // STATUS: AWAKENED</Text>
-                  </View>
-                </View>
-
-                {/* RPG Attributes Preview */}
-                <View style={styles.holoStatsGrid}>
-                  <View style={styles.holoStatBox}>
-                    <Text style={styles.holoStatLabel}>STR</Text>
-                    <Text style={[styles.holoStatVal, { color: '#0284C7' }]}>10</Text>
-                  </View>
-                  <View style={styles.holoStatBox}>
-                    <Text style={styles.holoStatLabel}>AGI</Text>
-                    <Text style={[styles.holoStatVal, { color: '#38BDF8' }]}>10</Text>
-                  </View>
-                  <View style={styles.holoStatBox}>
-                    <Text style={styles.holoStatLabel}>VIT</Text>
-                    <Text style={[styles.holoStatVal, { color: '#10B981' }]}>10</Text>
-                  </View>
-                </View>
-              </GlassCard>
-
-              {/* Callsign Input with Random Name Generator Dice */}
-              <View style={styles.inputGroup}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <Text style={styles.inputHeaderLabel}>HUNTER CALLSIGN *</Text>
+              {/* Big Centered Avatar Preview */}
+              <View style={styles.avatarCenterWrap}>
+                <View style={[styles.avatarMainCircle, { borderColor: colors.primary, backgroundColor: colors.card }]}>
+                  {currentAvatar.type === 'custom' && currentAvatar.uri ? (
+                    <Image source={{ uri: currentAvatar.uri }} style={styles.avatarMainImg} />
+                  ) : (
+                    <Image source={currentAvatar.source} style={styles.avatarMainImg} />
+                  )}
                   <TouchableOpacity
-                    style={styles.randomAliasBtn}
-                    onPress={() => {
-                      haptics.light();
-                      const randomName = HUNTER_ALIASES[Math.floor(Math.random() * HUNTER_ALIASES.length)];
-                      setUserName(randomName);
-                      setNameError('');
-                    }}
-                    activeOpacity={0.8}
+                    style={[styles.avatarCameraBadge, { backgroundColor: colors.primary }]}
+                    onPress={handleUploadCustomPhoto}
+                    activeOpacity={0.85}
                   >
-                    <Dices size={14} color="#0284C7" />
-                    <Text style={styles.randomAliasText}>AUTO ROLL</Text>
+                    <CameraIcon size={14} color="#FFFFFF" />
                   </TouchableOpacity>
                 </View>
+              </View>
 
-                <View style={[styles.textInputBox, !!nameError && { borderColor: '#EF4444', borderWidth: 1.5 }]}>
-                  <User size={18} color={nameError ? '#EF4444' : '#0284C7'} />
+              {/* Google 1-Tap Sign In */}
+              <TouchableOpacity
+                style={[styles.googleSignInBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+                onPress={handleGoogleSignIn}
+                activeOpacity={0.85}
+              >
+                <View style={styles.googleGLogo}>
+                  <Text style={styles.googleGText}>G</Text>
+                </View>
+                <Text style={[styles.googleSignInText, { color: colors.textPrimary }]}>
+                  Continue with Google
+                </Text>
+              </TouchableOpacity>
+
+              <View style={styles.dividerRow}>
+                <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+                <Text style={[styles.dividerText, { color: colors.textMuted }]}>or</Text>
+                <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+              </View>
+
+              {/* Name Input Box - Prominent & High Contrast */}
+              <View style={styles.inputGroupBlock}>
+                <Text style={[styles.cleanInputLabel, { color: colors.textSecondary }]}>Your Name</Text>
+                <View
+                  style={[
+                    styles.cleanTextInputBox,
+                    { backgroundColor: colors.card, borderColor: isInputFocused ? colors.primary : colors.border },
+                    !!nameError && { borderColor: colors.danger },
+                  ]}
+                >
+                  <User size={18} color={nameError ? colors.danger : isInputFocused ? colors.primary : colors.textMuted} />
                   <TextInput
-                    style={styles.textInputField}
-                    placeholder="Enter hunter name (e.g. SungJinWoo)..."
-                    placeholderTextColor="#64748B"
+                    style={[styles.cleanTextInputField, { color: colors.textPrimary }]}
+                    placeholder="Arjun"
+                    placeholderTextColor={colors.textMuted}
                     value={userName}
+                    onFocus={() => setIsInputFocused(true)}
+                    onBlur={() => setIsInputFocused(false)}
                     onChangeText={(t) => {
                       setUserName(t);
                       if (nameError && t.trim().length >= 2) {
@@ -619,304 +616,231 @@ export default function OnboardingScreen() {
                     returnKeyType="next"
                     onSubmitEditing={handleNext}
                   />
+                  <TouchableOpacity
+                    style={styles.diceBtnWrap}
+                    onPress={handleRollDice}
+                    activeOpacity={0.7}
+                  >
+                    <Animated.View style={animatedDiceStyle}>
+                      <Dices size={18} color={colors.primary} />
+                    </Animated.View>
+                  </TouchableOpacity>
                 </View>
-                {!!nameError && <Text style={styles.errorText}>{nameError}</Text>}
+                {!!nameError && <Text style={[styles.cleanErrorText, { color: colors.danger }]}>{nameError}</Text>}
               </View>
 
-              {/* Avatar Selector */}
-              <View style={styles.avatarPickerSection}>
-                <View style={styles.avatarSectionHeader}>
-                  <Text style={styles.inputHeaderLabel}>CHOOSE AVATAR</Text>
-                  <View style={styles.tabToggleRow}>
-                    <TouchableOpacity
-                      style={[styles.tabBtn, avatarTab === 'images' && styles.tabBtnActive]}
-                      onPress={() => setAvatarTab('images')}
-                    >
-                      <Text style={[styles.tabBtnText, avatarTab === 'images' && styles.tabBtnTextActive]}>
-                        HUNTERS
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.tabBtn, avatarTab === 'icons' && styles.tabBtnActive]}
-                      onPress={() => setAvatarTab('icons')}
-                    >
-                      <Text style={[styles.tabBtnText, avatarTab === 'icons' && styles.tabBtnTextActive]}>
-                        INSIGNIAS
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
+              {/* Choose Your Avatar (Hunters) */}
+              <View style={styles.avatarSectionBlock}>
+                <Text style={[styles.cleanInputLabel, { color: colors.textSecondary }]}>
+                  Choose Your Avatar (Hunters)
+                </Text>
 
-                {/* Avatar Horizontal Carousel */}
-                {avatarTab === 'images' ? (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.avatarScrollRow}>
-                    {AVATAR_IMAGES.map((item) => {
-                      const isSelected = selectedAvatar === item.id;
-                      return (
-                        <TouchableOpacity
-                          key={item.id}
-                          onPress={() => {
-                            haptics.light();
-                            setSelectedAvatar(item.id);
-                          }}
-                          style={[styles.avatarItemWrap, isSelected && styles.avatarItemWrapSelected]}
-                          activeOpacity={0.8}
-                        >
-                          <Image source={item.source} style={styles.avatarGridImg} />
-                          {isSelected && (
-                            <View style={styles.selectedCheckOverlay}>
-                              <Check size={14} color="#000000" strokeWidth={3} />
-                            </View>
-                          )}
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
-                ) : (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.avatarScrollRow}>
-                    {AVATAR_ICONS.map((item) => {
-                      const isSelected = selectedAvatar === item.id;
-                      const IconComponent = item.component;
-                      return (
-                        <TouchableOpacity
-                          key={item.id}
-                          onPress={() => {
-                            haptics.light();
-                            setSelectedAvatar(item.id);
-                          }}
-                          style={[styles.avatarItemWrap, styles.avatarIconItemWrap, isSelected && styles.avatarItemWrapSelected]}
-                          activeOpacity={0.8}
-                        >
-                          <IconComponent size={24} color={isSelected ? '#0284C7' : '#94A3B8'} />
-                          {isSelected && (
-                            <View style={styles.selectedCheckOverlay}>
-                              <Check size={14} color="#000000" strokeWidth={3} />
-                            </View>
-                          )}
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
-                )}
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.avatarScrollRow}
+                >
+                  {ALL_AVATARS.map((item) => {
+                    const isSelected = selectedAvatar === item.id;
+                    return (
+                      <TouchableOpacity
+                        key={item.id}
+                        onPress={() => {
+                          haptics.light();
+                          setSelectedAvatar(item.id);
+                        }}
+                        style={[
+                          styles.avatarItemWrap,
+                          { borderColor: colors.border },
+                          isSelected && { borderColor: colors.primary, borderWidth: 2.5 },
+                        ]}
+                        activeOpacity={0.8}
+                      >
+                        <Image source={item.source} style={styles.avatarGridImg} />
+                        {isSelected && (
+                          <View style={[styles.selectedCheckOverlay, { backgroundColor: colors.primary }]}>
+                            <Check size={11} color="#FFFFFF" strokeWidth={3} />
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
               </View>
             </View>
           )}
 
-          {/* ================= STEP 2: 5-IN-1 UNIFIED PERMISSIONS GATE ================= */}
+          {/* ================= STEP 2: CLEAN PERMISSIONS SETUP ================= */}
           {step === 2 && (
             <View style={styles.stepContainer}>
-              <View style={styles.heroBadge}>
-                <Shield size={14} color="#0284C7" />
-                <Text style={styles.heroBadgeText}>[ SYSTEM PROTOCOLS ]</Text>
-              </View>
-
-              <Text style={styles.heroTitle}>AUTHORIZE SYSTEM ACCESS</Text>
-              <Text style={styles.heroSubtitle}>
-                Grant all 5 core Android permissions required for AI pose tracking and real screen time locking.
+              <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>Grant Permissions</Text>
+              <Text style={[styles.heroSubtitle, { color: colors.textSecondary }]}>
+                These help ARISE protect your focus and track workouts.
               </Text>
 
               {/* Status Header Pill */}
-              <View style={[styles.permStatusHeaderPill, { borderColor: allPermissionsGranted ? '#10B981' : '#0284C7' }]}>
-                <Text style={[styles.permStatusHeaderText, { color: allPermissionsGranted ? '#10B981' : '#0284C7' }]}>
-                  {allPermissionsGranted
-                    ? 'ALL 5 PERMISSIONS GRANTED • SYSTEM READY'
-                    : `PERMISSIONS ACTIVE: ${allPermissionsCount} / 5 REQUIRED`}
+              <View style={[styles.permStatusHeaderPill, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.permStatusHeaderText, { color: allPermissionsGranted ? colors.success : colors.primary }]}>
+                  {allPermissionsCount} of 5 granted
                 </Text>
               </View>
 
               <View style={{ width: '100%', gap: 10 }}>
                 {/* 1. Camera Tracker */}
-                <GlassCard variant={cameraGranted ? 'glow' : 'default'} style={styles.permCard}>
+                <View style={[styles.permCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={styles.permCardTop}>
-                    <View style={[styles.permIconBox, { backgroundColor: cameraGranted ? 'rgba(16, 185, 129, 0.15)' : 'rgba(2, 132, 199, 0.15)' }]}>
-                      <CameraIcon size={20} color={cameraGranted ? '#10B981' : '#0284C7'} />
+                    <View style={[styles.permIconBox, { backgroundColor: cameraGranted ? 'rgba(16, 185, 129, 0.12)' : 'rgba(229, 57, 53, 0.1)' }]}>
+                      <CameraIcon size={18} color={cameraGranted ? colors.success : colors.primary} />
                     </View>
                     <View style={styles.permCardHeaderCol}>
-                      <Text style={styles.permCardTitle}>1. AI Movement Camera</Text>
-                      <Text style={[styles.permCardStatusText, { color: cameraGranted ? '#10B981' : '#64748B' }]}>
-                        {cameraGranted ? 'Camera Authorized' : 'Required for rep counting'}
-                      </Text>
+                      <Text style={[styles.permCardTitle, { color: colors.textPrimary }]}>AI Camera Tracker</Text>
+                      <Text style={[styles.permCardDesc, { color: colors.textSecondary }]}>Track your workout form & reps</Text>
                     </View>
                     <TouchableOpacity
-                      style={[styles.permActionBtn, cameraGranted && styles.permActionBtnGranted]}
+                      style={[
+                        styles.permActionBtn,
+                        { backgroundColor: colors.primary },
+                        cameraGranted && { backgroundColor: 'rgba(16, 185, 129, 0.12)', borderWidth: 1, borderColor: colors.success },
+                      ]}
                       onPress={handleGrantCamera}
                       disabled={cameraGranted}
                       activeOpacity={0.8}
                     >
-                      {cameraGranted ? (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                          <Check size={13} color="#10B981" strokeWidth={3} />
-                          <Text style={styles.permActionBtnTextGranted}>ENABLED</Text>
-                        </View>
-                      ) : (
-                        <Text style={styles.permActionBtnText}>GRANT</Text>
-                      )}
+                      <Text style={[styles.permActionBtnText, cameraGranted && { color: colors.success }]}>
+                        {cameraGranted ? 'Enabled' : 'Allow'}
+                      </Text>
                     </TouchableOpacity>
                   </View>
-                  <Text style={styles.permCardDesc}>
-                    Powers real-time ML Kit computer vision for push-up and squat rep tracking.
-                  </Text>
-                </GlassCard>
+                </View>
 
-                {/* 2. System Notifications */}
-                <GlassCard variant={notifGranted ? 'glow' : 'default'} style={styles.permCard}>
+                {/* 2. Notifications */}
+                <View style={[styles.permCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={styles.permCardTop}>
-                    <View style={[styles.permIconBox, { backgroundColor: notifGranted ? 'rgba(16, 185, 129, 0.15)' : 'rgba(2, 132, 199, 0.15)' }]}>
-                      <Bell size={20} color={notifGranted ? '#10B981' : '#0284C7'} />
+                    <View style={[styles.permIconBox, { backgroundColor: notifGranted ? 'rgba(16, 185, 129, 0.12)' : 'rgba(229, 57, 53, 0.1)' }]}>
+                      <Bell size={18} color={notifGranted ? colors.success : colors.primary} />
                     </View>
                     <View style={styles.permCardHeaderCol}>
-                      <Text style={styles.permCardTitle}>2. System Notifications</Text>
-                      <Text style={[styles.permCardStatusText, { color: notifGranted ? '#10B981' : '#64748B' }]}>
-                        {notifGranted ? 'Notifications Active' : 'Daily quests & rank alerts'}
-                      </Text>
+                      <Text style={[styles.permCardTitle, { color: colors.textPrimary }]}>Notifications</Text>
+                      <Text style={[styles.permCardDesc, { color: colors.textSecondary }]}>Send reminders & updates</Text>
                     </View>
                     <TouchableOpacity
-                      style={[styles.permActionBtn, notifGranted && styles.permActionBtnGranted]}
+                      style={[
+                        styles.permActionBtn,
+                        { backgroundColor: colors.primary },
+                        notifGranted && { backgroundColor: 'rgba(16, 185, 129, 0.12)', borderWidth: 1, borderColor: colors.success },
+                      ]}
                       onPress={handleGrantNotifications}
                       disabled={notifGranted}
                       activeOpacity={0.8}
                     >
-                      {notifGranted ? (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                          <Check size={13} color="#10B981" strokeWidth={3} />
-                          <Text style={styles.permActionBtnTextGranted}>ENABLED</Text>
-                        </View>
-                      ) : (
-                        <Text style={styles.permActionBtnText}>GRANT</Text>
-                      )}
+                      <Text style={[styles.permActionBtnText, notifGranted && { color: colors.success }]}>
+                        {notifGranted ? 'Enabled' : 'Allow'}
+                      </Text>
                     </TouchableOpacity>
                   </View>
-                  <Text style={styles.permCardDesc}>
-                    Transmits daily quest resets, penalty zone warnings, and Solo Leveling rank promotions.
-                  </Text>
-                </GlassCard>
+                </View>
 
-                {/* 3. App Usage Access */}
-                <GlassCard variant={usageGranted ? 'glow' : 'default'} style={styles.permCard}>
+                {/* 3. Screen Time Access */}
+                <View style={[styles.permCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={styles.permCardTop}>
-                    <View style={[styles.permIconBox, { backgroundColor: usageGranted ? 'rgba(16, 185, 129, 0.15)' : 'rgba(2, 132, 199, 0.15)' }]}>
-                      <Clock size={20} color={usageGranted ? '#10B981' : '#0284C7'} />
+                    <View style={[styles.permIconBox, { backgroundColor: usageGranted ? 'rgba(16, 185, 129, 0.12)' : 'rgba(229, 57, 53, 0.1)' }]}>
+                      <Clock size={18} color={usageGranted ? colors.success : colors.primary} />
                     </View>
                     <View style={styles.permCardHeaderCol}>
-                      <Text style={styles.permCardTitle}>3. App Usage Access</Text>
-                      <Text style={[styles.permCardStatusText, { color: usageGranted ? '#10B981' : '#64748B' }]}>
-                        {usageGranted ? 'Usage Access Active' : 'Monitors screen time limit'}
-                      </Text>
+                      <Text style={[styles.permCardTitle, { color: colors.textPrimary }]}>Screen Time Access</Text>
+                      <Text style={[styles.permCardDesc, { color: colors.textSecondary }]}>Track & block distracting apps</Text>
                     </View>
                     <TouchableOpacity
-                      style={[styles.permActionBtn, usageGranted && styles.permActionBtnGranted]}
+                      style={[
+                        styles.permActionBtn,
+                        { backgroundColor: colors.primary },
+                        usageGranted && { backgroundColor: 'rgba(16, 185, 129, 0.12)', borderWidth: 1, borderColor: colors.success },
+                      ]}
                       onPress={handleGrantUsage}
                       disabled={usageGranted}
                       activeOpacity={0.8}
                     >
-                      {usageGranted ? (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                          <Check size={13} color="#10B981" strokeWidth={3} />
-                          <Text style={styles.permActionBtnTextGranted}>ENABLED</Text>
-                        </View>
-                      ) : (
-                        <Text style={styles.permActionBtnText}>GRANT</Text>
-                      )}
+                      <Text style={[styles.permActionBtnText, usageGranted && { color: colors.success }]}>
+                        {usageGranted ? 'Enabled' : 'Allow'}
+                      </Text>
                     </TouchableOpacity>
                   </View>
-                  <Text style={styles.permCardDesc}>
-                    Tracks distraction app usage and locks them once your daily allowance expires.
-                  </Text>
-                </GlassCard>
+                </View>
 
                 {/* 4. Display Over Other Apps */}
-                <GlassCard variant={overlayGranted ? 'glow' : 'default'} style={styles.permCard}>
+                <View style={[styles.permCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={styles.permCardTop}>
-                    <View style={[styles.permIconBox, { backgroundColor: overlayGranted ? 'rgba(16, 185, 129, 0.15)' : 'rgba(2, 132, 199, 0.15)' }]}>
-                      <Shield size={20} color={overlayGranted ? '#10B981' : '#0284C7'} />
+                    <View style={[styles.permIconBox, { backgroundColor: overlayGranted ? 'rgba(16, 185, 129, 0.12)' : 'rgba(229, 57, 53, 0.1)' }]}>
+                      <Shield size={18} color={overlayGranted ? colors.success : colors.primary} />
                     </View>
                     <View style={styles.permCardHeaderCol}>
-                      <Text style={styles.permCardTitle}>4. Screen Lock Shield</Text>
-                      <Text style={[styles.permCardStatusText, { color: overlayGranted ? '#10B981' : '#64748B' }]}>
-                        {overlayGranted ? 'Shield Active' : 'Required for workout lock'}
-                      </Text>
+                      <Text style={[styles.permCardTitle, { color: colors.textPrimary }]}>Lock Shield Overlay</Text>
+                      <Text style={[styles.permCardDesc, { color: colors.textSecondary }]}>Block apps during focus mode</Text>
                     </View>
                     <TouchableOpacity
-                      style={[styles.permActionBtn, overlayGranted && styles.permActionBtnGranted]}
+                      style={[
+                        styles.permActionBtn,
+                        { backgroundColor: colors.primary },
+                        overlayGranted && { backgroundColor: 'rgba(16, 185, 129, 0.12)', borderWidth: 1, borderColor: colors.success },
+                      ]}
                       onPress={handleGrantOverlay}
                       disabled={overlayGranted}
                       activeOpacity={0.8}
                     >
-                      {overlayGranted ? (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                          <Check size={13} color="#10B981" strokeWidth={3} />
-                          <Text style={styles.permActionBtnTextGranted}>ENABLED</Text>
-                        </View>
-                      ) : (
-                        <Text style={styles.permActionBtnText}>GRANT</Text>
-                      )}
+                      <Text style={[styles.permActionBtnText, overlayGranted && { color: colors.success }]}>
+                        {overlayGranted ? 'Enabled' : 'Allow'}
+                      </Text>
                     </TouchableOpacity>
                   </View>
-                  <Text style={styles.permCardDesc}>
-                    Draws the impenetrable Solo Leveling lock screen over restricted apps until workout reps are done.
-                  </Text>
-                </GlassCard>
+                </View>
 
-                {/* 5. Battery Optimization Exemption */}
-                <GlassCard variant={batteryGranted ? 'glow' : 'default'} style={styles.permCard}>
+                {/* 5. Battery Optimization */}
+                <View style={[styles.permCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={styles.permCardTop}>
-                    <View style={[styles.permIconBox, { backgroundColor: batteryGranted ? 'rgba(16, 185, 129, 0.15)' : 'rgba(2, 132, 199, 0.15)' }]}>
-                      <Zap size={20} color={batteryGranted ? '#10B981' : '#0284C7'} />
+                    <View style={[styles.permIconBox, { backgroundColor: batteryGranted ? 'rgba(16, 185, 129, 0.12)' : 'rgba(229, 57, 53, 0.1)' }]}>
+                      <Zap size={18} color={batteryGranted ? colors.success : colors.primary} />
                     </View>
                     <View style={styles.permCardHeaderCol}>
-                      <Text style={styles.permCardTitle}>5. Battery Optimization</Text>
-                      <Text style={[styles.permCardStatusText, { color: batteryGranted ? '#10B981' : '#64748B' }]}>
-                        {batteryGranted ? 'Exemption Granted' : 'Required for background'}
-                      </Text>
+                      <Text style={[styles.permCardTitle, { color: colors.textPrimary }]}>Battery Optimization</Text>
+                      <Text style={[styles.permCardDesc, { color: colors.textSecondary }]}>Keep ARISE running smoothly</Text>
                     </View>
                     <TouchableOpacity
-                      style={[styles.permActionBtn, batteryGranted && styles.permActionBtnGranted]}
+                      style={[
+                        styles.permActionBtn,
+                        { backgroundColor: colors.primary },
+                        batteryGranted && { backgroundColor: 'rgba(16, 185, 129, 0.12)', borderWidth: 1, borderColor: colors.success },
+                      ]}
                       onPress={handleGrantBattery}
                       disabled={batteryGranted}
                       activeOpacity={0.8}
                     >
-                      {batteryGranted ? (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                          <Check size={13} color="#10B981" strokeWidth={3} />
-                          <Text style={styles.permActionBtnTextGranted}>ENABLED</Text>
-                        </View>
-                      ) : (
-                        <Text style={styles.permActionBtnText}>GRANT</Text>
-                      )}
+                      <Text style={[styles.permActionBtnText, batteryGranted && { color: colors.success }]}>
+                        {batteryGranted ? 'Enabled' : 'Allow'}
+                      </Text>
                     </TouchableOpacity>
                   </View>
-                  <Text style={styles.permCardDesc}>
-                    Ensures the background app blocker and focus timers are never killed by Android OS.
-                  </Text>
-                </GlassCard>
+                </View>
               </View>
+
+              <Text style={[styles.privacyNoteText, { color: colors.textMuted }]}>
+                🔒 Your privacy is safe with us. We only use these permissions to help you.
+              </Text>
             </View>
           )}
 
-          {/* ================= STEP 3: TIME SETTING + APPS SELECTION ================= */}
+          {/* ================= STEP 3: DAILY GOALS & APPS ================= */}
           {step === 3 && (
             <View style={styles.stepContainer}>
-              <View style={styles.heroBadge}>
-                <Clock size={14} color="#0284C7" />
-                <Text style={styles.heroBadgeText}>[ PROTOCOL CALIBRATION ]</Text>
-              </View>
-
-              <Text style={styles.heroTitle}>DAILY TIME & APPS</Text>
-              <Text style={styles.heroSubtitle}>
-                Set your daily screen time allowance and choose the distraction apps to lock behind workout reps.
+              <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>Set Your Goals</Text>
+              <Text style={[styles.heroSubtitle, { color: colors.textSecondary }]}>
+                Let's personalize your daily journey.
               </Text>
 
-              {/* 1. Daily Screen Time Allowance Section (TOP) */}
-              <View style={styles.sectionBlock}>
-                <View style={styles.sectionHeaderRow}>
-                  <View style={styles.sectionIconCircle}>
-                    <Clock size={16} color="#0284C7" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.inputHeaderLabel}>DAILY SCREEN TIME ALLOWANCE</Text>
-                    <Text style={styles.sectionSubdesc}>Free distraction time allowed before apps lock.</Text>
-                  </View>
-                </View>
+              {/* 1. Daily Screen Time Allowance Section */}
+              <View style={styles.goalSectionBlock}>
+                <Text style={[styles.cleanInputLabel, { color: colors.textSecondary }]}>
+                  Daily Screen Time Allowance
+                </Text>
 
                 <View style={styles.timePillsRow}>
                   {[
@@ -930,7 +854,11 @@ export default function OnboardingScreen() {
                     return (
                       <TouchableOpacity
                         key={b.mins}
-                        style={[styles.timePill, isSelected && styles.timePillActive]}
+                        style={[
+                          styles.timePill,
+                          { backgroundColor: colors.card, borderColor: colors.border },
+                          isSelected && { backgroundColor: colors.primary, borderColor: colors.primary },
+                        ]}
                         onPress={() => {
                           haptics.light();
                           setIsCustomTime(false);
@@ -938,7 +866,7 @@ export default function OnboardingScreen() {
                         }}
                         activeOpacity={0.8}
                       >
-                        <Text style={[styles.timePillText, isSelected && styles.timePillTextActive]}>
+                        <Text style={[styles.timePillText, { color: colors.textSecondary }, isSelected && { color: '#FFFFFF' }]}>
                           {b.label}
                         </Text>
                       </TouchableOpacity>
@@ -946,112 +874,93 @@ export default function OnboardingScreen() {
                   })}
 
                   <TouchableOpacity
-                    style={[styles.timePill, isCustomTime && styles.timePillActive]}
+                    style={[
+                      styles.timePill,
+                      { backgroundColor: colors.card, borderColor: colors.border },
+                      isCustomTime && { backgroundColor: colors.primary, borderColor: colors.primary },
+                    ]}
                     onPress={() => {
                       haptics.light();
                       setIsCustomTime(true);
                     }}
                     activeOpacity={0.8}
                   >
-                    <Text style={[styles.timePillText, isCustomTime && styles.timePillTextActive]}>
-                      CUSTOM
+                    <Text style={[styles.timePillText, { color: colors.textSecondary }, isCustomTime && { color: '#FFFFFF' }]}>
+                      Custom
                     </Text>
                   </TouchableOpacity>
                 </View>
 
                 {isCustomTime && (
-                  <View style={styles.customTimeInputBox}>
-                    <Text style={styles.customTimeLabel}>Allowance in minutes:</Text>
+                  <View style={[styles.customTimeInputBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <Text style={[styles.customTimeLabel, { color: colors.textSecondary }]}>Allowance in minutes:</Text>
                     <TextInput
-                      style={styles.customTimeTextInput}
+                      style={[styles.customTimeTextInput, { color: colors.primary, borderColor: colors.primary, backgroundColor: colors.background }]}
                       value={customTimeInput}
                       onChangeText={setCustomTimeInput}
                       keyboardType="numeric"
                       maxLength={3}
-                      placeholder="e.g. 50"
-                      placeholderTextColor="#64748B"
+                      placeholder="50"
+                      placeholderTextColor={colors.textMuted}
                     />
                   </View>
                 )}
               </View>
 
-              {/* 2. Apps To Restrict Section (BOTTOM) */}
-              <View style={styles.sectionBlock}>
+              {/* 2. Select Your Top Distractions */}
+              <View style={styles.goalSectionBlock}>
                 <View style={styles.sectionHeaderRow}>
-                  <View style={styles.sectionIconCircle}>
-                    <Lock size={16} color="#0284C7" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.inputHeaderLabel}>DISTRACTION APPS TO LOCK</Text>
-                    <Text style={styles.sectionSubdesc}>Locked apps unlock only by executing workout reps.</Text>
-                  </View>
+                  <Text style={[styles.cleanInputLabel, { color: colors.textSecondary, flex: 1 }]}>
+                    Select Your Top Distractions
+                  </Text>
                   {selectedApps.length > 0 && (
-                    <View style={styles.appCountBadge}>
-                      <Text style={styles.appCountBadgeText}>{selectedApps.length} LOCKED</Text>
-                    </View>
+                    <Text style={[styles.appCountText, { color: colors.primary }]}>{selectedApps.length} selected</Text>
                   )}
                 </View>
 
-                {/* Quick 1-Click Select Top Distractions Button */}
+                {/* Auto Select Button */}
                 <TouchableOpacity
-                  style={styles.quickSelectBtn}
+                  style={[styles.quickSelectBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
                   onPress={handleSelectTopDistractions}
                   activeOpacity={0.85}
                 >
-                  <Sparkles size={14} color="#0284C7" />
-                  <Text style={styles.quickSelectBtnText}>SELECT ALL TOP DISTRACTIONS</Text>
+                  <Sparkles size={14} color={colors.primary} />
+                  <Text style={[styles.quickSelectBtnText, { color: colors.primary }]}>
+                    Auto Select (Top Apps)
+                  </Text>
                 </TouchableOpacity>
 
                 {/* Search Bar */}
-                <View style={styles.searchBarBox}>
-                  <Search size={15} color="#64748B" />
+                <View style={[styles.searchBarBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <Search size={15} color={colors.textMuted} />
                   <TextInput
-                    style={styles.searchBarInput}
+                    style={[styles.searchBarInput, { color: colors.textPrimary }]}
                     placeholder="Search apps..."
-                    placeholderTextColor="#64748B"
+                    placeholderTextColor={colors.textMuted}
                     value={appSearchQuery}
                     onChangeText={setAppSearchQuery}
                   />
                 </View>
 
-                {/* Category Pills */}
-                <View style={styles.categoryPillsRow}>
-                  {APP_CATEGORIES.map((cat) => (
-                    <TouchableOpacity
-                      key={cat}
-                      style={[styles.categoryPill, activeCategory === cat && styles.categoryPillActive]}
-                      onPress={() => {
-                        haptics.light();
-                        setActiveCategory(cat);
-                      }}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={[styles.categoryPillText, activeCategory === cat && styles.categoryPillTextActive]}>
-                        {cat}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
                 {/* Apps List */}
                 {loadingApps ? (
                   <View style={styles.appsLoadingBox}>
-                    <ActivityIndicator size="small" color="#0284C7" />
-                    <Text style={styles.appsLoadingText}>Scanning installed apps...</Text>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                    <Text style={[styles.appsLoadingText, { color: colors.textSecondary }]}>Scanning installed apps...</Text>
                   </View>
                 ) : filteredApps.length === 0 ? (
                   <View style={styles.noAppsBox}>
-                    <Smartphone size={24} color="#64748B" />
-                    <Text style={styles.noAppsText}>No apps found in this category.</Text>
+                    <Smartphone size={24} color={colors.textMuted} />
+                    <Text style={[styles.noAppsText, { color: colors.textMuted }]}>No apps found.</Text>
                   </View>
                 ) : (
                   <ScrollView
-                    style={{ maxHeight: 260, width: '100%' }}
+                    style={{ maxHeight: 240, width: '100%' }}
                     contentContainerStyle={{ gap: 8 }}
                     nestedScrollEnabled
                     showsVerticalScrollIndicator={false}
                   >
-                    {filteredApps.slice(0, 25).map((app) => {
+                    {filteredApps.slice(0, 30).map((app) => {
                       const isSelected = selectedApps.includes(app.packageName);
                       return (
                         <TouchableOpacity
@@ -1059,32 +968,35 @@ export default function OnboardingScreen() {
                           onPress={() => toggleApp(app.packageName)}
                           activeOpacity={0.8}
                         >
-                          <GlassCard
-                            variant={isSelected ? 'glow' : 'default'}
-                            style={[styles.miniAppCard, isSelected && { borderColor: '#0284C7' }]}
+                          <View
+                            style={[
+                              styles.miniAppCard,
+                              { backgroundColor: colors.card, borderColor: colors.border },
+                              isSelected && { borderColor: colors.primary, backgroundColor: 'rgba(229, 57, 53, 0.04)' },
+                            ]}
                           >
-                            <View style={styles.miniAppIcon}>
+                            <View style={[styles.miniAppIcon, { backgroundColor: colors.surfaceLight }]}>
                               {app.appIconBase64 ? (
                                 <Image
                                   source={{ uri: app.appIconBase64 }}
                                   style={{ width: 28, height: 28, borderRadius: 6 }}
                                 />
                               ) : (
-                                <Smartphone size={18} color={isSelected ? '#0284C7' : '#64748B'} />
+                                <Smartphone size={18} color={isSelected ? colors.primary : colors.textMuted} />
                               )}
                             </View>
                             <View style={{ flex: 1 }}>
-                              <Text style={[styles.miniAppName, isSelected && { color: '#FFFFFF', fontWeight: '800' }]}>
+                              <Text style={[styles.miniAppName, { color: colors.textPrimary }, isSelected && { fontWeight: '800' }]}>
                                 {app.appName}
                               </Text>
-                              <Text style={styles.miniAppPkg} numberOfLines={1}>
+                              <Text style={[styles.miniAppPkg, { color: colors.textMuted }]} numberOfLines={1}>
                                 {app.packageName}
                               </Text>
                             </View>
-                            <View style={[styles.lockIndicator, isSelected && styles.lockIndicatorActive]}>
-                              <Lock size={13} color={isSelected ? '#FFFFFF' : '#64748B'} />
+                            <View style={[styles.lockIndicator, { backgroundColor: colors.surfaceLight }, isSelected && { backgroundColor: colors.primary }]}>
+                              <Check size={12} color={isSelected ? '#FFFFFF' : colors.textMuted} strokeWidth={3} />
                             </View>
-                          </GlassCard>
+                          </View>
                         </TouchableOpacity>
                       );
                     })}
@@ -1097,27 +1009,25 @@ export default function OnboardingScreen() {
           <View style={{ height: 24 }} />
         </ScrollView>
 
-        {/* Bottom CTA Button */}
-        <View style={styles.footerContainer}>
-          <GlassButton
-            title={
-              isSubmitting
-                ? 'AWAKENING VESSEL...'
-                : step === 1
-                ? 'PROCEED TO PERMISSIONS'
-                : step === 2
-                ? allPermissionsGranted
-                  ? 'PROCEED TO PROTOCOL'
-                  : 'PROCEED TO PROTOCOL (OR GRANT ALL)'
-                : 'COMPLETE AWAKENING'
-            }
+        {/* Bottom Prominent CTA Button */}
+        <View style={[styles.footerContainer, { borderTopColor: colors.border }]}>
+          <TouchableOpacity
+            style={[styles.primaryCtaBtn, { backgroundColor: colors.primary }, isSubmitting && styles.primaryCtaBtnDisabled]}
             onPress={handleNext}
-            variant="primary"
-            size="lg"
-            loading={isSubmitting}
             disabled={isSubmitting}
-            style={{ width: '100%' }}
-          />
+            activeOpacity={0.85}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.primaryCtaText}>
+                {step === 1 ? 'Continue  →' : step === 2 ? 'Continue  →' : 'Start Training  🚀'}
+              </Text>
+            )}
+          </TouchableOpacity>
+          <Text style={[styles.footerMottoText, { color: colors.textMuted }]}>
+            "Every warrior has a beginning."
+          </Text>
         </View>
 
         {/* Language Selection Modal */}
@@ -1128,317 +1038,207 @@ export default function OnboardingScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#030509' },
+  container: { flex: 1 },
   safeArea: { flex: 1 },
   headerBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#0E1422',
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
   },
   headerRightArea: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
   },
   langPickerPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(2, 132, 199, 0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(2, 132, 199, 0.35)',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 6,
+    borderRadius: 8,
   },
   langPickerText: {
-    fontSize: 10.5,
+    fontSize: 11,
     fontWeight: '800',
-    color: '#0284C7',
     letterSpacing: 0.5,
   },
+  skipText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
   iconBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#0C111D',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#1C2538',
     justifyContent: 'center',
     alignItems: 'center',
   },
   headerStageText: {
-    fontSize: 11,
-    fontWeight: '900',
-    color: '#0284C7',
-    letterSpacing: 1.2,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.8,
   },
   stepDotsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 6,
   },
   stepDot: {
-    width: 18,
-    height: 3.5,
+    width: 14,
+    height: 4,
     borderRadius: 2,
-    backgroundColor: '#1C2538',
-  },
-  stepDotActive: {
-    backgroundColor: '#0284C7',
-  },
-  stepDotCurrent: {
-    width: 24,
-    backgroundColor: '#0284C7',
   },
   scrollContent: {
-    padding: 16,
-    gap: 14,
+    padding: 20,
+    gap: 16,
   },
   stepContainer: {
-    gap: 14,
+    gap: 16,
     alignItems: 'center',
-  },
-  heroBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(2, 132, 199, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(2, 132, 199, 0.3)',
-    borderRadius: 100,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  heroBadgeText: {
-    fontSize: 10,
-    fontWeight: '900',
-    color: '#0284C7',
-    letterSpacing: 1.2,
   },
   heroTitle: {
-    fontSize: 22,
+    fontSize: 26,
     fontWeight: '900',
-    color: '#FFFFFF',
-    letterSpacing: 0.8,
+    letterSpacing: -0.5,
     textAlign: 'center',
   },
   heroSubtitle: {
-    fontSize: 12.5,
-    color: '#8E8E93',
+    fontSize: 13.5,
     textAlign: 'center',
-    lineHeight: 18,
-    paddingHorizontal: 12,
+    lineHeight: 19,
+    paddingHorizontal: 16,
   },
-  holographicCard: {
-    width: '100%',
-    padding: 16,
-    borderRadius: 16,
-    gap: 12,
-    backgroundColor: '#060A12',
-    borderWidth: 1,
-    borderColor: '#0284C7',
-  },
-  holoTopRow: {
-    flexDirection: 'row',
+  avatarCenterWrap: {
     alignItems: 'center',
-    gap: 12,
+    marginVertical: 4,
   },
-  holoAvatarWrapper: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    borderWidth: 2,
-    borderColor: '#0284C7',
+  avatarMainCircle: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    borderWidth: 3,
     overflow: 'hidden',
-    position: 'relative',
-    backgroundColor: '#0C111D',
-  },
-  holoAvatarImg: {
-    width: '100%',
-    height: '100%',
-  },
-  holoAvatarFallback: {
-    width: '100%',
-    height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
   },
-  onlinePill: {
+  avatarMainImg: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarCameraBadge: {
     position: 'absolute',
     bottom: 2,
     right: 2,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#10B981',
-    borderWidth: 1.5,
-    borderColor: '#060A12',
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
-  holoMeta: {
-    flex: 1,
-    gap: 3,
-  },
-  tagRow: {
+  googleSignInBtn: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    width: '100%',
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
   },
-  holoRankTag: {
-    fontSize: 9.5,
-    fontWeight: '900',
-    color: '#0284C7',
-    backgroundColor: 'rgba(2, 132, 199, 0.12)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    letterSpacing: 0.4,
+  googleGLogo: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#EA4335',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  holoCallsignText: {
-    fontSize: 16,
+  googleGText: {
+    fontSize: 13,
     fontWeight: '900',
     color: '#FFFFFF',
-    letterSpacing: 0.5,
   },
-  holoIdText: {
-    fontSize: 9.5,
-    fontWeight: '700',
-    color: '#64748B',
-  },
-  holoStatsGrid: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0C111D',
-    borderRadius: 10,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#1C2538',
-  },
-  holoStatBox: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 2,
-  },
-  holoStatLabel: {
-    fontSize: 9,
-    fontWeight: '900',
-    color: '#64748B',
-    letterSpacing: 0.5,
-  },
-  holoStatVal: {
+  googleSignInText: {
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
   },
-  inputGroup: {
-    width: '100%',
-  },
-  inputHeaderLabel: {
-    fontSize: 11,
-    fontWeight: '900',
-    color: '#8E8E93',
-    letterSpacing: 0.8,
-  },
-  randomAliasBtn: {
+  dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    backgroundColor: 'rgba(2, 132, 199, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(2, 132, 199, 0.3)',
+    gap: 12,
+    width: '100%',
+    marginVertical: 2,
   },
-  randomAliasText: {
-    fontSize: 10,
-    fontWeight: '900',
-    color: '#0284C7',
-    letterSpacing: 0.5,
+  dividerLine: {
+    flex: 1,
+    height: 1,
   },
-  textInputBox: {
+  dividerText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  inputGroupBlock: {
+    width: '100%',
+    gap: 6,
+  },
+  cleanInputLabel: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+  cleanTextInputBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#060A12',
-    borderWidth: 1,
-    borderColor: '#1C2538',
+    borderWidth: 1.5,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
-  textInputField: {
+  cleanTextInputField: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
-    color: '#FFFFFF',
     padding: 0,
   },
-  errorText: {
+  diceBtnWrap: {
+    padding: 4,
+  },
+  cleanErrorText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#EF4444',
-    marginTop: 4,
+    marginTop: 2,
   },
-  avatarPickerSection: {
+  avatarSectionBlock: {
     width: '100%',
     gap: 10,
   },
-  avatarSectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  tabToggleRow: {
-    flexDirection: 'row',
-    backgroundColor: '#0C111D',
-    borderRadius: 8,
-    padding: 2,
-    gap: 2,
-  },
-  tabBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  tabBtnActive: {
-    backgroundColor: '#0284C7',
-  },
-  tabBtnText: {
-    fontSize: 9.5,
-    fontWeight: '800',
-    color: '#8E8E93',
-  },
-  tabBtnTextActive: {
-    color: '#FFFFFF',
-  },
   avatarScrollRow: {
-    gap: 10,
+    gap: 12,
     paddingVertical: 4,
   },
   avatarItemWrap: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 2,
-    borderColor: '#1C2538',
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    borderWidth: 1.5,
     overflow: 'hidden',
     position: 'relative',
-  },
-  avatarIconItemWrap: {
-    backgroundColor: '#0C111D',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarItemWrapSelected: {
-    borderColor: '#0284C7',
   },
   avatarGridImg: {
     width: '100%',
@@ -1448,36 +1248,31 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 2,
     right: 2,
-    backgroundColor: '#0284C7',
     borderRadius: 8,
     padding: 2,
   },
-  // Permissions
+  // Step 2 Styles
   permStatusHeaderPill: {
-    width: '100%',
     paddingVertical: 6,
-    borderRadius: 8,
+    paddingHorizontal: 14,
+    borderRadius: 100,
     borderWidth: 1,
-    backgroundColor: '#060A12',
     alignItems: 'center',
   },
   permStatusHeaderText: {
-    fontSize: 10.5,
-    fontWeight: '900',
-    letterSpacing: 0.5,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.4,
   },
   permCard: {
-    padding: 12,
+    padding: 14,
     borderRadius: 14,
-    gap: 6,
-    backgroundColor: '#060A12',
     borderWidth: 1,
-    borderColor: '#1C2538',
   },
   permCardTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
   },
   permIconBox: {
     width: 36,
@@ -1491,68 +1286,42 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   permCardTitle: {
-    fontSize: 13,
+    fontSize: 13.5,
     fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  permCardStatusText: {
-    fontSize: 10.5,
-    fontWeight: '700',
-  },
-  permActionBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: '#0284C7',
-  },
-  permActionBtnGranted: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    borderWidth: 1,
-    borderColor: '#10B981',
-  },
-  permActionBtnText: {
-    fontSize: 10.5,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    letterSpacing: 0.4,
-  },
-  permActionBtnTextGranted: {
-    fontSize: 10,
-    fontWeight: '900',
-    color: '#10B981',
-    letterSpacing: 0.4,
   },
   permCardDesc: {
     fontSize: 11,
-    color: '#8E8E93',
     lineHeight: 15,
   },
-  // Step 3
-  sectionBlock: {
+  permActionBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 8,
+  },
+  permActionBtnText: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.4,
+  },
+  privacyNoteText: {
+    fontSize: 11.5,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  // Step 3 Styles
+  goalSectionBlock: {
     width: '100%',
     gap: 10,
-    backgroundColor: '#060A12',
-    borderWidth: 1,
-    borderColor: '#1C2538',
-    borderRadius: 16,
-    padding: 14,
   },
   sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    justifyContent: 'space-between',
   },
-  sectionIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(2, 132, 199, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  sectionSubdesc: {
+  appCountText: {
     fontSize: 11,
-    color: '#8E8E93',
+    fontWeight: '800',
   },
   timePillsRow: {
     flexDirection: 'row',
@@ -1562,121 +1331,63 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 9,
     borderRadius: 8,
-    backgroundColor: '#0C111D',
     borderWidth: 1,
-    borderColor: '#1C2538',
     alignItems: 'center',
   },
-  timePillActive: {
-    backgroundColor: '#0284C7',
-    borderColor: '#0284C7',
-  },
   timePillText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
-    color: '#8E8E93',
-  },
-  timePillTextActive: {
-    color: '#FFFFFF',
   },
   customTimeInputBox: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#0C111D',
     borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 6,
     borderWidth: 1,
-    borderColor: '#1C2538',
   },
   customTimeLabel: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontWeight: '700',
-    color: '#8E8E93',
   },
   customTimeTextInput: {
     width: 60,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '900',
-    color: '#0284C7',
     textAlign: 'center',
-    backgroundColor: '#060A12',
     borderRadius: 6,
     paddingVertical: 4,
     borderWidth: 1,
-    borderColor: '#0284C7',
-  },
-  appCountBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    backgroundColor: '#0284C7',
-  },
-  appCountBadgeText: {
-    fontSize: 9.5,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    letterSpacing: 0.4,
   },
   quickSelectBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: 'rgba(2, 132, 199, 0.12)',
+    paddingVertical: 9,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(2, 132, 199, 0.35)',
   },
   quickSelectBtnText: {
-    fontSize: 10.5,
-    fontWeight: '900',
-    color: '#0284C7',
-    letterSpacing: 0.5,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.4,
   },
   searchBarBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#0C111D',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+    gap: 10,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderWidth: 1,
-    borderColor: '#1C2538',
   },
   searchBarInput: {
     flex: 1,
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '600',
-    color: '#FFFFFF',
     padding: 0,
-  },
-  categoryPillsRow: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  categoryPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-    backgroundColor: '#0C111D',
-    borderWidth: 1,
-    borderColor: '#1C2538',
-  },
-  categoryPillActive: {
-    backgroundColor: '#0284C7',
-    borderColor: '#0284C7',
-  },
-  categoryPillText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#8E8E93',
-  },
-  categoryPillTextActive: {
-    color: '#FFFFFF',
   },
   appsLoadingBox: {
     paddingVertical: 20,
@@ -1684,8 +1395,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   appsLoadingText: {
-    fontSize: 11,
-    color: '#8E8E93',
+    fontSize: 11.5,
   },
   noAppsBox: {
     paddingVertical: 20,
@@ -1693,51 +1403,62 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   noAppsText: {
-    fontSize: 11,
-    color: '#8E8E93',
+    fontSize: 11.5,
   },
   miniAppCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
     padding: 10,
-    borderRadius: 10,
-    backgroundColor: '#0C111D',
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#1C2538',
   },
   miniAppIcon: {
     width: 32,
     height: 32,
-    borderRadius: 7,
-    backgroundColor: '#161B26',
+    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
   miniAppName: {
     fontSize: 12.5,
     fontWeight: '700',
-    color: '#FFFFFF',
   },
   miniAppPkg: {
     fontSize: 10,
-    color: '#64748B',
   },
   lockIndicator: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: '#161B26',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  lockIndicatorActive: {
-    backgroundColor: '#0284C7',
-  },
   footerContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 8,
     borderTopWidth: 1,
-    borderTopColor: '#0E1422',
+    gap: 6,
+  },
+  primaryCtaBtn: {
+    height: 50,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  primaryCtaBtnDisabled: {
+    opacity: 0.6,
+  },
+  primaryCtaText: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
+  },
+  footerMottoText: {
+    fontSize: 10.5,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });

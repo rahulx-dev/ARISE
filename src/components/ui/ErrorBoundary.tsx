@@ -4,6 +4,8 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { SoloLevelingWindow } from './SoloLevelingWindow';
 
+import { logErrorToSentry } from '../../services/sentryService';
+
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
@@ -26,6 +28,11 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Uncaught error caught by ARISE ErrorBoundary:', error, errorInfo);
+    logErrorToSentry(error, {
+      module: 'ErrorBoundary',
+      action: 'componentDidCatch',
+      extra: { componentStack: errorInfo.componentStack },
+    });
   }
 
   private handleReset = () => {

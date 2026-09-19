@@ -1,7 +1,7 @@
-import { db } from '../database/client';
-import { guild, guildMember, guildRaid, userProfile } from '../database/schema';
-import { eq, desc, and } from 'drizzle-orm';
-import { userRepository } from '../database/repositories/userRepository';
+import { db } from "../database/client";
+import { guild, guildMember, guildRaid, userProfile } from "../database/schema";
+import { eq, desc, and } from "drizzle-orm";
+import { userRepository } from "../database/repositories/userRepository";
 
 export interface GuildData {
   id: number;
@@ -28,7 +28,7 @@ export interface GuildRaidData {
   bossCurrentHp: number;
   rewardXP: number;
   rewardCoins: number;
-  status: 'ACTIVE' | 'CLEARED';
+  status: "ACTIVE" | "CLEARED";
   createdAt: string;
 }
 
@@ -37,18 +37,48 @@ export interface GuildMemberData {
   guildId: number;
   hunterName: string;
   hunterRank: string;
-  role: 'GUILD_MASTER' | 'VICE_MASTER' | 'ELITE' | 'MEMBER';
+  role: "GUILD_MASTER" | "VICE_MASTER" | "ELITE" | "MEMBER";
   contributionPoints: number;
   joinedAt: string;
   isCurrentUser: boolean;
 }
 
 const NEXT_BOSSES = [
-  { bossName: 'Red Gate: Blood-Red Commander Igris', gateRank: 'S', bossMaxHp: 5000, rewardXP: 1000, rewardCoins: 250 },
-  { bossName: 'Baruka, Ice Monarch', gateRank: 'A', bossMaxHp: 4000, rewardXP: 800, rewardCoins: 200 },
-  { bossName: 'High Orc Chieftain', gateRank: 'A', bossMaxHp: 3500, rewardXP: 700, rewardCoins: 180 },
-  { bossName: 'Ant King Beru', gateRank: 'S', bossMaxHp: 7500, rewardXP: 1500, rewardCoins: 400 },
-  { bossName: 'Architect of the System', gateRank: 'S', bossMaxHp: 10000, rewardXP: 2500, rewardCoins: 600 },
+  {
+    bossName: "Red Gate: Blood-Red Commander Igris",
+    gateRank: "S",
+    bossMaxHp: 5000,
+    rewardXP: 1000,
+    rewardCoins: 250,
+  },
+  {
+    bossName: "Baruka, Ice Monarch",
+    gateRank: "A",
+    bossMaxHp: 4000,
+    rewardXP: 800,
+    rewardCoins: 200,
+  },
+  {
+    bossName: "High Orc Chieftain",
+    gateRank: "A",
+    bossMaxHp: 3500,
+    rewardXP: 700,
+    rewardCoins: 180,
+  },
+  {
+    bossName: "Ant King Beru",
+    gateRank: "S",
+    bossMaxHp: 7500,
+    rewardXP: 1500,
+    rewardCoins: 400,
+  },
+  {
+    bossName: "Architect of the System",
+    gateRank: "S",
+    bossMaxHp: 10000,
+    rewardXP: 2500,
+    rewardCoins: 600,
+  },
 ];
 
 export const guildService = {
@@ -57,7 +87,7 @@ export const guildService = {
    */
   async getAllGuilds(): Promise<GuildData[]> {
     const rows = await db.select().from(guild).orderBy(desc(guild.totalXP));
-    return rows.map((r) => ({
+    return rows.map((r: any) => ({
       id: r.id,
       name: r.name,
       tag: r.tag,
@@ -82,7 +112,11 @@ export const guildService = {
     raid: GuildRaidData | null;
     members: GuildMemberData[];
   } | null> {
-    const rows = await db.select().from(guild).where(eq(guild.isUserMember, 1)).limit(1);
+    const rows = await db
+      .select()
+      .from(guild)
+      .where(eq(guild.isUserMember, 1))
+      .limit(1);
     if (rows.length === 0) return null;
 
     const g = rows[0];
@@ -115,7 +149,9 @@ export const guildService = {
     const raids = await db
       .select()
       .from(guildRaid)
-      .where(and(eq(guildRaid.guildId, guildId), eq(guildRaid.status, 'ACTIVE')))
+      .where(
+        and(eq(guildRaid.guildId, guildId), eq(guildRaid.status, "ACTIVE")),
+      )
       .limit(1);
 
     if (raids.length > 0) {
@@ -129,7 +165,7 @@ export const guildService = {
         bossCurrentHp: r.bossCurrentHp,
         rewardXP: r.rewardXP,
         rewardCoins: r.rewardCoins,
-        status: r.status as 'ACTIVE' | 'CLEARED',
+        status: r.status as "ACTIVE" | "CLEARED",
         createdAt: r.createdAt,
       };
     }
@@ -146,12 +182,12 @@ export const guildService = {
       .where(eq(guildMember.guildId, guildId))
       .orderBy(desc(guildMember.contributionPoints));
 
-    return rows.map((m) => ({
+    return rows.map((m: any) => ({
       id: m.id,
       guildId: m.guildId,
       hunterName: m.hunterName,
       hunterRank: m.hunterRank,
-      role: m.role as 'GUILD_MASTER' | 'VICE_MASTER' | 'ELITE' | 'MEMBER',
+      role: m.role as "GUILD_MASTER" | "VICE_MASTER" | "ELITE" | "MEMBER",
       contributionPoints: m.contributionPoints,
       joinedAt: m.joinedAt,
       isCurrentUser: Boolean(m.isCurrentUser),
@@ -165,25 +201,36 @@ export const guildService = {
     name: string,
     tag: string,
     description: string,
-    bannerColor: string = '#0A84FF'
+    bannerColor: string = "#0A84FF",
   ): Promise<{ success: boolean; guild?: GuildData; error?: string }> {
     const profile = await userRepository.getProfile();
-    if (!profile) return { success: false, error: 'Hunter profile not initialized' };
+    if (!profile)
+      return { success: false, error: "Hunter profile not initialized" };
 
     const cost = 100;
     if (profile.coins < cost) {
-      return { success: false, error: `Insufficient Mana Coins! Required: ${cost} Coins (You have: ${profile.coins})` };
+      return {
+        success: false,
+        error: `Insufficient Mana Coins! Required: ${cost} Coins (You have: ${profile.coins})`,
+      };
     }
 
     // Spend coins
-    const spent = await userRepository.spendCoins(cost, `Chartered Guild: [${tag}] ${name}`);
-    if (!spent) return { success: false, error: 'Transaction failed' };
+    const spent = await userRepository.spendCoins(
+      cost,
+      `Chartered Guild: [${tag}] ${name}`,
+    );
+    if (!spent) return { success: false, error: "Transaction failed" };
 
     // Leave any existing guild
     await this.leaveCurrentGuild();
 
     const now = new Date().toISOString();
-    const cleanTag = tag.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+    const cleanTag = tag
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "")
+      .slice(0, 8);
     const cleanName = name.trim();
 
     try {
@@ -192,10 +239,12 @@ export const guildService = {
         .values({
           name: cleanName,
           tag: cleanTag,
-          description: description.trim() || 'A new vanguard rising through the dimensional ranks.',
+          description:
+            description.trim() ||
+            "A new vanguard rising through the dimensional ranks.",
           bannerColor,
-          rankRequirement: 'E',
-          leaderName: profile.displayName || 'Hunter Master',
+          rankRequirement: "E",
+          leaderName: profile.displayName || "Hunter Master",
           memberCount: 1,
           maxMembers: 30,
           totalXP: 0,
@@ -206,27 +255,28 @@ export const guildService = {
         .returning();
 
       const newGuild = inserted[0];
-      if (!newGuild) return { success: false, error: 'Failed to record guild charter' };
+      if (!newGuild)
+        return { success: false, error: "Failed to record guild charter" };
 
       // Create initial raid for new guild
       await db.insert(guildRaid).values({
         guildId: newGuild.id,
-        gateRank: 'C',
-        bossName: 'Red Gate: Blood-Red Commander Igris',
+        gateRank: "C",
+        bossName: "Red Gate: Blood-Red Commander Igris",
         bossMaxHp: 1500,
         bossCurrentHp: 1500,
         rewardXP: 500,
         rewardCoins: 100,
-        status: 'ACTIVE',
+        status: "ACTIVE",
         createdAt: now,
       });
 
       // Add user as GUILD_MASTER
       await db.insert(guildMember).values({
         guildId: newGuild.id,
-        hunterName: profile.displayName || 'Hunter Master',
-        hunterRank: 'S',
-        role: 'GUILD_MASTER',
+        hunterName: profile.displayName || "Hunter Master",
+        hunterRank: "S",
+        role: "GUILD_MASTER",
         contributionPoints: 100,
         joinedAt: now,
         isCurrentUser: 1,
@@ -251,27 +301,37 @@ export const guildService = {
         },
       };
     } catch (err: any) {
-      console.error('[GuildService] Create error:', err);
-      return { success: false, error: 'A guild with this name or tag already exists!' };
+      console.error("[GuildService] Create error:", err);
+      return {
+        success: false,
+        error: "A guild with this name or tag already exists!",
+      };
     }
   },
 
   /**
    * Enlist / Join a Guild
    */
-  async joinGuild(guildId: number): Promise<{ success: boolean; error?: string }> {
+  async joinGuild(
+    guildId: number,
+  ): Promise<{ success: boolean; error?: string }> {
     const profile = await userRepository.getProfile();
-    if (!profile) return { success: false, error: 'Profile not found' };
+    if (!profile) return { success: false, error: "Profile not found" };
 
     // Leave any current guild first
     await this.leaveCurrentGuild();
 
-    const targetGuilds = await db.select().from(guild).where(eq(guild.id, guildId)).limit(1);
-    if (targetGuilds.length === 0) return { success: false, error: 'Guild not found' };
+    const targetGuilds = await db
+      .select()
+      .from(guild)
+      .where(eq(guild.id, guildId))
+      .limit(1);
+    if (targetGuilds.length === 0)
+      return { success: false, error: "Guild not found" };
 
     const target = targetGuilds[0];
     if (target.memberCount >= target.maxMembers) {
-      return { success: false, error: 'Guild roster is at maximum capacity' };
+      return { success: false, error: "Guild roster is at maximum capacity" };
     }
 
     const now = new Date().toISOString();
@@ -288,9 +348,9 @@ export const guildService = {
     // Insert user into roster
     await db.insert(guildMember).values({
       guildId,
-      hunterName: profile.displayName || 'Hunter',
-      hunterRank: 'B',
-      role: 'MEMBER',
+      hunterName: profile.displayName || "Hunter",
+      hunterRank: "B",
+      role: "MEMBER",
       contributionPoints: 0,
       joinedAt: now,
       isCurrentUser: 1,
@@ -303,7 +363,10 @@ export const guildService = {
    * Leave the user's current guild
    */
   async leaveCurrentGuild(): Promise<void> {
-    const currentMemberGuilds = await db.select().from(guild).where(eq(guild.isUserMember, 1));
+    const currentMemberGuilds = await db
+      .select()
+      .from(guild)
+      .where(eq(guild.isUserMember, 1));
     for (const g of currentMemberGuilds) {
       await db
         .update(guild)
@@ -323,7 +386,7 @@ export const guildService = {
    */
   async attackRaidBoss(
     guildId: number,
-    damage: number
+    damage: number,
   ): Promise<{
     cleared: boolean;
     newHp: number;
@@ -334,7 +397,7 @@ export const guildService = {
   }> {
     const raid = await this.getActiveRaid(guildId);
     if (!raid) {
-      return { cleared: false, newHp: 0, maxHp: 0, bossName: 'None' };
+      return { cleared: false, newHp: 0, maxHp: 0, bossName: "None" };
     }
 
     const newHp = Math.max(0, raid.bossCurrentHp - damage);
@@ -345,7 +408,7 @@ export const guildService = {
       .update(guildRaid)
       .set({
         bossCurrentHp: newHp,
-        status: cleared ? 'CLEARED' : 'ACTIVE',
+        status: cleared ? "CLEARED" : "ACTIVE",
       })
       .where(eq(guildRaid.id, raid.id));
 
@@ -353,7 +416,9 @@ export const guildService = {
     const memberRows = await db
       .select()
       .from(guildMember)
-      .where(and(eq(guildMember.guildId, guildId), eq(guildMember.isCurrentUser, 1)))
+      .where(
+        and(eq(guildMember.guildId, guildId), eq(guildMember.isCurrentUser, 1)),
+      )
       .limit(1);
 
     if (memberRows.length > 0) {
@@ -365,7 +430,11 @@ export const guildService = {
     }
 
     // Add Guild XP
-    const targetGuild = await db.select().from(guild).where(eq(guild.id, guildId)).limit(1);
+    const targetGuild = await db
+      .select()
+      .from(guild)
+      .where(eq(guild.id, guildId))
+      .limit(1);
     if (targetGuild.length > 0) {
       const g = targetGuild[0];
       await db
@@ -376,7 +445,11 @@ export const guildService = {
 
     if (cleared) {
       // Award player raid victory rewards
-      await userRepository.addCoins(raid.rewardCoins, `Gate Raid Victory: ${raid.bossName}`, 'guild_raid');
+      await userRepository.addCoins(
+        raid.rewardCoins,
+        `Gate Raid Victory: ${raid.bossName}`,
+        "guild_raid",
+      );
       await userRepository.addXP(raid.rewardXP);
 
       // Spawn next raid boss automatically
@@ -390,7 +463,7 @@ export const guildService = {
         bossCurrentHp: nextBoss.bossMaxHp,
         rewardXP: nextBoss.rewardXP,
         rewardCoins: nextBoss.rewardCoins,
-        status: 'ACTIVE',
+        status: "ACTIVE",
         createdAt: new Date().toISOString(),
       });
 

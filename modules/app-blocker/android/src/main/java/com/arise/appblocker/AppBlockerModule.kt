@@ -36,7 +36,7 @@ class AppBlockerModule : Module() {
             granted
         }
 
-        Function("hasOverlayPermission") {
+        Function("hasOverlayPermission") { 
             val context = appContext.reactContext ?: appContext.currentActivity
             val granted = if (context != null) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {

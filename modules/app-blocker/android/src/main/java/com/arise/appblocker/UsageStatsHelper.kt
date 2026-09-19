@@ -14,7 +14,7 @@ import java.util.Locale
 
 object UsageStatsHelper {
 
-    private const val AUDIT_TAG = "ARISE BLOCKER"
+    private const val AUDIT_TAG = "ARISE_BLOCKER"
     private const val TAG = "UsageStatsHelper"
 
     fun hasUsagePermission(context: Context): Boolean {
@@ -158,8 +158,7 @@ object UsageStatsHelper {
     /**
      * Authoritative Deterministic Daily Millisecond Usage Calculation:
      * Computes usage strictly from 00:00:00 local time today.
-     * Uses stateful event transition tracking (avoiding depth desynchronization)
-     * and adds active session delta if the app is currently in foreground.
+     * Uses stateful event transition tracking and adds active session delta if app is currently in foreground.
      */
     fun getPackageTodayUsageMs(context: Context, packageName: String): Long {
         val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager ?: return 0L
@@ -211,7 +210,6 @@ object UsageStatsHelper {
                 }
             }
 
-            // If app is currently active in the foreground right now, add active in-flight session time
             if (isSessionActive && sessionStartTime > 0L && endTime >= sessionStartTime) {
                 totalUsageMs += (endTime - sessionStartTime)
             }
@@ -219,7 +217,6 @@ object UsageStatsHelper {
             Log.e(TAG, "Error calculating usage events for $packageName", e)
         }
 
-        // Fallback to queryAndAggregateUsageStats if queryEvents returned no events
         if (!hasEvents && totalUsageMs == 0L) {
             try {
                 val statsMap = usageStatsManager.queryAndAggregateUsageStats(startTime, endTime)
@@ -256,41 +253,5 @@ object UsageStatsHelper {
             return total.coerceIn(0L, maxPossibleMs)
         } catch (_: Exception) {}
         return 0L
-    }
-
-    /**
-     * Structured Debugging Logs as required by specification:
-     * Logs exact millisecond values, minutes, foreground state, and transition reason.
-     */
-    fun logAudit(
-        pkg: String,
-        usedMs: Long,
-        limitMs: Long,
-        isForeground: Boolean,
-        previousLocked: Boolean,
-        newLocked: Boolean,
-        reason: String
-    ) {
-        val ts = System.currentTimeMillis()
-        val remainingMs = limitMs - usedMs
-        val usedMinutes = String.format(Locale.US, "%.2f", usedMs / 60000.0)
-        val limitMinutes = String.format(Locale.US, "%.2f", limitMs / 60000.0)
-
-        Log.i(
-            AUDIT_TAG,
-            """
-[ARISE BLOCKER]
-package=$pkg
-actualUsedMs=$usedMs
-actualUsedMinutes=$usedMinutes
-limitMs=$limitMs
-limitMinutes=$limitMinutes
-remainingMs=$remainingMs
-isForeground=$isForeground
-previousLockState=$previousLocked
-newLockState=$newLocked
-reason=$reason
-            """.trimIndent()
-        )
     }
 }

@@ -329,8 +329,15 @@ export function InAppSurveyModal({
             ref={webViewRef}
             source={{ uri: url }}
             style={styles.webview}
+            userAgent="Mozilla/5.0 (Linux; Android 13; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
             javaScriptEnabled={true}
             domStorageEnabled={true}
+            sharedCookiesEnabled={true}
+            thirdPartyCookiesEnabled={true}
+            mixedContentMode="always"
+            allowsInlineMediaPlayback={true}
+            originWhitelist={['*']}
+            setSupportMultipleWindows={false}
             startInLoadingState={true}
             scalesPageToFit={true}
             allowsBackForwardNavigationGestures={true}

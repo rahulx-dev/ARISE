@@ -2,6 +2,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react-native';
 import { router } from 'expo-router';
+import { logErrorToSentry } from '../../services/sentryService';
 
 interface Props {
   children: ReactNode;
@@ -25,6 +26,11 @@ export class ExerciseErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('[ARISE TRACKER ERROR]', error, errorInfo);
+    logErrorToSentry(error, {
+      module: 'ExerciseTracker',
+      action: 'componentDidCatch',
+      extra: { componentStack: errorInfo.componentStack },
+    });
   }
 
   handleRetry = () => {

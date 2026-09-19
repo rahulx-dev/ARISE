@@ -19,13 +19,12 @@ import { SerqBackdrop } from '../../src/components/serq/SerqBackdrop';
 import { SerqCard } from '../../src/components/serq/SerqCard';
 import { SerqButton } from '../../src/components/serq/SerqButton';
 import { userRepository } from '../../src/database/repositories/userRepository';
-import { screenTimerService } from '../../src/native';
+import { screenTimerService, appBlockerService } from '../../src/native';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { useSound } from '../../src/hooks/useSound';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
 import { colors } from '../../src/theme/colors';
-import { temporaryUnlock } from '../../modules/app-blocker';
 
 export default function EmergencyOverrideScreen() {
   const router = useRouter();
@@ -92,7 +91,7 @@ export default function EmergencyOverrideScreen() {
       await userRepository.updateStat('strength', 1);
       screenTimerService.startSessionTimer(durationMs, 'Emergency 5m Pass');
       try {
-        temporaryUnlock(durationMs);
+        appBlockerService.temporaryUnlock?.(durationMs);
       } catch (err) {
         console.warn('Native temporaryUnlock error:', err);
       }

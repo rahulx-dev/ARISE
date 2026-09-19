@@ -1,17 +1,17 @@
-import { expoDb } from '../database/client';
-import { crystalRepository } from '../database/repositories/crystalRepository';
-import { userRepository } from '../database/repositories/userRepository';
-import { notificationService } from './notificationService';
-import * as Notifications from 'expo-notifications';
+import { expoDb } from "../database/client";
+import { crystalRepository } from "../database/repositories/crystalRepository";
+import { userRepository } from "../database/repositories/userRepository";
+import { notificationService } from "./notificationService";
+import * as Notifications from "expo-notifications";
 
 export interface RedGateTrial {
-  id: 'pushups' | 'squats' | 'focus';
+  id: "pushups" | "squats" | "focus";
   title: string;
   subtitle: string;
   targetLabel: string;
   targetValue: number;
-  type: 'exercise' | 'focus';
-  exerciseType?: 'PUSHUP' | 'SQUAT';
+  type: "exercise" | "focus";
+  exerciseType?: "PUSHUP" | "SQUAT";
 }
 
 export interface RedGateEncounter {
@@ -28,15 +28,20 @@ export interface RedGateEncounter {
   trials: RedGateTrial[];
 }
 
-const RED_GATE_STORAGE_KEY = '@arise_active_red_gate';
-const RED_GATE_LAST_CLEARED_KEY = '@arise_last_red_gate_cleared_at';
-const NEXT_RED_GATE_EPOCH_KEY = '@arise_next_red_gate_epoch';
-const RED_GATE_NOTIFIED_KEY = '@arise_red_gate_notified';
+const RED_GATE_STORAGE_KEY = "@arise_active_red_gate";
+const RED_GATE_LAST_CLEARED_KEY = "@arise_last_red_gate_cleared_at";
+const NEXT_RED_GATE_EPOCH_KEY = "@arise_next_red_gate_epoch";
+const RED_GATE_NOTIFIED_KEY = "@arise_red_gate_notified";
 
 function getKv(key: string): string | null {
   try {
-    expoDb.runSync('CREATE TABLE IF NOT EXISTS arise_kv (key TEXT PRIMARY KEY, val TEXT)');
-    const res = expoDb.getFirstSync<{ val: string }>('SELECT val FROM arise_kv WHERE key = ?', [key]);
+    expoDb.runSync(
+      "CREATE TABLE IF NOT EXISTS arise_kv (key TEXT PRIMARY KEY, val TEXT)",
+    );
+    const res = (expoDb as any).getFirstSync(
+      "SELECT val FROM arise_kv WHERE key = ?",
+      [key],
+    ) as { val: string } | null;
     return res?.val ?? null;
   } catch {
     return null;
@@ -45,8 +50,13 @@ function getKv(key: string): string | null {
 
 function setKv(key: string, val: string): void {
   try {
-    expoDb.runSync('CREATE TABLE IF NOT EXISTS arise_kv (key TEXT PRIMARY KEY, val TEXT)');
-    expoDb.runSync('INSERT OR REPLACE INTO arise_kv (key, val) VALUES (?, ?)', [key, val]);
+    expoDb.runSync(
+      "CREATE TABLE IF NOT EXISTS arise_kv (key TEXT PRIMARY KEY, val TEXT)",
+    );
+    expoDb.runSync("INSERT OR REPLACE INTO arise_kv (key, val) VALUES (?, ?)", [
+      key,
+      val,
+    ]);
   } catch {}
 }
 
@@ -103,7 +113,10 @@ class RedGateService {
 
     const nextTargetEpoch = Number(nextTargetStr);
     if (isNaN(nextTargetEpoch)) {
-      setKv(NEXT_RED_GATE_EPOCH_KEY, (now + getRandomWeeklyDelayMs()).toString());
+      setKv(
+        NEXT_RED_GATE_EPOCH_KEY,
+        (now + getRandomWeeklyDelayMs()).toString(),
+      );
       return null;
     }
 
@@ -128,41 +141,41 @@ class RedGateService {
     const now = Date.now();
     const gate: RedGateEncounter = {
       id: `red_gate_${now}`,
-      threatName: 'Demon Monarch Baran',
-      title: 'CRIMSON DIMENSION RIFT // RED GATE',
-      lore: 'Atmospheric mana has reached lethal density! The dimensional rift has mutated into a catastrophic Red Gate. Normal extraction is sealed until the monarch sovereign entity is defeated.',
-      rankCode: 'S',
+      threatName: "Demon Monarch Baran",
+      title: "CRIMSON DIMENSION RIFT // RED GATE",
+      lore: "Atmospheric mana has reached lethal density! The dimensional rift has mutated into a catastrophic Red Gate. Normal extraction is sealed until the monarch sovereign entity is defeated.",
+      rankCode: "S",
       expiresAt: now + 24 * 60 * 60 * 1000,
       isCleared: false,
       bountyCoins: 2500, // Mega Coins Bounty!
       rewardXP: 2500, // Massive XP boost
-      unlockedTitle: 'Red Gate Conqueror',
+      unlockedTitle: "Red Gate Conqueror",
       trials: [
         {
-          id: 'pushups',
-          title: '[ AI TRIAL: 25 PUSHUPS ]',
-          subtitle: 'Anti-Cheat Camera Motion Tracked',
-          targetLabel: '25 Reps',
+          id: "pushups",
+          title: "[ AI TRIAL: 25 PUSHUPS ]",
+          subtitle: "Anti-Cheat Camera Motion Tracked",
+          targetLabel: "25 Reps",
           targetValue: 25,
-          type: 'exercise',
-          exerciseType: 'PUSHUP',
+          type: "exercise",
+          exerciseType: "PUSHUP",
         },
         {
-          id: 'squats',
-          title: '[ AI TRIAL: 30 SQUATS ]',
-          subtitle: 'Full Depth & Form Angle Verified',
-          targetLabel: '30 Reps',
+          id: "squats",
+          title: "[ AI TRIAL: 30 SQUATS ]",
+          subtitle: "Full Depth & Form Angle Verified",
+          targetLabel: "30 Reps",
           targetValue: 30,
-          type: 'exercise',
-          exerciseType: 'SQUAT',
+          type: "exercise",
+          exerciseType: "SQUAT",
         },
         {
-          id: 'focus',
-          title: '[ ISOLATION: 45M FOCUS ]',
-          subtitle: 'Zero Distraction Phone Lockdown',
-          targetLabel: '45 Mins',
+          id: "focus",
+          title: "[ ISOLATION: 45M FOCUS ]",
+          subtitle: "Zero Distraction Phone Lockdown",
+          targetLabel: "45 Mins",
           targetValue: 45,
-          type: 'focus',
+          type: "focus",
         },
       ],
     };
@@ -182,19 +195,21 @@ class RedGateService {
   /**
    * Broadcasts high-priority red alert OS push notification and database record
    */
-  private async sendRedAlertNotification(gate: RedGateEncounter): Promise<void> {
+  private async sendRedAlertNotification(
+    gate: RedGateEncounter,
+  ): Promise<void> {
     try {
       const lastNotified = getKv(RED_GATE_NOTIFIED_KEY);
       if (lastNotified === gate.id) return; // Prevent spamming duplicate notifications
 
       // 1. Android Notification Channel with Max Importance & Red Light
       try {
-        await Notifications.setNotificationChannelAsync('emergency_red_gate', {
-          name: 'Emergency Red Gate Alarms',
+        await Notifications.setNotificationChannelAsync("emergency_red_gate", {
+          name: "Emergency Red Gate Alarms",
           importance: Notifications.AndroidImportance.MAX,
           vibrationPattern: [0, 600, 200, 600, 200, 800],
-          lightColor: '#FF1E44',
-          sound: 'default',
+          lightColor: "#FF1E44",
+          sound: "default",
         });
       } catch {}
 
@@ -202,30 +217,30 @@ class RedGateService {
       try {
         await Notifications.scheduleNotificationAsync({
           content: {
-            title: '🚨 [ EMERGENCY RED GATE DETECTED ]',
-            body: 'Atmospheric mana overload! Crimson Dimension Rift has materialized. 2,500 Coins & 2,500 XP Bounty active for 24h. Enter the trial now!',
-            color: '#FF1E44',
+            title: "🚨 [ EMERGENCY RED GATE DETECTED ]",
+            body: "Atmospheric mana overload! Crimson Dimension Rift has materialized. 2,500 Coins & 2,500 XP Bounty active for 24h. Enter the trial now!",
+            color: "#FF1E44",
             sound: true,
             priority: Notifications.AndroidNotificationPriority.MAX,
-            data: { type: 'RED_GATE', gateId: gate.id },
+            data: { type: "RED_GATE", gateId: gate.id },
           },
           trigger: null, // Send immediately
         });
       } catch (pushErr) {
-        console.warn('OS push notification warning:', pushErr);
+        console.warn("OS push notification warning:", pushErr);
       }
 
       // 3. Persistent SQLite Notification Record
       await notificationService.createNotification(
-        'SYSTEM',
-        '🚨 EMERGENCY RED GATE MATERIALIZED',
-        'Demon Monarch Baran has sealed the dimensional rift. 2,500 Coins & 2,500 XP mega bounty unlocked for 24 hours!',
-        gate.id
+        "SYSTEM",
+        "🚨 EMERGENCY RED GATE MATERIALIZED",
+        "Demon Monarch Baran has sealed the dimensional rift. 2,500 Coins & 2,500 XP mega bounty unlocked for 24 hours!",
+        gate.id,
       );
 
       setKv(RED_GATE_NOTIFIED_KEY, gate.id);
     } catch (err) {
-      console.warn('Error sending red alert notification:', err);
+      console.warn("Error sending red alert notification:", err);
     }
   }
 
@@ -242,11 +257,23 @@ class RedGateService {
     try {
       const active = await this.getActiveGate();
       if (!active) {
-        return { success: false, coinsAwarded: 0, rewardXP: 0, title: '', error: 'No active Red Gate found.' };
+        return {
+          success: false,
+          coinsAwarded: 0,
+          rewardXP: 0,
+          title: "",
+          error: "No active Red Gate found.",
+        };
       }
 
       if (active.isCleared) {
-        return { success: false, coinsAwarded: 0, rewardXP: 0, title: '', error: 'Red Gate already conquered.' };
+        return {
+          success: false,
+          coinsAwarded: 0,
+          rewardXP: 0,
+          title: "",
+          error: "Red Gate already conquered.",
+        };
       }
 
       active.isCleared = true;
@@ -257,7 +284,7 @@ class RedGateService {
       await userRepository.addCoins(
         active.bountyCoins,
         `Conquered Emergency Red Gate: ${active.threatName}`,
-        'quest'
+        "quest",
       );
 
       // Award Massive System XP
@@ -274,12 +301,18 @@ class RedGateService {
         title: active.unlockedTitle,
       };
     } catch (e: any) {
-      return { success: false, coinsAwarded: 0, rewardXP: 0, title: '', error: e?.message || 'Failed to claim victory' };
+      return {
+        success: false,
+        coinsAwarded: 0,
+        rewardXP: 0,
+        title: "",
+        error: e?.message || "Failed to claim victory",
+      };
     }
   }
 
   clearGate(): void {
-    setKv(RED_GATE_STORAGE_KEY, '');
+    setKv(RED_GATE_STORAGE_KEY, "");
   }
 }
 

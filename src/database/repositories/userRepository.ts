@@ -1,6 +1,24 @@
-import { db } from '../client';
-import { userProfile, coinTransaction, quest, screenTimeSession } from '../schema';
-import { eq } from 'drizzle-orm';
+import { db } from "../client";
+import {
+  userProfile,
+  coinTransaction,
+  quest,
+  screenTimeSession,
+  exerciseSession,
+  focusSession,
+  achievement,
+  progressPhoto,
+  appRestriction,
+  notification,
+  payoutRequest,
+  workoutSessions,
+  workoutSets,
+  personalRecords,
+  crystalTransaction,
+  crystalRedemption,
+} from "../schema";
+import { eq } from "drizzle-orm";
+import { addSentryBreadcrumb, logErrorToSentry } from "../../services/sentryService";
 
 type UserProfile = typeof userProfile.$inferSelect;
 type UpdateProfileParams = Partial<typeof userProfile.$inferInsert>;
@@ -14,11 +32,14 @@ export const userRepository = {
   async updateProfile(updates: UpdateProfileParams): Promise<void> {
     const profile = await this.getProfile();
     if (!profile) return;
-    await db.update(userProfile).set(updates).where(eq(userProfile.id, profile.id));
+    await db
+      .update(userProfile)
+      .set(updates)
+      .where(eq(userProfile.id, profile.id));
   },
 
   async addXP(amount: number): Promise<void> {
-    await db.transaction(async (tx) => {
+    await db.transaction(async (tx: any) => {
       const results = await tx.select().from(userProfile).limit(1);
       if (results.length === 0) return;
 
@@ -46,13 +67,18 @@ export const userRepository = {
     });
   },
 
-  async addCoins(amount: number, description: string, source: string): Promise<void> {
-    await db.transaction(async (tx) => {
+  async addCoins(
+    amount: number,
+    description: string,
+    source: string,
+  ): Promise<void> {
+    await db.transaction(async (tx: any) => {
       const results = await tx.select().from(userProfile).limit(1);
       if (results.length === 0) return;
 
       const profile = results[0];
-      const isAd = source === 'ad' || source === 'sponsor_video' || source.includes('ad');
+      const isAd =
+        source === "ad" || source === "sponsor_video" || source.includes("ad");
       const currentPasses = profile.sponsorPasses ?? 0;
 
       await tx
@@ -66,7 +92,7 @@ export const userRepository = {
 
       await tx.insert(coinTransaction).values({
         amount,
-        type: 'earn',
+        type: "earn",
         description,
         source,
         timestamp: new Date().toISOString(),
@@ -80,7 +106,7 @@ export const userRepository = {
   },
 
   async addSponsorPass(count: number = 1): Promise<number> {
-    return await db.transaction(async (tx) => {
+    return await db.transaction(async (tx: any) => {
       const results = await tx.select().from(userProfile).limit(1);
       if (results.length === 0) return 0;
       const profile = results[0];
@@ -94,7 +120,7 @@ export const userRepository = {
   },
 
   async consumeSponsorPasses(count: number): Promise<boolean> {
-    return await db.transaction(async (tx) => {
+    return await db.transaction(async (tx: any) => {
       const results = await tx.select().from(userProfile).limit(1);
       if (results.length === 0) return false;
       const profile = results[0];
@@ -109,7 +135,7 @@ export const userRepository = {
   },
 
   async spendCoins(amount: number, description: string): Promise<boolean> {
-    return await db.transaction(async (tx) => {
+    return await db.transaction(async (tx: any) => {
       const results = await tx.select().from(userProfile).limit(1);
       if (results.length === 0) return false;
 
@@ -127,9 +153,9 @@ export const userRepository = {
 
       await tx.insert(coinTransaction).values({
         amount: -amount,
-        type: 'spend',
+        type: "spend",
         description,
-        source: 'store',
+        source: "store",
         timestamp: new Date().toISOString(),
       });
 
@@ -137,8 +163,12 @@ export const userRepository = {
     });
   },
 
-  async deductCoins(amount: number, description: string, source: string = 'store'): Promise<boolean> {
-    return await db.transaction(async (tx) => {
+  async deductCoins(
+    amount: number,
+    description: string,
+    source: string = "store",
+  ): Promise<boolean> {
+    return await db.transaction(async (tx: any) => {
       const results = await tx.select().from(userProfile).limit(1);
       if (results.length === 0) return false;
 
@@ -156,7 +186,7 @@ export const userRepository = {
 
       await tx.insert(coinTransaction).values({
         amount: -amount,
-        type: 'spend',
+        type: "spend",
         description,
         source,
         timestamp: new Date().toISOString(),
@@ -166,16 +196,15 @@ export const userRepository = {
     });
   },
 
-
   async purchaseScreenTimeAtomically(
     coinCost: number,
-    sessionData: Omit<typeof screenTimeSession.$inferInsert, 'id'>,
-    description: string
+    sessionData: Omit<typeof screenTimeSession.$inferInsert, "id">,
+    description: string,
   ): Promise<{ success: boolean; error?: string; session?: any }> {
-    return await db.transaction(async (tx) => {
+    return await db.transaction(async (tx: any) => {
       const results = await tx.select().from(userProfile).limit(1);
       if (results.length === 0) {
-        return { success: false, error: 'User profile not found.' };
+        return { success: false, error: "User profile not found." };
       }
 
       const profile = results[0];
@@ -195,9 +224,9 @@ export const userRepository = {
       // 2. Insert transaction
       await tx.insert(coinTransaction).values({
         amount: -coinCost,
-        type: 'spend',
+        type: "spend",
         description,
-        source: 'shop_purchase',
+        source: "shop_purchase",
         timestamp: new Date().toISOString(),
       });
 
@@ -218,68 +247,90 @@ export const userRepository = {
     questId: number,
     rewardCoins: number,
     rewardXP: number,
-    statType?: 'strength' | 'discipline' | 'focus' | 'health' | 'knowledge'
+    statType?: "strength" | "discipline" | "focus" | "health" | "knowledge",
   ): Promise<boolean> {
-    return await db.transaction(async (tx) => {
-      const qRows = await tx
-        .select()
-        .from(quest)
-        .where(eq(quest.id, questId))
-        .limit(1);
-      if (qRows.length === 0 || qRows[0].completed === 1) {
-        return false; // Already completed or not found
-      }
+    try {
+      addSentryBreadcrumb("quest", "Attempting quest completion", {
+        questId,
+        rewardCoins,
+        rewardXP,
+        statType,
+      });
 
-      // 1. Mark quest completed
-      await tx.update(quest).set({ completed: 1 }).where(eq(quest.id, questId));
-
-      // 2. Add Coins & XP to User
-      const pRows = await tx.select().from(userProfile).limit(1);
-      if (pRows.length > 0) {
-        const profile = pRows[0];
-        let newXP = profile.currentXP + rewardXP;
-        const newTotalXP = profile.totalXP + rewardXP;
-        let currentLevel = profile.level;
-        let requiredXP = Math.floor(100 * Math.pow(1.5, currentLevel - 1));
-
-        while (newXP >= requiredXP) {
-          newXP -= requiredXP;
-          currentLevel += 1;
-          requiredXP = Math.floor(100 * Math.pow(1.5, currentLevel - 1));
+      return await db.transaction(async (tx: any) => {
+        const qRows = await tx
+          .select()
+          .from(quest)
+          .where(eq(quest.id, questId))
+          .limit(1);
+        if (qRows.length === 0 || qRows[0].completed === 1) {
+          return false; // Already completed or not found
         }
 
-        const finalCoins = Math.max(0, rewardCoins);
-        const updates: any = {
-          coins: profile.coins + finalCoins,
-          totalCoinsEarned: profile.totalCoinsEarned + finalCoins,
-          currentXP: newXP,
-          totalXP: newTotalXP,
-          level: currentLevel,
-        };
+        const q = qRows[0];
+        const actualCoins = Math.max(q.rewardCoins || 0, rewardCoins || 0);
+        const actualXP = Math.max(q.rewardXP || 0, rewardXP || 0);
 
-        if (statType && typeof profile[statType] === 'number') {
-          updates[statType] = profile[statType] + 1;
+        // 1. Mark quest completed
+        await tx.update(quest).set({ completed: 1 }).where(eq(quest.id, questId));
+
+        // 2. Add Coins & XP to User
+        const pRows = await tx.select().from(userProfile).limit(1);
+        if (pRows.length > 0) {
+          const profile = pRows[0];
+          let newXP = profile.currentXP + actualXP;
+          const newTotalXP = profile.totalXP + actualXP;
+          let currentLevel = profile.level;
+          let requiredXP = Math.floor(100 * Math.pow(1.5, currentLevel - 1));
+
+          while (newXP >= requiredXP) {
+            newXP -= requiredXP;
+            currentLevel += 1;
+            requiredXP = Math.floor(100 * Math.pow(1.5, currentLevel - 1));
+          }
+
+          const updates: any = {
+            coins: profile.coins + actualCoins,
+            totalCoinsEarned: profile.totalCoinsEarned + actualCoins,
+            currentXP: newXP,
+            totalXP: newTotalXP,
+            level: currentLevel,
+          };
+
+          if (statType && typeof profile[statType] === "number") {
+            updates[statType] = profile[statType] + 1;
+          }
+
+          await tx
+            .update(userProfile)
+            .set(updates)
+            .where(eq(userProfile.id, profile.id));
+
+          // 3. Insert transaction
+          await tx.insert(coinTransaction).values({
+            amount: actualCoins,
+            type: "earn",
+            description: `Completed Quest: ${qRows[0].title}`,
+            source: "quest_reward",
+            timestamp: new Date().toISOString(),
+          });
         }
 
-        await tx.update(userProfile).set(updates).where(eq(userProfile.id, profile.id));
-
-        // 3. Insert transaction
-        await tx.insert(coinTransaction).values({
-          amount: finalCoins,
-          type: 'earn',
-          description: `Completed Quest: ${qRows[0].title}`,
-          source: 'quest_reward',
-          timestamp: new Date().toISOString(),
-        });
-      }
-
-      return true;
-    });
+        return true;
+      });
+    } catch (err) {
+      logErrorToSentry(err, {
+        module: "userRepository",
+        action: "completeQuestAndGrantRewards",
+        extra: { questId, rewardCoins, rewardXP, statType },
+      });
+      return false;
+    }
   },
 
   async updateStat(
-    statName: 'strength' | 'discipline' | 'focus' | 'health' | 'knowledge',
-    amount: number
+    statName: "strength" | "discipline" | "focus" | "health" | "knowledge",
+    amount: number,
   ): Promise<void> {
     const profile = await this.getProfile();
     if (!profile) return;
@@ -287,21 +338,27 @@ export const userRepository = {
     const updatePayload: Partial<typeof userProfile.$inferInsert> = {};
     updatePayload[statName] = profile[statName] + amount;
 
-    await db.update(userProfile).set(updatePayload).where(eq(userProfile.id, profile.id));
+    await db
+      .update(userProfile)
+      .set(updatePayload)
+      .where(eq(userProfile.id, profile.id));
   },
 
   async updateStreak(): Promise<void> {
-    await db.transaction(async (tx) => {
+    await db.transaction(async (tx: any) => {
       const results = await tx.select().from(userProfile).limit(1);
       if (results.length === 0) return;
 
       const profile = results[0];
       const now = new Date();
-      const pad = (n: number) => String(n).padStart(2, '0');
-      const getLocalDateStr = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      const pad = (n: number) => String(n).padStart(2, "0");
+      const getLocalDateStr = (d: Date) =>
+        `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
       const today = getLocalDateStr(now);
 
-      const lastActiveDateStr = profile.lastActiveDate ? profile.lastActiveDate.split('T')[0] : null;
+      const lastActiveDateStr = profile.lastActiveDate
+        ? profile.lastActiveDate.split("T")[0]
+        : null;
 
       if (lastActiveDateStr === today) {
         return; // Already active today
@@ -330,17 +387,41 @@ export const userRepository = {
     });
   },
 
-
   async resetProfile(): Promise<void> {
-    await db.transaction(async (tx) => {
+    await db.transaction(async (tx: any) => {
+      // 1. Wipe all dependent progression and history tables
+      await tx.delete(quest);
+      await tx.delete(exerciseSession);
+      await tx.delete(coinTransaction);
+      await tx.delete(screenTimeSession);
+      await tx.delete(focusSession);
+      await tx.delete(achievement);
+      await tx.delete(progressPhoto);
+      await tx.delete(appRestriction);
+      await tx.delete(notification);
+      await tx.delete(payoutRequest);
+      await tx.delete(workoutSessions);
+      await tx.delete(workoutSets);
+      await tx.delete(personalRecords);
+      await tx.delete(crystalTransaction);
+      await tx.delete(crystalRedemption);
+
+      // 2. Wipe and re-seed clean level 1 user profile
       await tx.delete(userProfile);
       await tx.insert(userProfile).values({
-        displayName: 'Warrior',
+        displayName: "Warrior",
+        avatarIcon: "user",
+        bio: "Disciplined warrior in training.",
+        workoutGoal: "strength",
+        dailyFocusGoal: 30,
+        dailyQuestTarget: 4,
         level: 1,
         currentXP: 0,
         totalXP: 0,
         coins: 0,
+        manaCrystals: 0,
         totalCoinsEarned: 0,
+        sponsorPasses: 0,
         currentStreak: 0,
         longestStreak: 0,
         strength: 0,

@@ -1,82 +1,85 @@
-import { userRepository } from '../database/repositories/userRepository';
-import { db } from '../database/client';
-import { achievement } from '../database/schema';
-import { eq } from 'drizzle-orm';
-import { notificationService } from './notificationService';
+import { userRepository } from "../database/repositories/userRepository";
+import { db } from "../database/client";
+import { achievement } from "../database/schema";
+import { eq } from "drizzle-orm";
+import { notificationService } from "./notificationService";
 
 export interface StreakMilestoneGift {
   id: string;
   daysRequired: number;
   title: string;
   subtitle: string;
-  tier: 'IRON' | 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM' | 'MYTHIC';
+  tier: "IRON" | "BRONZE" | "SILVER" | "GOLD" | "PLATINUM" | "MYTHIC";
   color: string;
   coinsReward: number;
   extraPerk: string;
-  status: 'CLAIMED' | 'CLAIMABLE' | 'LOCKED';
+  status: "CLAIMED" | "CLAIMABLE" | "LOCKED";
   daysRemaining: number;
 }
 
-const MILESTONE_DEFINITIONS: Omit<StreakMilestoneGift, 'status' | 'daysRemaining'>[] = [
+const MILESTONE_DEFINITIONS: Omit<
+  StreakMilestoneGift,
+  "status" | "daysRemaining"
+>[] = [
   {
-    id: 'streak_gift_3',
+    id: "streak_gift_3",
     daysRequired: 3,
-    title: 'Initiate Gift Box',
-    subtitle: 'Awakening of daily iron discipline',
-    tier: 'IRON',
-    color: '#94A3B8',
+    title: "Initiate Gift Box",
+    subtitle: "Awakening of daily iron discipline",
+    tier: "IRON",
+    color: "#94A3B8",
     coinsReward: 200,
-    extraPerk: '1x Streak Freeze Shield',
+    extraPerk: "1x Streak Freeze Shield",
   },
   {
-    id: 'streak_gift_7',
+    id: "streak_gift_7",
     daysRequired: 7,
-    title: 'Vanguard Chest',
-    subtitle: 'One full unbroken week warrior trophy',
-    tier: 'BRONZE',
-    color: '#CD7F32',
+    title: "Vanguard Chest",
+    subtitle: "One full unbroken week warrior trophy",
+    tier: "BRONZE",
+    color: "#CD7F32",
     coinsReward: 600,
-    extraPerk: '2x Streak Freeze Shields + Bronze Aura',
+    extraPerk: "2x Streak Freeze Shields + Bronze Aura",
   },
   {
-    id: 'streak_gift_14',
+    id: "streak_gift_14",
     daysRequired: 14,
-    title: 'Titan Vault',
-    subtitle: 'Two weeks of unshakeable calisthenics focus',
-    tier: 'SILVER',
-    color: '#C0C0C0',
+    title: "Titan Vault",
+    subtitle: "Two weeks of unshakeable calisthenics focus",
+    tier: "SILVER",
+    color: "#C0C0C0",
     coinsReward: 1500,
-    extraPerk: 'Knight Callout Badge + 3x Shields',
+    extraPerk: "Knight Callout Badge + 3x Shields",
   },
   {
-    id: 'streak_gift_30',
+    id: "streak_gift_30",
     daysRequired: 30,
-    title: 'Monarch Royal Treasury',
-    subtitle: '30-Day unbroken monthly legend',
-    tier: 'GOLD',
-    color: '#F59E0B',
+    title: "Monarch Royal Treasury",
+    subtitle: "30-Day unbroken monthly legend",
+    tier: "GOLD",
+    color: "#F59E0B",
     coinsReward: 4000,
-    extraPerk: 'Silver Crown Badge + Royal Sapphire Theme Perk',
+    extraPerk: "Silver Crown Badge + Royal Sapphire Theme Perk",
   },
   {
-    id: 'streak_gift_60',
+    id: "streak_gift_60",
     daysRequired: 60,
-    title: 'Supreme Sentinel Relic',
-    subtitle: '60 days of relentless habit mastery',
-    tier: 'PLATINUM',
-    color: '#00F0FF',
+    title: "Supreme Sentinel Relic",
+    subtitle: "60 days of relentless habit mastery",
+    tier: "PLATINUM",
+    color: "#00F0FF",
     coinsReward: 10000,
-    extraPerk: 'Diamond Will Title + Gold Avatar Ring',
+    extraPerk: "Diamond Will Title + Gold Avatar Ring",
   },
   {
-    id: 'streak_gift_100',
+    id: "streak_gift_100",
     daysRequired: 100,
-    title: 'Shadow Sovereign Treasure',
-    subtitle: 'Centurion God status // Top 0.01% elite',
-    tier: 'MYTHIC',
-    color: '#A855F7',
+    title: "Shadow Sovereign Treasure",
+    subtitle: "Centurion God status // Top 0.01% elite",
+    tier: "MYTHIC",
+    color: "#A855F7",
     coinsReward: 25000,
-    extraPerk: 'Mythic Monarch Wings + Hall of Fame Induction',
+    extraPerk: "Mythic Monarch Wings + Hall of Fame Induction",
   },
 ];
 
@@ -98,34 +101,39 @@ export const streakGiftService = {
     const claimedRecords = await db
       .select()
       .from(achievement)
-      .where(eq(achievement.category, 'STREAK_GIFT'));
+      .where(eq(achievement.category, "STREAK_GIFT"));
 
-    const claimedIds = new Set(claimedRecords.map((r) => r.achievementId));
+    const claimedIds = new Set(claimedRecords.map((r: any) => r.achievementId));
 
-    const milestones: StreakMilestoneGift[] = MILESTONE_DEFINITIONS.map((def) => {
-      const isClaimed = claimedIds.has(def.id);
-      const isEligible = currentStreak >= def.daysRequired;
+    const milestones: StreakMilestoneGift[] = MILESTONE_DEFINITIONS.map(
+      (def) => {
+        const isClaimed = claimedIds.has(def.id);
+        const isEligible = currentStreak >= def.daysRequired;
 
-      let status: 'CLAIMED' | 'CLAIMABLE' | 'LOCKED' = 'LOCKED';
-      if (isClaimed) {
-        status = 'CLAIMED';
-      } else if (isEligible) {
-        status = 'CLAIMABLE';
-      }
+        let status: "CLAIMED" | "CLAIMABLE" | "LOCKED" = "LOCKED";
+        if (isClaimed) {
+          status = "CLAIMED";
+        } else if (isEligible) {
+          status = "CLAIMABLE";
+        }
 
-      const daysRemaining = Math.max(0, def.daysRequired - currentStreak);
+        const daysRemaining = Math.max(0, def.daysRequired - currentStreak);
 
-      return {
-        ...def,
-        status,
-        daysRemaining,
-      };
-    });
+        return {
+          ...def,
+          status,
+          daysRemaining,
+        };
+      },
+    );
 
-    const nextMilestone = milestones.find((m) => m.status !== 'CLAIMED') || null;
-    const claimedCount = milestones.filter((m) => m.status === 'CLAIMED').length;
+    const nextMilestone =
+      milestones.find((m) => m.status !== "CLAIMED") || null;
+    const claimedCount = milestones.filter(
+      (m) => m.status === "CLAIMED",
+    ).length;
     const totalAvailableCoins = milestones
-      .filter((m) => m.status === 'CLAIMABLE')
+      .filter((m) => m.status === "CLAIMABLE")
       .reduce((sum, m) => sum + m.coinsReward, 0);
 
     return {
@@ -141,18 +149,25 @@ export const streakGiftService = {
    * Claim a milestone gift and add coins to SQLite wallet
    */
   claimMilestoneGift: async (
-    milestoneId: string
-  ): Promise<{ success: boolean; rewardCoins: number; title: string; perk: string }> => {
+    milestoneId: string,
+  ): Promise<{
+    success: boolean;
+    rewardCoins: number;
+    title: string;
+    perk: string;
+  }> => {
     const profile = await userRepository.getProfile();
     const currentStreak = profile?.currentStreak || 0;
     const def = MILESTONE_DEFINITIONS.find((m) => m.id === milestoneId);
 
     if (!def) {
-      throw new Error('Invalid streak gift milestone');
+      throw new Error("Invalid streak gift milestone");
     }
 
     if (currentStreak < def.daysRequired) {
-      throw new Error(`Requires ${def.daysRequired} days streak. Current: ${currentStreak}`);
+      throw new Error(
+        `Requires ${def.daysRequired} days streak. Current: ${currentStreak}`,
+      );
     }
 
     // Check if already claimed
@@ -163,7 +178,7 @@ export const streakGiftService = {
       .limit(1);
 
     if (existing.length > 0) {
-      throw new Error('This streak gift has already been claimed!');
+      throw new Error("This streak gift has already been claimed!");
     }
 
     // Record in SQLite achievement table
@@ -171,8 +186,8 @@ export const streakGiftService = {
       achievementId: milestoneId,
       title: def.title,
       description: def.subtitle,
-      icon: 'gift',
-      category: 'STREAK_GIFT',
+      icon: "gift",
+      category: "STREAK_GIFT",
       unlockedAt: new Date().toISOString(),
     });
 
@@ -180,14 +195,14 @@ export const streakGiftService = {
     await userRepository.addCoins(
       def.coinsReward,
       `Claimed ${def.daysRequired}-Day Streak Gift (${def.title})`,
-      'streak_gift'
+      "streak_gift",
     );
 
     // Notify user
     await notificationService.createNotification(
-      'REWARD',
+      "REWARD",
       `Streak Gift Unlocked: ${def.title}!`,
-      `+${def.coinsReward} Coins credited to your vault. Keep your flame burning!`
+      `+${def.coinsReward} Coins credited to your vault. Keep your flame burning!`,
     );
 
     return {

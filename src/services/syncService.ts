@@ -1,32 +1,49 @@
-import { AppState } from 'react-native';
-import { supabase, isSupabaseConfigured, getCloudUserId, ensureAuthenticatedUser } from './supabaseClient';
-import { userRepository } from '../database/repositories/userRepository';
-import { payoutRepository } from '../database/repositories/payoutRepository';
-import { getRankForLevel } from '../constants/ranks';
-import { db } from '../database/client';
-import { userProfile } from '../database/schema';
-import { eq } from 'drizzle-orm';
+import { AppState } from "react-native";
+import {
+  supabase,
+  isSupabaseConfigured,
+  getCloudUserId,
+  ensureAuthenticatedUser,
+} from "./supabaseClient";
+import { userRepository } from "../database/repositories/userRepository";
+import { payoutRepository } from "../database/repositories/payoutRepository";
+import { getRankForLevel } from "../constants/ranks";
+import { db } from "../database/client";
+import { userProfile } from "../database/schema";
+import { eq } from "drizzle-orm";
+import { logErrorToSentry } from "./sentryService";
 
 class SyncService {
   private isSyncing = false;
   private lastSyncTime = 0;
+  private appStateListener: { remove: () => void } | null = null;
+  private syncTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
     this.init();
   }
 
   private init() {
-    // Auto-sync on app foreground
-    AppState.addEventListener('change', (nextState) => {
-      if (nextState === 'active') {
+    if (this.appStateListener || this.syncTimer) return;
+
+    this.appStateListener = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") {
         this.syncAll();
       }
     });
 
-    // Periodic background sync every 60 seconds when app is active
-    setInterval(() => {
+    this.syncTimer = setInterval(() => {
       this.syncAll();
     }, 60000);
+  }
+
+  stop() {
+    this.appStateListener?.remove();
+    this.appStateListener = null;
+    if (this.syncTimer) {
+      clearInterval(this.syncTimer);
+      this.syncTimer = null;
+    }
   }
 
   /**
@@ -52,35 +69,49 @@ class SyncService {
 
       if (profile) {
         const rankInfo = getRankForLevel(profile.level || 1);
-        const userName = profile.displayName || 'Hunter';
-        const totalReps = ((profile.strength || 0) * 15) + ((profile.discipline || 0) * 20);
-        const totalXP = profile.totalXP || (profile.currentXP || 0);
+        const userName = profile.displayName || "Hunter";
+        const totalReps =
+          (profile.strength || 0) * 15 + (profile.discipline || 0) * 20;
+        const totalXP = profile.totalXP || profile.currentXP || 0;
 
         // 1. Call secure server-authoritative sync RPC
-        const { data: syncRes, error: syncErr } = await supabase.rpc('sync_hunter_profile_secure', {
-          p_display_name: userName,
-          p_avatar_icon: profile.avatarIcon || 'img_pfp_01',
-          p_level: profile.level || 1,
-          p_rank_code: rankInfo.rankCode,
-          p_title: rankInfo.title,
-          p_current_streak: profile.currentStreak || 0,
-          p_total_reps: totalReps,
-          p_total_xp: totalXP,
-          p_cloud_coins: profile.coins || 0,
-        });
+        const { data: syncRes, error: syncErr } = await supabase.rpc(
+          "sync_hunter_profile_secure",
+          {
+            p_display_name: userName,
+            p_avatar_icon: profile.avatarIcon || "img_pfp_01",
+            p_level: profile.level || 1,
+            p_rank_code: rankInfo.rankCode,
+            p_title: rankInfo.title,
+            p_current_streak: profile.currentStreak || 0,
+            p_total_reps: totalReps,
+            p_total_xp: totalXP,
+            p_cloud_coins: profile.coins || 0,
+          },
+        );
 
         if (syncErr) {
-          console.warn('[AutoSync] Server profile sync error:', syncErr.message);
+          console.warn(
+            "[AutoSync] Server profile sync error:",
+            syncErr.message,
+          );
+          logErrorToSentry(new Error(syncErr.message), {
+            module: "syncService",
+            action: "sync_hunter_profile_secure",
+            extra: { details: syncErr },
+          });
         } else if (syncRes && syncRes.success) {
           const authCrystals = Number(syncRes.authoritative_mana_crystals);
           // Apply authoritative cloud crystal balance to local SQLite cache
-          if (typeof authCrystals === 'number' && !isNaN(authCrystals)) {
+          if (typeof authCrystals === "number" && !isNaN(authCrystals)) {
             await db
               .update(userProfile)
               .set({ manaCrystals: authCrystals } as any)
               .where(eq(userProfile.id, profile.id));
           }
-          console.log('[AutoSync] Profile & authoritative crystals synchronized!');
+          console.log(
+            "[AutoSync] Profile & authoritative crystals synchronized!",
+          );
         }
       }
 
@@ -89,7 +120,8 @@ class SyncService {
 
       return true;
     } catch (err) {
-      console.warn('[AutoSync] Sync exception:', err);
+      console.warn("[AutoSync] Sync exception:", err);
+      logErrorToSentry(err, { module: "syncService", action: "syncAll" });
       return false;
     } finally {
       this.isSyncing = false;
@@ -98,4 +130,3 @@ class SyncService {
 }
 
 export const syncService = new SyncService();
-

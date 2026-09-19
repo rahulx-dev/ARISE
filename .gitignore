@@ -41,4 +41,6 @@ yarn-error.*
 /android
 modules/**/build/
 modules/**/.cxx/
+modules/**/.gradle/
+.vscode/
 

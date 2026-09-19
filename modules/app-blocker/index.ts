@@ -148,6 +148,22 @@ export function getTotalTodayUsageMs(): number {
   }
 }
 
+export interface InstalledAppItem {
+  packageName: string;
+  appName: string;
+  isSystemApp?: boolean;
+  appIconBase64?: string;
+}
+
+export async function getInstalledApps(): Promise<InstalledAppItem[]> {
+  if (Platform.OS !== 'android' || !AppBlocker?.getInstalledApps) return [];
+  try {
+    return await AppBlocker.getInstalledApps();
+  } catch {
+    return [];
+  }
+}
+
 export function showTestOverlay(targetPackage?: string): boolean {
   if (Platform.OS !== 'android' || !AppBlocker?.showTestOverlay) return false;
   try {
@@ -174,4 +190,5 @@ export default {
   getPackageTodayUsageMs,
   getTotalTodayUsageMs,
   showTestOverlay,
+  getInstalledApps,
 };

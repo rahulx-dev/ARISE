@@ -12,6 +12,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.provider.Settings
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import java.util.Calendar
@@ -54,7 +55,7 @@ class AppMonitorService : Service() {
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setColor(Color.parseColor("#0A84FF"))
+            .setColor(Color.parseColor("#E53935"))
             .setContentIntent(pendingIntent)
             .setSmallIcon(icon)
 
@@ -91,7 +92,7 @@ class AppMonitorService : Service() {
 
             val now = System.currentTimeMillis()
 
-            // 1. Midnight Roll-Over Reset Check (00:00:00 Local Time)
+            // 1. Midnight Roll-Over Reset Check
             val todayDay = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
             if (todayDay != currentDayOfYear) {
                 Log.i(TAG, "Midnight rollover detected (day $currentDayOfYear -> $todayDay). Resetting daily policy state.")
@@ -112,15 +113,10 @@ class AppMonitorService : Service() {
                 }
             }
 
-            // If user has an active screen time pass, dismiss overlay immediately
             if (isUnlocked) {
                 lastRestrictedPackage = null
                 awayFromRestrictedSince = 0L
-                if (BlockOverlayService.isOverlayShowing) {
-                    try {
-                        stopService(Intent(this@AppMonitorService, BlockOverlayService::class.java))
-                    } catch (_: Exception) {}
-                }
+                dismissOverlay()
                 val remainingMs = unlockTarget - now
                 val nextDelay = if (remainingMs in 1..500) remainingMs else 250L
                 handler.postDelayed(this, nextDelay)
@@ -137,39 +133,13 @@ class AppMonitorService : Service() {
                     awayFromRestrictedSince = 0L
                     lastRestrictedPackage = fgPackage
 
-                    if (!BlockOverlayService.isOverlayShowing) {
-                        val overlayIntent = Intent(this@AppMonitorService, BlockOverlayService::class.java).apply {
-                            putExtra("PACKAGE_NAME", fgPackage)
-                            putExtra("BUDGET_MS", policy.dailyLimitMs)
-                            putExtra("USED_MS", policy.usageTodayMs)
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        }
-                        try {
-                            startService(overlayIntent)
-                            BlockPolicyController.logEnforcement(
-                                packageName = fgPackage,
-                                locked = true,
-                                presentationRestored = true,
-                                reason = "LOCKED_APP_FOREGROUND"
-                            )
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Failed to start BlockOverlayService", e)
-                        }
-                    }
+                    presentLockScreen(fgPackage, policy.dailyLimitMs, policy.usageTodayMs)
                 } else {
-                    // App is UNLOCKED
-                    if (lastRestrictedPackage != null || BlockOverlayService.isOverlayShowing) {
+                    // App has remaining budget
+                    if (lastRestrictedPackage != null || BlockOverlayService.isOverlayShowing || LockScreenActivity.isActivityShowing) {
                         lastRestrictedPackage = null
                         awayFromRestrictedSince = 0L
-                        try {
-                            stopService(Intent(this@AppMonitorService, BlockOverlayService::class.java))
-                            BlockPolicyController.logEnforcement(
-                                packageName = fgPackage,
-                                locked = false,
-                                presentationRestored = false,
-                                reason = "BUDGET_NOT_EXHAUSTED"
-                            )
-                        } catch (_: Exception) {}
+                        dismissOverlay()
                     }
                 }
             } else if (fgPackage != null) {
@@ -177,36 +147,24 @@ class AppMonitorService : Service() {
                     // User opened ARISE app
                     lastRestrictedPackage = null
                     awayFromRestrictedSince = 0L
-                    if (BlockOverlayService.isOverlayShowing) {
-                        try {
-                            stopService(Intent(this@AppMonitorService, BlockOverlayService::class.java))
-                        } catch (_: Exception) {}
-                    }
+                    dismissOverlay()
                 } else if (lastRestrictedPackage != null && fgPackage != lastRestrictedPackage) {
-                    // User switched to another non-restricted app (e.g. Phone, Settings)
+                    // User switched to another non-restricted app
                     if (awayFromRestrictedSince == 0L) {
                         awayFromRestrictedSince = now
                     } else if (now - awayFromRestrictedSince > 150L) {
-                        if (BlockOverlayService.isOverlayShowing) {
-                            try {
-                                stopService(Intent(this@AppMonitorService, BlockOverlayService::class.java))
-                            } catch (_: Exception) {}
-                        }
+                        dismissOverlay()
                         lastRestrictedPackage = null
                         awayFromRestrictedSince = 0L
                     }
                 }
             } else {
-                // fgPackage is null (User on Home Screen / Launcher)
+                // fgPackage is null (Home screen / Launcher)
                 if (lastRestrictedPackage != null) {
                     if (awayFromRestrictedSince == 0L) {
                         awayFromRestrictedSince = now
                     } else if (now - awayFromRestrictedSince > 150L) {
-                        if (BlockOverlayService.isOverlayShowing) {
-                            try {
-                                stopService(Intent(this@AppMonitorService, BlockOverlayService::class.java))
-                            } catch (_: Exception) {}
-                        }
+                        dismissOverlay()
                         lastRestrictedPackage = null
                         awayFromRestrictedSince = 0L
                     }
@@ -218,6 +176,54 @@ class AppMonitorService : Service() {
         }
     }
 
+    private fun presentLockScreen(pkg: String, budgetMs: Long, usedMs: Long) {
+        val hasOverlay = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Settings.canDrawOverlays(this)
+        } else {
+            true
+        }
+
+        if (hasOverlay) {
+            if (!BlockOverlayService.isOverlayShowing) {
+                val overlayIntent = Intent(this, BlockOverlayService::class.java).apply {
+                    putExtra("PACKAGE_NAME", pkg)
+                    putExtra("BUDGET_MS", budgetMs)
+                    putExtra("USED_MS", usedMs)
+                }
+                try {
+                    startService(overlayIntent)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error starting BlockOverlayService, falling back to activity", e)
+                    launchLockActivity(pkg)
+                }
+            }
+        } else {
+            launchLockActivity(pkg)
+        }
+    }
+
+    private fun launchLockActivity(pkg: String) {
+        if (!LockScreenActivity.isActivityShowing) {
+            val actIntent = Intent(this, LockScreenActivity::class.java).apply {
+                putExtra("PACKAGE_NAME", pkg)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            try {
+                startActivity(actIntent)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to start LockScreenActivity", e)
+            }
+        }
+    }
+
+    private fun dismissOverlay() {
+        if (BlockOverlayService.isOverlayShowing) {
+            try {
+                stopService(Intent(this, BlockOverlayService::class.java))
+            } catch (_: Exception) {}
+        }
+    }
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
@@ -225,7 +231,6 @@ class AppMonitorService : Service() {
         createNotificationChannel()
         startForeground(1001, createNotification())
 
-        // Restore persisted state from SharedPreferences
         try {
             val prefs = getSharedPreferences("arise_blocker_prefs", Context.MODE_PRIVATE)
             val savedUnlock = prefs.getLong("unlocked_until_epoch", 0L)

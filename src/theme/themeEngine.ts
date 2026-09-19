@@ -61,103 +61,105 @@ export interface ThemeColors {
  * Pure Stealth OLED Dark Theme
  * Pure. Minimal. Timeless.
  */
+/**
+ * Pure Stealth OLED Dark Theme
+ */
 export const darkThemeColors: ThemeColors = {
-  primary: '#0A84FF',
-  primaryLight: '#389BFF',
-  primaryDark: '#0066CC',
-  primaryGlow: 'rgba(10, 132, 255, 0.2)',
+  primary: '#E53935',
+  primaryLight: '#FF5252',
+  primaryDark: '#C62828',
+  primaryGlow: 'rgba(229, 57, 53, 0.25)',
   tertiary: '#F59E0B',
 
-  primaryPurple: '#0A84FF',
-  purpleGlow: 'rgba(10, 132, 255, 0.15)',
+  primaryPurple: '#8B5CF6',
+  purpleGlow: 'rgba(139, 92, 246, 0.2)',
 
   background: '#000000',
-  backgroundElevated: '#08090C',
-  backgroundGradientTop: '#0B0C10',
+  backgroundElevated: '#0A0B0E',
+  backgroundGradientTop: '#12131A',
   backgroundGradientBottom: '#000000',
 
-  card: '#111218',
+  card: '#12131A',
   surface: '#000000',
-  surfaceLight: '#111218',
-  surfaceElevated: '#161822',
-  surfaceBorder: '#1C1E2A',
-  border: '#1C1E2A',
-  borderGlow: 'rgba(10, 132, 255, 0.25)',
+  surfaceLight: '#161822',
+  surfaceElevated: '#1A1C28',
+  surfaceBorder: '#1F222E',
+  border: '#1F222E',
+  borderGlow: 'rgba(229, 57, 53, 0.3)',
 
   textPrimary: '#FFFFFF',
   textSecondary: '#8E8E93',
   textMuted: '#555866',
 
-  accent: '#0A84FF',
+  accent: '#E53935',
   accentGold: '#F59E0B',
-  accentGlow: 'rgba(245, 158, 11, 0.2)',
-  secondary: '#389BFF',
-  danger: '#FF453A',
-  dangerGlow: 'rgba(255, 69, 58, 0.2)',
-  warning: '#FF9F0A',
+  accentGlow: 'rgba(245, 158, 11, 0.25)',
+  secondary: '#FF5252',
+  danger: '#EF4444',
+  dangerGlow: 'rgba(239, 68, 68, 0.25)',
+  warning: '#F59E0B',
   success: '#10B981',
   neonGreen: '#10B981',
 
   stats: {
-    strength: '#0A84FF',
-    discipline: '#0A84FF',
-    focus: '#389BFF',
-    health: '#10B981',
-    knowledge: '#389BFF',
+    strength: '#E53935',
+    discipline: '#10B981',
+    focus: '#0A84FF',
+    health: '#F59E0B',
+    knowledge: '#8B5CF6',
   },
 
   overlay: 'rgba(0, 0, 0, 0.85)',
-  glassCard: '#111218',
+  glassCard: '#12131A',
   isDark: true,
 };
 
 /**
- * Crisp Apple Light Theme
- * Light. Clear. Fresh.
+ * Crisp Clean Light Theme (Primary Default)
  */
 export const lightThemeColors: ThemeColors = {
-  primary: '#0A84FF',
-  primaryLight: '#389BFF',
-  primaryDark: '#0066CC',
-  primaryGlow: 'rgba(10, 132, 255, 0.15)',
+  primary: '#E53935',
+  primaryLight: '#FF5252',
+  primaryDark: '#C62828',
+  primaryGlow: 'rgba(229, 57, 53, 0.15)',
   tertiary: '#F59E0B',
 
-  primaryPurple: '#0A84FF',
-  purpleGlow: 'rgba(10, 132, 255, 0.15)',
+  primaryPurple: '#8B5CF6',
+  purpleGlow: 'rgba(139, 92, 246, 0.15)',
 
-  background: '#F2F2F7',
+  background: '#F8F9FA',
   backgroundElevated: '#FFFFFF',
   backgroundGradientTop: '#FFFFFF',
-  backgroundGradientBottom: '#E5E5EA',
+  backgroundGradientBottom: '#F0F2F5',
 
   card: '#FFFFFF',
   surface: '#FFFFFF',
-  surfaceLight: '#F8F9FA',
+  surfaceLight: '#F3F4F6',
   surfaceElevated: '#FFFFFF',
-  surfaceBorder: '#E5E5EA',
-  border: '#E5E5EA',
-  borderGlow: 'rgba(10, 132, 255, 0.2)',
+  surfaceBorder: '#E5E7EB',
+  border: '#E5E7EB',
+  borderGlow: 'rgba(229, 57, 53, 0.15)',
 
-  textPrimary: '#000000',
-  textSecondary: '#3C3C43',
-  textMuted: '#8E8E93',
+  textPrimary: '#111827',
+  textSecondary: '#6B7280',
+  textMuted: '#9CA3AF',
 
-  accent: '#0A84FF',
-  accentGold: '#D97706',
-  accentGlow: 'rgba(217, 119, 6, 0.2)',
-  secondary: '#389BFF',
-  danger: '#DC2626',
-  dangerGlow: 'rgba(220, 38, 38, 0.2)',
-  warning: '#D97706',
+  accent: '#E53935',
+  accentGold: '#F59E0B',
+  accentGlow: 'rgba(245, 158, 11, 0.2)',
+  secondary: '#FF5252',
+  danger: '#EF4444',
+  dangerGlow: 'rgba(239, 68, 68, 0.15)',
+  warning: '#F59E0B',
   success: '#10B981',
   neonGreen: '#10B981',
 
   stats: {
-    strength: '#0A84FF',
-    discipline: '#0A84FF',
-    focus: '#389BFF',
-    health: '#10B981',
-    knowledge: '#0284C7',
+    strength: '#E53935',
+    discipline: '#10B981',
+    focus: '#0A84FF',
+    health: '#F59E0B',
+    knowledge: '#8B5CF6',
   },
 
   overlay: 'rgba(0, 0, 0, 0.5)',

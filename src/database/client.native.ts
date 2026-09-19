@@ -1,17 +1,19 @@
-import { drizzle } from 'drizzle-orm/expo-sqlite';
-import { openDatabaseSync } from 'expo-sqlite';
-import * as schema from './schema';
+import { drizzle } from "drizzle-orm/expo-sqlite";
+import { openDatabaseSync } from "expo-sqlite";
+import * as schema from "./schema";
 
-const DATABASE_NAME = 'arise.db';
+const DATABASE_NAME = "arise.db";
 
 export const expoDb = openDatabaseSync(DATABASE_NAME);
-expoDb.execSync('PRAGMA journal_mode = WAL;');
-expoDb.execSync('PRAGMA foreign_keys = ON;');
+expoDb.execSync("PRAGMA journal_mode = WAL;");
+expoDb.execSync("PRAGMA foreign_keys = ON;");
 
-export const db: ReturnType<typeof drizzle<typeof schema>> = drizzle(expoDb, { schema });
+export const db: ReturnType<typeof drizzle<typeof schema>> = drizzle(expoDb, {
+  schema,
+});
 
 export async function initializeDatabase(): Promise<void> {
-  console.log('[ARISE Persistence] Opening SQLite database:', DATABASE_NAME);
+  console.log("[ARISE Persistence] Opening SQLite database:", DATABASE_NAME);
 
   const createTablesSql = `
     CREATE TABLE IF NOT EXISTS user_profile (
@@ -346,6 +348,7 @@ export async function initializeDatabase(): Promise<void> {
     "ALTER TABLE settings ADD COLUMN bg_music_volume REAL DEFAULT 0.5;",
     "ALTER TABLE settings ADD COLUMN focus_music_track TEXT DEFAULT 'deep_focus';",
     "ALTER TABLE settings ADD COLUMN focus_music_volume REAL DEFAULT 0.6;",
+    "ALTER TABLE settings ADD COLUMN voice_accent TEXT DEFAULT 'en-IN';",
     "ALTER TABLE settings ADD COLUMN voice_language TEXT DEFAULT 'hi-IN';",
     "ALTER TABLE settings ADD COLUMN language TEXT DEFAULT 'en-US';",
   ];
@@ -359,10 +362,12 @@ export async function initializeDatabase(): Promise<void> {
   // Check and seed User Profile only if not existing
   const profileRows = await db.select().from(schema.userProfile).limit(1);
   if (profileRows.length === 0) {
-    console.log('[ARISE Persistence] First launch detected: creating initial Level 1 user');
+    console.log(
+      "[ARISE Persistence] First launch detected: creating initial Level 1 user",
+    );
     await db.insert(schema.userProfile).values({
-      displayName: 'Warrior',
-      avatarIcon: 'user',
+      displayName: "Warrior",
+      avatarIcon: "user",
       level: 1,
       currentXP: 0,
       totalXP: 0,
@@ -384,11 +389,13 @@ export async function initializeDatabase(): Promise<void> {
       notificationsEnabled: 0,
       onboardingCompleted: 0,
       dailyBudgetMinutes: 30,
-      theme: 'system',
+      theme: "system",
       bgMusicEnabled: 0,
       bgMusicVolume: 0.5,
-      focusMusicTrack: 'deep_focus',
+      focusMusicTrack: "deep_focus",
       focusMusicVolume: 0.6,
+      voiceAccent: "en-IN",
+      voiceLanguage: "hi-IN",
     });
   }
 }

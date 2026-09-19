@@ -1,14 +1,18 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { expoDb } from '../database/client.native';
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { expoDb } from "../database/client";
 
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://xfdxnefrzuaxxjfwsuvi.supabase.co';
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_T1Hw5voJRbbY7Ov04rWgnw_8TYlR8xI';
+const SUPABASE_URL =
+  process.env.EXPO_PUBLIC_SUPABASE_URL ||
+  "https://xfdxnefrzuaxxjfwsuvi.supabase.co";
+const SUPABASE_ANON_KEY =
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
+  "sb_publishable_T1Hw5voJRbbY7Ov04rWgnw_8TYlR8xI";
 
 export const isSupabaseConfigured = (): boolean => {
   return (
-    typeof SUPABASE_URL === 'string' &&
-    SUPABASE_URL.startsWith('https://') &&
-    typeof SUPABASE_ANON_KEY === 'string' &&
+    typeof SUPABASE_URL === "string" &&
+    SUPABASE_URL.startsWith("https://") &&
+    typeof SUPABASE_ANON_KEY === "string" &&
     SUPABASE_ANON_KEY.length > 20
   );
 };
@@ -17,8 +21,13 @@ export const isSupabaseConfigured = (): boolean => {
 const sqliteStorage = {
   getItem: async (key: string): Promise<string | null> => {
     try {
-      expoDb.runSync('CREATE TABLE IF NOT EXISTS arise_kv (key TEXT PRIMARY KEY, val TEXT)');
-      const res = expoDb.getFirstSync<{ val: string }>('SELECT val FROM arise_kv WHERE key = ?', [key]);
+      expoDb.runSync(
+        "CREATE TABLE IF NOT EXISTS arise_kv (key TEXT PRIMARY KEY, val TEXT)",
+      );
+      const res = (expoDb as any).getFirstSync(
+        "SELECT val FROM arise_kv WHERE key = ?",
+        [key],
+      ) as { val: string } | null;
       return res?.val ?? null;
     } catch {
       return null;
@@ -26,14 +35,21 @@ const sqliteStorage = {
   },
   setItem: async (key: string, value: string): Promise<void> => {
     try {
-      expoDb.runSync('CREATE TABLE IF NOT EXISTS arise_kv (key TEXT PRIMARY KEY, val TEXT)');
-      expoDb.runSync('INSERT OR REPLACE INTO arise_kv (key, val) VALUES (?, ?)', [key, value]);
+      expoDb.runSync(
+        "CREATE TABLE IF NOT EXISTS arise_kv (key TEXT PRIMARY KEY, val TEXT)",
+      );
+      expoDb.runSync(
+        "INSERT OR REPLACE INTO arise_kv (key, val) VALUES (?, ?)",
+        [key, value],
+      );
     } catch {}
   },
   removeItem: async (key: string): Promise<void> => {
     try {
-      expoDb.runSync('CREATE TABLE IF NOT EXISTS arise_kv (key TEXT PRIMARY KEY, val TEXT)');
-      expoDb.runSync('DELETE FROM arise_kv WHERE key = ?', [key]);
+      expoDb.runSync(
+        "CREATE TABLE IF NOT EXISTS arise_kv (key TEXT PRIMARY KEY, val TEXT)",
+      );
+      expoDb.runSync("DELETE FROM arise_kv WHERE key = ?", [key]);
     } catch {}
   },
 };
@@ -50,17 +66,19 @@ if (isSupabaseConfigured()) {
         detectSessionInUrl: false,
       },
     });
-    console.log('[Supabase] Initialized cloud client successfully');
+    console.log("[Supabase] Initialized cloud client successfully");
   } catch (err) {
-    console.warn('[Supabase] Initialization warning:', err);
+    console.warn("[Supabase] Initialization warning:", err);
   }
 } else {
-  console.log('[Supabase] Running in offline mode (No Supabase URL/Key provided yet)');
+  console.log(
+    "[Supabase] Running in offline mode (No Supabase URL/Key provided yet)",
+  );
 }
 
 export const supabase = client;
 
-const USER_DEVICE_ID_KEY = '@arise_user_cloud_id';
+const USER_DEVICE_ID_KEY = "@arise_user_cloud_id";
 
 /**
  * Get or generate a persistent user UUID for authenticated cloud sync
@@ -88,7 +106,7 @@ export async function getCloudUserId(): Promise<string> {
     }
     return id;
   } catch {
-    return 'warrior_local_device';
+    return "warrior_local_device";
   }
 }
 
@@ -117,7 +135,7 @@ export async function ensureAuthenticatedUser(): Promise<string> {
         return currentUser.id;
       }
     } catch (authErr) {
-      console.warn('[SupabaseAuth] Anonymous auth session note:', authErr);
+      console.warn("[SupabaseAuth] Anonymous auth session note:", authErr);
     }
   }
 

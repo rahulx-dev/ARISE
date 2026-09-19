@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "ARISE",
-    "slug": "arise",
+    "name": "ARISE UP",
+    "slug": "ariseup",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -76,7 +76,8 @@
         {
           "androidAppId": "ca-app-pub-3502968689589307~2344226726"
         }
-      ]
+      ],
+      "@sentry/react-native"
     ],
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -91,6 +92,9 @@
       "eas": {
         "projectId": "821ecb85-fba0-40b2-8ad7-7fdbe160e311"
       }
+    },
+    "react-native-google-mobile-ads": {
+      "android_app_id": "ca-app-pub-3502968689589307~2344226726"
     },
     "owner": "rahulxdev"
   }

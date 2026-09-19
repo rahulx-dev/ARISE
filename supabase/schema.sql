@@ -138,32 +138,53 @@ ALTER TABLE public.payout_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cpx_postback_log ENABLE ROW LEVEL SECURITY;
 
 -- 1. Crystal Ledger: Direct client modifications forbidden. Select allowed only for owner.
+DROP POLICY IF EXISTS "crystal_ledger_select_owner" ON public.crystal_ledger;
+DROP POLICY IF EXISTS "Public Access" ON public.crystal_ledger;
+DROP POLICY IF EXISTS "Allow all" ON public.crystal_ledger;
 CREATE POLICY "crystal_ledger_select_owner" ON public.crystal_ledger
 FOR SELECT USING (user_id = auth.uid()::text);
 
 -- 2. Coin Ledger: Select allowed for owner.
+DROP POLICY IF EXISTS "coin_ledger_select_owner" ON public.coin_ledger;
+DROP POLICY IF EXISTS "Public Access" ON public.coin_ledger;
+DROP POLICY IF EXISTS "Allow all" ON public.coin_ledger;
 CREATE POLICY "coin_ledger_select_owner" ON public.coin_ledger
 FOR SELECT USING (user_id = auth.uid()::text);
 
 -- 3. User Wallets: PRIVATE table. Direct public/anon updates to mana_crystals are forbidden.
 -- Users can read only their own wallet.
+DROP POLICY IF EXISTS "user_wallets_select_owner" ON public.user_wallets;
+DROP POLICY IF EXISTS "Public Access" ON public.user_wallets;
+DROP POLICY IF EXISTS "Allow all" ON public.user_wallets;
 CREATE POLICY "user_wallets_select_owner" ON public.user_wallets
 FOR SELECT USING (user_id = auth.uid()::text);
 
 -- 4. Crystal Leaderboard: PUBLIC read projection.
 -- Direct UPDATE/DELETE by client is forbidden. Updated solely via SECURITY DEFINER functions.
+DROP POLICY IF EXISTS "crystal_leaderboard_select_public" ON public.crystal_leaderboard;
+DROP POLICY IF EXISTS "Public Access" ON public.crystal_leaderboard;
+DROP POLICY IF EXISTS "Allow all" ON public.crystal_leaderboard;
 CREATE POLICY "crystal_leaderboard_select_public" ON public.crystal_leaderboard
 FOR SELECT USING (true);
 
 -- 5. Crystal Redemptions: Users can SELECT only their own requests. Direct UPDATE is forbidden.
+DROP POLICY IF EXISTS "crystal_redemptions_select_owner" ON public.crystal_redemptions;
+DROP POLICY IF EXISTS "Public Access" ON public.crystal_redemptions;
+DROP POLICY IF EXISTS "Allow all" ON public.crystal_redemptions;
 CREATE POLICY "crystal_redemptions_select_owner" ON public.crystal_redemptions
 FOR SELECT USING (user_id = auth.uid()::text);
 
 -- 6. Payout Requests: Users can SELECT only their own requests. Direct UPDATE is forbidden.
+DROP POLICY IF EXISTS "payout_requests_select_owner" ON public.payout_requests;
+DROP POLICY IF EXISTS "Public Access" ON public.payout_requests;
+DROP POLICY IF EXISTS "Allow all" ON public.payout_requests;
 CREATE POLICY "payout_requests_select_owner" ON public.payout_requests
 FOR SELECT USING (user_id = auth.uid()::text);
 
 -- 7. CPX Postback: Internal only.
+DROP POLICY IF EXISTS "cpx_postback_select_owner" ON public.cpx_postback_log;
+DROP POLICY IF EXISTS "Public Access" ON public.cpx_postback_log;
+DROP POLICY IF EXISTS "Allow all" ON public.cpx_postback_log;
 CREATE POLICY "cpx_postback_select_owner" ON public.cpx_postback_log
 FOR SELECT USING (user_id = auth.uid()::text);
 

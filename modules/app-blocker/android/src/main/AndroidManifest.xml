@@ -6,6 +6,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.REORDER_TASKS" />
 
     <application>
         <service
@@ -22,6 +23,18 @@
             android:name=".BlockOverlayService"
             android:enabled="true"
             android:exported="false" />
+
+        <activity
+            android:name=".LockScreenActivity"
+            android:enabled="true"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:excludeFromRecents="true"
+            android:screenOrientation="portrait"
+            android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
+            android:showOnLockScreen="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true" />
 
         <receiver
             android:name=".BootReceiver"

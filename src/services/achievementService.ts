@@ -1,13 +1,19 @@
-import { db } from '../database/client';
-import { achievement, userProfile, exerciseSession, focusSession, quest } from '../database/schema';
-import { eq } from 'drizzle-orm';
-import { notificationService } from './notificationService';
+import { db } from "../database/client";
+import {
+  achievement,
+  userProfile,
+  exerciseSession,
+  focusSession,
+  quest,
+} from "../database/schema";
+import { eq } from "drizzle-orm";
+import { notificationService } from "./notificationService";
 
 export interface AchievementItem {
   id: string;
   title: string;
   description: string;
-  category: 'ACHIEVEMENT' | 'BADGE';
+  category: "ACHIEVEMENT" | "BADGE";
   target: number;
   progress: number;
   unlocked: boolean;
@@ -17,129 +23,132 @@ export interface AchievementItem {
   icon: string;
 }
 
-export const MILESTONE_DEFINITIONS: Omit<AchievementItem, 'progress' | 'unlocked' | 'unlockedAt'>[] = [
+export const MILESTONE_DEFINITIONS: Omit<
+  AchievementItem,
+  "progress" | "unlocked" | "unlockedAt"
+>[] = [
   // Achievements
   {
-    id: 'first_workout',
-    title: 'First Blood',
-    description: 'Complete your first physical workout',
-    category: 'ACHIEVEMENT',
+    id: "first_workout",
+    title: "First Blood",
+    description: "Complete your first physical workout",
+    category: "ACHIEVEMENT",
     target: 1,
     rewardCoins: 100,
     rewardXP: 250,
-    icon: 'dumbbell',
+    icon: "dumbbell",
   },
   {
-    id: 'pushup_master_50',
-    title: 'Push-up Titan',
-    description: 'Log 50 total push-up reps',
-    category: 'ACHIEVEMENT',
+    id: "pushup_master_50",
+    title: "Push-up Titan",
+    description: "Log 50 total push-up reps",
+    category: "ACHIEVEMENT",
     target: 50,
     rewardCoins: 250,
     rewardXP: 500,
-    icon: 'dumbbell',
+    icon: "dumbbell",
   },
   {
-    id: 'focused_mind_5',
-    title: 'Focused Mind',
-    description: 'Complete 5 deep focus sessions',
-    category: 'ACHIEVEMENT',
+    id: "focused_mind_5",
+    title: "Focused Mind",
+    description: "Complete 5 deep focus sessions",
+    category: "ACHIEVEMENT",
     target: 5,
     rewardCoins: 300,
     rewardXP: 600,
-    icon: 'brain',
+    icon: "brain",
   },
   {
-    id: 'iron_streak_3',
-    title: 'Iron Consistency',
-    description: 'Maintain a 3-day unbroken streak',
-    category: 'ACHIEVEMENT',
+    id: "iron_streak_3",
+    title: "Iron Consistency",
+    description: "Maintain a 3-day unbroken streak",
+    category: "ACHIEVEMENT",
     target: 3,
     rewardCoins: 350,
     rewardXP: 700,
-    icon: 'flame',
+    icon: "flame",
   },
   {
-    id: 'ascension_lvl_5',
-    title: 'Ascension',
-    description: 'Reach Player Level 5 Novice rank',
-    category: 'ACHIEVEMENT',
+    id: "ascension_lvl_5",
+    title: "Ascension",
+    description: "Reach Player Level 5 Novice rank",
+    category: "ACHIEVEMENT",
     target: 5,
     rewardCoins: 500,
     rewardXP: 1000,
-    icon: 'trophy',
+    icon: "trophy",
   },
   {
-    id: 'coin_collector_1000',
-    title: 'Treasure Hoarder',
-    description: 'Earn 1,000 total lifetime coins',
-    category: 'ACHIEVEMENT',
+    id: "coin_collector_1000",
+    title: "Treasure Hoarder",
+    description: "Earn 1,000 total lifetime coins",
+    category: "ACHIEVEMENT",
     target: 1000,
     rewardCoins: 500,
     rewardXP: 1000,
-    icon: 'coins',
+    icon: "coins",
   },
 
   // Badges
   {
-    id: 'badge_novice',
-    title: 'Novice Recruit',
-    description: 'Complete your first discipline protocol',
-    category: 'BADGE',
+    id: "badge_novice",
+    title: "Novice Recruit",
+    description: "Complete your first discipline protocol",
+    category: "BADGE",
     target: 1,
     rewardCoins: 50,
     rewardXP: 100,
-    icon: 'sparkles',
+    icon: "sparkles",
   },
   {
-    id: 'badge_streak_3',
-    title: '3-Day Fire',
-    description: 'Maintain a 3-day unbroken streak',
-    category: 'BADGE',
+    id: "badge_streak_3",
+    title: "3-Day Fire",
+    description: "Maintain a 3-day unbroken streak",
+    category: "BADGE",
     target: 3,
     rewardCoins: 150,
     rewardXP: 300,
-    icon: 'flame',
+    icon: "flame",
   },
   {
-    id: 'badge_level_5',
-    title: 'Titan Warrior',
-    description: 'Reach Player Level 5',
-    category: 'BADGE',
+    id: "badge_level_5",
+    title: "Titan Warrior",
+    description: "Reach Player Level 5",
+    category: "BADGE",
     target: 5,
     rewardCoins: 250,
     rewardXP: 500,
-    icon: 'trophy',
+    icon: "trophy",
   },
   {
-    id: 'badge_focus_master',
-    title: 'Zen Master',
-    description: 'Log 600 total focus minutes',
-    category: 'BADGE',
+    id: "badge_focus_master",
+    title: "Zen Master",
+    description: "Log 600 total focus minutes",
+    category: "BADGE",
     target: 600,
     rewardCoins: 400,
     rewardXP: 800,
-    icon: 'brain',
+    icon: "brain",
   },
   {
-    id: 'badge_streak_7',
-    title: 'Iron Will',
-    description: 'Maintain a 7-day unbroken streak',
-    category: 'BADGE',
+    id: "badge_streak_7",
+    title: "Iron Will",
+    description: "Maintain a 7-day unbroken streak",
+    category: "BADGE",
     target: 7,
     rewardCoins: 500,
     rewardXP: 1000,
-    icon: 'zap',
+    icon: "zap",
   },
   {
-    id: 'badge_grandmaster',
-    title: 'Grandmaster',
-    description: 'Reach Player Level 10',
-    category: 'BADGE',
+    id: "badge_grandmaster",
+    title: "Grandmaster",
+    description: "Reach Player Level 10",
+    category: "BADGE",
     target: 10,
     rewardCoins: 1000,
     rewardXP: 2500,
-    icon: 'award',
+    icon: "award",
   },
 ];
 
@@ -150,13 +159,14 @@ class AchievementService {
   async evaluateAchievements(): Promise<AchievementItem[]> {
     try {
       // 1. Fetch real stats from SQLite
-      const [profiles, exercises, focuses, questsList, unlockedRows] = await Promise.all([
-        db.select().from(userProfile).limit(1),
-        db.select().from(exerciseSession),
-        db.select().from(focusSession),
-        db.select().from(quest),
-        db.select().from(achievement),
-      ]);
+      const [profiles, exercises, focuses, questsList, unlockedRows] =
+        await Promise.all([
+          db.select().from(userProfile).limit(1),
+          db.select().from(exerciseSession),
+          db.select().from(focusSession),
+          db.select().from(quest),
+          db.select().from(achievement),
+        ]);
 
       const profile = profiles[0] || {
         level: 1,
@@ -166,13 +176,28 @@ class AchievementService {
       };
 
       const totalPushups = exercises
-        .filter((e) => e.exerciseType === 'PUSHUP')
-        .reduce((sum, e) => sum + (e.completedReps || 0), 0);
+        .filter(
+          (e: { exerciseType: string; completedReps?: number }) =>
+            e.exerciseType === "PUSHUP",
+        )
+        .reduce(
+          (sum: number, e: { completedReps?: number }) =>
+            sum + (e.completedReps || 0),
+          0,
+        );
 
       const totalWorkouts = exercises.length;
-      const totalFocusSessions = focuses.filter((f) => f.status === 'COMPLETED').length;
-      const totalFocusMinutes = focuses.reduce((sum, f) => sum + (f.completedMinutes || 0), 0);
-      const totalQuestsCompleted = questsList.filter((q) => q.completed === 1).length;
+      const totalFocusSessions = focuses.filter(
+        (f: { status: string }) => f.status === "COMPLETED",
+      ).length;
+      const totalFocusMinutes = focuses.reduce(
+        (sum: number, f: { completedMinutes?: number }) =>
+          sum + (f.completedMinutes || 0),
+        0,
+      );
+      const totalQuestsCompleted = questsList.filter(
+        (q: { completed: number }) => q.completed === 1,
+      ).length;
 
       const unlockedMap = new Map<string, string>();
       for (const u of unlockedRows) {
@@ -187,36 +212,37 @@ class AchievementService {
         let currentMetric = 0;
 
         switch (def.id) {
-          case 'first_workout':
+          case "first_workout":
             currentMetric = totalWorkouts + totalQuestsCompleted;
             break;
-          case 'pushup_master_50':
+          case "pushup_master_50":
             currentMetric = totalPushups;
             break;
-          case 'focused_mind_5':
+          case "focused_mind_5":
             currentMetric = totalFocusSessions;
             break;
-          case 'iron_streak_3':
-          case 'badge_streak_3':
+          case "iron_streak_3":
+          case "badge_streak_3":
             currentMetric = profile.currentStreak || 0;
             break;
-          case 'ascension_lvl_5':
-          case 'badge_level_5':
+          case "ascension_lvl_5":
+          case "badge_level_5":
             currentMetric = profile.level || 1;
             break;
-          case 'coin_collector_1000':
+          case "coin_collector_1000":
             currentMetric = profile.totalCoinsEarned || profile.coins || 0;
             break;
-          case 'badge_novice':
-            currentMetric = totalWorkouts + totalFocusSessions + totalQuestsCompleted;
+          case "badge_novice":
+            currentMetric =
+              totalWorkouts + totalFocusSessions + totalQuestsCompleted;
             break;
-          case 'badge_focus_master':
+          case "badge_focus_master":
             currentMetric = totalFocusMinutes;
             break;
-          case 'badge_streak_7':
+          case "badge_streak_7":
             currentMetric = profile.currentStreak || 0;
             break;
-          case 'badge_grandmaster':
+          case "badge_grandmaster":
             currentMetric = profile.level || 1;
             break;
         }
@@ -256,16 +282,16 @@ class AchievementService {
       // Trigger notification for each newly unlocked milestone
       for (const item of newlyUnlocked) {
         await notificationService.createNotification(
-          'ACHIEVEMENT',
+          "ACHIEVEMENT",
           `Unlocked: ${item.title}!`,
           `Congratulations! You achieved "${item.title}". +${item.rewardCoins} Coins`,
-          item.id
+          item.id,
         );
       }
 
       return results;
     } catch (e) {
-      console.warn('Error evaluating achievements:', e);
+      console.warn("Error evaluating achievements:", e);
       return [];
     }
   }
