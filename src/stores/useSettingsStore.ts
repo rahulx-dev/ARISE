@@ -41,7 +41,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   notificationsEnabled: false,
   onboardingCompleted: false,
   dailyBudgetMinutes: 30,
-  theme: 'system',
+  theme: 'light',
   bgMusicEnabled: false,
   bgMusicVolume: 0.5,
   focusMusicTrack: 'deep_focus',

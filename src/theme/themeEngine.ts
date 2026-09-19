@@ -219,7 +219,10 @@ export const emeraldThemeColors: ThemeColors = {
   borderGlow: 'rgba(16, 185, 129, 0.3)',
 };
 
-export function getThemeColors(mode: string = 'dark', systemIsDark: boolean = true): ThemeColors {
+export function getThemeColors(mode: string = 'light', systemIsDark: boolean = false): ThemeColors {
+  if (mode === 'dark') {
+    return darkThemeColors;
+  }
   if (mode === 'light') {
     return lightThemeColors;
   }
@@ -238,5 +241,5 @@ export function getThemeColors(mode: string = 'dark', systemIsDark: boolean = tr
   if (mode === 'emerald_hunter') {
     return emeraldThemeColors;
   }
-  return darkThemeColors;
+  return lightThemeColors;
 }

@@ -4,8 +4,8 @@ import { getThemeColors, ThemeColors, ThemeMode } from '../theme/themeEngine';
 
 export function useTheme(): { colors: ThemeColors; themeMode: ThemeMode; isDark: boolean } {
   const systemColorScheme = useColorScheme();
-  const themeSetting = useSettingsStore((s) => s.theme) || 'dark';
-  const systemIsDark = systemColorScheme !== 'light';
+  const themeSetting = useSettingsStore((s) => s.theme) || 'light';
+  const systemIsDark = systemColorScheme === 'dark';
   const colors = getThemeColors(themeSetting, systemIsDark);
 
   const isDark = colors.isDark;
