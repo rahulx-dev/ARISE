@@ -127,22 +127,22 @@ export const lightThemeColors: ThemeColors = {
   primaryPurple: '#8B5CF6',
   purpleGlow: 'rgba(139, 92, 246, 0.15)',
 
-  background: '#F8F9FA',
+  background: '#FFFFFF',
   backgroundElevated: '#FFFFFF',
   backgroundGradientTop: '#FFFFFF',
-  backgroundGradientBottom: '#F0F2F5',
+  backgroundGradientBottom: '#F8F9FA',
 
   card: '#FFFFFF',
   surface: '#FFFFFF',
   surfaceLight: '#F3F4F6',
   surfaceElevated: '#FFFFFF',
-  surfaceBorder: '#E5E7EB',
-  border: '#E5E7EB',
+  surfaceBorder: '#EEEEEE',
+  border: '#EEEEEE',
   borderGlow: 'rgba(229, 57, 53, 0.15)',
 
   textPrimary: '#111827',
-  textSecondary: '#6B7280',
-  textMuted: '#9CA3AF',
+  textSecondary: '#4B5563',
+  textMuted: '#6B7280',
 
   accent: '#E53935',
   accentGold: '#F59E0B',

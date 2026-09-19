@@ -185,8 +185,30 @@ export function InAppSurveyModal({
 
   const injectedJS = `
     (function() {
+      // 1. Force all target="_blank" links to open in the current WebView
+      function fixLinks() {
+        try {
+          var links = document.getElementsByTagName('a');
+          for (var i = 0; i < links.length; i++) {
+            if (links[i].getAttribute('target') === '_blank') {
+              links[i].setAttribute('target', '_self');
+            }
+          }
+        } catch(e) {}
+      }
+
+      // 2. Intercept window.open to navigate current window
+      window.open = function(url) {
+        if (url) {
+          window.location.href = url;
+        }
+        return window;
+      };
+
+      // 3. Check for survey completion keywords
       function checkPage() {
         try {
+          fixLinks();
           var text = (document.body ? document.body.innerText : '').toLowerCase();
           var href = window.location.href.toLowerCase();
           
@@ -207,8 +229,9 @@ export function InAppSurveyModal({
         } catch(e) {}
       }
 
-      setInterval(checkPage, 2000);
+      setInterval(checkPage, 1500);
       window.addEventListener('load', checkPage);
+      document.addEventListener('DOMContentLoaded', checkPage);
     })();
     true;
   `;
@@ -331,6 +354,7 @@ export function InAppSurveyModal({
             style={styles.webview}
             userAgent="Mozilla/5.0 (Linux; Android 13; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
             javaScriptEnabled={true}
+            javaScriptCanOpenWindowsAutomatically={true}
             domStorageEnabled={true}
             sharedCookiesEnabled={true}
             thirdPartyCookiesEnabled={true}
@@ -342,6 +366,7 @@ export function InAppSurveyModal({
             scalesPageToFit={true}
             allowsBackForwardNavigationGestures={true}
             injectedJavaScript={injectedJS}
+            onShouldStartLoadWithRequest={() => true}
             onLoadStart={() => setLoading(true)}
             onLoadEnd={() => setLoading(false)}
             onNavigationStateChange={handleNavigationChange}
