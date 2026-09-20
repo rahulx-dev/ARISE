@@ -230,7 +230,7 @@ export default function WarriorProfileTab() {
                   haptics.light();
                   setVoiceCoachActive(v);
                 }}
-                trackColor={{ false: isDark ? '#2A2D3D' : '#E5E7EB', true: '#0A84FF' }}
+                trackColor={{ false: isDark ? '#2A2D3D' : '#E5E7EB', true: '#E53935' }}
                 thumbColor="#FFFFFF"
                 ios_backgroundColor={isDark ? '#2A2D3D' : '#E5E7EB'}
               />
@@ -301,7 +301,7 @@ export default function WarriorProfileTab() {
                   haptics.light();
                   toggleNotifications();
                 }}
-                trackColor={{ false: isDark ? '#2A2D3D' : '#E5E7EB', true: '#0A84FF' }}
+                trackColor={{ false: isDark ? '#2A2D3D' : '#E5E7EB', true: '#E53935' }}
                 thumbColor="#FFFFFF"
                 ios_backgroundColor={isDark ? '#2A2D3D' : '#E5E7EB'}
               />
@@ -342,8 +342,8 @@ export default function WarriorProfileTab() {
               activeOpacity={0.7}
             >
               <View style={styles.settingsRowLeft}>
-                <View style={[styles.settingsIconWrap, { backgroundColor: isDark ? '#0F2E22' : '#D1FAE5' }]}>
-                  <Cloud size={18} color="#059669" />
+                <View style={[styles.settingsIconWrap, { backgroundColor: isDark ? '#0C2B44' : '#E0F2FE' }]}>
+                  <Cloud size={18} color="#0A84FF" />
                 </View>
                 <View>
                   <Text style={[styles.settingsRowTitle, { color: colors.textPrimary }]}>Cloud Backup</Text>

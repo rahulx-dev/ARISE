@@ -210,7 +210,7 @@ export default function SettingsScreen() {
                   haptics.light();
                   toggleNotifications();
                 }}
-                trackColor={{ false: isDark ? '#2A2D3D' : '#E5E7EB', true: '#0A84FF' }}
+                trackColor={{ false: isDark ? '#2A2D3D' : '#E5E7EB', true: '#E53935' }}
                 thumbColor="#FFFFFF"
                 ios_backgroundColor={isDark ? '#2A2D3D' : '#E5E7EB'}
               />
@@ -233,7 +233,7 @@ export default function SettingsScreen() {
                   haptics.light();
                   toggleSfx();
                 }}
-                trackColor={{ false: isDark ? '#2A2D3D' : '#E5E7EB', true: '#0A84FF' }}
+                trackColor={{ false: isDark ? '#2A2D3D' : '#E5E7EB', true: '#E53935' }}
                 thumbColor="#FFFFFF"
                 ios_backgroundColor={isDark ? '#2A2D3D' : '#E5E7EB'}
               />
@@ -243,8 +243,8 @@ export default function SettingsScreen() {
 
             {/* Haptics */}
             <View style={styles.menuRow}>
-              <View style={[styles.iconCircle, { backgroundColor: isDark ? '#0F2E22' : '#ECFDF5' }]}>
-                <Vibrate size={18} color="#059669" />
+              <View style={[styles.iconCircle, { backgroundColor: isDark ? '#0C2B44' : '#E0F2FE' }]}>
+                <Vibrate size={18} color="#0A84FF" />
               </View>
               <View style={styles.menuTextCol}>
                 <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>Vibration Haptics</Text>
@@ -256,7 +256,7 @@ export default function SettingsScreen() {
                   haptics.light();
                   toggleHaptics();
                 }}
-                trackColor={{ false: isDark ? '#2A2D3D' : '#E5E7EB', true: '#0A84FF' }}
+                trackColor={{ false: isDark ? '#2A2D3D' : '#E5E7EB', true: '#E53935' }}
                 thumbColor="#FFFFFF"
                 ios_backgroundColor={isDark ? '#2A2D3D' : '#E5E7EB'}
               />
@@ -320,8 +320,8 @@ export default function SettingsScreen() {
               activeOpacity={0.75}
               onPress={handleExportBackup}
             >
-              <View style={[styles.iconCircle, { backgroundColor: isDark ? '#0F2E22' : '#D1FAE5' }]}>
-                <Download size={18} color="#059669" />
+              <View style={[styles.iconCircle, { backgroundColor: isDark ? '#0C2B44' : '#E0F2FE' }]}>
+                <Download size={18} color="#0A84FF" />
               </View>
               <View style={styles.menuTextCol}>
                 <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>Export Offline Backup</Text>
