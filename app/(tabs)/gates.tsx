@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -20,6 +21,13 @@ import {
   CheckCircle2,
   ExternalLink,
   Flame,
+  ShieldAlert,
+  Clock,
+  Trophy,
+  ArrowRight,
+  Gift,
+  X,
+  AlertTriangle,
 } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useTheme } from '../../src/hooks/useTheme';
@@ -63,6 +71,7 @@ export default function DungeonScreen() {
   const [leaderboard, setLeaderboard] = useState<CrystalLeaderboardHunter[]>([]);
   const [spawnedGates, setSpawnedGates] = useState<SpawnedDungeonGate[]>([]);
   const [isScanning, setIsScanning] = useState<boolean>(false);
+  const [currentTime, setCurrentTime] = useState<number>(Date.now());
 
   // In-App Survey Modal State
   const [surveyModal, setSurveyModal] = useState<{
@@ -76,6 +85,32 @@ export default function DungeonScreen() {
     title: '',
     provider: '',
   });
+
+  // Solo Leveling System Notification Dialog
+  const [systemDialog, setSystemDialog] = useState<{
+    visible: boolean;
+    title: string;
+    subtag: string;
+    message: string;
+    rewardCrystals?: number;
+    rewardXP?: number;
+    buttonText: string;
+    onPress?: () => void;
+  }>({
+    visible: false,
+    title: '',
+    subtag: 'ARISE OS // SYSTEM DIRECTIVE',
+    message: '',
+    buttonText: 'CONFIRM',
+  });
+
+  // Live real-time clock tick for countdown timers
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const handleSelectRedGateTrial = (trial: RedGateTrial) => {
     setIsRedGateModalOpen(false);
@@ -137,6 +172,7 @@ export default function DungeonScreen() {
     };
   }, [refreshData]);
 
+  // Hunter Association Radar Pulse scan
   const handleRadarPulse = async () => {
     if (isScanning) return;
     setIsScanning(true);
@@ -155,17 +191,43 @@ export default function DungeonScreen() {
     }
   };
 
-  const handleOpenGatePage = (gate?: SpawnedDungeonGate) => {
+  // Helper: Format countdown remaining
+  const getRemainingTime = (expiresAt: number) => {
+    const diff = Math.max(0, expiresAt - currentTime);
+    if (diff === 0) return 'COLLAPSED';
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const secs = Math.floor((diff % (1000 * 60)) / 1000);
+    return `${hours.toString().padStart(2, '0')}h ${mins.toString().padStart(2, '0')}m ${secs.toString().padStart(2, '0')}s`;
+  };
+
+  // Helper: Rank Colors
+  const getRankColor = (rankCode: string) => {
+    switch (rankCode) {
+      case 'S':
+        return '#EF4444';
+      case 'A':
+        return '#F59E0B';
+      case 'B':
+        return '#E11D48';
+      case 'C':
+        return '#8B5CF6';
+      case 'D':
+        return '#0284C7';
+      case 'E':
+      default:
+        return '#10B981';
+    }
+  };
+
+  // Navigate to dedicated Gate Details page
+  const handleOpenGatePage = (gate: SpawnedDungeonGate) => {
     haptics.medium();
     sound.play('quest_complete');
-    if (gate) {
-      router.push({
-        pathname: '/gates/[id]',
-        params: { id: gate.id },
-      } as any);
-    } else {
-      router.push('/exercise/pushup' as any);
-    }
+    router.push({
+      pathname: '/gates/[id]',
+      params: { id: gate.id },
+    } as any);
   };
 
   const handleOpenCPXSurveys = async () => {
@@ -196,132 +258,380 @@ export default function DungeonScreen() {
     });
   };
 
+  const userLevel = profile?.level || 1;
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      {/* 1. TOP HEADER */}
-      <View style={styles.topHeader}>
-        <Text style={[styles.headerTitleText, { color: colors.textPrimary }]}>Dungeon</Text>
-        <View style={styles.headerRightCurrencies}>
-          <View style={[styles.currencyPillMini, { backgroundColor: isDark ? '#12131A' : '#F3F4F6', borderColor: colors.border }]}>
-            <ManaCrystalIcon size={16} color="#00D2EE" secondaryColor="#0284C7" />
-            <Text style={[styles.currencyPillMiniText, { color: colors.textPrimary }]}>{manaCrystals.toLocaleString()}</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? '#000000' : '#FFFFFF' }]} edges={['top', 'left', 'right']}>
+      {/* 1. TOP STATUS HEADER (DP + Rank + Name on Left; Crystals + Redeem on Right) */}
+      <View style={[styles.topHeader, { backgroundColor: isDark ? '#000000' : '#FFFFFF', borderBottomColor: isDark ? '#1C1E2A' : '#E2E8F0' }]}>
+        {/* Left: Player Profile & Rank */}
+        <TouchableOpacity
+          style={styles.headerPlayerCol}
+          onPress={() => {
+            haptics.light();
+            router.push('/(tabs)/profile');
+          }}
+          activeOpacity={0.8}
+        >
+          <PlayerAvatar
+            iconId={avatarIcon}
+            size={40}
+            glow={true}
+            glowColor={getRankColor(currentRank.rankCode)}
+          />
+          <View style={{ gap: 2 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={[styles.hunterNameText, { color: isDark ? '#FFFFFF' : '#0F172A' }]} numberOfLines={1}>
+                {displayName}
+              </Text>
+              <View style={[styles.hunterRankPill, { backgroundColor: isDark ? '#111218' : '#F1F5F9', borderColor: getRankColor(currentRank.rankCode) }]}>
+                <Text style={[styles.hunterRankPillText, { color: getRankColor(currentRank.rankCode) }]}>
+                  {currentRank.rankCode}-RANK
+                </Text>
+              </View>
+            </View>
+            <Text style={[styles.hunterTitleSub, { color: isDark ? '#8E8E93' : '#64748B' }]}>
+              {currentRank.title} • LVL {userLevel}
+            </Text>
           </View>
+        </TouchableOpacity>
+
+        {/* Right: Mana Crystals Vault & Dedicated Redeem Link */}
+        <View style={styles.headerRightCol}>
+          <TouchableOpacity
+            style={[styles.crystalCapsule, { backgroundColor: isDark ? '#111218' : '#F1F5F9', borderColor: isDark ? '#1C1E2A' : '#E2E8F0' }]}
+            onPress={() => {
+              haptics.light();
+              router.push('/redeem' as any);
+            }}
+            activeOpacity={0.8}
+          >
+            <ManaCrystalIcon size={16} color="#00D2EE" secondaryColor="#0284C7" />
+            <Text style={[styles.crystalCountText, { color: isDark ? '#00D2EE' : '#0284C7' }]}>
+              {manaCrystals.toLocaleString()}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.headerRedeemBtn}
+            onPress={() => {
+              haptics.light();
+              router.push('/redeem' as any);
+            }}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.headerRedeemBtnText}>REDEEM</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
-      {/* 2. SUB-TABS (Gates / Surveys / Leaderboard / Rewards) */}
-      <View style={styles.subTabsRow}>
+      {/* 2. SUB-HEADER SEGMENTED TABS: [GATES] | [SURVEYS] | [LEADERBOARD] | [REWARDS] */}
+      <View style={[styles.tabSegmentWrap, { backgroundColor: isDark ? '#0A0D14' : '#F8FAFC', borderColor: isDark ? '#1C1E2A' : '#E2E8F0' }]}>
         <TouchableOpacity
           style={[
-            styles.subTabPill,
-            { backgroundColor: activeTab === 'gates' ? '#E53935' : (isDark ? '#12131A' : '#F3F4F6') },
+            styles.segmentBtn,
+            activeTab === 'gates' && (isDark ? styles.segmentBtnActiveDark : styles.segmentBtnActiveLight),
           ]}
           onPress={() => {
             haptics.light();
             setActiveTab('gates');
           }}
-          activeOpacity={0.8}
+          activeOpacity={0.85}
         >
-          <Text style={[styles.subTabPillText, { color: activeTab === 'gates' ? '#FFFFFF' : colors.textSecondary }]}>
+          <Swords size={14} color={activeTab === 'gates' ? '#FFFFFF' : (isDark ? '#8E8E93' : '#64748B')} />
+          <Text style={[styles.segmentBtnText, { color: activeTab === 'gates' ? '#FFFFFF' : (isDark ? '#8E8E93' : '#64748B') }]}>
             Gates
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[
-            styles.subTabPill,
-            { backgroundColor: activeTab === 'surveys' ? '#E53935' : (isDark ? '#12131A' : '#F3F4F6') },
+            styles.segmentBtn,
+            activeTab === 'surveys' && (isDark ? styles.segmentBtnActiveDark : styles.segmentBtnActiveLight),
           ]}
           onPress={() => {
             haptics.light();
             setActiveTab('surveys');
           }}
-          activeOpacity={0.8}
+          activeOpacity={0.85}
         >
-          <Text style={[styles.subTabPillText, { color: activeTab === 'surveys' ? '#FFFFFF' : colors.textSecondary }]}>
+          <Sparkles size={14} color={activeTab === 'surveys' ? '#FFFFFF' : (isDark ? '#8E8E93' : '#64748B')} />
+          <Text style={[styles.segmentBtnText, { color: activeTab === 'surveys' ? '#FFFFFF' : (isDark ? '#8E8E93' : '#64748B') }]}>
             Surveys
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[
-            styles.subTabPill,
-            { backgroundColor: activeTab === 'leaderboard' ? '#E53935' : (isDark ? '#12131A' : '#F3F4F6') },
+            styles.segmentBtn,
+            activeTab === 'leaderboard' && (isDark ? styles.segmentBtnActiveDark : styles.segmentBtnActiveLight),
           ]}
           onPress={() => {
             haptics.light();
             setActiveTab('leaderboard');
           }}
-          activeOpacity={0.8}
+          activeOpacity={0.85}
         >
-          <Text style={[styles.subTabPillText, { color: activeTab === 'leaderboard' ? '#FFFFFF' : colors.textSecondary }]}>
+          <Trophy size={14} color={activeTab === 'leaderboard' ? '#FFFFFF' : (isDark ? '#8E8E93' : '#64748B')} />
+          <Text style={[styles.segmentBtnText, { color: activeTab === 'leaderboard' ? '#FFFFFF' : (isDark ? '#8E8E93' : '#64748B') }]}>
             Leaderboard
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.subTabPill, { backgroundColor: isDark ? '#12131A' : '#F3F4F6' }]}
+          style={styles.segmentBtn}
           onPress={() => {
             haptics.light();
             router.push('/shop' as any);
           }}
-          activeOpacity={0.8}
+          activeOpacity={0.85}
         >
-          <Text style={[styles.subTabPillText, { color: colors.textSecondary }]}>Rewards</Text>
+          <Gift size={14} color={isDark ? '#8E8E93' : '#64748B'} />
+          <Text style={[styles.segmentBtnText, { color: isDark ? '#8E8E93' : '#64748B' }]}>
+            Rewards
+          </Text>
         </TouchableOpacity>
       </View>
 
-      {/* ======================= TAB 1: GATES (SCREEN 8 1:1 MATCH) ======================= */}
+      {/* ======================= TAB 1: DUNGEON GATES ======================= */}
       {activeTab === 'gates' && (
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Active Hero Gate 1: The Inferno Gate */}
-          <View style={styles.heroGateCard}>
-            <View style={styles.heroGateArtWrap}>
-              <View style={styles.heroGateBadgeRow}>
-                <View style={styles.activeGateBadge}>
-                  <Text style={styles.activeGateBadgeText}>Gate 1</Text>
+          {/* Active Emergency Red Gate Alert Banner */}
+          {activeRedGate && !activeRedGate.isCleared && (
+            <TouchableOpacity
+              style={[
+                styles.redGateHeroBanner,
+                {
+                  backgroundColor: isDark ? '#16080A' : '#FEF2F2',
+                  borderColor: '#EF4444',
+                },
+              ]}
+              activeOpacity={0.88}
+              onPress={() => {
+                haptics.heavy();
+                sound.play('unlock');
+                setIsRedGateModalOpen(true);
+              }}
+            >
+              <View style={styles.redGateHeroTopRow}>
+                <View style={[styles.redGateAlertPill, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.18)' : '#FEE2E2', borderColor: '#EF4444' }]}>
+                  <ShieldAlert size={13} color="#EF4444" />
+                  <Text style={styles.redGateAlertPillText}>EMERGENCY RED GATE ACTIVE</Text>
+                </View>
+                <View style={[styles.redGateBountyPill, { backgroundColor: isDark ? 'rgba(0, 210, 238, 0.12)' : '#E0F2FE', borderColor: '#00D2EE' }]}>
+                  <ManaCrystalIcon size={13} color="#00D2EE" secondaryColor="#0284C7" />
+                  <Text style={styles.redGateBountyPillText}>+{activeRedGate.bountyCoins} Crystals</Text>
                 </View>
               </View>
-              <Text style={styles.heroGateTitle}>The Inferno Gate</Text>
-              <Text style={styles.heroGateSub}>“Discipline through action.”</Text>
 
-              {/* Red Enter Gate Button */}
-              <TouchableOpacity
-                style={styles.heroEnterGateBtn}
-                onPress={() => {
-                  haptics.heavy();
-                  handleOpenGatePage(spawnedGates.length > 0 ? spawnedGates[0] : undefined);
-                }}
-                activeOpacity={0.88}
-              >
-                <Text style={styles.heroEnterGateBtnText}>Enter Gate</Text>
-                <ChevronRight size={16} color="#FFFFFF" />
-              </TouchableOpacity>
+              <Text style={[styles.redGateHeroTitle, { color: isDark ? '#FFFFFF' : '#991B1B' }]}>
+                {activeRedGate.threatName.toUpperCase()}
+              </Text>
+              <Text style={[styles.redGateHeroSub, { color: isDark ? '#FCA5A5' : '#B91C1C' }]} numberOfLines={2}>
+                {activeRedGate.lore}
+              </Text>
+
+              <View style={styles.redGateHeroActionRow}>
+                <Text style={styles.redGateHeroActionText}>ENGAGE EMERGENCY TRIAL</Text>
+                <ChevronRight size={15} color="#FFFFFF" />
+              </View>
+            </TouchableOpacity>
+          )}
+
+          {/* Hunter Association Radar Card */}
+          <View style={[
+            styles.radarHeroCard,
+            {
+              backgroundColor: isDark ? '#111218' : '#F8FAFC',
+              borderColor: isDark ? '#1C1E2A' : '#E2E8F0',
+            }
+          ]}>
+            <View style={styles.radarHeroLeft}>
+              <View style={styles.radarLivePill}>
+                <View style={styles.radarLiveDot} />
+                <Text style={styles.radarLiveText}>HUNTER RADAR // RIFT SCANNER</Text>
+              </View>
+              <Text style={[styles.radarHeroTitle, { color: isDark ? '#FFFFFF' : '#0F172A' }]}>
+                Dimensional Rift Radar
+              </Text>
+              <Text style={[styles.radarHeroSub, { color: isDark ? '#8E8E93' : '#64748B' }]}>
+                Scan satellite coordinates for active gates & survey bounties
+              </Text>
             </View>
+
+            <TouchableOpacity
+              style={[styles.radarPulseBtn, isScanning && styles.radarPulseBtnActive]}
+              onPress={handleRadarPulse}
+              disabled={isScanning}
+              activeOpacity={0.8}
+            >
+              {isScanning ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Search size={14} color="#FFFFFF" />
+              )}
+              <Text style={styles.radarPulseBtnText}>
+                {isScanning ? 'Scanning...' : 'Radar Scan'}
+              </Text>
+            </TouchableOpacity>
           </View>
 
-          {/* Survey Mine Station Banner (Earn Crystals) */}
+          {/* Spawned Dungeon Gates Header */}
+          <View style={styles.sectionHeaderRow}>
+            <Text style={[styles.sectionTitle, { color: isDark ? '#FFFFFF' : '#0F172A' }]}>
+              Active Dungeon Gates ({spawnedGates.length})
+            </Text>
+            <Text style={[styles.sectionSub, { color: isDark ? '#8E8E93' : '#64748B' }]}>
+              Rank E → S
+            </Text>
+          </View>
+
+          {/* Spawned Dungeon Gate Cards */}
+          {spawnedGates.map((gateItem) => {
+            const isGateLocked = userLevel < gateItem.requiredLevel;
+            const rankColor = getRankColor(gateItem.rankCode);
+            const totalInrPayout = gateItem.missions.reduce((acc, m) => acc + m.grossPayoutInr, 0);
+            const totalCrystalBounty = gateItem.missions.reduce((acc, m) => acc + m.hunterCrystals, 0);
+            const completedMissions = gateItem.missions.filter((m) => m.isCompleted).length;
+            const isCompleted = gateItem.isCleared || (gateItem.missions.length > 0 && completedMissions === gateItem.missions.length);
+
+            return (
+              <TouchableOpacity
+                key={gateItem.id}
+                style={[
+                  styles.dungeonGateCard,
+                  {
+                    backgroundColor: isDark ? '#111218' : '#FFFFFF',
+                    borderColor: isCompleted
+                      ? '#10B981'
+                      : isGateLocked
+                      ? (isDark ? '#1C1E2A' : '#E2E8F0')
+                      : (isDark ? '#1C1E2A' : '#E2E8F0'),
+                  },
+                ]}
+                onPress={() => handleOpenGatePage(gateItem)}
+                activeOpacity={0.85}
+              >
+                {/* Gate Card Top: Rank Badge + Title + Countdown Timer */}
+                <View style={styles.gateCardTopRow}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                    <View style={[styles.gateRankBadge, { backgroundColor: isDark ? '#191B26' : '#F1F5F9', borderColor: rankColor }]}>
+                      <Text style={[styles.gateRankBadgeText, { color: rankColor }]}>
+                        {gateItem.rankCode}-RANK
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.gateCardTitle, { color: isDark ? '#FFFFFF' : '#0F172A' }]} numberOfLines={1}>
+                        {gateItem.title}
+                      </Text>
+                      <Text style={[styles.gateCardThreat, { color: isDark ? '#8E8E93' : '#64748B' }]} numberOfLines={1}>
+                        {gateItem.threatName}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Countdown Timer Pill */}
+                  <View style={[styles.countdownCapsule, { backgroundColor: isDark ? '#090B10' : '#F1F5F9', borderColor: isDark ? '#1C1E2A' : '#E2E8F0' }]}>
+                    <Clock size={11} color={isDark ? '#00D2EE' : '#0284C7'} />
+                    <Text style={[styles.countdownText, { color: isDark ? '#00D2EE' : '#0284C7' }]}>
+                      {getRemainingTime(gateItem.expiresAt)}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Gate Card Bounty & Progress Strip */}
+                <View style={[styles.bountyPillRow, { backgroundColor: isDark ? '#090B10' : '#F8FAFC', borderColor: isDark ? '#161922' : '#E2E8F0' }]}>
+                  <View style={styles.bountyGrossTag}>
+                    <Text style={[styles.bountyGrossLabel, { color: isDark ? '#8E8E93' : '#64748B' }]}>BOUNTY:</Text>
+                    <Text style={styles.bountyGrossVal}>₹{totalInrPayout}</Text>
+                    <Text style={{ color: isDark ? '#8E8E93' : '#64748B', fontSize: 10 }}>•</Text>
+                    <ManaCrystalIcon size={12} color="#00D2EE" secondaryColor="#0284C7" />
+                    <Text style={[styles.bountyCrystalsVal, { color: isDark ? '#00D2EE' : '#0284C7' }]}>
+                      {totalCrystalBounty} Crystals
+                    </Text>
+                  </View>
+
+                  {isCompleted ? (
+                    <View style={styles.clearedPill}>
+                      <CheckCircle2 size={12} color="#10B981" />
+                      <Text style={styles.clearedPillText}>CLEARED</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.missionProgressTag}>
+                      <Text style={[styles.missionProgressText, { color: isDark ? '#8E8E93' : '#64748B' }]}>
+                        {completedMissions}/{gateItem.missions.length} Inquests
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Gate Card Footer: Required Level & Enter Button */}
+                <View style={styles.gateCardFooterRow}>
+                  {isGateLocked ? (
+                    <View style={styles.gateLockBadge}>
+                      <Lock size={12} color="#EF4444" />
+                      <Text style={styles.gateLockBadgeText}>REQ LVL {gateItem.requiredLevel}</Text>
+                    </View>
+                  ) : (
+                    <View style={[styles.gateReqLevelPill, { backgroundColor: isDark ? '#191B26' : '#F1F5F9' }]}>
+                      <Text style={[styles.gateReqLevelText, { color: isDark ? '#8E8E93' : '#64748B' }]}>
+                        Level {gateItem.requiredLevel}+
+                      </Text>
+                    </View>
+                  )}
+
+                  <View style={[
+                    styles.enterGateBtn,
+                    {
+                      backgroundColor: isCompleted
+                        ? '#10B981'
+                        : isGateLocked
+                        ? (isDark ? '#222634' : '#E2E8F0')
+                        : '#EF4444',
+                    }
+                  ]}>
+                    <Text style={[
+                      styles.enterGateBtnText,
+                      { color: isGateLocked ? (isDark ? '#64748B' : '#94A3B8') : '#FFFFFF' }
+                    ]}>
+                      {isCompleted ? 'INSPECT DUNGEON' : isGateLocked ? 'LOCKED' : 'ENTER GATE'}
+                    </Text>
+                    <ChevronRight size={14} color={isGateLocked ? (isDark ? '#64748B' : '#94A3B8') : '#FFFFFF'} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+
+          {/* Quick Survey Station Banner */}
           <View style={[
             styles.surveyStationHeroCard,
             {
               backgroundColor: isDark ? '#081D2E' : '#F0F9FF',
               borderColor: isDark ? '#0C385C' : '#BAE6FD',
+              marginTop: 4,
             }
           ]}>
             <View style={styles.surveyStationTopRow}>
               <View style={[styles.surveyLiveBadge, { backgroundColor: isDark ? '#0C2B44' : '#FFFFFF', borderColor: isDark ? '#0C4A6E' : '#BAE6FD' }]}>
-                <Sparkles size={14} color="#0284C7" />
-                <Text style={[styles.surveyLiveBadgeText, { color: isDark ? '#38BDF8' : '#0284C7' }]}>MANA CRYSTAL SURVEY MINES</Text>
+                <Sparkles size={13} color="#0284C7" />
+                <Text style={[styles.surveyLiveBadgeText, { color: isDark ? '#38BDF8' : '#0284C7' }]}>
+                  MANA CRYSTAL MINES
+                </Text>
               </View>
               <View style={[styles.surveyYieldBadge, { backgroundColor: isDark ? '#0C2B44' : '#FFFFFF' }]}>
-                <ManaCrystalIcon size={13} color="#00D2EE" secondaryColor="#0284C7" />
-                <Text style={[styles.surveyYieldBadgeText, { color: isDark ? '#38BDF8' : '#0284C7' }]}>+100 to +2,000 💎</Text>
+                <ManaCrystalIcon size={12} color="#00D2EE" secondaryColor="#0284C7" />
+                <Text style={[styles.surveyYieldBadgeText, { color: isDark ? '#38BDF8' : '#0284C7' }]}>
+                  Instant Payout
+                </Text>
               </View>
             </View>
 
-            <Text style={[styles.surveyStationTitle, { color: isDark ? '#E0F2FE' : '#0C4A6E' }]}>Mine Crystals with In-App Surveys</Text>
+            <Text style={[styles.surveyStationTitle, { color: isDark ? '#E0F2FE' : '#0C4A6E' }]}>
+              Mine Mana Crystals with Live Surveys
+            </Text>
             <Text style={[styles.surveyStationDesc, { color: isDark ? '#7DD3FC' : '#0369A1' }]}>
-              Answer questions from CPX Research & BitLabs to earn instant crystals and redeem real vouchers.
+              Answer sponsored research questions to earn crystals and redeem real vouchers in the shop.
             </Text>
 
             <View style={styles.surveyActionBtnsRow}>
@@ -330,8 +640,8 @@ export default function DungeonScreen() {
                 onPress={handleOpenCPXSurveys}
                 activeOpacity={0.85}
               >
-                <Text style={styles.surveyCpxBtnText}>CPX Survey Wall</Text>
-                <ExternalLink size={14} color="#FFFFFF" />
+                <Text style={styles.surveyCpxBtnText}>CPX Wall</Text>
+                <ExternalLink size={13} color="#FFFFFF" />
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -346,91 +656,19 @@ export default function DungeonScreen() {
                 activeOpacity={0.85}
               >
                 <Text style={[styles.surveyBitlabsBtnText, { color: isDark ? '#38BDF8' : '#0284C7' }]}>BitLabs Mine</Text>
-                <ExternalLink size={14} color={isDark ? '#38BDF8' : '#0284C7'} />
+                <ExternalLink size={13} color={isDark ? '#38BDF8' : '#0284C7'} />
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* Hunter Radar Pulse Scan Card */}
-          <View style={[
-            styles.radarCard,
-            {
-              backgroundColor: isDark ? '#1C1214' : '#FFF1F2',
-              borderColor: isDark ? '#3A1E24' : '#FFE4E6',
-            }
-          ]}>
-            <View style={{ flex: 1, gap: 2 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Radio size={16} color="#E53935" />
-                <Text style={[styles.radarTitle, { color: colors.textPrimary }]}>Hunter Association Radar</Text>
-              </View>
-              <Text style={[styles.radarSub, { color: colors.textSecondary }]}>Scan for spawned dungeon gates & survey bounties</Text>
-            </View>
-
-            <TouchableOpacity
-              style={[styles.radarBtn, isScanning && { opacity: 0.6 }]}
-              onPress={handleRadarPulse}
-              disabled={isScanning}
-              activeOpacity={0.8}
-            >
-              <Search size={14} color="#FFFFFF" />
-              <Text style={styles.radarBtnText}>{isScanning ? 'Scanning...' : 'Radar Scan'}</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Locked Gates List (Gate 2, 3, 4) */}
-          <View style={styles.lockedGatesList}>
-            {/* Gate 2 */}
-            <View style={[styles.lockedGateRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <View style={styles.lockedGateLeft}>
-                <View style={[styles.lockedGateIconCircle, { backgroundColor: isDark ? '#1E1B4B' : '#EEF2FF' }]}>
-                  <Swords size={20} color="#6366F1" />
-                </View>
-                <View>
-                  <Text style={[styles.lockedGateTitle, { color: colors.textPrimary }]}>Gate 2</Text>
-                  <Text style={[styles.lockedGateSub, { color: colors.textSecondary }]}>The Shadow Gate</Text>
-                </View>
-              </View>
-              <Lock size={18} color="#9CA3AF" />
-            </View>
-
-            {/* Gate 3 */}
-            <View style={[styles.lockedGateRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <View style={styles.lockedGateLeft}>
-                <View style={[styles.lockedGateIconCircle, { backgroundColor: isDark ? '#064E3B' : '#ECFDF5' }]}>
-                  <Zap size={20} color="#10B981" />
-                </View>
-                <View>
-                  <Text style={[styles.lockedGateTitle, { color: colors.textPrimary }]}>Gate 3</Text>
-                  <Text style={[styles.lockedGateSub, { color: colors.textSecondary }]}>The Mind Gate</Text>
-                </View>
-              </View>
-              <Lock size={18} color="#9CA3AF" />
-            </View>
-
-            {/* Gate 4 */}
-            <View style={[styles.lockedGateRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <View style={styles.lockedGateLeft}>
-                <View style={[styles.lockedGateIconCircle, { backgroundColor: isDark ? '#3B0764' : '#F5F3FF' }]}>
-                  <Crown size={20} color="#A855F7" />
-                </View>
-                <View>
-                  <Text style={[styles.lockedGateTitle, { color: colors.textPrimary }]}>Gate 4</Text>
-                  <Text style={[styles.lockedGateSub, { color: colors.textSecondary }]}>The Eternal Gate</Text>
-                </View>
-              </View>
-              <Lock size={18} color="#9CA3AF" />
-            </View>
-          </View>
-
-          <View style={{ height: 30 }} />
+          <View style={{ height: 40 }} />
         </ScrollView>
       )}
 
       {/* ======================= TAB 2: SURVEYS (DEDICATED SURVEY HUB) ======================= */}
       {activeTab === 'surveys' && (
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Survey Hero */}
+          {/* Survey Hub Hero */}
           <View style={[
             styles.surveyStationHeroCard,
             {
@@ -441,15 +679,21 @@ export default function DungeonScreen() {
             <View style={styles.surveyStationTopRow}>
               <View style={[styles.surveyLiveBadge, { backgroundColor: isDark ? '#0C2B44' : '#FFFFFF', borderColor: isDark ? '#0C4A6E' : '#BAE6FD' }]}>
                 <Sparkles size={14} color="#0284C7" />
-                <Text style={[styles.surveyLiveBadgeText, { color: isDark ? '#38BDF8' : '#0284C7' }]}>MANA RECON HUB</Text>
+                <Text style={[styles.surveyLiveBadgeText, { color: isDark ? '#38BDF8' : '#0284C7' }]}>
+                  MANA RECON HUB
+                </Text>
               </View>
               <View style={[styles.surveyYieldBadge, { backgroundColor: isDark ? '#0C2B44' : '#FFFFFF' }]}>
                 <ManaCrystalIcon size={13} color="#00D2EE" secondaryColor="#0284C7" />
-                <Text style={[styles.surveyYieldBadgeText, { color: isDark ? '#38BDF8' : '#0284C7' }]}>{manaCrystals} Crystals Owned</Text>
+                <Text style={[styles.surveyYieldBadgeText, { color: isDark ? '#38BDF8' : '#0284C7' }]}>
+                  {manaCrystals} Crystals Owned
+                </Text>
               </View>
             </View>
 
-            <Text style={[styles.surveyStationTitle, { color: isDark ? '#E0F2FE' : '#0C4A6E' }]}>Earn Real Rewards</Text>
+            <Text style={[styles.surveyStationTitle, { color: isDark ? '#E0F2FE' : '#0C4A6E' }]}>
+              Earn Real Cash & Crystals
+            </Text>
             <Text style={[styles.surveyStationDesc, { color: isDark ? '#7DD3FC' : '#0369A1' }]}>
               Complete daily sponsor questionnaires to mine Mana Crystals. Exchange crystals for ₹100 Amazon, Google Play, and Paytm vouchers in the shop!
             </Text>
@@ -457,7 +701,10 @@ export default function DungeonScreen() {
 
           {/* CPX Research Offerwall Card */}
           <TouchableOpacity
-            style={[styles.surveyProviderCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+            style={[
+              styles.surveyProviderCard,
+              { backgroundColor: isDark ? '#111218' : '#FFFFFF', borderColor: isDark ? '#1C1E2A' : '#E2E8F0' },
+            ]}
             onPress={handleOpenCPXSurveys}
             activeOpacity={0.85}
           >
@@ -467,15 +714,21 @@ export default function DungeonScreen() {
               </View>
               <View style={{ flex: 1, gap: 3 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={[styles.surveyProviderTitle, { color: colors.textPrimary }]}>CPX Research Survey Wall</Text>
+                  <Text style={[styles.surveyProviderTitle, { color: isDark ? '#FFFFFF' : '#0F172A' }]}>
+                    CPX Research Survey Wall
+                  </Text>
                   <View style={[styles.hotPill, { backgroundColor: isDark ? '#3A1E24' : '#FEE2E2', borderColor: isDark ? '#5C222B' : '#FECACA' }]}>
                     <Text style={styles.hotPillText}>HOT</Text>
                   </View>
                 </View>
-                <Text style={[styles.surveyProviderSub, { color: colors.textSecondary }]}>Highest acceptance rate • Instant crystal payout</Text>
+                <Text style={[styles.surveyProviderSub, { color: isDark ? '#8E8E93' : '#64748B' }]}>
+                  Highest acceptance rate • Instant crystal payout
+                </Text>
                 <View style={styles.surveyBountyRow}>
                   <ManaCrystalIcon size={13} color="#00D2EE" secondaryColor="#0284C7" />
-                  <Text style={styles.surveyBountyText}>+150 to +1,200 💎 per survey</Text>
+                  <Text style={[styles.surveyBountyText, { color: isDark ? '#00D2EE' : '#0284C7' }]}>
+                    +150 to +1,200 💎 per survey
+                  </Text>
                 </View>
               </View>
             </View>
@@ -488,44 +741,53 @@ export default function DungeonScreen() {
 
           {/* BitLabs Survey Card */}
           <TouchableOpacity
-            style={[styles.surveyProviderCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+            style={[
+              styles.surveyProviderCard,
+              { backgroundColor: isDark ? '#111218' : '#FFFFFF', borderColor: isDark ? '#1C1E2A' : '#E2E8F0' },
+            ]}
             onPress={handleOpenBitLabsSurveys}
             activeOpacity={0.85}
           >
             <View style={styles.surveyProviderLeft}>
               <View style={[styles.surveyProviderIconCircle, { backgroundColor: isDark ? '#2C1B1B' : '#FEE2E2' }]}>
-                <Flame size={24} color="#E53935" />
+                <Flame size={24} color="#EF4444" />
               </View>
               <View style={{ flex: 1, gap: 3 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={[styles.surveyProviderTitle, { color: colors.textPrimary }]}>BitLabs Global Surveys</Text>
+                  <Text style={[styles.surveyProviderTitle, { color: isDark ? '#FFFFFF' : '#0F172A' }]}>
+                    BitLabs Global Surveys
+                  </Text>
                   <View style={[styles.hotPill, { backgroundColor: isDark ? '#3B2912' : '#FEF3C7', borderColor: isDark ? '#5A3D1A' : '#FDE68A' }]}>
                     <Text style={[styles.hotPillText, { color: '#F59E0B' }]}>POPULAR</Text>
                   </View>
                 </View>
-                <Text style={[styles.surveyProviderSub, { color: colors.textSecondary }]}>Verified market questionnaires & research</Text>
+                <Text style={[styles.surveyProviderSub, { color: isDark ? '#8E8E93' : '#64748B' }]}>
+                  Verified market questionnaires & research
+                </Text>
                 <View style={styles.surveyBountyRow}>
                   <ManaCrystalIcon size={13} color="#00D2EE" secondaryColor="#0284C7" />
-                  <Text style={styles.surveyBountyText}>+200 to +2,000 💎 per survey</Text>
+                  <Text style={[styles.surveyBountyText, { color: isDark ? '#00D2EE' : '#0284C7' }]}>
+                    +200 to +2,000 💎 per survey
+                  </Text>
                 </View>
               </View>
             </View>
 
-            <View style={[styles.surveyOpenBtn, { backgroundColor: isDark ? '#E53935' : '#111827' }]}>
+            <View style={[styles.surveyOpenBtn, { backgroundColor: isDark ? '#EF4444' : '#111827' }]}>
               <Text style={styles.surveyOpenBtnText}>START</Text>
               <ChevronRight size={16} color="#FFFFFF" />
             </View>
           </TouchableOpacity>
 
-          <View style={{ height: 30 }} />
+          <View style={{ height: 40 }} />
         </ScrollView>
       )}
 
-      {/* ======================= TAB 3: LEADERBOARD (SCREEN 8 1:1 MATCH) ======================= */}
+      {/* ======================= TAB 3: LEADERBOARD ======================= */}
       {activeTab === 'leaderboard' && (
         <View style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-            {/* Leaderboard Filter Pills: Daily / Weekly / All-Time */}
+            {/* Filter Pills: Daily / Weekly / All-Time */}
             <View style={styles.lbFilterRow}>
               {(['daily', 'weekly', 'allTime'] as const).map((f) => {
                 const isSelected = lbFilter === f;
@@ -534,7 +796,14 @@ export default function DungeonScreen() {
                     key={f}
                     style={[
                       styles.lbFilterPill,
-                      { backgroundColor: isSelected ? '#E53935' : (isDark ? '#12131A' : '#F3F4F6') },
+                      {
+                        backgroundColor: isSelected
+                          ? '#EF4444'
+                          : (isDark ? '#111218' : '#F1F5F9'),
+                        borderColor: isSelected
+                          ? '#EF4444'
+                          : (isDark ? '#1C1E2A' : '#E2E8F0'),
+                      },
                     ]}
                     onPress={() => {
                       haptics.light();
@@ -542,7 +811,7 @@ export default function DungeonScreen() {
                     }}
                     activeOpacity={0.8}
                   >
-                    <Text style={[styles.lbFilterPillText, { color: isSelected ? '#FFFFFF' : colors.textSecondary }]}>
+                    <Text style={[styles.lbFilterPillText, { color: isSelected ? '#FFFFFF' : (isDark ? '#8E8E93' : '#64748B') }]}>
                       {f === 'daily' ? 'Daily' : f === 'weekly' ? 'Weekly' : 'All-Time'}
                     </Text>
                   </TouchableOpacity>
@@ -550,76 +819,114 @@ export default function DungeonScreen() {
               })}
             </View>
 
-            {/* Top 3 Podium (Arjun #1 Center, Karan #2 Left, Riya #3 Right) */}
-            <View style={[styles.podiumSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              {/* #2 Left: Karan */}
+            {/* Top 3 Podium (Rank 2 Left, Rank 1 Center 👑, Rank 3 Right) */}
+            <View style={[styles.podiumSection, { backgroundColor: isDark ? '#111218' : '#FFFFFF', borderColor: isDark ? '#1C1E2A' : '#E2E8F0' }]}>
+              {/* #2 Left: Rank 2 Hunter */}
               <View style={styles.podiumCol}>
                 <View style={[styles.podiumAvatarWrap, { borderColor: '#CBD5E1' }]}>
-                  <PlayerAvatar iconId="pfp_02" size={48} />
+                  <PlayerAvatar iconId={leaderboard[1]?.avatarIcon || 'pfp_02'} size={48} />
                   <View style={[styles.podiumRankBadge, { backgroundColor: '#64748B' }]}>
                     <Text style={styles.podiumRankBadgeText}>2</Text>
                   </View>
                 </View>
-                <Text style={[styles.podiumNameText, { color: colors.textPrimary }]}>Karan</Text>
-                <Text style={[styles.podiumXPText, { color: colors.textSecondary }]}>10,230</Text>
+                <Text style={[styles.podiumNameText, { color: isDark ? '#FFFFFF' : '#0F172A' }]} numberOfLines={1}>
+                  {leaderboard[1]?.name || 'Karan'}
+                </Text>
+                <Text style={[styles.podiumXPText, { color: isDark ? '#8E8E93' : '#64748B' }]}>
+                  {(leaderboard[1]?.crystalsMined || 2450).toLocaleString()} 💎
+                </Text>
               </View>
 
-              {/* #1 Center: Arjun 👑 */}
+              {/* #1 Center: Top Hunter 👑 */}
               <View style={[styles.podiumCol, { marginTop: -14 }]}>
                 <Crown size={22} color="#F59E0B" style={{ marginBottom: 2 }} />
                 <View style={[styles.podiumAvatarWrap, { borderColor: '#F59E0B', borderWidth: 2.5 }]}>
-                  <PlayerAvatar iconId="pfp_01" size={60} />
+                  <PlayerAvatar iconId={leaderboard[0]?.avatarIcon || 'pfp_01'} size={58} />
                   <View style={[styles.podiumRankBadge, { backgroundColor: '#F59E0B' }]}>
                     <Text style={styles.podiumRankBadgeText}>1</Text>
                   </View>
                 </View>
-                <Text style={[styles.podiumNameText, { color: colors.textPrimary, fontWeight: '900' }]}>Arjun</Text>
-                <Text style={[styles.podiumXPText, { color: '#E53935', fontWeight: '900' }]}>12,450</Text>
+                <Text style={[styles.podiumNameText, { color: isDark ? '#FFFFFF' : '#0F172A', fontWeight: '900' }]} numberOfLines={1}>
+                  {leaderboard[0]?.name || displayName}
+                </Text>
+                <Text style={[styles.podiumXPText, { color: '#EF4444', fontWeight: '900' }]}>
+                  {(leaderboard[0]?.crystalsMined || 4820).toLocaleString()} 💎
+                </Text>
               </View>
 
-              {/* #3 Right: Riya */}
+              {/* #3 Right: Rank 3 Hunter */}
               <View style={styles.podiumCol}>
                 <View style={[styles.podiumAvatarWrap, { borderColor: '#B45309' }]}>
-                  <PlayerAvatar iconId="pfp_09" size={48} />
+                  <PlayerAvatar iconId={leaderboard[2]?.avatarIcon || 'pfp_09'} size={48} />
                   <View style={[styles.podiumRankBadge, { backgroundColor: '#B45309' }]}>
                     <Text style={styles.podiumRankBadgeText}>3</Text>
                   </View>
                 </View>
-                <Text style={[styles.podiumNameText, { color: colors.textPrimary }]}>Riya</Text>
-                <Text style={[styles.podiumXPText, { color: colors.textSecondary }]}>9,880</Text>
+                <Text style={[styles.podiumNameText, { color: isDark ? '#FFFFFF' : '#0F172A' }]} numberOfLines={1}>
+                  {leaderboard[2]?.name || 'Riya'}
+                </Text>
+                <Text style={[styles.podiumXPText, { color: isDark ? '#8E8E93' : '#64748B' }]}>
+                  {(leaderboard[2]?.crystalsMined || 1890).toLocaleString()} 💎
+                </Text>
               </View>
             </View>
 
-            {/* Ranks 4 to 8 List */}
+            {/* Ranks 4 to 10 List */}
             <View style={styles.ranksListWrap}>
-              {[
-                { rank: 4, name: 'Alex', xp: '8,320', pfp: 'pfp_03' },
-                { rank: 5, name: 'Sam', xp: '7,910', pfp: 'pfp_04' },
-                { rank: 6, name: 'Priya', xp: '7,420', pfp: 'pfp_05' },
-                { rank: 7, name: 'Dhruv', xp: '6,980', pfp: 'pfp_06' },
-                { rank: 8, name: 'Neha', xp: '6,540', pfp: 'pfp_07' },
-              ].map((item) => (
-                <View key={item.rank} style={[styles.rankListRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <Text style={[styles.rankListNumber, { color: colors.textSecondary }]}>{item.rank}</Text>
-                  <PlayerAvatar iconId={item.pfp} size={36} />
-                  <Text style={[styles.rankListName, { color: colors.textPrimary }]}>{item.name}</Text>
-                  <Text style={[styles.rankListXP, { color: colors.textPrimary }]}>{item.xp}</Text>
-                </View>
-              ))}
+              {(leaderboard.length > 3 ? leaderboard.slice(3) : [
+                { id: '4', name: 'Alex', crystalsMined: 1420, avatarIcon: 'pfp_03', level: 14, title: 'Shadow Walker', rankCode: 'C' },
+                { id: '5', name: 'Sam', crystalsMined: 1180, avatarIcon: 'pfp_04', level: 12, title: 'Blade Dancer', rankCode: 'C' },
+                { id: '6', name: 'Priya', crystalsMined: 950, avatarIcon: 'pfp_05', level: 9, title: 'Spell Weaver', rankCode: 'D' },
+                { id: '7', name: 'Dhruv', crystalsMined: 760, avatarIcon: 'pfp_06', level: 7, title: 'Iron Vanguard', rankCode: 'D' },
+                { id: '8', name: 'Neha', crystalsMined: 540, avatarIcon: 'pfp_07', level: 5, title: 'Novice Hunter', rankCode: 'E' },
+              ]).map((item, idx) => {
+                const rankNum = idx + 4;
+                return (
+                  <View
+                    key={item.id || rankNum}
+                    style={[
+                      styles.rankListRow,
+                      { backgroundColor: isDark ? '#111218' : '#FFFFFF', borderColor: isDark ? '#1C1E2A' : '#E2E8F0' },
+                    ]}
+                  >
+                    <Text style={[styles.rankListNumber, { color: isDark ? '#8E8E93' : '#64748B' }]}>{rankNum}</Text>
+                    <PlayerAvatar iconId={item.avatarIcon} size={36} />
+                    <View style={{ flex: 1, marginLeft: 8 }}>
+                      <Text style={[styles.rankListName, { color: isDark ? '#FFFFFF' : '#0F172A' }]}>{item.name}</Text>
+                      <Text style={[styles.rankListSub, { color: isDark ? '#8E8E93' : '#64748B' }]}>
+                        {item.title} • LVL {item.level}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <ManaCrystalIcon size={14} color="#00D2EE" secondaryColor="#0284C7" />
+                      <Text style={[styles.rankListXP, { color: isDark ? '#00D2EE' : '#0284C7' }]}>
+                        {item.crystalsMined.toLocaleString()}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
             </View>
 
-            <View style={{ height: 90 }} />
+            <View style={{ height: 100 }} />
           </ScrollView>
 
-          {/* Sticky Bottom "Your Rank" Card */}
-          <View style={[styles.stickyYourRankCard, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
-            <PlayerAvatar iconId={avatarIcon} size={42} />
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text style={[styles.yourRankTitle, { color: colors.textSecondary }]}>Your Rank</Text>
-              <Text style={[styles.yourRankNum, { color: colors.textPrimary }]}>#12</Text>
+          {/* Sticky Bottom "Your Rank" Bar */}
+          <View style={[styles.stickyYourRankCard, { backgroundColor: isDark ? '#111218' : '#FFFFFF', borderTopColor: isDark ? '#1C1E2A' : '#E2E8F0' }]}>
+            <PlayerAvatar iconId={avatarIcon} size={40} />
+            <View style={{ flex: 1, marginLeft: 10, gap: 1 }}>
+              <Text style={[styles.yourRankTitle, { color: isDark ? '#8E8E93' : '#64748B' }]}>Your Hunter Rank</Text>
+              <Text style={[styles.yourRankNum, { color: isDark ? '#FFFFFF' : '#0F172A' }]}>
+                {currentRank.rankCode}-RANK • #{leaderboard.findIndex((h) => h.isCurrentUser) >= 0 ? leaderboard.findIndex((h) => h.isCurrentUser) + 1 : 1}
+              </Text>
             </View>
             <View style={{ alignItems: 'flex-end', gap: 2 }}>
-              <Text style={[styles.yourRankXP, { color: colors.textPrimary }]}>3,210 XP</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <ManaCrystalIcon size={14} color="#00D2EE" secondaryColor="#0284C7" />
+                <Text style={[styles.yourRankXP, { color: isDark ? '#00D2EE' : '#0284C7' }]}>
+                  {manaCrystals.toLocaleString()} Crystals
+                </Text>
+              </View>
               <Text style={styles.yourRankDelta}>+2 ranks this week</Text>
             </View>
           </View>
@@ -654,7 +961,6 @@ export default function DungeonScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
 
   // Top Header
@@ -662,122 +968,409 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     paddingTop: 8,
     paddingBottom: 12,
+    borderBottomWidth: 1,
   },
-  headerTitleText: {
-    fontSize: 24,
+  headerPlayerCol: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  hunterNameText: {
+    fontSize: 16,
     fontWeight: '900',
-    color: '#111827',
+    letterSpacing: 0.3,
   },
-  headerRightCurrencies: {
+  hunterRankPill: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  hunterRankPillText: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  hunterTitleSub: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  headerRightCol: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  currencyPillMini: {
+  crystalCapsule: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 12,
+    gap: 5,
+    paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
   },
-  currencyPillMiniText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#111827',
+  crystalCountText: {
+    fontSize: 13,
+    fontWeight: '900',
+    fontVariant: ['tabular-nums'],
+  },
+  headerRedeemBtn: {
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerRedeemBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.6,
   },
 
-  // Sub Tabs (Gates / Surveys / Leaderboard / Rewards)
-  subTabsRow: {
+  // Segmented Sub Tabs (Gates / Surveys / Leaderboard / Rewards)
+  tabSegmentWrap: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    gap: 6,
-    marginBottom: 16,
+    alignItems: 'center',
+    marginHorizontal: 18,
+    marginTop: 12,
+    marginBottom: 14,
+    padding: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 4,
   },
-  subTabPill: {
-    paddingHorizontal: 16,
+  segmentBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
     paddingVertical: 8,
-    borderRadius: 20,
+    borderRadius: 8,
   },
-  subTabPillText: {
-    fontSize: 13,
+  segmentBtnActiveDark: {
+    backgroundColor: '#EF4444',
+  },
+  segmentBtnActiveLight: {
+    backgroundColor: '#EF4444',
+  },
+  segmentBtnText: {
+    fontSize: 12,
     fontWeight: '800',
   },
 
   scrollContent: {
-    paddingHorizontal: 20,
-    gap: 16,
+    paddingHorizontal: 18,
+    gap: 14,
     paddingBottom: 30,
   },
 
-  // Hero Gate 1 Card
-  heroGateCard: {
-    borderRadius: 20,
-    overflow: 'hidden',
-    backgroundColor: '#1C1917',
-  },
-  heroGateArtWrap: {
-    padding: 24,
-    minHeight: 190,
-    justifyContent: 'space-between',
-    backgroundColor: '#292524',
-  },
-  heroGateBadgeRow: {
+  // Section Header
+  sectionHeaderRow: {
     flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    marginTop: 4,
   },
-  activeGateBadge: {
-    backgroundColor: '#E53935',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  activeGateBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 12,
+  sectionTitle: {
+    fontSize: 15,
     fontWeight: '900',
+    letterSpacing: 0.3,
+  },
+  sectionSub: {
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+
+  // Emergency Red Gate Alert Banner
+  redGateHeroBanner: {
+    borderRadius: 16,
+    borderWidth: 1.5,
+    padding: 16,
+    gap: 10,
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  redGateHeroTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  redGateAlertPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  redGateAlertPillText: {
+    fontSize: 9.5,
+    fontWeight: '900',
+    color: '#EF4444',
     letterSpacing: 0.5,
   },
-  heroGateTitle: {
-    color: '#FFFFFF',
-    fontSize: 26,
+  redGateBountyPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  redGateBountyPillText: {
+    fontSize: 10,
     fontWeight: '900',
-    marginTop: 14,
+    color: '#00D2EE',
   },
-  heroGateSub: {
-    color: '#D6D3D1',
-    fontSize: 14,
-    fontStyle: 'italic',
-    marginTop: 4,
-    marginBottom: 18,
+  redGateHeroTitle: {
+    fontSize: 15,
+    fontWeight: '900',
+    letterSpacing: 0.4,
   },
-  heroEnterGateBtn: {
-    backgroundColor: '#E53935',
+  redGateHeroSub: {
+    fontSize: 11.5,
+    lineHeight: 16,
+    fontWeight: '500',
+  },
+  redGateHeroActionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 12,
     gap: 6,
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    paddingVertical: 10,
+    marginTop: 2,
   },
-  heroEnterGateBtnText: {
+  redGateHeroActionText: {
+    fontSize: 11.5,
+    fontWeight: '900',
     color: '#FFFFFF',
-    fontSize: 15,
+    letterSpacing: 0.6,
+  },
+
+  // Radar Hero Card
+  radarHeroCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 12,
+  },
+  radarHeroLeft: {
+    flex: 1,
+    gap: 3,
+  },
+  radarLivePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  radarLiveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#00D2EE',
+  },
+  radarLiveText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#00D2EE',
+    letterSpacing: 0.6,
+  },
+  radarHeroTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 0.3,
+  },
+  radarHeroSub: {
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  radarPulseBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#0284C7',
+  },
+  radarPulseBtnActive: {
+    opacity: 0.6,
+  },
+  radarPulseBtnText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: 0.4,
+  },
+
+  // Spawned Dungeon Gate Card
+  dungeonGateCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 14,
+    gap: 10,
+  },
+  gateCardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  gateRankBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  gateRankBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  gateCardTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 0.3,
+  },
+  gateCardThreat: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  countdownCapsule: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  countdownText: {
+    fontSize: 10.5,
     fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+
+  // Bounty Pill Row
+  bountyPillRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  bountyGrossTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  bountyGrossLabel: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+  bountyGrossVal: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#F59E0B',
+  },
+  bountyCrystalsVal: {
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  clearedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  clearedPillText: {
+    fontSize: 9.5,
+    fontWeight: '900',
+    color: '#10B981',
+    letterSpacing: 0.4,
+  },
+  missionProgressTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  missionProgressText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+  },
+
+  // Gate Card Footer Row
+  gateCardFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  gateReqLevelPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  gateReqLevelText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+  },
+  gateLockBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  gateLockBadgeText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#EF4444',
+    letterSpacing: 0.4,
+  },
+  enterGateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  enterGateBtnText: {
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.4,
   },
 
   // Survey Station Hero Card
   surveyStationHeroCard: {
-    backgroundColor: '#F0F9FF',
-    borderRadius: 18,
-    padding: 16,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#BAE6FD',
+    padding: 16,
     gap: 10,
   },
   surveyStationTopRow: {
@@ -789,47 +1382,43 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#FFFFFF',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#BAE6FD',
   },
   surveyLiveBadgeText: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: '900',
-    color: '#0284C7',
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
   },
   surveyYieldBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#FFFFFF',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 6,
   },
   surveyYieldBadgeText: {
-    fontSize: 11,
-    fontWeight: '900',
-    color: '#0284C7',
+    fontSize: 10,
+    fontWeight: '800',
   },
   surveyStationTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '900',
-    color: '#0C4A6E',
+    letterSpacing: 0.3,
   },
   surveyStationDesc: {
-    fontSize: 12,
-    color: '#0369A1',
+    fontSize: 11.5,
     lineHeight: 16,
+    fontWeight: '500',
   },
   surveyActionBtnsRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 10,
-    marginTop: 4,
+    marginTop: 2,
   },
   surveyCpxBtn: {
     flex: 1,
@@ -843,8 +1432,9 @@ const styles = StyleSheet.create({
   },
   surveyCpxBtnText: {
     color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '800',
+    fontSize: 11.5,
+    fontWeight: '900',
+    letterSpacing: 0.4,
   },
   surveyBitlabsBtn: {
     flex: 1,
@@ -852,70 +1442,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#FFFFFF',
     paddingVertical: 10,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#BAE6FD',
   },
   surveyBitlabsBtnText: {
-    color: '#0284C7',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-
-  // Radar Pulse Card
-  radarCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFF1F2',
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#FFE4E6',
-    gap: 12,
-  },
-  radarTitle: {
-    fontSize: 13,
+    fontSize: 11.5,
     fontWeight: '900',
-    color: '#111827',
-  },
-  radarSub: {
-    fontSize: 11,
-    color: '#6B7280',
-    marginTop: 2,
-  },
-  radarBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#E53935',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  radarBtnText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '800',
+    letterSpacing: 0.4,
   },
 
-  // Survey Providers (Dedicated Tab)
+  // Survey Provider Card
   surveyProviderCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 16,
+    padding: 14,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#EEEEEE',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
     gap: 12,
   },
   surveyProviderLeft: {
@@ -925,140 +1469,102 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   surveyProviderIconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   surveyProviderTitle: {
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: '900',
-    color: '#111827',
+    letterSpacing: 0.3,
+  },
+  hotPill: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+    borderWidth: 1,
+  },
+  hotPillText: {
+    fontSize: 8.5,
+    fontWeight: '900',
+    color: '#EF4444',
   },
   surveyProviderSub: {
     fontSize: 11,
-    color: '#6B7280',
-  },
-  hotPill: {
-    backgroundColor: '#FEE2E2',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#FECACA',
-  },
-  hotPillText: {
-    fontSize: 9,
-    fontWeight: '900',
-    color: '#DC2626',
+    lineHeight: 15,
   },
   surveyBountyRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
     marginTop: 2,
   },
   surveyBountyText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
-    color: '#0284C7',
   },
   surveyOpenBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#E53935',
-    paddingHorizontal: 14,
+    backgroundColor: '#0284C7',
+    paddingHorizontal: 12,
     paddingVertical: 9,
-    borderRadius: 10,
+    borderRadius: 8,
   },
   surveyOpenBtnText: {
     color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '900',
+    letterSpacing: 0.6,
   },
 
-  // Locked Gates List
-  lockedGatesList: {
-    gap: 12,
-  },
-  lockedGateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#F9FAFB',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#EEEEEE',
-  },
-  lockedGateLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  lockedGateIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  lockedGateTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#111827',
-  },
-  lockedGateSub: {
-    fontSize: 12,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-
-  // Leaderboard
+  // Leaderboard Filter Pills
   lbFilterRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
-    marginBottom: 8,
   },
   lbFilterPill: {
-    paddingHorizontal: 16,
-    paddingVertical: 7,
-    borderRadius: 18,
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   lbFilterPillText: {
     fontSize: 12,
     fontWeight: '800',
   },
 
-  // Podium
+  // Top 3 Podium
   podiumSection: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    justifyContent: 'center',
-    backgroundColor: '#F9FAFB',
-    borderRadius: 20,
+    justifyContent: 'space-around',
     paddingVertical: 20,
     paddingHorizontal: 12,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#EEEEEE',
-    gap: 16,
   },
   podiumCol: {
     alignItems: 'center',
+    gap: 6,
     flex: 1,
-    gap: 4,
   },
   podiumAvatarWrap: {
-    borderRadius: 50,
-    borderWidth: 2,
     position: 'relative',
+    borderRadius: 100,
+    borderWidth: 2,
+    padding: 2,
   },
   podiumRankBadge: {
     position: 'absolute',
     bottom: -4,
-    alignSelf: 'center',
+    right: -4,
     width: 20,
     height: 20,
     borderRadius: 10,
@@ -1067,19 +1573,16 @@ const styles = StyleSheet.create({
   },
   podiumRankBadgeText: {
     color: '#FFFFFF',
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '900',
   },
   podiumNameText: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#111827',
-    marginTop: 6,
+    fontWeight: '800',
   },
   podiumXPText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#6B7280',
+    fontSize: 11.5,
+    fontWeight: '700',
   },
 
   // Ranks List
@@ -1089,70 +1592,57 @@ const styles = StyleSheet.create({
   rankListRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 10,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#EEEEEE',
-    gap: 12,
   },
   rankListNumber: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#6B7280',
-    width: 20,
+    fontSize: 13,
+    fontWeight: '900',
+    width: 24,
   },
   rankListName: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  rankListXP: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#111827',
+  },
+  rankListSub: {
+    fontSize: 10.5,
+    fontWeight: '600',
+  },
+  rankListXP: {
+    fontSize: 12,
+    fontWeight: '900',
+    fontVariant: ['tabular-nums'],
   },
 
-  // Sticky Bottom Your Rank Card
+  // Sticky Bottom Rank Card
   stickyYourRankCard: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#FFFFFF',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: '#EEEEEE',
-    gap: 14,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 8,
   },
   yourRankTitle: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#6B7280',
+    fontSize: 10.5,
+    fontWeight: '700',
   },
   yourRankNum: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '900',
-    color: '#111827',
   },
   yourRankXP: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#111827',
+    fontSize: 12,
+    fontWeight: '900',
   },
   yourRankDelta: {
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 10,
+    fontWeight: '700',
     color: '#10B981',
   },
 });
