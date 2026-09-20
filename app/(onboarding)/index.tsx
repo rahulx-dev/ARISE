@@ -38,6 +38,11 @@ import {
   Dices,
   Search,
   ImagePlus,
+  BarChart2,
+  Layers,
+  BatteryCharging,
+  CheckCircle2,
+  ChevronRight,
 } from 'lucide-react-native';
 import { useSettingsStore } from '../../src/stores/useSettingsStore';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
@@ -670,161 +675,375 @@ export default function OnboardingScreen() {
             </View>
           )}
 
-          {/* ================= STEP 2: CLEAN PERMISSIONS SETUP ================= */}
+          {/* ================= STEP 2: SYSTEM PERMISSIONS (1:1 MOCKUP MATCH) ================= */}
           {step === 2 && (
             <View style={styles.stepContainer}>
-              <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>Grant Permissions</Text>
-              <Text style={[styles.heroSubtitle, { color: colors.textSecondary }]}>
-                These help ARISE protect your focus and track workouts.
-              </Text>
+              {/* App Logo & Title */}
+              <View style={{ alignItems: 'center', marginTop: 4, marginBottom: 4 }}>
+                <View
+                  style={{
+                    width: 68,
+                    height: 68,
+                    borderRadius: 18,
+                    backgroundColor: '#111218',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    shadowColor: '#E53935',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.25,
+                    shadowRadius: 10,
+                    elevation: 6,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <Image
+                    source={require('../../assets/icon.png')}
+                    style={{ width: 68, height: 68, borderRadius: 18 }}
+                    resizeMode="cover"
+                  />
+                </View>
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: '900',
+                    letterSpacing: 6,
+                    marginTop: 10,
+                    color: colors.textPrimary,
+                  }}
+                >
+                  A R I S E
+                </Text>
 
-              {/* Status Header Pill */}
-              <View style={[styles.permStatusHeaderPill, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.permStatusHeaderText, { color: allPermissionsGranted ? '#0A84FF' : colors.primary }]}>
-                  {allPermissionsCount} of 5 granted
+                <Text
+                  style={{
+                    fontSize: 24,
+                    fontWeight: '900',
+                    letterSpacing: -0.5,
+                    marginTop: 16,
+                    textAlign: 'center',
+                    color: colors.textPrimary,
+                  }}
+                >
+                  System Permissions
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 13,
+                    textAlign: 'center',
+                    marginTop: 6,
+                    lineHeight: 18,
+                    paddingHorizontal: 16,
+                    color: colors.textSecondary,
+                  }}
+                >
+                  Allow these permissions to unlock the full experience.
                 </Text>
               </View>
 
-              <View style={{ width: '100%', gap: 10 }}>
-                {/* 1. Camera Tracker */}
-                <View style={[styles.permCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <View style={styles.permCardTop}>
-                    <View style={[styles.permIconBox, { backgroundColor: cameraGranted ? 'rgba(10, 132, 255, 0.12)' : 'rgba(229, 57, 53, 0.1)' }]}>
-                      <CameraIcon size={18} color={cameraGranted ? '#0A84FF' : colors.primary} />
-                    </View>
-                    <View style={styles.permCardHeaderCol}>
-                      <Text style={[styles.permCardTitle, { color: colors.textPrimary }]}>AI Camera Tracker</Text>
-                      <Text style={[styles.permCardDesc, { color: colors.textSecondary }]}>Track your workout form & reps</Text>
-                    </View>
-                    <TouchableOpacity
-                      style={[
-                        styles.permActionBtn,
-                        { backgroundColor: colors.primary },
-                        cameraGranted && { backgroundColor: 'rgba(10, 132, 255, 0.12)', borderWidth: 1, borderColor: '#0A84FF' },
-                      ]}
-                      onPress={handleGrantCamera}
-                      disabled={cameraGranted}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={[styles.permActionBtnText, cameraGranted && { color: '#0A84FF' }]}>
-                        {cameraGranted ? 'Enabled' : 'Allow'}
-                      </Text>
-                    </TouchableOpacity>
+              <View style={{ width: '100%', gap: 12, marginTop: 10 }}>
+                {/* 1. App Usage Access */}
+                <TouchableOpacity
+                  onPress={usageGranted ? undefined : handleGrantUsage}
+                  activeOpacity={usageGranted ? 1 : 0.75}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    padding: 16,
+                    borderRadius: 20,
+                    borderWidth: 1,
+                    gap: 14,
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                    shadowColor: '#000000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.04,
+                    shadowRadius: 8,
+                    elevation: 2,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 50,
+                      height: 50,
+                      borderRadius: 14,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FFF1F2',
+                    }}
+                  >
+                    <BarChart2 size={22} color="#EF4444" strokeWidth={2.4} />
                   </View>
-                </View>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '800', color: colors.textPrimary }}>
+                      App Usage Access
+                    </Text>
+                    <Text style={{ fontSize: 12, color: colors.textSecondary, lineHeight: 16 }}>
+                      Monitor distraction app screen time and usage.
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    {usageGranted ? (
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 4,
+                          paddingHorizontal: 10,
+                          paddingVertical: 5,
+                          borderRadius: 100,
+                          backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#E6F4EA',
+                        }}
+                      >
+                        <CheckCircle2 size={13} color="#059669" fill="#059669" />
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: '#059669' }}>Active</Text>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        style={{
+                          backgroundColor: '#E53935',
+                          paddingHorizontal: 14,
+                          paddingVertical: 6,
+                          borderRadius: 100,
+                        }}
+                        onPress={handleGrantUsage}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={{ fontSize: 12, fontWeight: '800', color: '#FFFFFF' }}>Allow</Text>
+                      </TouchableOpacity>
+                    )}
+                    <ChevronRight size={16} color={colors.textMuted} />
+                  </View>
+                </TouchableOpacity>
 
-                {/* 2. Notifications */}
-                <View style={[styles.permCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <View style={styles.permCardTop}>
-                    <View style={[styles.permIconBox, { backgroundColor: notifGranted ? 'rgba(10, 132, 255, 0.12)' : 'rgba(229, 57, 53, 0.1)' }]}>
-                      <Bell size={18} color={notifGranted ? '#0A84FF' : colors.primary} />
-                    </View>
-                    <View style={styles.permCardHeaderCol}>
-                      <Text style={[styles.permCardTitle, { color: colors.textPrimary }]}>Notifications</Text>
-                      <Text style={[styles.permCardDesc, { color: colors.textSecondary }]}>Send reminders & updates</Text>
-                    </View>
-                    <TouchableOpacity
-                      style={[
-                        styles.permActionBtn,
-                        { backgroundColor: colors.primary },
-                        notifGranted && { backgroundColor: 'rgba(10, 132, 255, 0.12)', borderWidth: 1, borderColor: '#0A84FF' },
-                      ]}
-                      onPress={handleGrantNotifications}
-                      disabled={notifGranted}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={[styles.permActionBtnText, notifGranted && { color: '#0A84FF' }]}>
-                        {notifGranted ? 'Enabled' : 'Allow'}
-                      </Text>
-                    </TouchableOpacity>
+                {/* 2. Display Over Other Apps */}
+                <TouchableOpacity
+                  onPress={overlayGranted ? undefined : handleGrantOverlay}
+                  activeOpacity={overlayGranted ? 1 : 0.75}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    padding: 16,
+                    borderRadius: 20,
+                    borderWidth: 1,
+                    gap: 14,
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                    shadowColor: '#000000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.04,
+                    shadowRadius: 8,
+                    elevation: 2,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 50,
+                      height: 50,
+                      borderRadius: 14,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: isDark ? 'rgba(2, 132, 199, 0.15)' : '#E0F2FE',
+                    }}
+                  >
+                    <Layers size={22} color="#0284C7" strokeWidth={2.4} />
                   </View>
-                </View>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '800', color: colors.textPrimary }}>
+                      Display Over Other Apps
+                    </Text>
+                    <Text style={{ fontSize: 12, color: colors.textSecondary, lineHeight: 16 }}>
+                      Show the lock screen when your limit is reached.
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    {overlayGranted ? (
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 4,
+                          paddingHorizontal: 10,
+                          paddingVertical: 5,
+                          borderRadius: 100,
+                          backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#E6F4EA',
+                        }}
+                      >
+                        <CheckCircle2 size={13} color="#059669" fill="#059669" />
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: '#059669' }}>Active</Text>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        style={{
+                          backgroundColor: '#E53935',
+                          paddingHorizontal: 14,
+                          paddingVertical: 6,
+                          borderRadius: 100,
+                        }}
+                        onPress={handleGrantOverlay}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={{ fontSize: 12, fontWeight: '800', color: '#FFFFFF' }}>Allow</Text>
+                      </TouchableOpacity>
+                    )}
+                    <ChevronRight size={16} color={colors.textMuted} />
+                  </View>
+                </TouchableOpacity>
 
-                {/* 3. Screen Time Access */}
-                <View style={[styles.permCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <View style={styles.permCardTop}>
-                    <View style={[styles.permIconBox, { backgroundColor: usageGranted ? 'rgba(10, 132, 255, 0.12)' : 'rgba(229, 57, 53, 0.1)' }]}>
-                      <Clock size={18} color={usageGranted ? '#0A84FF' : colors.primary} />
-                    </View>
-                    <View style={styles.permCardHeaderCol}>
-                      <Text style={[styles.permCardTitle, { color: colors.textPrimary }]}>Screen Time Access</Text>
-                      <Text style={[styles.permCardDesc, { color: colors.textSecondary }]}>Track & block distracting apps</Text>
-                    </View>
-                    <TouchableOpacity
-                      style={[
-                        styles.permActionBtn,
-                        { backgroundColor: colors.primary },
-                        usageGranted && { backgroundColor: 'rgba(10, 132, 255, 0.12)', borderWidth: 1, borderColor: '#0A84FF' },
-                      ]}
-                      onPress={handleGrantUsage}
-                      disabled={usageGranted}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={[styles.permActionBtnText, usageGranted && { color: '#0A84FF' }]}>
-                        {usageGranted ? 'Enabled' : 'Allow'}
-                      </Text>
-                    </TouchableOpacity>
+                {/* 3. Background Activity */}
+                <TouchableOpacity
+                  onPress={batteryGranted ? undefined : handleGrantBattery}
+                  activeOpacity={batteryGranted ? 1 : 0.75}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    padding: 16,
+                    borderRadius: 20,
+                    borderWidth: 1,
+                    gap: 14,
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                    shadowColor: '#000000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.04,
+                    shadowRadius: 8,
+                    elevation: 2,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 50,
+                      height: 50,
+                      borderRadius: 14,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: isDark ? 'rgba(22, 163, 74, 0.15)' : '#DCFCE7',
+                    }}
+                  >
+                    <BatteryCharging size={22} color="#16A34A" strokeWidth={2.4} />
                   </View>
-                </View>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '800', color: colors.textPrimary }}>
+                      Background Activity
+                    </Text>
+                    <Text style={{ fontSize: 12, color: colors.textSecondary, lineHeight: 16 }}>
+                      Keep blocking active in background to ensure consistency.
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    {batteryGranted ? (
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 4,
+                          paddingHorizontal: 10,
+                          paddingVertical: 5,
+                          borderRadius: 100,
+                          backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#E6F4EA',
+                        }}
+                      >
+                        <CheckCircle2 size={13} color="#059669" fill="#059669" />
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: '#059669' }}>Active</Text>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        style={{
+                          backgroundColor: '#E53935',
+                          paddingHorizontal: 14,
+                          paddingVertical: 6,
+                          borderRadius: 100,
+                        }}
+                        onPress={handleGrantBattery}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={{ fontSize: 12, fontWeight: '800', color: '#FFFFFF' }}>Allow</Text>
+                      </TouchableOpacity>
+                    )}
+                    <ChevronRight size={16} color={colors.textMuted} />
+                  </View>
+                </TouchableOpacity>
 
-                {/* 4. Display Over Other Apps */}
-                <View style={[styles.permCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <View style={styles.permCardTop}>
-                    <View style={[styles.permIconBox, { backgroundColor: overlayGranted ? 'rgba(10, 132, 255, 0.12)' : 'rgba(229, 57, 53, 0.1)' }]}>
-                      <Shield size={18} color={overlayGranted ? '#0A84FF' : colors.primary} />
-                    </View>
-                    <View style={styles.permCardHeaderCol}>
-                      <Text style={[styles.permCardTitle, { color: colors.textPrimary }]}>Lock Shield Overlay</Text>
-                      <Text style={[styles.permCardDesc, { color: colors.textSecondary }]}>Block apps during focus mode</Text>
-                    </View>
-                    <TouchableOpacity
-                      style={[
-                        styles.permActionBtn,
-                        { backgroundColor: colors.primary },
-                        overlayGranted && { backgroundColor: 'rgba(10, 132, 255, 0.12)', borderWidth: 1, borderColor: '#0A84FF' },
-                      ]}
-                      onPress={handleGrantOverlay}
-                      disabled={overlayGranted}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={[styles.permActionBtnText, overlayGranted && { color: '#0A84FF' }]}>
-                        {overlayGranted ? 'Enabled' : 'Allow'}
-                      </Text>
-                    </TouchableOpacity>
+                {/* 4. Camera */}
+                <TouchableOpacity
+                  onPress={cameraGranted ? undefined : handleGrantCamera}
+                  activeOpacity={cameraGranted ? 1 : 0.75}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    padding: 16,
+                    borderRadius: 20,
+                    borderWidth: 1,
+                    gap: 14,
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                    shadowColor: '#000000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.04,
+                    shadowRadius: 8,
+                    elevation: 2,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 50,
+                      height: 50,
+                      borderRadius: 14,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: isDark ? 'rgba(139, 92, 246, 0.15)' : '#EDE9FE',
+                    }}
+                  >
+                    <CameraIcon size={22} color="#8B5CF6" strokeWidth={2.4} />
                   </View>
-                </View>
-
-                {/* 5. Battery Optimization */}
-                <View style={[styles.permCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <View style={styles.permCardTop}>
-                    <View style={[styles.permIconBox, { backgroundColor: batteryGranted ? 'rgba(10, 132, 255, 0.12)' : 'rgba(229, 57, 53, 0.1)' }]}>
-                      <Zap size={18} color={batteryGranted ? '#0A84FF' : colors.primary} />
-                    </View>
-                    <View style={styles.permCardHeaderCol}>
-                      <Text style={[styles.permCardTitle, { color: colors.textPrimary }]}>Battery Optimization</Text>
-                      <Text style={[styles.permCardDesc, { color: colors.textSecondary }]}>Keep ARISE running smoothly</Text>
-                    </View>
-                    <TouchableOpacity
-                      style={[
-                        styles.permActionBtn,
-                        { backgroundColor: colors.primary },
-                        batteryGranted && { backgroundColor: 'rgba(10, 132, 255, 0.12)', borderWidth: 1, borderColor: '#0A84FF' },
-                      ]}
-                      onPress={handleGrantBattery}
-                      disabled={batteryGranted}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={[styles.permActionBtnText, batteryGranted && { color: '#0A84FF' }]}>
-                        {batteryGranted ? 'Enabled' : 'Allow'}
-                      </Text>
-                    </TouchableOpacity>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '800', color: colors.textPrimary }}>
+                      Camera
+                    </Text>
+                    <Text style={{ fontSize: 12, color: colors.textSecondary, lineHeight: 16 }}>
+                      Required for AI exercise tracking and form analysis.
+                    </Text>
                   </View>
-                </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    {cameraGranted ? (
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 4,
+                          paddingHorizontal: 10,
+                          paddingVertical: 5,
+                          borderRadius: 100,
+                          backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#E6F4EA',
+                        }}
+                      >
+                        <CheckCircle2 size={13} color="#059669" fill="#059669" />
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: '#059669' }}>Active</Text>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        style={{
+                          backgroundColor: '#E53935',
+                          paddingHorizontal: 14,
+                          paddingVertical: 6,
+                          borderRadius: 100,
+                        }}
+                        onPress={handleGrantCamera}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={{ fontSize: 12, fontWeight: '800', color: '#FFFFFF' }}>Allow</Text>
+                      </TouchableOpacity>
+                    )}
+                    <ChevronRight size={16} color={colors.textMuted} />
+                  </View>
+                </TouchableOpacity>
               </View>
 
-              <Text style={[styles.privacyNoteText, { color: colors.textMuted }]}>
-                🔒 Your privacy is safe with us. We only use these permissions to help you.
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 14, paddingHorizontal: 16 }}>
+                <Lock size={14} color={colors.textMuted} />
+                <Text style={[styles.privacyNoteText, { color: colors.textMuted, flex: 1, textAlign: 'center' }]}>
+                  Your data stays on your device. We only use these permissions to power core features.
+                </Text>
+              </View>
             </View>
           )}
 

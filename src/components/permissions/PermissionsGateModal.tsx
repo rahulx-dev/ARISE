@@ -7,35 +7,37 @@ import {
   ScrollView,
   Platform,
   AppState,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Camera } from "expo-camera";
 import {
-  ShieldCheck,
-  Clock,
+  BarChart2,
   Layers,
-  Zap,
+  BatteryCharging,
   Camera as CameraIcon,
   CheckCircle2,
   Lock,
-  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react-native";
-import { GlassCard } from "../ios/GlassCard";
-import { GlassButton } from "../ios/GlassButton";
-import { AriseLogo } from "../ui/AriseLogo";
 import { appBlockerService } from "../../native";
 import { useHaptics } from "../../hooks/useHaptics";
 import { useSettingsStore } from "../../stores/useSettingsStore";
 import { setIsOnboardingCompletedSync } from "../../services/appStateService";
+import { useTheme } from "../../hooks/useTheme";
 
 interface PermissionsGateModalProps {
   onAllGranted: () => void;
+  onSkip?: () => void;
 }
 
 export function PermissionsGateModal({
   onAllGranted,
+  onSkip,
 }: PermissionsGateModalProps) {
   const haptics = useHaptics();
+  const { isDark, colors } = useTheme();
 
   const [usageGranted, setUsageGranted] = useState<boolean>(false);
   const [overlayGranted, setOverlayGranted] = useState<boolean>(false);
@@ -181,176 +183,254 @@ export function PermissionsGateModal({
     checkPermissions();
   };
 
+  const handleProceed = () => {
+    haptics.success();
+    try {
+      useSettingsStore.setState({ onboardingCompleted: true });
+      setIsOnboardingCompletedSync(true);
+    } catch (e) {
+      console.warn("Error setting onboarding completed:", e);
+    }
+    onAllGranted();
+  };
+
   const permissions = [
     {
       id: "usage",
-      title: "1. App Usage Access",
-      subtitle: "Required to monitor distraction app screen time",
+      title: "App Usage Access",
+      subtitle: "Monitor distraction app screen time and usage.",
       granted: usageGranted,
       action: handleGrantUsage,
-      icon: Clock,
+      icon: BarChart2,
+      iconBgLight: "#FFF1F2",
+      iconBgDark: "rgba(239, 68, 68, 0.15)",
+      iconColor: "#EF4444",
     },
     {
       id: "overlay",
-      title: "2. Display Over Other Apps",
-      subtitle: "Required to show lock shield when limit is reached",
+      title: "Display Over Other Apps",
+      subtitle: "Show the lock screen when your limit is reached.",
       granted: overlayGranted,
       action: handleGrantOverlay,
       icon: Layers,
+      iconBgLight: "#E0F2FE",
+      iconBgDark: "rgba(2, 132, 199, 0.15)",
+      iconColor: "#0284C7",
     },
     {
       id: "battery",
-      title: "3. Background Shield (Battery)",
-      subtitle: "Prevents phone from killing blocker in background",
+      title: "Background Activity",
+      subtitle: "Keep blocking active in background to ensure consistency.",
       granted: batteryGranted,
       action: handleGrantBattery,
-      icon: Zap,
+      icon: BatteryCharging,
+      iconBgLight: "#DCFCE7",
+      iconBgDark: "rgba(22, 163, 74, 0.15)",
+      iconColor: "#16A34A",
     },
     {
       id: "camera",
-      title: "4. Camera (AI Form Tracking)",
-      subtitle: "Required for real-time rep counting in RAM",
+      title: "Camera",
+      subtitle: "Required for AI exercise tracking and form analysis.",
       granted: cameraGranted,
       action: handleGrantCamera,
       icon: CameraIcon,
+      iconBgLight: "#EDE9FE",
+      iconBgDark: "rgba(139, 92, 246, 0.15)",
+      iconColor: "#8B5CF6",
     },
   ];
 
-  const grantedCount = [
-    usageGranted,
-    overlayGranted,
-    batteryGranted,
-    cameraGranted,
-  ].filter(Boolean).length;
-
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView
+      style={[
+        styles.container,
+        { backgroundColor: isDark ? "#000000" : "#F8FAFC" },
+      ]}
+    >
+      {/* Top Header Bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity
+          onPress={onSkip || handleProceed}
+          activeOpacity={0.7}
+          style={styles.navBtn}
+        >
+          <ChevronLeft
+            size={24}
+            color={isDark ? "#FFFFFF" : "#0F172A"}
+          />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={onSkip || handleProceed}
+          activeOpacity={0.7}
+          style={styles.navBtn}
+        >
+          <Text
+            style={[
+              styles.skipText,
+              { color: isDark ? "#8E8E93" : "#64748B" },
+            ]}
+          >
+            Skip
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Brand Header */}
-        <View style={styles.header}>
-          <AriseLogo size={68} glow={true} />
-          <Text style={styles.title}>SYSTEM PERMISSIONS GATE</Text>
-          <Text style={styles.subtitle}>
-            ARISE requires all 4 core Android permissions to lock distraction
-            apps and track physical workouts.
-          </Text>
-
-          {/* Progress Pill */}
-          <View
+        {/* App Logo & Title */}
+        <View style={styles.brandHeader}>
+          <View style={styles.logoSquare}>
+            <Image
+              source={require("../../../assets/icon.png")}
+              style={styles.logoImg}
+              resizeMode="cover"
+            />
+          </View>
+          <Text
             style={[
-              styles.progressPill,
-              { borderColor: "#0A84FF" },
+              styles.brandText,
+              { color: isDark ? "#FFFFFF" : "#0F172A" },
             ]}
           >
-            <Text
-              style={[
-                styles.progressText,
-                { color: "#0A84FF" },
-              ]}
-            >
-              {allGranted
-                ? "ALL PROTOCOLS ACTIVE (4/4)"
-                : `PERMISSIONS GRANTED: ${grantedCount} / 4`}
-            </Text>
-          </View>
+            A R I S E
+          </Text>
+
+          <Text
+            style={[
+              styles.mainTitle,
+              { color: isDark ? "#FFFFFF" : "#0F172A" },
+            ]}
+          >
+            System Permissions
+          </Text>
+          <Text
+            style={[
+              styles.mainSubtitle,
+              { color: isDark ? "#8E8E93" : "#64748B" },
+            ]}
+          >
+            Allow these permissions to unlock the full experience.
+          </Text>
         </View>
 
-        {/* Permissions Cards */}
+        {/* 4 Permission Cards */}
         <View style={styles.cardList}>
           {permissions.map((p) => {
             const IconComp = p.icon;
             return (
-              <GlassCard
+              <TouchableOpacity
                 key={p.id}
-                variant={p.granted ? "elevated" : "glow"}
+                onPress={p.granted ? undefined : p.action}
+                activeOpacity={p.granted ? 1 : 0.75}
                 style={[
                   styles.permCard,
-                  p.granted && { borderColor: "rgba(10, 132, 255, 0.4)" },
+                  {
+                    backgroundColor: isDark ? "#111218" : "#FFFFFF",
+                    borderColor: isDark ? "#1C1E2A" : "#F1F5F9",
+                  },
                 ]}
               >
-                <View style={styles.permRow}>
-                  <View
+                {/* Left Icon Box */}
+                <View
+                  style={[
+                    styles.iconBox,
+                    {
+                      backgroundColor: isDark ? p.iconBgDark : p.iconBgLight,
+                    },
+                  ]}
+                >
+                  <IconComp
+                    size={22}
+                    color={p.iconColor}
+                    strokeWidth={2.4}
+                  />
+                </View>
+
+                {/* Center Text Info */}
+                <View style={styles.textCol}>
+                  <Text
                     style={[
-                      styles.iconWrap,
-                      {
-                        backgroundColor: "rgba(10, 132, 255, 0.15)",
-                      },
+                      styles.permTitle,
+                      { color: isDark ? "#FFFFFF" : "#0F172A" },
                     ]}
                   >
-                    <IconComp
-                      size={22}
-                      color="#0A84FF"
-                    />
-                  </View>
+                    {p.title}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.permSubtitle,
+                      { color: isDark ? "#8E8E93" : "#64748B" },
+                    ]}
+                  >
+                    {p.subtitle}
+                  </Text>
+                </View>
 
-                  <View style={{ flex: 1, gap: 2 }}>
-                    <Text style={styles.permTitle}>{p.title}</Text>
-                    <Text style={styles.permSubtitle}>{p.subtitle}</Text>
-                  </View>
-
+                {/* Right Status Badge / Action */}
+                <View style={styles.rightAction}>
                   {p.granted ? (
-                    <View style={styles.grantedBadge}>
-                      <CheckCircle2 size={16} color="#0A84FF" />
-                      <Text style={styles.grantedText}>ACTIVE</Text>
+                    <View
+                      style={[
+                        styles.activeBadge,
+                        {
+                          backgroundColor: isDark
+                            ? "rgba(16, 185, 129, 0.15)"
+                            : "#E6F4EA",
+                        },
+                      ]}
+                    >
+                      <CheckCircle2
+                        size={13}
+                        color="#059669"
+                        fill="#059669"
+                      />
+                      <Text style={styles.activeText}>Active</Text>
                     </View>
                   ) : (
                     <TouchableOpacity
-                      style={styles.grantBtn}
+                      style={styles.allowBtn}
                       onPress={p.action}
                       activeOpacity={0.8}
                     >
-                      <Text style={styles.grantBtnText}>GRANT</Text>
+                      <Text style={styles.allowBtnText}>Allow</Text>
                     </TouchableOpacity>
                   )}
+                  <ChevronRight
+                    size={16}
+                    color={isDark ? "#4B5563" : "#94A3B8"}
+                  />
                 </View>
-              </GlassCard>
+              </TouchableOpacity>
             );
           })}
         </View>
 
-        {/* Enter Button */}
-        <View style={styles.actionWrap}>
+        {/* Bottom Continue CTA */}
+        <View style={styles.footerSection}>
           <TouchableOpacity
-            style={[
-              styles.enterBtn,
-              { backgroundColor: allGranted ? "#0A84FF" : "#1C1E2A" },
-            ]}
-            onPress={() => {
-              if (allGranted) {
-                haptics.success();
-                try {
-                  useSettingsStore.setState({ onboardingCompleted: true });
-                  setIsOnboardingCompletedSync(true);
-                } catch (e) {
-                  console.warn('Error setting onboarding completed:', e);
-                }
-                onAllGranted();
-              } else {
-                haptics.warning();
-              }
-            }}
-            disabled={!allGranted}
+            style={styles.continueBtn}
+            onPress={handleProceed}
             activeOpacity={0.85}
           >
-            {allGranted ? (
-              <>
-                <Text style={[styles.enterBtnText, { color: "#FFFFFF" }]}>
-                  ENTER ARISE PROTOCOL
-                </Text>
-                <ArrowRight size={18} color="#FFFFFF" />
-              </>
-            ) : (
-              <>
-                <Lock size={16} color="#8E8E93" />
-                <Text style={[styles.enterBtnText, { color: "#8E8E93" }]}>
-                  GRANT ALL 4 PERMISSIONS TO PROCEED
-                </Text>
-              </>
-            )}
+            <Text style={styles.continueBtnText}>Continue  →</Text>
           </TouchableOpacity>
+
+          {/* Privacy Note */}
+          <View style={styles.privacyRow}>
+            <Lock size={14} color={isDark ? "#6B7280" : "#94A3B8"} />
+            <Text
+              style={[
+                styles.privacyText,
+                { color: isDark ? "#8E8E93" : "#64748B" },
+              ]}
+            >
+              Your data stays on your device. We only use these permissions to power core features.
+            </Text>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -360,122 +440,170 @@ export function PermissionsGateModal({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000000",
+  },
+  topBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  navBtn: {
+    padding: 6,
+  },
+  skipText: {
+    fontSize: 14,
+    fontWeight: "500",
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingVertical: 24,
+    paddingTop: 10,
+    paddingBottom: 30,
     gap: 20,
   },
-  header: {
+  brandHeader: {
     alignItems: "center",
-    gap: 10,
-    marginTop: 10,
-    marginBottom: 8,
+    marginTop: 4,
+    marginBottom: 4,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: "900",
-    color: "#FFFFFF",
-    letterSpacing: 1.5,
-    marginTop: 10,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: "#8E8E93",
-    textAlign: "center",
-    lineHeight: 18,
-    paddingHorizontal: 10,
-  },
-  progressPill: {
-    marginTop: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 100,
-    borderWidth: 1,
+  logoSquare: {
+    width: 68,
+    height: 68,
+    borderRadius: 18,
     backgroundColor: "#111218",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#E53935",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 6,
+    overflow: "hidden",
   },
-  progressText: {
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 0.8,
+  logoImg: {
+    width: 68,
+    height: 68,
+    borderRadius: 18,
+  },
+  brandText: {
+    fontSize: 13,
+    fontWeight: "900",
+    letterSpacing: 6,
+    marginTop: 10,
+  },
+  mainTitle: {
+    fontSize: 24,
+    fontWeight: "900",
+    letterSpacing: -0.5,
+    marginTop: 16,
+    textAlign: "center",
+  },
+  mainSubtitle: {
+    fontSize: 13,
+    textAlign: "center",
+    marginTop: 6,
+    lineHeight: 18,
+    paddingHorizontal: 16,
   },
   cardList: {
     gap: 12,
   },
   permCard: {
+    flexDirection: "row",
+    alignItems: "center",
     padding: 16,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#1C1E2A",
-    backgroundColor: "#111218",
-  },
-  permRow: {
-    flexDirection: "row",
-    alignItems: "center",
     gap: 14,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  iconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  iconBox: {
+    width: 50,
+    height: 50,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },
+  textCol: {
+    flex: 1,
+    gap: 2,
+  },
   permTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "800",
-    color: "#FFFFFF",
   },
   permSubtitle: {
-    fontSize: 11,
-    color: "#8E8E93",
-    lineHeight: 15,
+    fontSize: 12,
+    lineHeight: 16,
   },
-  grantedBadge: {
+  rightAction: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  activeBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "rgba(10, 132, 255, 0.15)",
     paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 100,
+  },
+  activeText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#059669",
+  },
+  allowBtn: {
+    backgroundColor: "#E53935",
+    paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 100,
-    borderWidth: 1,
-    borderColor: "rgba(10, 132, 255, 0.3)",
   },
-  grantedText: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#0A84FF",
-  },
-  grantBtn: {
-    backgroundColor: "#0A84FF",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
-  },
-  grantBtnText: {
+  allowBtnText: {
     fontSize: 12,
-    fontWeight: "900",
+    fontWeight: "800",
     color: "#FFFFFF",
-    letterSpacing: 0.5,
   },
-  actionWrap: {
-    marginTop: 10,
-    marginBottom: 20,
+  footerSection: {
+    marginTop: 8,
+    gap: 14,
   },
-  enterBtn: {
-    height: 56,
+  continueBtn: {
+    height: 54,
     borderRadius: 16,
+    backgroundColor: "#E53935",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
-    paddingHorizontal: 20,
+    shadowColor: "#E53935",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 4,
   },
-  enterBtnText: {
-    fontSize: 13,
-    fontWeight: "900",
-    letterSpacing: 0.8,
+  continueBtnText: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: 0.3,
+  },
+  privacyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingHorizontal: 10,
+  },
+  privacyText: {
+    fontSize: 11,
+    lineHeight: 15,
+    textAlign: "center",
+    flex: 1,
   },
 });
