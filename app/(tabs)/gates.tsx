@@ -14,6 +14,12 @@ import {
   ChevronRight,
   Zap,
   Lock,
+  Radio,
+  Sparkles,
+  Search,
+  CheckCircle2,
+  ExternalLink,
+  Flame,
 } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useTheme } from '../../src/hooks/useTheme';
@@ -23,11 +29,13 @@ import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { crystalRepository, CrystalLeaderboardHunter } from '../../src/database/repositories/crystalRepository';
 import { redGateService, RedGateEncounter, RedGateTrial } from '../../src/services/redGateService';
 import { RedGateEncounterModal } from '../../src/components/gates/RedGateEncounterModal';
+import { InAppSurveyModal } from '../../src/components/surveys/InAppSurveyModal';
+import { getCpxOfferwallUrl, getBitLabsUrl } from '../../src/config/surveyConfig';
 import { PlayerAvatar } from '../../src/components/ui/PlayerAvatar';
 import { ManaCrystalIcon } from '../../src/components/ui/ManaCrystalIcon';
 import { getRankForLevel } from '../../src/constants/ranks';
 import { gateSpawnService, SpawnedDungeonGate } from '../../src/services/gateSpawnService';
-import { supabase, isSupabaseConfigured } from '../../src/services/supabaseClient';
+import { supabase, isSupabaseConfigured, getCloudUserId } from '../../src/services/supabaseClient';
 
 export default function DungeonScreen() {
   const { colors, isDark } = useTheme();
@@ -40,10 +48,10 @@ export default function DungeonScreen() {
 
   const currentRank = getRankForLevel(profile?.level || 1);
   const displayName = profile?.displayName || 'Arjun';
-  const avatarIcon = profile?.avatarIcon || 'img_pfp_01';
+  const avatarIcon = profile?.avatarIcon || 'pfp_01';
 
-  // Sub-tabs: 'gates' | 'leaderboard'
-  const [activeTab, setActiveTab] = useState<'gates' | 'leaderboard'>('gates');
+  // Sub-tabs: 'gates' | 'surveys' | 'leaderboard'
+  const [activeTab, setActiveTab] = useState<'gates' | 'surveys' | 'leaderboard'>('gates');
   const [lbFilter, setLbFilter] = useState<'daily' | 'weekly' | 'allTime'>('daily');
 
   // Emergency Red Gate State
@@ -54,6 +62,20 @@ export default function DungeonScreen() {
   const [manaCrystals, setManaCrystals] = useState<number>(32);
   const [leaderboard, setLeaderboard] = useState<CrystalLeaderboardHunter[]>([]);
   const [spawnedGates, setSpawnedGates] = useState<SpawnedDungeonGate[]>([]);
+  const [isScanning, setIsScanning] = useState<boolean>(false);
+
+  // In-App Survey Modal State
+  const [surveyModal, setSurveyModal] = useState<{
+    visible: boolean;
+    url: string | null;
+    title: string;
+    provider: string;
+  }>({
+    visible: false,
+    url: null,
+    title: '',
+    provider: '',
+  });
 
   const handleSelectRedGateTrial = (trial: RedGateTrial) => {
     setIsRedGateModalOpen(false);
@@ -115,6 +137,24 @@ export default function DungeonScreen() {
     };
   }, [refreshData]);
 
+  const handleRadarPulse = async () => {
+    if (isScanning) return;
+    setIsScanning(true);
+    haptics.heavy();
+    sound.play('unlock');
+
+    try {
+      const refreshed = await gateSpawnService.triggerRadarScan();
+      setSpawnedGates(refreshed);
+      haptics.success();
+      sound.play('quest_complete');
+    } catch {
+      haptics.warning();
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
   const handleOpenGatePage = (gate?: SpawnedDungeonGate) => {
     haptics.medium();
     sound.play('quest_complete');
@@ -126,6 +166,34 @@ export default function DungeonScreen() {
     } else {
       router.push('/exercise/pushup' as any);
     }
+  };
+
+  const handleOpenCPXSurveys = async () => {
+    haptics.medium();
+    sound.play('unlock');
+    const cloudUid = await getCloudUserId();
+    const uid = cloudUid || 'hunter_' + (profile?.id || 'default');
+    const url = getCpxOfferwallUrl(uid);
+    setSurveyModal({
+      visible: true,
+      url,
+      title: 'CPX RESEARCH // SURVEY STATION',
+      provider: 'CPX RESEARCH',
+    });
+  };
+
+  const handleOpenBitLabsSurveys = async () => {
+    haptics.medium();
+    sound.play('unlock');
+    const cloudUid = await getCloudUserId();
+    const uid = cloudUid || 'hunter_' + (profile?.id || 'default');
+    const url = getBitLabsUrl(uid);
+    setSurveyModal({
+      visible: true,
+      url,
+      title: 'BITLABS // MANA CRYSTAL MINE',
+      provider: 'BITLABS',
+    });
   };
 
   return (
@@ -141,7 +209,7 @@ export default function DungeonScreen() {
         </View>
       </View>
 
-      {/* 2. SUB-TABS (Gates / Leaderboard / Rewards) */}
+      {/* 2. SUB-TABS (Gates / Surveys / Leaderboard / Rewards) */}
       <View style={styles.subTabsRow}>
         <TouchableOpacity
           style={[
@@ -156,6 +224,22 @@ export default function DungeonScreen() {
         >
           <Text style={[styles.subTabPillText, { color: activeTab === 'gates' ? '#FFFFFF' : '#6B7280' }]}>
             Gates
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.subTabPill,
+            { backgroundColor: activeTab === 'surveys' ? '#E53935' : '#F3F4F6' },
+          ]}
+          onPress={() => {
+            haptics.light();
+            setActiveTab('surveys');
+          }}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.subTabPillText, { color: activeTab === 'surveys' ? '#FFFFFF' : '#6B7280' }]}>
+            Surveys
           </Text>
         </TouchableOpacity>
 
@@ -216,6 +300,66 @@ export default function DungeonScreen() {
             </View>
           </View>
 
+          {/* Survey Mine Station Banner (Earn Crystals) */}
+          <View style={styles.surveyStationHeroCard}>
+            <View style={styles.surveyStationTopRow}>
+              <View style={styles.surveyLiveBadge}>
+                <Sparkles size={14} color="#0284C7" />
+                <Text style={styles.surveyLiveBadgeText}>MANA CRYSTAL SURVEY MINES</Text>
+              </View>
+              <View style={styles.surveyYieldBadge}>
+                <ManaCrystalIcon size={13} color="#00D2EE" secondaryColor="#0284C7" />
+                <Text style={styles.surveyYieldBadgeText}>+100 to +2,000 💎</Text>
+              </View>
+            </View>
+
+            <Text style={styles.surveyStationTitle}>Mine Crystals with In-App Surveys</Text>
+            <Text style={styles.surveyStationDesc}>
+              Answer questions from CPX Research & BitLabs to earn instant crystals and redeem real vouchers.
+            </Text>
+
+            <View style={styles.surveyActionBtnsRow}>
+              <TouchableOpacity
+                style={styles.surveyCpxBtn}
+                onPress={handleOpenCPXSurveys}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.surveyCpxBtnText}>CPX Survey Wall</Text>
+                <ExternalLink size={14} color="#FFFFFF" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.surveyBitlabsBtn}
+                onPress={handleOpenBitLabsSurveys}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.surveyBitlabsBtnText}>BitLabs Mine</Text>
+                <ExternalLink size={14} color="#0284C7" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Hunter Radar Pulse Scan Card */}
+          <View style={styles.radarCard}>
+            <View style={{ flex: 1, gap: 2 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Radio size={16} color="#E53935" />
+                <Text style={styles.radarTitle}>Hunter Association Radar</Text>
+              </View>
+              <Text style={styles.radarSub}>Scan for spawned dungeon gates & survey bounties</Text>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.radarBtn, isScanning && { opacity: 0.6 }]}
+              onPress={handleRadarPulse}
+              disabled={isScanning}
+              activeOpacity={0.8}
+            >
+              <Search size={14} color="#FFFFFF" />
+              <Text style={styles.radarBtnText}>{isScanning ? 'Scanning...' : 'Radar Scan'}</Text>
+            </TouchableOpacity>
+          </View>
+
           {/* Locked Gates List (Gate 2, 3, 4) */}
           <View style={styles.lockedGatesList}>
             {/* Gate 2 */}
@@ -265,7 +409,95 @@ export default function DungeonScreen() {
         </ScrollView>
       )}
 
-      {/* ======================= TAB 2: LEADERBOARD (SCREEN 8 1:1 MATCH) ======================= */}
+      {/* ======================= TAB 2: SURVEYS (DEDICATED SURVEY HUB) ======================= */}
+      {activeTab === 'surveys' && (
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {/* Survey Hero */}
+          <View style={styles.surveyStationHeroCard}>
+            <View style={styles.surveyStationTopRow}>
+              <View style={styles.surveyLiveBadge}>
+                <Sparkles size={14} color="#0284C7" />
+                <Text style={styles.surveyLiveBadgeText}>MANA RECON HUB</Text>
+              </View>
+              <View style={styles.surveyYieldBadge}>
+                <ManaCrystalIcon size={13} color="#00D2EE" secondaryColor="#0284C7" />
+                <Text style={styles.surveyYieldBadgeText}>{manaCrystals} Crystals Owned</Text>
+              </View>
+            </View>
+
+            <Text style={styles.surveyStationTitle}>Earn Real Rewards</Text>
+            <Text style={styles.surveyStationDesc}>
+              Complete daily sponsor questionnaires to mine Mana Crystals. Exchange crystals for ₹100 Amazon, Google Play, and Paytm vouchers in the shop!
+            </Text>
+          </View>
+
+          {/* CPX Research Offerwall Card */}
+          <TouchableOpacity
+            style={styles.surveyProviderCard}
+            onPress={handleOpenCPXSurveys}
+            activeOpacity={0.85}
+          >
+            <View style={styles.surveyProviderLeft}>
+              <View style={[styles.surveyProviderIconCircle, { backgroundColor: '#E0F2FE' }]}>
+                <Sparkles size={24} color="#0284C7" />
+              </View>
+              <View style={{ flex: 1, gap: 3 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={styles.surveyProviderTitle}>CPX Research Survey Wall</Text>
+                  <View style={styles.hotPill}>
+                    <Text style={styles.hotPillText}>HOT</Text>
+                  </View>
+                </View>
+                <Text style={styles.surveyProviderSub}>Highest acceptance rate • Instant crystal payout</Text>
+                <View style={styles.surveyBountyRow}>
+                  <ManaCrystalIcon size={13} color="#00D2EE" secondaryColor="#0284C7" />
+                  <Text style={styles.surveyBountyText}>+150 to +1,200 💎 per survey</Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.surveyOpenBtn}>
+              <Text style={styles.surveyOpenBtnText}>START</Text>
+              <ChevronRight size={16} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
+
+          {/* BitLabs Survey Card */}
+          <TouchableOpacity
+            style={styles.surveyProviderCard}
+            onPress={handleOpenBitLabsSurveys}
+            activeOpacity={0.85}
+          >
+            <View style={styles.surveyProviderLeft}>
+              <View style={[styles.surveyProviderIconCircle, { backgroundColor: '#FEE2E2' }]}>
+                <Flame size={24} color="#E53935" />
+              </View>
+              <View style={{ flex: 1, gap: 3 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={styles.surveyProviderTitle}>BitLabs Global Surveys</Text>
+                  <View style={[styles.hotPill, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}>
+                    <Text style={[styles.hotPillText, { color: '#D97706' }]}>POPULAR</Text>
+                  </View>
+                </View>
+                <Text style={styles.surveyProviderSub}>Verified market questionnaires & research</Text>
+                <View style={styles.surveyBountyRow}>
+                  <ManaCrystalIcon size={13} color="#00D2EE" secondaryColor="#0284C7" />
+                  <Text style={styles.surveyBountyText}>+200 to +2,000 💎 per survey</Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={[styles.surveyOpenBtn, { backgroundColor: '#111827' }]}>
+              <Text style={styles.surveyOpenBtnText}>START</Text>
+              <ChevronRight size={16} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
+
+          <View style={{ height: 30 }} />
+        </ScrollView>
+      )}
+
+      {/* ======================= TAB 3: LEADERBOARD (SCREEN 8 1:1 MATCH) ======================= */}
       {activeTab === 'leaderboard' && (
         <View style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -370,6 +602,20 @@ export default function DungeonScreen() {
         </View>
       )}
 
+      {/* ======================= IN-APP SURVEY MODAL ======================= */}
+      <InAppSurveyModal
+        visible={surveyModal.visible}
+        url={surveyModal.url}
+        title={surveyModal.title}
+        provider={surveyModal.provider}
+        onClose={(completed) => {
+          setSurveyModal((prev) => ({ ...prev, visible: false }));
+          if (completed) {
+            refreshData();
+          }
+        }}
+      />
+
       {/* ======================= EMERGENCY RED GATE ENCOUNTER MODAL ======================= */}
       <RedGateEncounterModal
         visible={isRedGateModalOpen}
@@ -423,15 +669,15 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
 
-  // Sub Tabs (Gates / Leaderboard / Rewards)
+  // Sub Tabs (Gates / Surveys / Leaderboard / Rewards)
   subTabsRow: {
     flexDirection: 'row',
     paddingHorizontal: 20,
-    gap: 8,
+    gap: 6,
     marginBottom: 16,
   },
   subTabPill: {
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
   },
@@ -454,7 +700,7 @@ const styles = StyleSheet.create({
   },
   heroGateArtWrap: {
     padding: 24,
-    minHeight: 200,
+    minHeight: 190,
     justifyContent: 'space-between',
     backgroundColor: '#292524',
   },
@@ -477,14 +723,14 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 26,
     fontWeight: '900',
-    marginTop: 16,
+    marginTop: 14,
   },
   heroGateSub: {
     color: '#D6D3D1',
     fontSize: 14,
     fontStyle: 'italic',
     marginTop: 4,
-    marginBottom: 20,
+    marginBottom: 18,
   },
   heroEnterGateBtn: {
     backgroundColor: '#E53935',
@@ -499,6 +745,214 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '800',
+  },
+
+  // Survey Station Hero Card
+  surveyStationHeroCard: {
+    backgroundColor: '#F0F9FF',
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    gap: 10,
+  },
+  surveyStationTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  surveyLiveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+  },
+  surveyLiveBadgeText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#0284C7',
+    letterSpacing: 0.5,
+  },
+  surveyYieldBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  surveyYieldBadgeText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#0284C7',
+  },
+  surveyStationTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#0C4A6E',
+  },
+  surveyStationDesc: {
+    fontSize: 12,
+    color: '#0369A1',
+    lineHeight: 16,
+  },
+  surveyActionBtnsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 4,
+  },
+  surveyCpxBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#0284C7',
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  surveyCpxBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  surveyBitlabsBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+  },
+  surveyBitlabsBtnText: {
+    color: '#0284C7',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+
+  // Radar Pulse Card
+  radarCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFF1F2',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#FFE4E6',
+    gap: 12,
+  },
+  radarTitle: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#111827',
+  },
+  radarSub: {
+    fontSize: 11,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  radarBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#E53935',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  radarBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+
+  // Survey Providers (Dedicated Tab)
+  surveyProviderCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#EEEEEE',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+    gap: 12,
+  },
+  surveyProviderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  surveyProviderIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  surveyProviderTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#111827',
+  },
+  surveyProviderSub: {
+    fontSize: 11,
+    color: '#6B7280',
+  },
+  hotPill: {
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  hotPillText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#DC2626',
+  },
+  surveyBountyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  surveyBountyText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0284C7',
+  },
+  surveyOpenBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#E53935',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
+  },
+  surveyOpenBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '900',
   },
 
   // Locked Gates List
