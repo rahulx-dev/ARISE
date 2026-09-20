@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Dimensions,
   LayoutChangeEvent,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -12,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import Svg, { Circle as SvgCircle, Line as SvgLine } from 'react-native-svg';
 import {
-  ArrowLeft,
+  ChevronLeft,
   Camera as CameraIcon,
   SwitchCamera,
   Volume2,
@@ -21,6 +20,8 @@ import {
   Eye,
   EyeOff,
   Clock,
+  Square,
+  Activity,
   FastForward,
 } from 'lucide-react-native';
 import {
@@ -50,7 +51,16 @@ import { voiceCoach } from '../../src/services/voiceCoach';
 
 function ExerciseTrackerInner() {
   useKeepAwake();
-  const { type, questId, target: paramTarget, isRedGate, sets: paramSets, source, rewardCoins: paramRewardCoins, rewardXP: paramRewardXP } = useLocalSearchParams<{
+  const {
+    type,
+    questId,
+    target: paramTarget,
+    isRedGate,
+    sets: paramSets,
+    source,
+    rewardCoins: paramRewardCoins,
+    rewardXP: paramRewardXP,
+  } = useLocalSearchParams<{
     type: string;
     questId?: string;
     target?: string;
@@ -77,9 +87,16 @@ function ExerciseTrackerInner() {
   const config = getExerciseConfig(validExerciseType);
   const isPlank = isDurationBased(validExerciseType);
 
-  const target = paramTarget ? parseInt(paramTarget, 10) : (config.defaultTarget || 20);
+  const target = paramTarget
+    ? parseInt(paramTarget, 10)
+    : config.defaultTarget || 20;
   const parsedSets = paramSets ? parseInt(paramSets, 10) : NaN;
-  const totalSets = !isNaN(parsedSets) && parsedSets > 0 ? parsedSets : (questId || isRedGate ? 1 : 3);
+  const totalSets =
+    !isNaN(parsedSets) && parsedSets > 0
+      ? parsedSets
+      : questId || isRedGate
+      ? 1
+      : 3;
 
   const [currentSet, setCurrentSet] = useState<number>(1);
   const [isResting, setIsResting] = useState<boolean>(false);
@@ -94,11 +111,16 @@ function ExerciseTrackerInner() {
 
   // Controlled UI states
   const [isBodyDetected, setIsBodyDetected] = useState<boolean>(false);
-  const [detectedKeypoints, setDetectedKeypoints] = useState<MoveNetKeypoint[] | null>(null);
+  const [detectedKeypoints, setDetectedKeypoints] = useState<
+    MoveNetKeypoint[] | null
+  >(null);
   const [formFeedback, setFormFeedback] = useState<string>('Good Form');
 
-  // 16:9 Camera Preview exact dimensions
-  const [cameraDims, setCameraDims] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
+  // Exact Camera Dimensions for SVG scaling
+  const [cameraDims, setCameraDims] = useState<{ width: number; height: number }>({
+    width: 0,
+    height: 0,
+  });
 
   const timerRef = useRef<any>(null);
   const repsRef = useRef<number>(0);
@@ -136,7 +158,9 @@ function ExerciseTrackerInner() {
 
     if (!voiceMuted) {
       voiceCoach.speak(
-        `${config.displayName} tracking active. Target: ${target} ${isPlank ? 'seconds' : 'reps'} across ${totalSets} sets. Get into position!`
+        `${config.displayName} tracking active. Target: ${target} ${
+          isPlank ? 'seconds' : 'reps'
+        } across ${totalSets} sets. Get into position!`
       );
     }
 
@@ -224,9 +248,12 @@ function ExerciseTrackerInner() {
             const dy = pt.y - prev[idx].y;
             const movementDist = Math.hypot(dx, dy);
 
-            const alpha = movementDist > 0.020
-              ? 0.95
-              : (movementDist < 0.005 ? 0.65 : 0.65 + ((movementDist - 0.005) / 0.015) * 0.30);
+            const alpha =
+              movementDist > 0.02
+                ? 0.95
+                : movementDist < 0.005
+                ? 0.65
+                : 0.65 + ((movementDist - 0.005) / 0.015) * 0.3;
 
             return {
               x: prev[idx].x * (1 - alpha) + pt.x * alpha,
@@ -242,10 +269,18 @@ function ExerciseTrackerInner() {
             setIsBodyDetected(true);
           }
 
-          const nextState = processFrame(repStateRef.current, smoothed, config, now);
+          const nextState = processFrame(
+            repStateRef.current,
+            smoothed,
+            config,
+            now
+          );
           repStateRef.current = nextState;
 
-          if (nextState.feedback.message && nextState.feedback.message !== formFeedback) {
+          if (
+            nextState.feedback.message &&
+            nextState.feedback.message !== formFeedback
+          ) {
             setFormFeedback(nextState.feedback.message);
           }
 
@@ -296,7 +331,9 @@ function ExerciseTrackerInner() {
       sound.play('quest_complete');
 
       if (!voiceMuted) {
-        voiceCoach.speak(`Set ${currentSetRef.current} complete! Rest for 45 seconds.`);
+        voiceCoach.speak(
+          `Set ${currentSetRef.current} complete! Rest for 45 seconds.`
+        );
       }
     } else {
       // All sets finished!
@@ -322,7 +359,9 @@ function ExerciseTrackerInner() {
     setPlankSetElapsed(0);
 
     if (!voiceMuted) {
-      voiceCoach.speak(`Set ${nextSet} of ${totalSetsRef.current}. Get into position!`);
+      voiceCoach.speak(
+        `Set ${nextSet} of ${totalSetsRef.current}. Get into position!`
+      );
     }
   };
 
@@ -340,13 +379,20 @@ function ExerciseTrackerInner() {
     // Calculate total completed reps across all sets
     let totalCompletedReps: number;
     if (earlyReps !== undefined) {
-      totalCompletedReps = Math.max(1, (currentSetRef.current - 1) * target + earlyReps);
+      totalCompletedReps = Math.max(
+        1,
+        (currentSetRef.current - 1) * target + earlyReps
+      );
     } else {
       totalCompletedReps = target * totalSetsRef.current;
     }
 
     const duration = elapsedSeconds || 1;
-    const rewards = calculateRewards(validExerciseType, totalCompletedReps, target * totalSetsRef.current);
+    const rewards = calculateRewards(
+      validExerciseType,
+      totalCompletedReps,
+      target * totalSetsRef.current
+    );
     const questCoins = paramRewardCoins ? parseInt(paramRewardCoins, 10) : 0;
     const questXP = paramRewardXP ? parseInt(paramRewardXP, 10) : 0;
     const finalCoins = Math.max(rewards.coins, questCoins);
@@ -391,23 +437,35 @@ function ExerciseTrackerInner() {
     });
   };
 
-  // Skeleton helper: maps normalized [0, 1] landmark coordinates to exact 16:9 camera container px
+  // Skeleton helper: maps normalized [0, 1] landmark coordinates to exact camera container px
   const getPointPx = (idx: number) => {
-    if (!detectedKeypoints || cameraDims.width === 0 || cameraDims.height === 0) return null;
+    if (!detectedKeypoints || cameraDims.width === 0 || cameraDims.height === 0)
+      return null;
     const pt = detectedKeypoints[idx];
     if (!pt || (pt.confidence ?? 0) < 0.28) return null;
 
-    const normX = facing === 'front' ? (1 - pt.x) : pt.x;
+    const normX = facing === 'front' ? 1 - pt.x : pt.x;
     const normY = pt.y;
 
     const px = normX * cameraDims.width;
     const py = normY * cameraDims.height;
 
-    if (px < -20 || px > cameraDims.width + 20 || py < -20 || py > cameraDims.height + 20) return null;
+    if (
+      px < -20 ||
+      px > cameraDims.width + 20 ||
+      py < -20 ||
+      py > cameraDims.height + 20
+    )
+      return null;
     return { x: px, y: py, conf: pt.confidence };
   };
 
-  const renderBone = (idxA: number, idxB: number, color: string = '#00D2EE', strokeWidth: number = 2.8) => {
+  const renderBone = (
+    idxA: number,
+    idxB: number,
+    color: string = '#00D2EE',
+    strokeWidth: number = 2.8
+  ) => {
     const pA = getPointPx(idxA);
     const pB = getPointPx(idxB);
     if (!pA || !pB) return null;
@@ -430,262 +488,313 @@ function ExerciseTrackerInner() {
   };
 
   return (
-    <SafeAreaView style={styles.screenContainer} edges={['top', 'bottom', 'left', 'right']}>
-      {/* 1. TOP HEADER BAR */}
-      <View style={styles.topHeaderBar}>
-        <TouchableOpacity
-          style={styles.headerBtn}
-          onPress={() => {
-            haptics.light();
-            router.back();
-          }}
-          activeOpacity={0.8}
-        >
-          <ArrowLeft size={18} color="#FFFFFF" />
-        </TouchableOpacity>
-
-        <View style={{ alignItems: 'center' }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={styles.headerExerciseTitle}>{config.displayName.toUpperCase()}</Text>
-            {totalSets > 1 && (
-              <View style={styles.setHeaderBadge}>
-                <Text style={styles.setHeaderBadgeText}>SET {currentSet}/{totalSets}</Text>
-              </View>
-            )}
-          </View>
-          <Text style={styles.headerTimerText}>
-            {Math.floor(elapsedSeconds / 60)}:{String(elapsedSeconds % 60).padStart(2, '0')} ELAPSED
-          </Text>
-        </View>
-
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <TouchableOpacity style={styles.headerBtn} onPress={toggleVoice} activeOpacity={0.8}>
-            {voiceMuted ? <VolumeX size={18} color="#8E8E93" /> : <Volume2 size={18} color="#FFFFFF" />}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerBtn}
-            onPress={() => {
-              haptics.light();
-              setShowSkeleton((prev) => !prev);
-            }}
-            activeOpacity={0.8}
-          >
-            {showSkeleton ? <Eye size={18} color="#E11D48" /> : <EyeOff size={18} color="#8E8E93" />}
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* 2. TRACKER ACTION & CONTROL STRIP (PLACED DIRECTLY ABOVE 16:9 CAMERA AREA) */}
-      <View style={styles.actionControlStrip}>
-        {/* Left: Rep counter & Live Form Feedback */}
-        <View style={styles.repStatusBox}>
-          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
-            <Text style={styles.repsNumBig}>{String(currentReps).padStart(2, '0')}</Text>
-            <Text style={styles.targetNumSmall}>/ {target} {isPlank ? 'SEC' : 'REPS'}</Text>
-            {totalSets > 1 && (
-              <Text style={styles.setCounterMini}>• SET {currentSet} OF {totalSets}</Text>
-            )}
-          </View>
-
-          <View style={[styles.formStatusChip, isBodyDetected ? styles.formStatusGood : styles.formStatusSearching]}>
-            <View style={[styles.statusDot, isBodyDetected ? { backgroundColor: '#10B981' } : { backgroundColor: '#F59E0B' }]} />
-            <Text
-              style={[styles.formStatusText, isBodyDetected ? { color: '#10B981' } : { color: '#F59E0B' }]}
-              numberOfLines={1}
-            >
-              {isBodyDetected ? formFeedback : (detectedKeypoints ? 'ALIGN POSITION' : 'SEARCHING BODY')}
-            </Text>
-          </View>
-        </View>
-
-        {/* Right: Camera Controls & Finish Set Button */}
-        <View style={styles.actionButtonsRow}>
-          <TouchableOpacity
-            style={[styles.cameraActionBtn, torch && styles.cameraActionBtnActive]}
-            onPress={toggleTorch}
-            activeOpacity={0.8}
-          >
-            <Flashlight size={18} color={torch ? '#E11D48' : '#FFFFFF'} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.cameraActionBtn}
-            onPress={toggleCameraFacing}
-            activeOpacity={0.8}
-          >
-            <SwitchCamera size={18} color="#FFFFFF" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.endSetActionButton}
-            onPress={() => handleFinishWorkout(currentReps)}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.endSetActionButtonText}>END SET</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* 3. DEDICATED 16:9 CAMERA PREVIEW CONTAINER */}
+    <View style={styles.screenContainer}>
+      {/* 1. FULL-SCREEN CAMERA BACKGROUND */}
       <View
-        style={styles.cameraContainerOuter}
+        style={StyleSheet.absoluteFill}
         onLayout={(e: LayoutChangeEvent) => {
-          const { width: availW, height: availH } = e.nativeEvent.layout;
-          if (availW <= 0 || availH <= 0) return;
-
-          // Dedicated 9:16 portrait ratio
-          let targetW = availW;
-          let targetH = availW * (16 / 9);
-
-          if (targetH > availH) {
-            targetH = availH;
-            targetW = availH * (9 / 16);
+          const { width, height } = e.nativeEvent.layout;
+          if (width > 0 && height > 0) {
+            setCameraDims({ width, height });
           }
-
-          setCameraDims({ width: Math.round(targetW), height: Math.round(targetH) });
         }}
       >
-        {cameraDims.width > 0 && cameraDims.height > 0 && (
-          <View
-            style={[
-              styles.camera16by9Inner,
-              {
-                width: cameraDims.width,
-                height: cameraDims.height,
-                borderColor: isBodyDetected ? 'rgba(16, 185, 129, 0.6)' : '#1C1E2A',
-              },
-            ]}
-          >
-            {cameraPermission?.granted && PoseCameraView ? (
-              <PoseCameraView
-                style={StyleSheet.absoluteFill}
-                facing={facing}
-                enableTorch={torch}
-                onPoseDetected={handlePoseDetected}
-              />
-            ) : cameraPermission?.granted ? (
-              <CameraView
-                style={StyleSheet.absoluteFill}
-                facing={facing}
-                enableTorch={torch}
-                animateShutter={false}
-              />
-            ) : (
-              <View style={styles.noCameraFallback}>
-                <CameraIcon size={38} color="#8E8E93" />
-                <Text style={styles.noCameraText}>Camera Access Required</Text>
-              </View>
-            )}
-
-            {/* Real Live AI Skeletal Tracking Overlay sharing identical 16:9 bounds */}
-            {showSkeleton && detectedKeypoints && isBodyDetected && (
-              <Svg
-                style={StyleSheet.absoluteFill}
-                width={cameraDims.width}
-                height={cameraDims.height}
-              >
-                {/* Head / Neck */}
-                {renderBone(0, 5, '#00D2EE', 2.5)}
-                {renderBone(0, 6, '#00D2EE', 2.5)}
-
-                {/* Shoulders */}
-                {renderBone(5, 6, '#E11D48', 3.2)}
-
-                {/* Left Arm (Shoulder -> Elbow -> Wrist) */}
-                {renderBone(5, 7, '#00D2EE', 2.8)}
-                {renderBone(7, 9, '#00D2EE', 2.8)}
-
-                {/* Right Arm (Shoulder -> Elbow -> Wrist) */}
-                {renderBone(6, 8, '#00D2EE', 2.8)}
-                {renderBone(8, 10, '#00D2EE', 2.8)}
-
-                {/* Torso Box (Shoulder -> Hip) */}
-                {renderBone(5, 11, '#E11D48', 2.6)}
-                {renderBone(6, 12, '#E11D48', 2.6)}
-                {renderBone(11, 12, '#E11D48', 3.0)}
-
-                {/* Left Leg (Hip -> Knee -> Ankle) */}
-                {renderBone(11, 13, '#10B981', 2.8)}
-                {renderBone(13, 15, '#10B981', 2.8)}
-
-                {/* Right Leg (Hip -> Knee -> Ankle) */}
-                {renderBone(12, 14, '#10B981', 2.8)}
-                {renderBone(14, 16, '#10B981', 2.8)}
-
-                {/* Precise Joint Marker Dots */}
-                {[0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].map((idx) => {
-                  const p = getPointPx(idx);
-                  if (!p) return null;
-
-                  const isLeg = idx >= 13;
-                  const isHead = idx === 0;
-                  const ringColor = isLeg ? '#10B981' : isHead ? '#00D2EE' : '#E11D48';
-
-                  return (
-                    <React.Fragment key={`joint-marker-${idx}`}>
-                      {/* Outer Ring */}
-                      <SvgCircle
-                        cx={p.x}
-                        cy={p.y}
-                        r={isHead ? 7 : 8}
-                        fill="rgba(0, 0, 0, 0.4)"
-                        stroke={ringColor}
-                        strokeWidth={1.8}
-                      />
-                      {/* Core Solid Dot */}
-                      <SvgCircle
-                        cx={p.x}
-                        cy={p.y}
-                        r={3}
-                        fill="#FFFFFF"
-                      />
-                    </React.Fragment>
-                  );
-                })}
-              </Svg>
-            )}
-
-            {/* Alignment Guide Brackets */}
-            <View style={styles.alignmentGuideBox} pointerEvents="none">
-              <View style={[styles.cornerBracket, styles.bracketTL, isBodyDetected && { borderColor: '#10B981' }]} />
-              <View style={[styles.cornerBracket, styles.bracketTR, isBodyDetected && { borderColor: '#10B981' }]} />
-              <View style={[styles.cornerBracket, styles.bracketBL, isBodyDetected && { borderColor: '#10B981' }]} />
-              <View style={[styles.cornerBracket, styles.bracketBR, isBodyDetected && { borderColor: '#10B981' }]} />
-            </View>
-
-            {/* Multi-Set Rest Interval Overlay */}
-            {isResting && (
-              <View style={styles.restOverlay}>
-                <View style={styles.restCard}>
-                  <View style={styles.restTagRow}>
-                    <Clock size={16} color="#00D2EE" />
-                    <Text style={styles.restTagText}>REST INTERVAL // RECOVERY</Text>
-                  </View>
-
-                  <Text style={styles.restTimerBig}>{restCountdown}s</Text>
-
-                  <Text style={styles.restSetInfo}>
-                    SET {currentSet} OF {totalSets} COMPLETE!
-                  </Text>
-                  <Text style={styles.restNextInfo}>
-                    NEXT: SET {currentSet + 1} ({target} {isPlank ? 'SEC' : 'REPS'})
-                  </Text>
-
-                  <TouchableOpacity
-                    style={styles.skipRestBtn}
-                    onPress={handleSkipRest}
-                    activeOpacity={0.8}
-                  >
-                    <FastForward size={16} color="#000000" />
-                    <Text style={styles.skipRestBtnText}>SKIP REST // START SET {currentSet + 1}</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
+        {cameraPermission?.granted && PoseCameraView ? (
+          <PoseCameraView
+            style={StyleSheet.absoluteFill}
+            facing={facing}
+            enableTorch={torch}
+            onPoseDetected={handlePoseDetected}
+          />
+        ) : cameraPermission?.granted ? (
+          <CameraView
+            style={StyleSheet.absoluteFill}
+            facing={facing}
+            enableTorch={torch}
+            animateShutter={false}
+          />
+        ) : (
+          <View style={styles.noCameraFallback}>
+            <CameraIcon size={38} color="#8E8E93" />
+            <Text style={styles.noCameraText}>Camera Access Required</Text>
           </View>
         )}
+
+        {/* Real Live AI Skeletal Tracking Overlay */}
+        {showSkeleton && detectedKeypoints && isBodyDetected && cameraDims.width > 0 && (
+          <Svg
+            style={StyleSheet.absoluteFill}
+            width={cameraDims.width}
+            height={cameraDims.height}
+          >
+            {/* Head / Neck */}
+            {renderBone(0, 5, '#00D2EE', 2.5)}
+            {renderBone(0, 6, '#00D2EE', 2.5)}
+
+            {/* Shoulders */}
+            {renderBone(5, 6, '#EF4444', 3.2)}
+
+            {/* Left Arm (Shoulder -> Elbow -> Wrist) */}
+            {renderBone(5, 7, '#00D2EE', 2.8)}
+            {renderBone(7, 9, '#00D2EE', 2.8)}
+
+            {/* Right Arm (Shoulder -> Elbow -> Wrist) */}
+            {renderBone(6, 8, '#00D2EE', 2.8)}
+            {renderBone(8, 10, '#00D2EE', 2.8)}
+
+            {/* Torso Box (Shoulder -> Hip) */}
+            {renderBone(5, 11, '#EF4444', 2.6)}
+            {renderBone(6, 12, '#EF4444', 2.6)}
+            {renderBone(11, 12, '#EF4444', 3.0)}
+
+            {/* Left Leg (Hip -> Knee -> Ankle) */}
+            {renderBone(11, 13, '#10B981', 2.8)}
+            {renderBone(13, 15, '#10B981', 2.8)}
+
+            {/* Right Leg (Hip -> Knee -> Ankle) */}
+            {renderBone(12, 14, '#10B981', 2.8)}
+            {renderBone(14, 16, '#10B981', 2.8)}
+
+            {/* Precise Joint Marker Dots */}
+            {[0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].map((idx) => {
+              const p = getPointPx(idx);
+              if (!p) return null;
+
+              const isLeg = idx >= 13;
+              const isHead = idx === 0;
+              const ringColor = isLeg
+                ? '#10B981'
+                : isHead
+                ? '#00D2EE'
+                : '#EF4444';
+
+              return (
+                <React.Fragment key={`joint-marker-${idx}`}>
+                  {/* Outer Ring */}
+                  <SvgCircle
+                    cx={p.x}
+                    cy={p.y}
+                    r={isHead ? 7 : 8}
+                    fill="rgba(0, 0, 0, 0.4)"
+                    stroke={ringColor}
+                    strokeWidth={1.8}
+                  />
+                  {/* Core Solid Dot */}
+                  <SvgCircle cx={p.x} cy={p.y} r={3} fill="#FFFFFF" />
+                </React.Fragment>
+              );
+            })}
+          </Svg>
+        )}
+
+        {/* Viewfinder Alignment Corner Brackets (1:1 with reference) */}
+        <View style={styles.alignmentGuideBox} pointerEvents="none">
+          <View style={[styles.cornerBracket, styles.bracketTL]} />
+          <View style={[styles.cornerBracket, styles.bracketTR]} />
+          <View style={[styles.cornerBracket, styles.bracketBL]} />
+          <View style={[styles.cornerBracket, styles.bracketBR]} />
+        </View>
       </View>
-    </SafeAreaView>
+
+      {/* 2. TRANSLUCENT HUD OVERLAY (1:1 with reference mockup) */}
+      <SafeAreaView
+        style={styles.hudContainer}
+        edges={['top', 'left', 'right', 'bottom']}
+      >
+        {/* TOP ROW: Back button, Exercise title & Set progress, Right circular toggles */}
+        <View style={styles.topHeaderRow}>
+          {/* Back Button */}
+          <TouchableOpacity
+            style={styles.circularGlassBtn}
+            onPress={() => {
+              haptics.light();
+              router.back();
+            }}
+            activeOpacity={0.75}
+          >
+            <ChevronLeft size={22} color="#FFFFFF" strokeWidth={2.5} />
+          </TouchableOpacity>
+
+          {/* Center Info: Exercise Name, Set Subtitle, and Dash Progress */}
+          <View style={styles.headerCenterCol}>
+            <Text style={styles.exerciseTitleText}>{config.displayName}</Text>
+            <Text style={styles.setSubtitleText}>
+              Set {currentSet} of {totalSets}
+            </Text>
+
+            {/* Set Indicator Dash Pills */}
+            <View style={styles.setDashesRow}>
+              {Array.from({ length: totalSets }).map((_, idx) => {
+                const isCurrent = idx === currentSet - 1;
+                const isCompleted = idx < currentSet - 1;
+                return (
+                  <View
+                    key={idx}
+                    style={[
+                      styles.setDashPill,
+                      isCurrent && styles.setDashPillCurrent,
+                      isCompleted && styles.setDashPillCompleted,
+                    ]}
+                  />
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Right Action Icons: Volume & Eye/Skeleton */}
+          <View style={styles.headerRightActions}>
+            <TouchableOpacity
+              style={styles.circularGlassBtn}
+              onPress={toggleVoice}
+              activeOpacity={0.75}
+            >
+              {voiceMuted ? (
+                <VolumeX size={20} color="#8E8E93" />
+              ) : (
+                <Volume2 size={20} color="#FFFFFF" />
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.circularGlassBtn}
+              onPress={() => {
+                haptics.light();
+                setShowSkeleton((prev) => !prev);
+              }}
+              activeOpacity={0.75}
+            >
+              {showSkeleton ? (
+                <Eye size={20} color="#FFFFFF" />
+              ) : (
+                <EyeOff size={20} color="#8E8E93" />
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* METRICS & QUICK CONTROLS BAR */}
+        <View style={styles.metricsControlsRow}>
+          {/* Reps Count Metric */}
+          <View style={styles.metricCol}>
+            <View style={styles.repsRow}>
+              <Text style={styles.repsNumBig}>{currentReps}</Text>
+              <Text style={styles.repsTargetText}>/ {target}</Text>
+            </View>
+            <Text style={styles.metricSubText}>
+              {isPlank ? 'Seconds' : 'Reps'}
+            </Text>
+          </View>
+
+          {/* Vertical Divider */}
+          <View style={styles.metricDivider} />
+
+          {/* Elapsed Timer Metric */}
+          <View style={styles.metricCol}>
+            <View style={styles.timerRow}>
+              <Clock size={16} color="#FFFFFF" style={{ marginRight: 5 }} />
+              <Text style={styles.elapsedTimerText}>
+                {String(Math.floor(elapsedSeconds / 60)).padStart(2, '0')}:
+                {String(elapsedSeconds % 60).padStart(2, '0')}
+              </Text>
+            </View>
+            <Text style={styles.metricSubText}>Elapsed</Text>
+          </View>
+
+          {/* Right Action Controls: Torch, Flip Camera, End Set */}
+          <View style={styles.controlsGroup}>
+            <TouchableOpacity
+              style={[
+                styles.squareGlassBtn,
+                torch && styles.squareGlassBtnActive,
+              ]}
+              onPress={toggleTorch}
+              activeOpacity={0.8}
+            >
+              <Flashlight size={20} color={torch ? '#EF4444' : '#FFFFFF'} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.squareGlassBtn}
+              onPress={toggleCameraFacing}
+              activeOpacity={0.8}
+            >
+              <SwitchCamera size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.endSetButton}
+              onPress={() => handleFinishWorkout(currentReps)}
+              activeOpacity={0.85}
+            >
+              <Square size={13} color="#FFFFFF" fill="#FFFFFF" />
+              <Text style={styles.endSetButtonText}>End Set</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* FLOATING LIVE STATUS BADGES ROW */}
+        <View style={styles.statusBadgesRow}>
+          {/* Left: Body Status Badge */}
+          <View style={styles.statusBadgePill}>
+            <View
+              style={[
+                styles.statusDot,
+                { backgroundColor: isBodyDetected ? '#10B981' : '#10B981' },
+              ]}
+            />
+            <Text style={styles.statusBadgeText}>
+              {isBodyDetected
+                ? formFeedback
+                : detectedKeypoints
+                ? 'Align position'
+                : 'Searching body...'}
+            </Text>
+          </View>
+
+          {/* Right: AI Tracking On Badge */}
+          <View style={styles.statusBadgePill}>
+            <Activity size={14} color="#FFFFFF" />
+            <Text style={styles.statusBadgeText}>AI Tracking On</Text>
+          </View>
+        </View>
+
+        {/* Spacer */}
+        <View style={{ flex: 1 }} />
+
+        {/* REST INTERVAL OVERLAY */}
+        {isResting && (
+          <View style={styles.restOverlay}>
+            <View style={styles.restCard}>
+              <View style={styles.restTagRow}>
+                <Clock size={16} color="#0A84FF" />
+                <Text style={styles.restTagText}>REST INTERVAL // RECOVERY</Text>
+              </View>
+
+              <Text style={styles.restTimerBig}>{restCountdown}s</Text>
+
+              <Text style={styles.restSetInfo}>
+                SET {currentSet} OF {totalSets} COMPLETE!
+              </Text>
+              <Text style={styles.restNextInfo}>
+                NEXT: SET {currentSet + 1} ({target}{' '}
+                {isPlank ? 'SEC' : 'REPS'})
+              </Text>
+
+              <TouchableOpacity
+                style={styles.skipRestBtn}
+                onPress={handleSkipRest}
+                activeOpacity={0.8}
+              >
+                <FastForward size={16} color="#FFFFFF" />
+                <Text style={styles.skipRestBtnText}>
+                  SKIP REST // START SET {currentSet + 1}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+      </SafeAreaView>
+    </View>
   );
 }
 
@@ -702,144 +811,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000000',
   },
-
-  // 1. Top Header Bar
-  topHeaderBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1C1E2A',
-  },
-  headerBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    backgroundColor: '#111218',
-    borderWidth: 1,
-    borderColor: '#1C1E2A',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerExerciseTitle: {
-    fontSize: 13,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    letterSpacing: 0.8,
-  },
-  headerTimerText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#8E8E93',
-    letterSpacing: 0.5,
-    marginTop: 1,
-  },
-
-  // 2. Tracker Action & Control Strip (Directly ABOVE Camera)
-  actionControlStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#0B0D14',
-    borderBottomWidth: 1,
-    borderBottomColor: '#1C1E2A',
-  },
-  repStatusBox: {
-    gap: 4,
+  hudContainer: {
     flex: 1,
-  },
-  repsNumBig: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    letterSpacing: -0.5,
-    fontVariant: ['tabular-nums'],
-  },
-  targetNumSmall: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#8E8E93',
-  },
-  formStatusChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-    borderWidth: 1,
-  },
-  formStatusGood: {
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-    borderColor: '#10B981',
-  },
-  formStatusSearching: {
-    backgroundColor: 'rgba(245, 158, 11, 0.12)',
-    borderColor: '#F59E0B',
-  },
-  statusDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-  },
-  formStatusText: {
-    fontSize: 9.5,
-    fontWeight: '800',
-    letterSpacing: 0.4,
-  },
-
-  actionButtonsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  cameraActionBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 8,
-    backgroundColor: '#111218',
-    borderWidth: 1,
-    borderColor: '#1C1E2A',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cameraActionBtnActive: {
-    borderColor: '#E11D48',
-    backgroundColor: 'rgba(225, 29, 72, 0.15)',
-  },
-  endSetActionButton: {
-    backgroundColor: '#E11D48',
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  endSetActionButtonText: {
-    fontSize: 11,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    letterSpacing: 0.6,
-  },
-
-  // 3. Dedicated 16:9 Camera Preview Container
-  cameraContainerOuter: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 8,
-  },
-  camera16by9Inner: {
-    borderRadius: 14,
-    overflow: 'hidden',
-    backgroundColor: '#070A10',
-    borderWidth: 1.5,
-    position: 'relative',
+    justifyContent: 'space-between',
   },
   noCameraFallback: {
     flex: 1,
@@ -849,81 +823,250 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   noCameraText: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#8E8E93',
     fontWeight: '600',
   },
 
-  // Alignment Guide Brackets
+  // 1. Top Header Row
+  topHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 6,
+  },
+  circularGlassBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(25, 25, 30, 0.65)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerCenterCol: {
+    alignItems: 'center',
+    gap: 2,
+  },
+  exerciseTitleText: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
+  },
+  setSubtitleText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.75)',
+  },
+  setDashesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 4,
+  },
+  setDashPill: {
+    width: 22,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+  },
+  setDashPillCurrent: {
+    backgroundColor: '#EF4444',
+  },
+  setDashPillCompleted: {
+    backgroundColor: '#EF4444',
+  },
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  // 2. Metrics & Controls Strip (1:1 with reference)
+  metricsControlsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginTop: 6,
+  },
+  metricCol: {
+    alignItems: 'flex-start',
+  },
+  repsRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 4,
+  },
+  repsNumBig: {
+    fontSize: 34,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: -0.5,
+    fontVariant: ['tabular-nums'],
+  },
+  repsTargetText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
+  metricSubText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.55)',
+    marginTop: -2,
+  },
+  metricDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    marginHorizontal: 10,
+  },
+  timerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  elapsedTimerText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    fontVariant: ['tabular-nums'],
+  },
+  controlsGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginLeft: 'auto',
+  },
+  squareGlassBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(25, 25, 30, 0.65)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  squareGlassBtnActive: {
+    backgroundColor: 'rgba(239, 68, 68, 0.25)',
+    borderColor: '#EF4444',
+  },
+  endSetButton: {
+    height: 44,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    backgroundColor: '#EF4444',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  endSetButtonText: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
+  },
+
+  // 3. Floating Status Badges
+  statusBadgesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginTop: 4,
+  },
+  statusBadgePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    backgroundColor: 'rgba(25, 25, 30, 0.65)',
+    paddingHorizontal: 13,
+    paddingVertical: 7,
+    borderRadius: 100,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
+  },
+
+  // 4. Viewfinder Alignment Corner Brackets (1:1 with reference)
   alignmentGuideBox: {
     ...StyleSheet.absoluteFillObject,
-    margin: 20,
+    marginHorizontal: 22,
+    marginVertical: 180,
     position: 'relative',
   },
   cornerBracket: {
     position: 'absolute',
-    width: 22,
-    height: 22,
-    borderColor: 'rgba(225, 29, 72, 0.6)',
+    width: 34,
+    height: 34,
+    borderColor: 'rgba(255, 255, 255, 0.85)',
   },
   bracketTL: {
     top: 0,
     left: 0,
-    borderTopWidth: 2.5,
-    borderLeftWidth: 2.5,
+    borderTopWidth: 3.5,
+    borderLeftWidth: 3.5,
+    borderTopLeftRadius: 6,
   },
   bracketTR: {
     top: 0,
     right: 0,
-    borderTopWidth: 2.5,
-    borderRightWidth: 2.5,
+    borderTopWidth: 3.5,
+    borderRightWidth: 3.5,
+    borderTopRightRadius: 6,
   },
   bracketBL: {
     bottom: 0,
     left: 0,
-    borderBottomWidth: 2.5,
-    borderLeftWidth: 2.5,
+    borderBottomWidth: 3.5,
+    borderLeftWidth: 3.5,
+    borderBottomLeftRadius: 6,
   },
   bracketBR: {
     bottom: 0,
     right: 0,
-    borderBottomWidth: 2.5,
-    borderRightWidth: 2.5,
+    borderBottomWidth: 3.5,
+    borderRightWidth: 3.5,
+    borderBottomRightRadius: 6,
   },
-  setHeaderBadge: {
-    backgroundColor: '#082f49',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#00D2EE',
-  },
-  setHeaderBadgeText: {
-    fontSize: 10,
-    fontWeight: '900',
-    color: '#00D2EE',
-    letterSpacing: 0.5,
-  },
-  setCounterMini: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#00D2EE',
-    marginLeft: 4,
-  },
+
+  // 5. Rest Interval Modal
   restOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.90)',
+    backgroundColor: 'rgba(0, 0, 0, 0.88)',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    padding: 24,
     zIndex: 100,
   },
   restCard: {
     width: '100%',
-    backgroundColor: '#0B0D14',
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: '#00D2EE',
+    backgroundColor: '#111218',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#1C1E2A',
     padding: 24,
     alignItems: 'center',
   },
@@ -936,7 +1079,7 @@ const styles = StyleSheet.create({
   restTagText: {
     fontSize: 11,
     fontWeight: '900',
-    color: '#00D2EE',
+    color: '#0A84FF',
     letterSpacing: 1.2,
   },
   restTimerBig: {
@@ -964,16 +1107,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#00D2EE',
+    backgroundColor: '#EF4444',
     paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 10,
+    paddingVertical: 14,
+    borderRadius: 14,
     width: '100%',
   },
   skipRestBtnText: {
     fontSize: 13,
     fontWeight: '900',
-    color: '#00D2EE' === '#00D2EE' ? '#000000' : '#FFFFFF',
+    color: '#FFFFFF',
     letterSpacing: 0.5,
   },
 });

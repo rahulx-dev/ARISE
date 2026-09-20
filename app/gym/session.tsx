@@ -30,8 +30,8 @@ import {
 import { useGymStore } from '../../src/stores/useGymStore';
 import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
 import { WorkoutExerciseItem, WorkoutSetLog } from '../../src/types/gym';
-import { GlowCard } from '../../src/components/design-system/GlowCard';
-import { GlowButton } from '../../src/components/design-system/GlowButton';
+import { GlassCard } from '../../src/components/ios/GlassCard';
+import { GlassButton } from '../../src/components/ios/GlassButton';
 import { useSound } from '../../src/hooks/useSound';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTheme } from '../../src/hooks/useTheme';
@@ -225,7 +225,7 @@ export default function ActiveGymSessionScreen() {
             const completedSetList = sessionSets[ex.exerciseId] || [];
 
             return (
-              <GlowCard key={ex.id} variant="default" style={styles.exerciseCard}>
+              <GlassCard key={ex.id} variant="default" style={styles.exerciseCard}>
                 {/* Exercise Header */}
                 <View style={styles.exHeaderRow}>
                   <View style={{ flex: 1 }}>
@@ -336,7 +336,7 @@ export default function ActiveGymSessionScreen() {
                     </View>
                   );
                 })}
-              </GlowCard>
+              </GlassCard>
             );
           })}
 
@@ -412,7 +412,7 @@ export default function ActiveGymSessionScreen() {
                 You surpassed your previous highest load. Iron discipline in action.
               </Text>
 
-              <GlowButton
+              <GlassButton
                 title="CLAIM RECORD"
                 onPress={() => setNewPRModalData(null)}
                 variant="primary"
