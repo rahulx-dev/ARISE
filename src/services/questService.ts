@@ -262,7 +262,7 @@ export function getLevelScaledQuest(template: typeof DAILY_QUEST_POOL[0], level:
     if (template.exerciseType === 'PLANK') {
       scaledDesc = `Hold a firm core plank for ${scaledTarget} seconds`;
     } else {
-      scaledDesc = `Complete ${scaledTarget} tracked ${template.title.toLowerCase()} repetitions`;
+      scaledDesc = `Complete ${scaledTarget} tracked ${(template.title || 'exercise').toLowerCase()} repetitions`;
     }
   } else if (template.category === 'FOCUS') {
     scaledDesc = `Complete a ${scaledTarget}-minute deep focus session`;

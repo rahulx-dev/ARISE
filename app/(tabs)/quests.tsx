@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -58,6 +58,7 @@ export default function QuestsScreen() {
   const haptics = useHaptics();
 
   const dailyQuests = useQuestStore((s) => s.dailyQuests);
+  const weeklyQuests = useQuestStore((s) => s.weeklyQuests);
   const loadQuests = useQuestStore((s) => s.loadQuests);
   const completeQuest = useQuestStore((s) => s.completeQuest);
   const profile = usePlayerStore((s) => s.profile);
@@ -104,8 +105,26 @@ export default function QuestsScreen() {
     return () => clearInterval(interval);
   }, []);
 
-  const completedCount = dailyQuests.filter((q) => Boolean(q.completed)).length;
-  const totalCount = dailyQuests.length || 5;
+  const displayedQuests = useMemo(() => {
+    const combined = [...(dailyQuests || []), ...(weeklyQuests || [])];
+    if (activeTab === 'DAILY') {
+      return (dailyQuests || []).filter((q) => !q.frequency || q.frequency === 'DAILY');
+    }
+    if (activeTab === 'WEEKLY') {
+      return (weeklyQuests && weeklyQuests.length > 0)
+        ? weeklyQuests
+        : (dailyQuests || []).filter((q) => q.frequency === 'WEEKLY');
+    }
+    if (activeTab === 'SPECIAL') {
+      return combined.filter(
+        (q) => q.difficulty === 'EPIC' || q.difficulty === 'LEGENDARY' || q.category === 'SPECIAL'
+      );
+    }
+    return dailyQuests && dailyQuests.length > 0 ? dailyQuests : combined;
+  }, [dailyQuests, weeklyQuests, activeTab]);
+
+  const completedCount = displayedQuests.filter((q) => Boolean(q.completed)).length;
+  const totalCount = displayedQuests.length || 5;
 
   const handleManualComplete = async (questId: number) => {
     haptics.success();
@@ -177,10 +196,10 @@ export default function QuestsScreen() {
 
         {/* 3. HORIZONTAL QUEST CARDS LIST (SCREEN 3 1:1 MATCH) */}
         <View style={styles.questCardsList}>
-          {dailyQuests.map((q, idx) => {
+          {displayedQuests.map((q, idx) => {
             const isDone = Boolean(q.completed);
-            const titleLower = q.title.toLowerCase();
-            const cat = q.category?.toUpperCase() || '';
+            const titleLower = (q?.title || '').toLowerCase();
+            const cat = (q?.category || '').toUpperCase();
             const isExercise =
               cat === 'STRENGTH' ||
               cat === 'FITNESS' ||
@@ -201,7 +220,7 @@ export default function QuestsScreen() {
             else if (titleLower.includes('jack')) exerciseType = 'JUMPING_JACK';
 
             const rankKey = idx === 0 ? 'D' : idx === 1 ? 'D' : idx === 2 ? 'C' : 'B';
-            const rank = RANK_CONFIGS[rankKey];
+            const rank = RANK_CONFIGS[rankKey] || RANK_CONFIGS.D;
 
             const handleQuestAction = () => {
               if (isDone) return;

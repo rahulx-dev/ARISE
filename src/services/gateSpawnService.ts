@@ -826,7 +826,7 @@ class GateSpawnService {
       if (missions.length === 0) continue;
 
       const durationMs = cfg.collapseHours * 60 * 60 * 1000;
-      const gateId = `gate_${rank.toLowerCase()}_${now}_${Math.random().toString(36).substring(2, 6)}`;
+      const gateId = `gate_${(rank || 'E').toLowerCase()}_${now}_${Math.random().toString(36).substring(2, 6)}`;
 
       gates.push({
         id: gateId,
