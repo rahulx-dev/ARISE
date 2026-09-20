@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Modal,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,9 +12,7 @@ import {
   Swords,
   Crown,
   ChevronRight,
-  Zap,
   Lock,
-  Radio,
   Sparkles,
   Search,
   CheckCircle2,
@@ -24,10 +21,6 @@ import {
   ShieldAlert,
   Clock,
   Trophy,
-  ArrowRight,
-  Gift,
-  X,
-  AlertTriangle,
 } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useTheme } from '../../src/hooks/useTheme';
@@ -46,7 +39,7 @@ import { gateSpawnService, SpawnedDungeonGate } from '../../src/services/gateSpa
 import { supabase, isSupabaseConfigured, getCloudUserId } from '../../src/services/supabaseClient';
 
 export default function DungeonScreen() {
-  const { colors, isDark } = useTheme();
+  const { isDark } = useTheme();
   const haptics = useHaptics();
   const sound = useSound();
   const router = useRouter();
@@ -58,8 +51,8 @@ export default function DungeonScreen() {
   const displayName = profile?.displayName || 'Arjun';
   const avatarIcon = profile?.avatarIcon || 'pfp_01';
 
-  // Sub-tabs: 'gates' | 'surveys' | 'leaderboard'
-  const [activeTab, setActiveTab] = useState<'gates' | 'surveys' | 'leaderboard'>('gates');
+  // Sub-tabs: ONLY 'gates' | 'leaderboard'
+  const [activeTab, setActiveTab] = useState<'gates' | 'leaderboard'>('gates');
   const [lbFilter, setLbFilter] = useState<'daily' | 'weekly' | 'allTime'>('daily');
 
   // Emergency Red Gate State
@@ -84,24 +77,6 @@ export default function DungeonScreen() {
     url: null,
     title: '',
     provider: '',
-  });
-
-  // Solo Leveling System Notification Dialog
-  const [systemDialog, setSystemDialog] = useState<{
-    visible: boolean;
-    title: string;
-    subtag: string;
-    message: string;
-    rewardCrystals?: number;
-    rewardXP?: number;
-    buttonText: string;
-    onPress?: () => void;
-  }>({
-    visible: false,
-    title: '',
-    subtag: 'ARISE OS // SYSTEM DIRECTIVE',
-    message: '',
-    buttonText: 'CONFIRM',
   });
 
   // Live real-time clock tick for countdown timers
@@ -233,7 +208,10 @@ export default function DungeonScreen() {
   const handleOpenCPXSurveys = async () => {
     haptics.medium();
     sound.play('unlock');
-    const cloudUid = await getCloudUserId();
+    let cloudUid = 'warrior_device';
+    try {
+      cloudUid = await getCloudUserId();
+    } catch {}
     const uid = cloudUid || 'hunter_' + (profile?.id || 'default');
     const url = getCpxOfferwallUrl(uid);
     setSurveyModal({
@@ -247,7 +225,10 @@ export default function DungeonScreen() {
   const handleOpenBitLabsSurveys = async () => {
     haptics.medium();
     sound.play('unlock');
-    const cloudUid = await getCloudUserId();
+    let cloudUid = 'warrior_device';
+    try {
+      cloudUid = await getCloudUserId();
+    } catch {}
     const uid = cloudUid || 'hunter_' + (profile?.id || 'default');
     const url = getBitLabsUrl(uid);
     setSurveyModal({
@@ -275,7 +256,7 @@ export default function DungeonScreen() {
         >
           <PlayerAvatar
             iconId={avatarIcon}
-            size={40}
+            size={42}
             glow={true}
             glowColor={getRankColor(currentRank.rankCode)}
           />
@@ -306,7 +287,7 @@ export default function DungeonScreen() {
             }}
             activeOpacity={0.8}
           >
-            <ManaCrystalIcon size={16} color="#00D2EE" secondaryColor="#0284C7" />
+            <ManaCrystalIcon size={20} />
             <Text style={[styles.crystalCountText, { color: isDark ? '#00D2EE' : '#0284C7' }]}>
               {manaCrystals.toLocaleString()}
             </Text>
@@ -325,7 +306,7 @@ export default function DungeonScreen() {
         </View>
       </View>
 
-      {/* 2. SUB-HEADER SEGMENTED TABS: [GATES] | [SURVEYS] | [LEADERBOARD] | [REWARDS] */}
+      {/* 2. SUB-HEADER DUAL TABS: [GATES] vs [LEADERBOARD] */}
       <View style={[styles.tabSegmentWrap, { backgroundColor: isDark ? '#0A0D14' : '#F8FAFC', borderColor: isDark ? '#1C1E2A' : '#E2E8F0' }]}>
         <TouchableOpacity
           style={[
@@ -338,26 +319,9 @@ export default function DungeonScreen() {
           }}
           activeOpacity={0.85}
         >
-          <Swords size={14} color={activeTab === 'gates' ? '#FFFFFF' : (isDark ? '#8E8E93' : '#64748B')} />
+          <Swords size={16} color={activeTab === 'gates' ? '#FFFFFF' : (isDark ? '#8E8E93' : '#64748B')} />
           <Text style={[styles.segmentBtnText, { color: activeTab === 'gates' ? '#FFFFFF' : (isDark ? '#8E8E93' : '#64748B') }]}>
             Gates
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.segmentBtn,
-            activeTab === 'surveys' && (isDark ? styles.segmentBtnActiveDark : styles.segmentBtnActiveLight),
-          ]}
-          onPress={() => {
-            haptics.light();
-            setActiveTab('surveys');
-          }}
-          activeOpacity={0.85}
-        >
-          <Sparkles size={14} color={activeTab === 'surveys' ? '#FFFFFF' : (isDark ? '#8E8E93' : '#64748B')} />
-          <Text style={[styles.segmentBtnText, { color: activeTab === 'surveys' ? '#FFFFFF' : (isDark ? '#8E8E93' : '#64748B') }]}>
-            Surveys
           </Text>
         </TouchableOpacity>
 
@@ -372,23 +336,9 @@ export default function DungeonScreen() {
           }}
           activeOpacity={0.85}
         >
-          <Trophy size={14} color={activeTab === 'leaderboard' ? '#FFFFFF' : (isDark ? '#8E8E93' : '#64748B')} />
+          <Trophy size={16} color={activeTab === 'leaderboard' ? '#FFFFFF' : (isDark ? '#8E8E93' : '#64748B')} />
           <Text style={[styles.segmentBtnText, { color: activeTab === 'leaderboard' ? '#FFFFFF' : (isDark ? '#8E8E93' : '#64748B') }]}>
             Leaderboard
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.segmentBtn}
-          onPress={() => {
-            haptics.light();
-            router.push('/shop' as any);
-          }}
-          activeOpacity={0.85}
-        >
-          <Gift size={14} color={isDark ? '#8E8E93' : '#64748B'} />
-          <Text style={[styles.segmentBtnText, { color: isDark ? '#8E8E93' : '#64748B' }]}>
-            Rewards
           </Text>
         </TouchableOpacity>
       </View>
@@ -419,7 +369,7 @@ export default function DungeonScreen() {
                   <Text style={styles.redGateAlertPillText}>EMERGENCY RED GATE ACTIVE</Text>
                 </View>
                 <View style={[styles.redGateBountyPill, { backgroundColor: isDark ? 'rgba(0, 210, 238, 0.12)' : '#E0F2FE', borderColor: '#00D2EE' }]}>
-                  <ManaCrystalIcon size={13} color="#00D2EE" secondaryColor="#0284C7" />
+                  <ManaCrystalIcon size={14} />
                   <Text style={styles.redGateBountyPillText}>+{activeRedGate.bountyCoins} Crystals</Text>
                 </View>
               </View>
@@ -455,7 +405,7 @@ export default function DungeonScreen() {
                 Dimensional Rift Radar
               </Text>
               <Text style={[styles.radarHeroSub, { color: isDark ? '#8E8E93' : '#64748B' }]}>
-                Scan satellite coordinates for active gates & survey bounties
+                Scan sector coordinates for active gates & survey bounties
               </Text>
             </View>
 
@@ -476,7 +426,7 @@ export default function DungeonScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Spawned Dungeon Gates Header */}
+          {/* Section Title */}
           <View style={styles.sectionHeaderRow}>
             <Text style={[styles.sectionTitle, { color: isDark ? '#FFFFFF' : '#0F172A' }]}>
               Active Dungeon Gates ({spawnedGates.length})
@@ -545,7 +495,7 @@ export default function DungeonScreen() {
                     <Text style={[styles.bountyGrossLabel, { color: isDark ? '#8E8E93' : '#64748B' }]}>BOUNTY:</Text>
                     <Text style={styles.bountyGrossVal}>₹{totalInrPayout}</Text>
                     <Text style={{ color: isDark ? '#8E8E93' : '#64748B', fontSize: 10 }}>•</Text>
-                    <ManaCrystalIcon size={12} color="#00D2EE" secondaryColor="#0284C7" />
+                    <ManaCrystalIcon size={14} />
                     <Text style={[styles.bountyCrystalsVal, { color: isDark ? '#00D2EE' : '#0284C7' }]}>
                       {totalCrystalBounty} Crystals
                     </Text>
@@ -603,7 +553,7 @@ export default function DungeonScreen() {
             );
           })}
 
-          {/* Quick Survey Station Banner */}
+          {/* Quick Mana Crystal Survey Mines Banner */}
           <View style={[
             styles.surveyStationHeroCard,
             {
@@ -620,7 +570,7 @@ export default function DungeonScreen() {
                 </Text>
               </View>
               <View style={[styles.surveyYieldBadge, { backgroundColor: isDark ? '#0C2B44' : '#FFFFFF' }]}>
-                <ManaCrystalIcon size={12} color="#00D2EE" secondaryColor="#0284C7" />
+                <ManaCrystalIcon size={14} />
                 <Text style={[styles.surveyYieldBadgeText, { color: isDark ? '#38BDF8' : '#0284C7' }]}>
                   Instant Payout
                 </Text>
@@ -631,7 +581,7 @@ export default function DungeonScreen() {
               Mine Mana Crystals with Live Surveys
             </Text>
             <Text style={[styles.surveyStationDesc, { color: isDark ? '#7DD3FC' : '#0369A1' }]}>
-              Answer sponsored research questions to earn crystals and redeem real vouchers in the shop.
+              Answer sponsored research questions from CPX Research & BitLabs to earn crystals and redeem real vouchers in the shop.
             </Text>
 
             <View style={styles.surveyActionBtnsRow}>
@@ -661,45 +611,7 @@ export default function DungeonScreen() {
             </View>
           </View>
 
-          <View style={{ height: 40 }} />
-        </ScrollView>
-      )}
-
-      {/* ======================= TAB 2: SURVEYS (DEDICATED SURVEY HUB) ======================= */}
-      {activeTab === 'surveys' && (
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Survey Hub Hero */}
-          <View style={[
-            styles.surveyStationHeroCard,
-            {
-              backgroundColor: isDark ? '#081D2E' : '#F0F9FF',
-              borderColor: isDark ? '#0C385C' : '#BAE6FD',
-            }
-          ]}>
-            <View style={styles.surveyStationTopRow}>
-              <View style={[styles.surveyLiveBadge, { backgroundColor: isDark ? '#0C2B44' : '#FFFFFF', borderColor: isDark ? '#0C4A6E' : '#BAE6FD' }]}>
-                <Sparkles size={14} color="#0284C7" />
-                <Text style={[styles.surveyLiveBadgeText, { color: isDark ? '#38BDF8' : '#0284C7' }]}>
-                  MANA RECON HUB
-                </Text>
-              </View>
-              <View style={[styles.surveyYieldBadge, { backgroundColor: isDark ? '#0C2B44' : '#FFFFFF' }]}>
-                <ManaCrystalIcon size={13} color="#00D2EE" secondaryColor="#0284C7" />
-                <Text style={[styles.surveyYieldBadgeText, { color: isDark ? '#38BDF8' : '#0284C7' }]}>
-                  {manaCrystals} Crystals Owned
-                </Text>
-              </View>
-            </View>
-
-            <Text style={[styles.surveyStationTitle, { color: isDark ? '#E0F2FE' : '#0C4A6E' }]}>
-              Earn Real Cash & Crystals
-            </Text>
-            <Text style={[styles.surveyStationDesc, { color: isDark ? '#7DD3FC' : '#0369A1' }]}>
-              Complete daily sponsor questionnaires to mine Mana Crystals. Exchange crystals for ₹100 Amazon, Google Play, and Paytm vouchers in the shop!
-            </Text>
-          </View>
-
-          {/* CPX Research Offerwall Card */}
+          {/* Direct CPX Research Card */}
           <TouchableOpacity
             style={[
               styles.surveyProviderCard,
@@ -710,7 +622,7 @@ export default function DungeonScreen() {
           >
             <View style={styles.surveyProviderLeft}>
               <View style={[styles.surveyProviderIconCircle, { backgroundColor: isDark ? '#0C2B44' : '#E0F2FE' }]}>
-                <Sparkles size={24} color="#0284C7" />
+                <Sparkles size={22} color="#0284C7" />
               </View>
               <View style={{ flex: 1, gap: 3 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -722,12 +634,12 @@ export default function DungeonScreen() {
                   </View>
                 </View>
                 <Text style={[styles.surveyProviderSub, { color: isDark ? '#8E8E93' : '#64748B' }]}>
-                  Highest acceptance rate • Instant crystal payout
+                  High acceptance rate • Instant crystal payout
                 </Text>
                 <View style={styles.surveyBountyRow}>
-                  <ManaCrystalIcon size={13} color="#00D2EE" secondaryColor="#0284C7" />
+                  <ManaCrystalIcon size={14} />
                   <Text style={[styles.surveyBountyText, { color: isDark ? '#00D2EE' : '#0284C7' }]}>
-                    +150 to +1,200 💎 per survey
+                    +150 to +1,200 Crystals per survey
                   </Text>
                 </View>
               </View>
@@ -735,11 +647,11 @@ export default function DungeonScreen() {
 
             <View style={styles.surveyOpenBtn}>
               <Text style={styles.surveyOpenBtnText}>START</Text>
-              <ChevronRight size={16} color="#FFFFFF" />
+              <ChevronRight size={15} color="#FFFFFF" />
             </View>
           </TouchableOpacity>
 
-          {/* BitLabs Survey Card */}
+          {/* Direct BitLabs Survey Card */}
           <TouchableOpacity
             style={[
               styles.surveyProviderCard,
@@ -750,7 +662,7 @@ export default function DungeonScreen() {
           >
             <View style={styles.surveyProviderLeft}>
               <View style={[styles.surveyProviderIconCircle, { backgroundColor: isDark ? '#2C1B1B' : '#FEE2E2' }]}>
-                <Flame size={24} color="#EF4444" />
+                <Flame size={22} color="#EF4444" />
               </View>
               <View style={{ flex: 1, gap: 3 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -762,12 +674,12 @@ export default function DungeonScreen() {
                   </View>
                 </View>
                 <Text style={[styles.surveyProviderSub, { color: isDark ? '#8E8E93' : '#64748B' }]}>
-                  Verified market questionnaires & research
+                  Verified market research questionnaires
                 </Text>
                 <View style={styles.surveyBountyRow}>
-                  <ManaCrystalIcon size={13} color="#00D2EE" secondaryColor="#0284C7" />
+                  <ManaCrystalIcon size={14} />
                   <Text style={[styles.surveyBountyText, { color: isDark ? '#00D2EE' : '#0284C7' }]}>
-                    +200 to +2,000 💎 per survey
+                    +200 to +2,000 Crystals per survey
                   </Text>
                 </View>
               </View>
@@ -775,7 +687,7 @@ export default function DungeonScreen() {
 
             <View style={[styles.surveyOpenBtn, { backgroundColor: isDark ? '#EF4444' : '#111827' }]}>
               <Text style={styles.surveyOpenBtnText}>START</Text>
-              <ChevronRight size={16} color="#FFFFFF" />
+              <ChevronRight size={15} color="#FFFFFF" />
             </View>
           </TouchableOpacity>
 
@@ -783,7 +695,7 @@ export default function DungeonScreen() {
         </ScrollView>
       )}
 
-      {/* ======================= TAB 3: LEADERBOARD ======================= */}
+      {/* ======================= TAB 2: LEADERBOARD ======================= */}
       {activeTab === 'leaderboard' && (
         <View style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -832,9 +744,12 @@ export default function DungeonScreen() {
                 <Text style={[styles.podiumNameText, { color: isDark ? '#FFFFFF' : '#0F172A' }]} numberOfLines={1}>
                   {leaderboard[1]?.name || 'Karan'}
                 </Text>
-                <Text style={[styles.podiumXPText, { color: isDark ? '#8E8E93' : '#64748B' }]}>
-                  {(leaderboard[1]?.crystalsMined || 2450).toLocaleString()} 💎
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                  <ManaCrystalIcon size={12} />
+                  <Text style={[styles.podiumXPText, { color: isDark ? '#8E8E93' : '#64748B' }]}>
+                    {(leaderboard[1]?.crystalsMined || 2450).toLocaleString()}
+                  </Text>
+                </View>
               </View>
 
               {/* #1 Center: Top Hunter 👑 */}
@@ -849,9 +764,12 @@ export default function DungeonScreen() {
                 <Text style={[styles.podiumNameText, { color: isDark ? '#FFFFFF' : '#0F172A', fontWeight: '900' }]} numberOfLines={1}>
                   {leaderboard[0]?.name || displayName}
                 </Text>
-                <Text style={[styles.podiumXPText, { color: '#EF4444', fontWeight: '900' }]}>
-                  {(leaderboard[0]?.crystalsMined || 4820).toLocaleString()} 💎
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <ManaCrystalIcon size={14} />
+                  <Text style={[styles.podiumXPText, { color: '#EF4444', fontWeight: '900' }]}>
+                    {(leaderboard[0]?.crystalsMined || 4820).toLocaleString()}
+                  </Text>
+                </View>
               </View>
 
               {/* #3 Right: Rank 3 Hunter */}
@@ -865,9 +783,12 @@ export default function DungeonScreen() {
                 <Text style={[styles.podiumNameText, { color: isDark ? '#FFFFFF' : '#0F172A' }]} numberOfLines={1}>
                   {leaderboard[2]?.name || 'Riya'}
                 </Text>
-                <Text style={[styles.podiumXPText, { color: isDark ? '#8E8E93' : '#64748B' }]}>
-                  {(leaderboard[2]?.crystalsMined || 1890).toLocaleString()} 💎
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                  <ManaCrystalIcon size={12} />
+                  <Text style={[styles.podiumXPText, { color: isDark ? '#8E8E93' : '#64748B' }]}>
+                    {(leaderboard[2]?.crystalsMined || 1890).toLocaleString()}
+                  </Text>
+                </View>
               </View>
             </View>
 
@@ -898,7 +819,7 @@ export default function DungeonScreen() {
                       </Text>
                     </View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                      <ManaCrystalIcon size={14} color="#00D2EE" secondaryColor="#0284C7" />
+                      <ManaCrystalIcon size={14} />
                       <Text style={[styles.rankListXP, { color: isDark ? '#00D2EE' : '#0284C7' }]}>
                         {item.crystalsMined.toLocaleString()}
                       </Text>
@@ -922,7 +843,7 @@ export default function DungeonScreen() {
             </View>
             <View style={{ alignItems: 'flex-end', gap: 2 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <ManaCrystalIcon size={14} color="#00D2EE" secondaryColor="#0284C7" />
+                <ManaCrystalIcon size={15} />
                 <Text style={[styles.yourRankXP, { color: isDark ? '#00D2EE' : '#0284C7' }]}>
                   {manaCrystals.toLocaleString()} Crystals
                 </Text>
@@ -1033,7 +954,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
   },
 
-  // Segmented Sub Tabs (Gates / Surveys / Leaderboard / Rewards)
+  // Dual Sub Tabs (Gates / Leaderboard)
   tabSegmentWrap: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1043,15 +964,15 @@ const styles = StyleSheet.create({
     padding: 4,
     borderRadius: 12,
     borderWidth: 1,
-    gap: 4,
+    gap: 6,
   },
   segmentBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
-    paddingVertical: 8,
+    gap: 6,
+    paddingVertical: 9,
     borderRadius: 8,
   },
   segmentBtnActiveDark: {
@@ -1061,7 +982,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#EF4444',
   },
   segmentBtnText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '800',
   },
 

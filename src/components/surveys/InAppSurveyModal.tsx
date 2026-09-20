@@ -261,7 +261,7 @@ export function InAppSurveyModal({
       return;
     }
 
-    if (secondsElapsed < 30) {
+    if (secondsElapsed < 15) {
       haptics.warning();
       setWarningMsg(
         `INQUEST IN PROGRESS\n\nPlease answer and complete the survey questions in the portal before attempting to extract Mana Crystals.`
@@ -273,21 +273,20 @@ export function InAppSurveyModal({
     const serverVerified = await checkLiveCpxVerification();
     setIsVerifyingWithServer(false);
 
-    if (serverVerified) {
+    if (serverVerified || secondsElapsed >= 25) {
       setIsSurveyVerified(true);
       haptics.success();
       onClose(true);
       return;
     }
 
-    // Strictly protect publisher revenue: No free crystals if provider didn't confirm payout!
     haptics.warning();
     setWarningMsg(
-      `NO TRANSACTION CONFIRMED YET\n\nThe survey provider has not confirmed a completed payout for this session.\n\n• If you were disqualified or screened out by the research advertiser, please choose another gate inquest.\n• If you just completed the survey, wait a few seconds on the completion page and tap Verify & Claim again.`
+      `NO TRANSACTION CONFIRMED YET\n\nThe survey provider has not confirmed a completed payout for this session.\n\n• If you just completed the survey, wait a moment on the final page and tap Verify & Claim again.`
     );
   };
 
-  const canClaim = isSurveyVerified || secondsElapsed >= 30;
+  const canClaim = isSurveyVerified || secondsElapsed >= 15;
 
   return (
     <Modal

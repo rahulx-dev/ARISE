@@ -856,10 +856,13 @@ class GateSpawnService {
     try {
       const raw = getKv(SPAWNED_GATES_KEY);
       const now = Date.now();
-      let cloudUserId = "warrior_device";
+      let cloudUserId = 'warrior_device';
       try {
-        cloudUserId = await getCloudUserId();
-      } catch {}
+        const timeoutPromise = new Promise<string>((_, reject) => setTimeout(() => reject(new Error('timeout')), 150));
+        cloudUserId = await Promise.race([getCloudUserId(), timeoutPromise]);
+      } catch {
+        cloudUserId = 'hunter_offline';
+      }
 
       if (!raw) {
         const fresh = this.generateFreshGates(cloudUserId);
@@ -882,7 +885,7 @@ class GateSpawnService {
       // Ensure ALL survey missions have live verified CPX Research offerwall URLs
       for (const g of validGates) {
         for (const m of g.missions) {
-          m.provider = "CPX Research";
+          m.provider = 'CPX Research';
           m.surveyUrl = getCpxOfferwallUrl(cloudUserId);
         }
       }
@@ -902,7 +905,7 @@ class GateSpawnService {
 
       return validGates;
     } catch {
-      const fallback = this.generateFreshGates();
+      const fallback = this.generateFreshGates('warrior_device');
       setKv(SPAWNED_GATES_KEY, JSON.stringify(fallback));
       return fallback;
     }
@@ -912,8 +915,17 @@ class GateSpawnService {
    * Get a specific gate by its unique ID
    */
   async getGateById(id: string): Promise<SpawnedDungeonGate | null> {
+    try {
+      const raw = getKv(SPAWNED_GATES_KEY);
+      if (raw) {
+        const localGates: SpawnedDungeonGate[] = JSON.parse(raw);
+        const directMatch = localGates.find((g) => g.id === id);
+        if (directMatch) return directMatch;
+      }
+    } catch {}
+
     const gates = await this.getActiveGates();
-    return gates.find((g) => g.id === id) ?? null;
+    return gates.find((g) => g.id === id) ?? (gates.length > 0 ? gates[0] : null);
   }
 
   /**

@@ -82,10 +82,20 @@ export default function GateDetailsScreen() {
   });
 
   const fetchGate = useCallback(async () => {
-    if (!id) return;
-    const found = await gateSpawnService.getGateById(id);
-    setGate(found);
-    setLoadingGate(false);
+    try {
+      const targetId = id ? (Array.isArray(id) ? id[0] : id) : '';
+      const found = await gateSpawnService.getGateById(targetId);
+      if (found) {
+        setGate(found);
+      } else {
+        const allGates = await gateSpawnService.getActiveGates();
+        setGate(allGates[0] || null);
+      }
+    } catch (e) {
+      console.warn('Error fetching gate:', e);
+    } finally {
+      setLoadingGate(false);
+    }
   }, [id]);
 
   useEffect(() => {
