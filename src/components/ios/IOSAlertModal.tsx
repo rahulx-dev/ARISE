@@ -22,6 +22,9 @@ export interface AlertOptions {
   variant?: 'default' | 'info' | 'warning' | 'danger' | 'quest' | 'success';
   tag?: string;
   subtag?: string;
+  errorDetails?: string;
+  errorCode?: string;
+  footerNote?: string;
 }
 
 interface AlertContextType {
@@ -44,6 +47,9 @@ export function showIOSAlert(
     variant?: 'default' | 'info' | 'warning' | 'danger' | 'quest' | 'success';
     tag?: string;
     subtag?: string;
+    errorDetails?: string;
+    errorCode?: string;
+    footerNote?: string;
   }
 ) {
   if (globalShowAlert) {
@@ -54,6 +60,9 @@ export function showIOSAlert(
       variant: options?.variant,
       tag: options?.tag,
       subtag: options?.subtag,
+      errorDetails: options?.errorDetails,
+      errorCode: options?.errorCode,
+      footerNote: options?.footerNote,
     });
   }
 }
@@ -66,6 +75,9 @@ export function showSoloLevelingAlert(
     tag?: string;
     subtag?: string;
     buttons?: AlertButton[];
+    errorDetails?: string;
+    errorCode?: string;
+    footerNote?: string;
   }
 ) {
   if (globalShowAlert) {
@@ -76,6 +88,9 @@ export function showSoloLevelingAlert(
       tag: options?.tag,
       subtag: options?.subtag,
       buttons: options?.buttons,
+      errorDetails: options?.errorDetails,
+      errorCode: options?.errorCode,
+      footerNote: options?.footerNote,
     });
   }
 }
@@ -99,6 +114,9 @@ export function IOSAlertProvider({ children }: { children: React.ReactNode }) {
       variant: options.variant,
       tag: options.tag,
       subtag: options.subtag,
+      errorDetails: options.errorDetails,
+      errorCode: options.errorCode,
+      footerNote: options.footerNote,
       buttons: options.buttons && options.buttons.length > 0
         ? options.buttons
         : [{ text: 'CONFIRM', style: 'primary' }],
@@ -204,6 +222,9 @@ export function IOSAlertProvider({ children }: { children: React.ReactNode }) {
                   subtag={subtag}
                   title={alertConfig.title}
                   message={alertConfig.message}
+                  errorDetails={alertConfig.errorDetails}
+                  errorCode={alertConfig.errorCode}
+                  footerNote={alertConfig.footerNote}
                   buttons={buttons.map((btn) => ({
                     text: btn.text,
                     style: btn.style,

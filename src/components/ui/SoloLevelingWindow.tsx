@@ -6,13 +6,26 @@ import {
   TouchableOpacity,
   StyleProp,
   ViewStyle,
-  Platform,
+  Clipboard,
 } from 'react-native';
+import {
+  AlertTriangle,
+  CheckCircle2,
+  AlertCircle,
+  Info,
+  Sparkles,
+  X,
+  RotateCw,
+  Copy,
+  ArrowRight,
+} from 'lucide-react-native';
+import { useTheme } from '../../hooks/useTheme';
 
 export interface SystemWindowButton {
   text: string;
   onPress?: () => void;
   style?: 'primary' | 'cancel' | 'destructive' | 'default';
+  icon?: React.ReactNode;
 }
 
 export interface SoloLevelingWindowProps {
@@ -28,10 +41,10 @@ export interface SoloLevelingWindowProps {
   onClose?: () => void;
   style?: StyleProp<ViewStyle>;
   contentStyle?: StyleProp<ViewStyle>;
+  errorDetails?: string;
+  errorCode?: string;
+  footerNote?: string;
 }
-
-const CORNER_SIZE = 22;
-const CORNER_THICKNESS = 3.5;
 
 export function SoloLevelingWindow({
   variant = 'default',
@@ -46,134 +59,107 @@ export function SoloLevelingWindow({
   onClose,
   style,
   contentStyle,
+  errorDetails,
+  errorCode,
+  footerNote,
 }: SoloLevelingWindowProps) {
-  // Variant accent colors
-  const getAccentColor = () => {
-    if (customAccentColor) return customAccentColor;
-    switch (variant) {
-      case 'danger':
-        return '#FF3B30';
-      case 'warning':
-        return '#FF9F0A';
-      case 'success':
-        return '#30D158';
-      case 'quest':
-        return '#0A84FF';
-      case 'default':
-      case 'info':
-      default:
-        return '#00F2FE';
+  const { isDark } = useTheme();
+
+  // Determine variant styling
+  const isDanger = variant === 'danger';
+  const isWarning = variant === 'warning';
+  const isSuccess = variant === 'success';
+  const isQuest = variant === 'quest';
+
+  const getIconConfig = () => {
+    if (icon) return { component: icon, bg: isDark ? 'rgba(10, 132, 255, 0.15)' : '#E0F2FE' };
+
+    if (isDanger) {
+      return {
+        component: <AlertTriangle size={38} color="#EF4444" strokeWidth={2.3} />,
+        bg: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FFF1F2',
+      };
+    }
+    if (isWarning) {
+      return {
+        component: <AlertCircle size={38} color="#F59E0B" strokeWidth={2.3} />,
+        bg: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7',
+      };
+    }
+    if (isSuccess) {
+      return {
+        component: <CheckCircle2 size={38} color="#059669" strokeWidth={2.3} />,
+        bg: isDark ? 'rgba(16, 185, 129, 0.15)' : '#ECFDF5',
+      };
+    }
+    if (isQuest) {
+      return {
+        component: <Sparkles size={38} color="#0A84FF" strokeWidth={2.3} />,
+        bg: isDark ? 'rgba(10, 132, 255, 0.15)' : '#E0F2FE',
+      };
+    }
+    return {
+      component: <Info size={38} color="#0A84FF" strokeWidth={2.3} />,
+      bg: isDark ? 'rgba(10, 132, 255, 0.15)' : '#E0F2FE',
+    };
+  };
+
+  const iconConfig = getIconConfig();
+  const hasTwoButtons = buttons && buttons.length === 2;
+
+  const handleCopyCode = () => {
+    if (errorDetails || errorCode) {
+      try {
+        Clipboard.setString(errorDetails || errorCode || '');
+      } catch {}
     }
   };
 
-  const accentColor = getAccentColor();
-  const isHorizontalButtons = buttons && buttons.length === 2;
-
   return (
-    <View style={[styles.outerContainer, { shadowColor: accentColor }, style]}>
-      {/* 4 Iconic Solo Leveling Thick Corner Brackets */}
-      <View
-        style={[
-          styles.cornerBracket,
-          styles.topLeft,
-          { borderColor: accentColor },
-        ]}
-      />
-      <View
-        style={[
-          styles.cornerBracket,
-          styles.topRight,
-          { borderColor: accentColor },
-        ]}
-      />
-      <View
-        style={[
-          styles.cornerBracket,
-          styles.bottomLeft,
-          { borderColor: accentColor },
-        ]}
-      />
-      <View
-        style={[
-          styles.cornerBracket,
-          styles.bottomRight,
-          { borderColor: accentColor },
-        ]}
-      />
-
-      {/* Decorative Corner Dots with Chromatic Aberration */}
-      <View style={[styles.cornerDot, styles.dotTopLeft, { backgroundColor: '#8B5CF6' }]} />
-      <View style={[styles.cornerDot, styles.dotTopRight, { backgroundColor: accentColor }]} />
-      <View style={[styles.cornerDot, styles.dotBottomLeft, { backgroundColor: accentColor }]} />
-      <View style={[styles.cornerDot, styles.dotBottomRight, { backgroundColor: '#8B5CF6' }]} />
-
-      {/* High-Tech HUD Header Bar */}
-      <View
-        style={[
-          styles.headerBar,
-          {
-            backgroundColor:
-              variant === 'danger'
-                ? 'rgba(255, 59, 48, 0.12)'
-                : variant === 'warning'
-                ? 'rgba(255, 159, 10, 0.12)'
-                : 'rgba(0, 242, 254, 0.09)',
-            borderBottomColor:
-              variant === 'danger'
-                ? 'rgba(255, 59, 48, 0.25)'
-                : 'rgba(0, 242, 254, 0.25)',
-          },
-        ]}
-      >
-        <View style={styles.headerLeft}>
-          <View style={[styles.exclamationCircle, { borderColor: accentColor }]}>
-            <Text style={[styles.exclamationText, { color: accentColor }]}>!</Text>
-          </View>
-          <Text
-            style={[
-              styles.tagText,
-              {
-                color: accentColor,
-                textShadowColor: accentColor,
-              },
-            ]}
+    <View
+      style={[
+        styles.modalCard,
+        {
+          backgroundColor: isDark ? '#111218' : '#FFFFFF',
+          borderColor: isDark ? '#1C1E2A' : '#F1F5F9',
+        },
+        style,
+      ]}
+    >
+      {/* Top Header Bar */}
+      <View style={styles.topHeaderRow}>
+        <Text
+          style={[
+            styles.brandWordmark,
+            { color: isDark ? '#8E8E93' : '#64748B' },
+          ]}
+        >
+          A R I S E
+        </Text>
+        {onClose && (
+          <TouchableOpacity
+            onPress={onClose}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            activeOpacity={0.7}
+            style={styles.closeBtn}
           >
-            {tag.toUpperCase()}
-          </Text>
-        </View>
-
-        {subtag ? (
-          <Text style={styles.subtagText}>[ {subtag.toUpperCase()} ]</Text>
-        ) : null}
+            <X size={18} color={isDark ? '#8E8E93' : '#64748B'} />
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* Glowing System Divider */}
-      <View
-        style={[
-          styles.dividerLine,
-          {
-            backgroundColor:
-              variant === 'danger'
-                ? 'rgba(255, 59, 48, 0.35)'
-                : 'rgba(0, 242, 254, 0.3)',
-          },
-        ]}
-      />
+      {/* Center Hero Icon */}
+      <View style={[styles.heroIconCircle, { backgroundColor: iconConfig.bg }]}>
+        {iconConfig.component}
+      </View>
 
-      {/* Main Content Body */}
+      {/* Title & Message */}
       <View style={[styles.contentBody, contentStyle]}>
-        {icon ? <View style={styles.iconWrapper}>{icon}</View> : null}
-
         {title ? (
           <Text
             style={[
               styles.titleText,
-              {
-                textShadowColor:
-                  variant === 'danger'
-                    ? 'rgba(255, 59, 48, 0.4)'
-                    : 'rgba(0, 242, 254, 0.4)',
-              },
+              { color: isDark ? '#FFFFFF' : '#0F172A' },
             ]}
           >
             {title}
@@ -181,18 +167,59 @@ export function SoloLevelingWindow({
         ) : null}
 
         {message ? (
-          <Text style={styles.messageText}>{message}</Text>
+          <Text
+            style={[
+              styles.messageText,
+              { color: isDark ? '#8E8E93' : '#64748B' },
+            ]}
+          >
+            {message}
+          </Text>
         ) : null}
+
+        {/* Optional Error Details Box */}
+        {(errorDetails || errorCode) && (
+          <View
+            style={[
+              styles.detailsBox,
+              {
+                backgroundColor: isDark
+                  ? 'rgba(239, 68, 68, 0.08)'
+                  : '#FFF1F2',
+                borderColor: isDark ? 'rgba(239, 68, 68, 0.25)' : '#FEE2E2',
+              },
+            ]}
+          >
+            <View style={styles.detailsHeaderRow}>
+              <Text style={styles.detailsTag}>ERROR DETAILS</Text>
+              <TouchableOpacity
+                onPress={handleCopyCode}
+                activeOpacity={0.7}
+                style={styles.copyRow}
+              >
+                {errorCode ? (
+                  <Text style={styles.codeText}>CODE: {errorCode}</Text>
+                ) : null}
+                <Copy size={13} color="#EF4444" />
+              </TouchableOpacity>
+            </View>
+            {errorDetails ? (
+              <Text style={styles.errorBodyText} numberOfLines={4}>
+                {errorDetails}
+              </Text>
+            ) : null}
+          </View>
+        )}
 
         {children}
       </View>
 
-      {/* Cyber Action Buttons */}
+      {/* Action Buttons */}
       {buttons && buttons.length > 0 && (
         <View
           style={[
             styles.buttonsContainer,
-            isHorizontalButtons ? styles.buttonsRow : styles.buttonsColumn,
+            hasTwoButtons ? styles.buttonsRow : styles.buttonsColumn,
           ]}
         >
           {buttons.map((btn, idx) => {
@@ -205,248 +232,233 @@ export function SoloLevelingWindow({
               <TouchableOpacity
                 key={idx}
                 style={[
-                  styles.cyberBtn,
-                  isHorizontalButtons && styles.cyberBtnHalf,
-                  isPrimary && [
-                    styles.cyberBtnPrimary,
+                  styles.actionBtn,
+                  hasTwoButtons && styles.actionBtnHalf,
+                  isPrimary && styles.actionBtnPrimary,
+                  isCancel && [
+                    styles.actionBtnCancel,
                     {
-                      backgroundColor: accentColor,
-                      borderColor: accentColor,
-                      shadowColor: accentColor,
+                      backgroundColor: isDark ? '#1C1E2A' : '#F1F5F9',
+                      borderColor: isDark ? '#2A2D3D' : '#E2E8F0',
                     },
                   ],
-                  isCancel && styles.cyberBtnCancel,
-                  isDestructive && styles.cyberBtnDestructive,
+                  isDestructive && styles.actionBtnDestructive,
                 ]}
                 onPress={btn.onPress || onClose}
-                activeOpacity={0.75}
+                activeOpacity={0.85}
               >
+                {btn.icon ? (
+                  btn.icon
+                ) : isPrimary && isDanger ? (
+                  <RotateCw size={16} color="#FFFFFF" />
+                ) : null}
                 <Text
                   style={[
-                    styles.cyberBtnText,
-                    isPrimary && styles.cyberBtnTextPrimary,
-                    isCancel && styles.cyberBtnTextCancel,
-                    isDestructive && styles.cyberBtnTextDestructive,
+                    styles.actionBtnText,
+                    isPrimary && styles.actionBtnTextPrimary,
+                    isCancel && [
+                      styles.actionBtnTextCancel,
+                      { color: isDark ? '#FFFFFF' : '#0F172A' },
+                    ],
+                    isDestructive && styles.actionBtnTextDestructive,
                   ]}
                 >
-                  [ {btn.text.toUpperCase()} ]
+                  {btn.text}
                 </Text>
               </TouchableOpacity>
             );
           })}
         </View>
       )}
+
+      {/* Bottom Helper Divider Note */}
+      <View style={styles.footerNoteRow}>
+        <View
+          style={[
+            styles.dividerLine,
+            { backgroundColor: isDark ? '#1C1E2A' : '#E2E8F0' },
+          ]}
+        />
+        <Text
+          style={[
+            styles.footerNoteText,
+            { color: isDark ? '#6B7280' : '#94A3B8' },
+          ]}
+        >
+          {footerNote ||
+            (isDanger
+              ? 'If this keeps happening, try restarting the app.'
+              : 'ARISE System Notification')}
+        </Text>
+        <View
+          style={[
+            styles.dividerLine,
+            { backgroundColor: isDark ? '#1C1E2A' : '#E2E8F0' },
+          ]}
+        />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  outerContainer: {
+  modalCard: {
     width: '100%',
     maxWidth: 360,
-    backgroundColor: '#050811',
-    borderRadius: 8,
+    borderRadius: 28,
     borderWidth: 1,
-    borderColor: 'rgba(0, 242, 254, 0.28)',
-    overflow: 'hidden',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.5,
-    shadowRadius: 22,
-    elevation: 20,
-    position: 'relative',
+    paddingHorizontal: 22,
+    paddingTop: 20,
+    paddingBottom: 18,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 16,
   },
-
-  // 4 Thick Geometric Corner Brackets
-  cornerBracket: {
-    position: 'absolute',
-    width: CORNER_SIZE,
-    height: CORNER_SIZE,
-    zIndex: 10,
-  },
-  topLeft: {
-    top: -1,
-    left: -1,
-    borderTopWidth: CORNER_THICKNESS,
-    borderLeftWidth: CORNER_THICKNESS,
-    borderTopLeftRadius: 4,
-  },
-  topRight: {
-    top: -1,
-    right: -1,
-    borderTopWidth: CORNER_THICKNESS,
-    borderRightWidth: CORNER_THICKNESS,
-    borderTopRightRadius: 4,
-  },
-  bottomLeft: {
-    bottom: -1,
-    left: -1,
-    borderBottomWidth: CORNER_THICKNESS,
-    borderLeftWidth: CORNER_THICKNESS,
-    borderBottomLeftRadius: 4,
-  },
-  bottomRight: {
-    bottom: -1,
-    right: -1,
-    borderBottomWidth: CORNER_THICKNESS,
-    borderRightWidth: CORNER_THICKNESS,
-    borderBottomRightRadius: 4,
-  },
-
-  // Micro Corner Accent Dots
-  cornerDot: {
-    position: 'absolute',
-    width: 2.5,
-    height: 2.5,
-    borderRadius: 1.25,
-    zIndex: 11,
-    opacity: 0.8,
-  },
-  dotTopLeft: { top: 6, left: 6 },
-  dotTopRight: { top: 6, right: 6 },
-  dotBottomLeft: { bottom: 6, left: 6 },
-  dotBottomRight: { bottom: 6, right: 6 },
-
-  // Header Bar
-  headerBar: {
+  topHeaderRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
+    paddingHorizontal: 2,
   },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  brandWordmark: {
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 5,
   },
-  exclamationCircle: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 1.5,
+  closeBtn: {
+    padding: 4,
+  },
+  heroIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
     justifyContent: 'center',
+    alignSelf: 'center',
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  contentBody: {
     alignItems: 'center',
-  },
-  exclamationText: {
-    fontSize: 11,
-    fontWeight: '900',
-    lineHeight: 13,
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-  },
-  beaconDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    shadowRadius: 6,
-    shadowOpacity: 0.9,
-  },
-  tagText: {
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 2,
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-    textShadowRadius: 6,
-    textShadowOffset: { width: 0, height: 0 },
-  },
-  subtagText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: 'rgba(255, 255, 255, 0.45)',
-    letterSpacing: 1.2,
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-  },
-  dividerLine: {
-    height: 1,
     width: '100%',
   },
-
-  // Content
-  contentBody: {
-    paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 16,
-    alignItems: 'center',
-    gap: 10,
-  },
-  iconWrapper: {
-    marginBottom: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   titleText: {
-    fontSize: 17,
+    fontSize: 22,
     fontWeight: '900',
-    color: '#FFFFFF',
+    letterSpacing: -0.4,
     textAlign: 'center',
-    letterSpacing: 0.8,
-    textShadowRadius: 8,
-    textShadowOffset: { width: 0, height: 0 },
+    marginTop: 14,
   },
   messageText: {
     fontSize: 13,
-    color: '#94A3B8',
     textAlign: 'center',
-    lineHeight: 20,
-    letterSpacing: 0.2,
+    marginTop: 6,
+    lineHeight: 19,
+    paddingHorizontal: 6,
   },
-
-  // Buttons
+  detailsBox: {
+    width: '100%',
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 12,
+    marginTop: 14,
+    gap: 6,
+  },
+  detailsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  detailsTag: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+    color: '#EF4444',
+  },
+  copyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  codeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#EF4444',
+    letterSpacing: 0.5,
+  },
+  errorBodyText: {
+    fontSize: 12,
+    color: '#DC2626',
+    lineHeight: 16,
+  },
   buttonsContainer: {
-    paddingHorizontal: 14,
-    paddingBottom: 14,
-    paddingTop: 4,
-    gap: 8,
+    width: '100%',
+    marginTop: 18,
+    gap: 10,
   },
   buttonsRow: {
     flexDirection: 'row',
+    alignItems: 'center',
   },
   buttonsColumn: {
     flexDirection: 'column',
   },
-  cyberBtn: {
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    minHeight: 48,
-    borderRadius: 6,
-    justifyContent: 'center',
+  actionBtn: {
+    height: 50,
+    borderRadius: 16,
+    flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1.5,
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
   },
-  cyberBtnHalf: {
+  actionBtnHalf: {
     flex: 1,
   },
-  cyberBtnPrimary: {
-    backgroundColor: 'rgba(10, 132, 255, 0.25)',
-    borderColor: '#00F2FE',
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  cyberBtnCancel: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-  },
-  cyberBtnDestructive: {
-    backgroundColor: 'rgba(255, 59, 48, 0.25)',
-    borderColor: '#FF453A',
-    shadowColor: '#FF3B30',
-    shadowOpacity: 0.5,
+  actionBtnPrimary: {
+    backgroundColor: '#E53935',
+    shadowColor: '#E53935',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
     shadowRadius: 10,
+    elevation: 4,
   },
-  cyberBtnText: {
-    fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 1.5,
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  actionBtnCancel: {
+    borderWidth: 1,
   },
-  cyberBtnTextPrimary: {
+  actionBtnDestructive: {
+    backgroundColor: '#DC2626',
+  },
+  actionBtnText: {
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  actionBtnTextPrimary: {
     color: '#FFFFFF',
   },
-  cyberBtnTextCancel: {
-    color: '#8E8E93',
+  actionBtnTextCancel: {
+    fontWeight: '700',
   },
-  cyberBtnTextDestructive: {
+  actionBtnTextDestructive: {
     color: '#FFFFFF',
+  },
+  footerNoteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 14,
+    paddingHorizontal: 4,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+  },
+  footerNoteText: {
+    fontSize: 11,
+    paddingHorizontal: 8,
+    textAlign: 'center',
   },
 });
