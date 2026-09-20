@@ -47,6 +47,7 @@ export default function GymTabScreen() {
   const router = useRouter();
   const haptics = useHaptics();
   const sound = useSound();
+  const { colors, isDark } = useTheme();
   const profile = usePlayerStore((s) => s.profile);
   const loadProfile = usePlayerStore((s) => s.loadProfile);
 
@@ -82,7 +83,7 @@ export default function GymTabScreen() {
       xpReward: 100,
       coinsReward: 25,
       badgeColor: '#E53935',
-      badgeBg: '#FEE2E2',
+      badgeBg: isDark ? '#2D1414' : '#FEE2E2',
       difficulty: 'E-Rank',
     },
     {
@@ -94,7 +95,7 @@ export default function GymTabScreen() {
       xpReward: 120,
       coinsReward: 30,
       badgeColor: '#059669',
-      badgeBg: '#D1FAE5',
+      badgeBg: isDark ? '#0F2E22' : '#D1FAE5',
       difficulty: 'D-Rank',
     },
     {
@@ -105,8 +106,8 @@ export default function GymTabScreen() {
       defaultReps: 12,
       xpReward: 150,
       coinsReward: 40,
-      badgeColor: '#7C3AED',
-      badgeBg: '#EDE9FE',
+      badgeColor: '#A855F7',
+      badgeBg: isDark ? '#26123D' : '#EDE9FE',
       difficulty: 'C-Rank',
     },
     {
@@ -118,7 +119,7 @@ export default function GymTabScreen() {
       xpReward: 110,
       coinsReward: 25,
       badgeColor: '#0284C7',
-      badgeBg: '#E0F2FE',
+      badgeBg: isDark ? '#0C2B44' : '#E0F2FE',
       difficulty: 'E-Rank',
     },
     {
@@ -130,7 +131,7 @@ export default function GymTabScreen() {
       xpReward: 90,
       coinsReward: 20,
       badgeColor: '#D97706',
-      badgeBg: '#FEF3C7',
+      badgeBg: isDark ? '#33210C' : '#FEF3C7',
       difficulty: 'E-Rank',
     },
   ];
@@ -156,15 +157,15 @@ export default function GymTabScreen() {
   });
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       {/* 1. Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <View>
-          <Text style={styles.headerTitle}>Gym Training</Text>
-          <Text style={styles.headerSub}>AI-Powered Vision Pose Tracker</Text>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Gym Training</Text>
+          <Text style={[styles.headerSub, { color: colors.textSecondary }]}>AI-Powered Vision Pose Tracker</Text>
         </View>
 
-        <View style={styles.headerStatsPill}>
+        <View style={[styles.headerStatsPill, { backgroundColor: isDark ? '#231214' : '#FFF1F2', borderColor: isDark ? '#4C1D24' : '#FFE4E6' }]}>
           <Flame size={16} color="#E53935" />
           <Text style={styles.headerStatsText}>{profile?.currentStreak || 1} Day Streak</Text>
         </View>
@@ -172,22 +173,22 @@ export default function GymTabScreen() {
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* 2. Hero Metric Summary */}
-        <View style={styles.heroStatsCard}>
+        <View style={[styles.heroStatsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.statCol}>
-            <Text style={styles.statNumber}>{todayReps.toLocaleString()}</Text>
-            <Text style={styles.statLabel}>TOTAL REPS</Text>
+            <Text style={[styles.statNumber, { color: colors.textPrimary }]}>{todayReps.toLocaleString()}</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>TOTAL REPS</Text>
           </View>
-          <View style={styles.statDivider} />
+          <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
           <View style={styles.statCol}>
-            <Text style={styles.statNumber}>{totalWorkoutsCount}</Text>
-            <Text style={styles.statLabel}>SESSIONS</Text>
+            <Text style={[styles.statNumber, { color: colors.textPrimary }]}>{totalWorkoutsCount}</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>SESSIONS</Text>
           </View>
-          <View style={styles.statDivider} />
+          <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
           <View style={styles.statCol}>
             <Text style={[styles.statNumber, { color: '#E53935' }]}>
               +{Math.round((profile?.strength || 10) * 1.5)}
             </Text>
-            <Text style={styles.statLabel}>STR GAINED</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>STR GAINED</Text>
           </View>
         </View>
 
@@ -205,7 +206,7 @@ export default function GymTabScreen() {
                 key={cat.id}
                 style={[
                   styles.filterPill,
-                  { backgroundColor: isSelected ? '#E53935' : '#F3F4F6' },
+                  { backgroundColor: isSelected ? '#E53935' : (isDark ? '#12131A' : '#F3F4F6') },
                 ]}
                 onPress={() => {
                   haptics.light();
@@ -213,7 +214,7 @@ export default function GymTabScreen() {
                 }}
                 activeOpacity={0.8}
               >
-                <Text style={[styles.filterPillText, { color: isSelected ? '#FFFFFF' : '#6B7280' }]}>
+                <Text style={[styles.filterPillText, { color: isSelected ? '#FFFFFF' : colors.textSecondary }]}>
                   {cat.label}
                 </Text>
               </TouchableOpacity>
@@ -226,7 +227,7 @@ export default function GymTabScreen() {
           {filteredExercises.map((item) => (
             <TouchableOpacity
               key={item.id}
-              style={styles.exerciseCard}
+              style={[styles.exerciseCard, { backgroundColor: colors.card, borderColor: colors.border }]}
               onPress={() => handleStartExercise(item)}
               activeOpacity={0.88}
             >
@@ -238,22 +239,22 @@ export default function GymTabScreen() {
                     </Text>
                   </View>
 
-                  <Text style={styles.exerciseTitle}>{item.title}</Text>
-                  <Text style={styles.exerciseMuscles}>{item.targetMuscles}</Text>
+                  <Text style={[styles.exerciseTitle, { color: colors.textPrimary }]}>{item.title}</Text>
+                  <Text style={[styles.exerciseMuscles, { color: colors.textSecondary }]}>{item.targetMuscles}</Text>
 
                   {/* Rewards Row */}
                   <View style={styles.rewardsRow}>
-                    <View style={styles.rewardTag}>
+                    <View style={[styles.rewardTag, { backgroundColor: isDark ? '#1E293B' : '#EFF6FF' }]}>
                       <Zap size={12} color="#F59E0B" />
-                      <Text style={styles.rewardTagText}>+{item.xpReward} XP</Text>
+                      <Text style={[styles.rewardTagText, { color: isDark ? '#60A5FA' : '#1D4ED8' }]}>+{item.xpReward} XP</Text>
                     </View>
-                    <View style={[styles.rewardTag, { backgroundColor: '#FEF3C7' }]}>
-                      <Text style={[styles.rewardTagText, { color: '#D97706' }]}>
+                    <View style={[styles.rewardTag, { backgroundColor: isDark ? '#2E2211' : '#FEF3C7' }]}>
+                      <Text style={[styles.rewardTagText, { color: isDark ? '#FBBF24' : '#D97706' }]}>
                         🪙 +{item.coinsReward}
                       </Text>
                     </View>
-                    <View style={[styles.rewardTag, { backgroundColor: '#F3F4F6' }]}>
-                      <Text style={[styles.rewardTagText, { color: '#4B5563' }]}>
+                    <View style={[styles.rewardTag, { backgroundColor: isDark ? '#1A1C28' : '#F3F4F6' }]}>
+                      <Text style={[styles.rewardTagText, { color: colors.textSecondary }]}>
                         🎯 {item.defaultReps} {item.type === 'PLANK' ? 'sec' : 'reps'}
                       </Text>
                     </View>

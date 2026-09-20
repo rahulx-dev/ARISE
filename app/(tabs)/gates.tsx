@@ -197,14 +197,14 @@ export default function DungeonScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       {/* 1. TOP HEADER */}
       <View style={styles.topHeader}>
-        <Text style={styles.headerTitleText}>Dungeon</Text>
+        <Text style={[styles.headerTitleText, { color: colors.textPrimary }]}>Dungeon</Text>
         <View style={styles.headerRightCurrencies}>
-          <View style={styles.currencyPillMini}>
+          <View style={[styles.currencyPillMini, { backgroundColor: isDark ? '#12131A' : '#F3F4F6', borderColor: colors.border }]}>
             <ManaCrystalIcon size={16} color="#00D2EE" secondaryColor="#0284C7" />
-            <Text style={styles.currencyPillMiniText}>{manaCrystals.toLocaleString()}</Text>
+            <Text style={[styles.currencyPillMiniText, { color: colors.textPrimary }]}>{manaCrystals.toLocaleString()}</Text>
           </View>
         </View>
       </View>
@@ -214,7 +214,7 @@ export default function DungeonScreen() {
         <TouchableOpacity
           style={[
             styles.subTabPill,
-            { backgroundColor: activeTab === 'gates' ? '#E53935' : '#F3F4F6' },
+            { backgroundColor: activeTab === 'gates' ? '#E53935' : (isDark ? '#12131A' : '#F3F4F6') },
           ]}
           onPress={() => {
             haptics.light();
@@ -222,7 +222,7 @@ export default function DungeonScreen() {
           }}
           activeOpacity={0.8}
         >
-          <Text style={[styles.subTabPillText, { color: activeTab === 'gates' ? '#FFFFFF' : '#6B7280' }]}>
+          <Text style={[styles.subTabPillText, { color: activeTab === 'gates' ? '#FFFFFF' : colors.textSecondary }]}>
             Gates
           </Text>
         </TouchableOpacity>
@@ -230,7 +230,7 @@ export default function DungeonScreen() {
         <TouchableOpacity
           style={[
             styles.subTabPill,
-            { backgroundColor: activeTab === 'surveys' ? '#E53935' : '#F3F4F6' },
+            { backgroundColor: activeTab === 'surveys' ? '#E53935' : (isDark ? '#12131A' : '#F3F4F6') },
           ]}
           onPress={() => {
             haptics.light();
@@ -238,7 +238,7 @@ export default function DungeonScreen() {
           }}
           activeOpacity={0.8}
         >
-          <Text style={[styles.subTabPillText, { color: activeTab === 'surveys' ? '#FFFFFF' : '#6B7280' }]}>
+          <Text style={[styles.subTabPillText, { color: activeTab === 'surveys' ? '#FFFFFF' : colors.textSecondary }]}>
             Surveys
           </Text>
         </TouchableOpacity>
@@ -246,7 +246,7 @@ export default function DungeonScreen() {
         <TouchableOpacity
           style={[
             styles.subTabPill,
-            { backgroundColor: activeTab === 'leaderboard' ? '#E53935' : '#F3F4F6' },
+            { backgroundColor: activeTab === 'leaderboard' ? '#E53935' : (isDark ? '#12131A' : '#F3F4F6') },
           ]}
           onPress={() => {
             haptics.light();
@@ -254,20 +254,20 @@ export default function DungeonScreen() {
           }}
           activeOpacity={0.8}
         >
-          <Text style={[styles.subTabPillText, { color: activeTab === 'leaderboard' ? '#FFFFFF' : '#6B7280' }]}>
+          <Text style={[styles.subTabPillText, { color: activeTab === 'leaderboard' ? '#FFFFFF' : colors.textSecondary }]}>
             Leaderboard
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.subTabPill, { backgroundColor: '#F3F4F6' }]}
+          style={[styles.subTabPill, { backgroundColor: isDark ? '#12131A' : '#F3F4F6' }]}
           onPress={() => {
             haptics.light();
             router.push('/shop' as any);
           }}
           activeOpacity={0.8}
         >
-          <Text style={[styles.subTabPillText, { color: '#6B7280' }]}>Rewards</Text>
+          <Text style={[styles.subTabPillText, { color: colors.textSecondary }]}>Rewards</Text>
         </TouchableOpacity>
       </View>
 
@@ -301,20 +301,26 @@ export default function DungeonScreen() {
           </View>
 
           {/* Survey Mine Station Banner (Earn Crystals) */}
-          <View style={styles.surveyStationHeroCard}>
+          <View style={[
+            styles.surveyStationHeroCard,
+            {
+              backgroundColor: isDark ? '#081D2E' : '#F0F9FF',
+              borderColor: isDark ? '#0C385C' : '#BAE6FD',
+            }
+          ]}>
             <View style={styles.surveyStationTopRow}>
-              <View style={styles.surveyLiveBadge}>
+              <View style={[styles.surveyLiveBadge, { backgroundColor: isDark ? '#0C2B44' : '#FFFFFF', borderColor: isDark ? '#0C4A6E' : '#BAE6FD' }]}>
                 <Sparkles size={14} color="#0284C7" />
-                <Text style={styles.surveyLiveBadgeText}>MANA CRYSTAL SURVEY MINES</Text>
+                <Text style={[styles.surveyLiveBadgeText, { color: isDark ? '#38BDF8' : '#0284C7' }]}>MANA CRYSTAL SURVEY MINES</Text>
               </View>
-              <View style={styles.surveyYieldBadge}>
+              <View style={[styles.surveyYieldBadge, { backgroundColor: isDark ? '#0C2B44' : '#FFFFFF' }]}>
                 <ManaCrystalIcon size={13} color="#00D2EE" secondaryColor="#0284C7" />
-                <Text style={styles.surveyYieldBadgeText}>+100 to +2,000 💎</Text>
+                <Text style={[styles.surveyYieldBadgeText, { color: isDark ? '#38BDF8' : '#0284C7' }]}>+100 to +2,000 💎</Text>
               </View>
             </View>
 
-            <Text style={styles.surveyStationTitle}>Mine Crystals with In-App Surveys</Text>
-            <Text style={styles.surveyStationDesc}>
+            <Text style={[styles.surveyStationTitle, { color: isDark ? '#E0F2FE' : '#0C4A6E' }]}>Mine Crystals with In-App Surveys</Text>
+            <Text style={[styles.surveyStationDesc, { color: isDark ? '#7DD3FC' : '#0369A1' }]}>
               Answer questions from CPX Research & BitLabs to earn instant crystals and redeem real vouchers.
             </Text>
 
@@ -329,24 +335,36 @@ export default function DungeonScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.surveyBitlabsBtn}
+                style={[
+                  styles.surveyBitlabsBtn,
+                  {
+                    backgroundColor: isDark ? '#0C2B44' : '#FFFFFF',
+                    borderColor: isDark ? '#0C4A6E' : '#BAE6FD',
+                  }
+                ]}
                 onPress={handleOpenBitLabsSurveys}
                 activeOpacity={0.85}
               >
-                <Text style={styles.surveyBitlabsBtnText}>BitLabs Mine</Text>
-                <ExternalLink size={14} color="#0284C7" />
+                <Text style={[styles.surveyBitlabsBtnText, { color: isDark ? '#38BDF8' : '#0284C7' }]}>BitLabs Mine</Text>
+                <ExternalLink size={14} color={isDark ? '#38BDF8' : '#0284C7'} />
               </TouchableOpacity>
             </View>
           </View>
 
           {/* Hunter Radar Pulse Scan Card */}
-          <View style={styles.radarCard}>
+          <View style={[
+            styles.radarCard,
+            {
+              backgroundColor: isDark ? '#1C1214' : '#FFF1F2',
+              borderColor: isDark ? '#3A1E24' : '#FFE4E6',
+            }
+          ]}>
             <View style={{ flex: 1, gap: 2 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Radio size={16} color="#E53935" />
-                <Text style={styles.radarTitle}>Hunter Association Radar</Text>
+                <Text style={[styles.radarTitle, { color: colors.textPrimary }]}>Hunter Association Radar</Text>
               </View>
-              <Text style={styles.radarSub}>Scan for spawned dungeon gates & survey bounties</Text>
+              <Text style={[styles.radarSub, { color: colors.textSecondary }]}>Scan for spawned dungeon gates & survey bounties</Text>
             </View>
 
             <TouchableOpacity
@@ -363,42 +381,42 @@ export default function DungeonScreen() {
           {/* Locked Gates List (Gate 2, 3, 4) */}
           <View style={styles.lockedGatesList}>
             {/* Gate 2 */}
-            <View style={styles.lockedGateRow}>
+            <View style={[styles.lockedGateRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.lockedGateLeft}>
-                <View style={[styles.lockedGateIconCircle, { backgroundColor: '#EEF2FF' }]}>
-                  <Swords size={20} color="#4F46E5" />
+                <View style={[styles.lockedGateIconCircle, { backgroundColor: isDark ? '#1E1B4B' : '#EEF2FF' }]}>
+                  <Swords size={20} color="#6366F1" />
                 </View>
                 <View>
-                  <Text style={styles.lockedGateTitle}>Gate 2</Text>
-                  <Text style={styles.lockedGateSub}>The Shadow Gate</Text>
+                  <Text style={[styles.lockedGateTitle, { color: colors.textPrimary }]}>Gate 2</Text>
+                  <Text style={[styles.lockedGateSub, { color: colors.textSecondary }]}>The Shadow Gate</Text>
                 </View>
               </View>
               <Lock size={18} color="#9CA3AF" />
             </View>
 
             {/* Gate 3 */}
-            <View style={styles.lockedGateRow}>
+            <View style={[styles.lockedGateRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.lockedGateLeft}>
-                <View style={[styles.lockedGateIconCircle, { backgroundColor: '#ECFDF5' }]}>
-                  <Zap size={20} color="#059669" />
+                <View style={[styles.lockedGateIconCircle, { backgroundColor: isDark ? '#064E3B' : '#ECFDF5' }]}>
+                  <Zap size={20} color="#10B981" />
                 </View>
                 <View>
-                  <Text style={styles.lockedGateTitle}>Gate 3</Text>
-                  <Text style={styles.lockedGateSub}>The Mind Gate</Text>
+                  <Text style={[styles.lockedGateTitle, { color: colors.textPrimary }]}>Gate 3</Text>
+                  <Text style={[styles.lockedGateSub, { color: colors.textSecondary }]}>The Mind Gate</Text>
                 </View>
               </View>
               <Lock size={18} color="#9CA3AF" />
             </View>
 
             {/* Gate 4 */}
-            <View style={styles.lockedGateRow}>
+            <View style={[styles.lockedGateRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.lockedGateLeft}>
-                <View style={[styles.lockedGateIconCircle, { backgroundColor: '#F5F3FF' }]}>
-                  <Crown size={20} color="#7C3AED" />
+                <View style={[styles.lockedGateIconCircle, { backgroundColor: isDark ? '#3B0764' : '#F5F3FF' }]}>
+                  <Crown size={20} color="#A855F7" />
                 </View>
                 <View>
-                  <Text style={styles.lockedGateTitle}>Gate 4</Text>
-                  <Text style={styles.lockedGateSub}>The Eternal Gate</Text>
+                  <Text style={[styles.lockedGateTitle, { color: colors.textPrimary }]}>Gate 4</Text>
+                  <Text style={[styles.lockedGateSub, { color: colors.textSecondary }]}>The Eternal Gate</Text>
                 </View>
               </View>
               <Lock size={18} color="#9CA3AF" />
@@ -413,42 +431,48 @@ export default function DungeonScreen() {
       {activeTab === 'surveys' && (
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {/* Survey Hero */}
-          <View style={styles.surveyStationHeroCard}>
+          <View style={[
+            styles.surveyStationHeroCard,
+            {
+              backgroundColor: isDark ? '#081D2E' : '#F0F9FF',
+              borderColor: isDark ? '#0C385C' : '#BAE6FD',
+            }
+          ]}>
             <View style={styles.surveyStationTopRow}>
-              <View style={styles.surveyLiveBadge}>
+              <View style={[styles.surveyLiveBadge, { backgroundColor: isDark ? '#0C2B44' : '#FFFFFF', borderColor: isDark ? '#0C4A6E' : '#BAE6FD' }]}>
                 <Sparkles size={14} color="#0284C7" />
-                <Text style={styles.surveyLiveBadgeText}>MANA RECON HUB</Text>
+                <Text style={[styles.surveyLiveBadgeText, { color: isDark ? '#38BDF8' : '#0284C7' }]}>MANA RECON HUB</Text>
               </View>
-              <View style={styles.surveyYieldBadge}>
+              <View style={[styles.surveyYieldBadge, { backgroundColor: isDark ? '#0C2B44' : '#FFFFFF' }]}>
                 <ManaCrystalIcon size={13} color="#00D2EE" secondaryColor="#0284C7" />
-                <Text style={styles.surveyYieldBadgeText}>{manaCrystals} Crystals Owned</Text>
+                <Text style={[styles.surveyYieldBadgeText, { color: isDark ? '#38BDF8' : '#0284C7' }]}>{manaCrystals} Crystals Owned</Text>
               </View>
             </View>
 
-            <Text style={styles.surveyStationTitle}>Earn Real Rewards</Text>
-            <Text style={styles.surveyStationDesc}>
+            <Text style={[styles.surveyStationTitle, { color: isDark ? '#E0F2FE' : '#0C4A6E' }]}>Earn Real Rewards</Text>
+            <Text style={[styles.surveyStationDesc, { color: isDark ? '#7DD3FC' : '#0369A1' }]}>
               Complete daily sponsor questionnaires to mine Mana Crystals. Exchange crystals for ₹100 Amazon, Google Play, and Paytm vouchers in the shop!
             </Text>
           </View>
 
           {/* CPX Research Offerwall Card */}
           <TouchableOpacity
-            style={styles.surveyProviderCard}
+            style={[styles.surveyProviderCard, { backgroundColor: colors.card, borderColor: colors.border }]}
             onPress={handleOpenCPXSurveys}
             activeOpacity={0.85}
           >
             <View style={styles.surveyProviderLeft}>
-              <View style={[styles.surveyProviderIconCircle, { backgroundColor: '#E0F2FE' }]}>
+              <View style={[styles.surveyProviderIconCircle, { backgroundColor: isDark ? '#0C2B44' : '#E0F2FE' }]}>
                 <Sparkles size={24} color="#0284C7" />
               </View>
               <View style={{ flex: 1, gap: 3 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={styles.surveyProviderTitle}>CPX Research Survey Wall</Text>
-                  <View style={styles.hotPill}>
+                  <Text style={[styles.surveyProviderTitle, { color: colors.textPrimary }]}>CPX Research Survey Wall</Text>
+                  <View style={[styles.hotPill, { backgroundColor: isDark ? '#3A1E24' : '#FEE2E2', borderColor: isDark ? '#5C222B' : '#FECACA' }]}>
                     <Text style={styles.hotPillText}>HOT</Text>
                   </View>
                 </View>
-                <Text style={styles.surveyProviderSub}>Highest acceptance rate • Instant crystal payout</Text>
+                <Text style={[styles.surveyProviderSub, { color: colors.textSecondary }]}>Highest acceptance rate • Instant crystal payout</Text>
                 <View style={styles.surveyBountyRow}>
                   <ManaCrystalIcon size={13} color="#00D2EE" secondaryColor="#0284C7" />
                   <Text style={styles.surveyBountyText}>+150 to +1,200 💎 per survey</Text>
@@ -464,22 +488,22 @@ export default function DungeonScreen() {
 
           {/* BitLabs Survey Card */}
           <TouchableOpacity
-            style={styles.surveyProviderCard}
+            style={[styles.surveyProviderCard, { backgroundColor: colors.card, borderColor: colors.border }]}
             onPress={handleOpenBitLabsSurveys}
             activeOpacity={0.85}
           >
             <View style={styles.surveyProviderLeft}>
-              <View style={[styles.surveyProviderIconCircle, { backgroundColor: '#FEE2E2' }]}>
+              <View style={[styles.surveyProviderIconCircle, { backgroundColor: isDark ? '#2C1B1B' : '#FEE2E2' }]}>
                 <Flame size={24} color="#E53935" />
               </View>
               <View style={{ flex: 1, gap: 3 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={styles.surveyProviderTitle}>BitLabs Global Surveys</Text>
-                  <View style={[styles.hotPill, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}>
-                    <Text style={[styles.hotPillText, { color: '#D97706' }]}>POPULAR</Text>
+                  <Text style={[styles.surveyProviderTitle, { color: colors.textPrimary }]}>BitLabs Global Surveys</Text>
+                  <View style={[styles.hotPill, { backgroundColor: isDark ? '#3B2912' : '#FEF3C7', borderColor: isDark ? '#5A3D1A' : '#FDE68A' }]}>
+                    <Text style={[styles.hotPillText, { color: '#F59E0B' }]}>POPULAR</Text>
                   </View>
                 </View>
-                <Text style={styles.surveyProviderSub}>Verified market questionnaires & research</Text>
+                <Text style={[styles.surveyProviderSub, { color: colors.textSecondary }]}>Verified market questionnaires & research</Text>
                 <View style={styles.surveyBountyRow}>
                   <ManaCrystalIcon size={13} color="#00D2EE" secondaryColor="#0284C7" />
                   <Text style={styles.surveyBountyText}>+200 to +2,000 💎 per survey</Text>
@@ -487,7 +511,7 @@ export default function DungeonScreen() {
               </View>
             </View>
 
-            <View style={[styles.surveyOpenBtn, { backgroundColor: '#111827' }]}>
+            <View style={[styles.surveyOpenBtn, { backgroundColor: isDark ? '#E53935' : '#111827' }]}>
               <Text style={styles.surveyOpenBtnText}>START</Text>
               <ChevronRight size={16} color="#FFFFFF" />
             </View>
@@ -510,7 +534,7 @@ export default function DungeonScreen() {
                     key={f}
                     style={[
                       styles.lbFilterPill,
-                      { backgroundColor: isSelected ? '#E53935' : '#F3F4F6' },
+                      { backgroundColor: isSelected ? '#E53935' : (isDark ? '#12131A' : '#F3F4F6') },
                     ]}
                     onPress={() => {
                       haptics.light();
@@ -518,7 +542,7 @@ export default function DungeonScreen() {
                     }}
                     activeOpacity={0.8}
                   >
-                    <Text style={[styles.lbFilterPillText, { color: isSelected ? '#FFFFFF' : '#6B7280' }]}>
+                    <Text style={[styles.lbFilterPillText, { color: isSelected ? '#FFFFFF' : colors.textSecondary }]}>
                       {f === 'daily' ? 'Daily' : f === 'weekly' ? 'Weekly' : 'All-Time'}
                     </Text>
                   </TouchableOpacity>
@@ -527,7 +551,7 @@ export default function DungeonScreen() {
             </View>
 
             {/* Top 3 Podium (Arjun #1 Center, Karan #2 Left, Riya #3 Right) */}
-            <View style={styles.podiumSection}>
+            <View style={[styles.podiumSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
               {/* #2 Left: Karan */}
               <View style={styles.podiumCol}>
                 <View style={[styles.podiumAvatarWrap, { borderColor: '#CBD5E1' }]}>
@@ -536,8 +560,8 @@ export default function DungeonScreen() {
                     <Text style={styles.podiumRankBadgeText}>2</Text>
                   </View>
                 </View>
-                <Text style={styles.podiumNameText}>Karan</Text>
-                <Text style={styles.podiumXPText}>10,230</Text>
+                <Text style={[styles.podiumNameText, { color: colors.textPrimary }]}>Karan</Text>
+                <Text style={[styles.podiumXPText, { color: colors.textSecondary }]}>10,230</Text>
               </View>
 
               {/* #1 Center: Arjun 👑 */}
@@ -549,7 +573,7 @@ export default function DungeonScreen() {
                     <Text style={styles.podiumRankBadgeText}>1</Text>
                   </View>
                 </View>
-                <Text style={[styles.podiumNameText, { fontWeight: '900' }]}>Arjun</Text>
+                <Text style={[styles.podiumNameText, { color: colors.textPrimary, fontWeight: '900' }]}>Arjun</Text>
                 <Text style={[styles.podiumXPText, { color: '#E53935', fontWeight: '900' }]}>12,450</Text>
               </View>
 
@@ -561,8 +585,8 @@ export default function DungeonScreen() {
                     <Text style={styles.podiumRankBadgeText}>3</Text>
                   </View>
                 </View>
-                <Text style={styles.podiumNameText}>Riya</Text>
-                <Text style={styles.podiumXPText}>9,880</Text>
+                <Text style={[styles.podiumNameText, { color: colors.textPrimary }]}>Riya</Text>
+                <Text style={[styles.podiumXPText, { color: colors.textSecondary }]}>9,880</Text>
               </View>
             </View>
 
@@ -575,11 +599,11 @@ export default function DungeonScreen() {
                 { rank: 7, name: 'Dhruv', xp: '6,980', pfp: 'pfp_06' },
                 { rank: 8, name: 'Neha', xp: '6,540', pfp: 'pfp_07' },
               ].map((item) => (
-                <View key={item.rank} style={styles.rankListRow}>
-                  <Text style={styles.rankListNumber}>{item.rank}</Text>
+                <View key={item.rank} style={[styles.rankListRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <Text style={[styles.rankListNumber, { color: colors.textSecondary }]}>{item.rank}</Text>
                   <PlayerAvatar iconId={item.pfp} size={36} />
-                  <Text style={styles.rankListName}>{item.name}</Text>
-                  <Text style={styles.rankListXP}>{item.xp}</Text>
+                  <Text style={[styles.rankListName, { color: colors.textPrimary }]}>{item.name}</Text>
+                  <Text style={[styles.rankListXP, { color: colors.textPrimary }]}>{item.xp}</Text>
                 </View>
               ))}
             </View>
@@ -588,14 +612,14 @@ export default function DungeonScreen() {
           </ScrollView>
 
           {/* Sticky Bottom "Your Rank" Card */}
-          <View style={styles.stickyYourRankCard}>
+          <View style={[styles.stickyYourRankCard, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
             <PlayerAvatar iconId={avatarIcon} size={42} />
             <View style={{ flex: 1, gap: 2 }}>
-              <Text style={styles.yourRankTitle}>Your Rank</Text>
-              <Text style={styles.yourRankNum}>#12</Text>
+              <Text style={[styles.yourRankTitle, { color: colors.textSecondary }]}>Your Rank</Text>
+              <Text style={[styles.yourRankNum, { color: colors.textPrimary }]}>#12</Text>
             </View>
             <View style={{ alignItems: 'flex-end', gap: 2 }}>
-              <Text style={styles.yourRankXP}>3,210 XP</Text>
+              <Text style={[styles.yourRankXP, { color: colors.textPrimary }]}>3,210 XP</Text>
               <Text style={styles.yourRankDelta}>+2 ranks this week</Text>
             </View>
           </View>

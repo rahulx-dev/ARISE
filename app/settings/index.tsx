@@ -33,6 +33,7 @@ import {
 import { useSettingsStore } from '../../src/stores/useSettingsStore';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { useHaptics } from '../../src/hooks/useHaptics';
+import { useTheme } from '../../src/hooks/useTheme';
 import { LanguageSelectorModal } from '../../src/components/ui/LanguageSelectorModal';
 import { HowToUseModal } from '../../src/components/ui/HowToUseModal';
 import { InAppSurveyModal } from '../../src/components/surveys/InAppSurveyModal';
@@ -46,6 +47,7 @@ import { ThemeMode } from '../../src/theme/themeEngine';
 export default function SettingsScreen() {
   const router = useRouter();
   const haptics = useHaptics();
+  const { colors, isDark } = useTheme();
 
   const {
     sfxEnabled,
@@ -117,28 +119,28 @@ export default function SettingsScreen() {
   const themeDisplayLabel = theme === 'light' ? 'Light' : theme === 'dark' ? 'Dark (OLED)' : 'System';
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <TouchableOpacity
-          style={styles.backBtn}
+          style={[styles.backBtn, { backgroundColor: isDark ? '#12131A' : '#F3F4F6' }]}
           onPress={() => {
             haptics.light();
             router.back();
           }}
           activeOpacity={0.8}
         >
-          <ArrowLeft size={20} color="#111827" />
+          <ArrowLeft size={20} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Settings</Text>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Settings</Text>
         <View style={{ width: 38 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Section 1: APPEARANCE */}
         <View style={styles.sectionWrap}>
-          <Text style={styles.sectionHeading}>APPEARANCE</Text>
-          <View style={styles.cardGroup}>
+          <Text style={[styles.sectionHeading, { color: colors.textSecondary }]}>APPEARANCE</Text>
+          <View style={[styles.cardGroup, { backgroundColor: colors.card, borderColor: colors.border }]}>
             {/* Theme */}
             <TouchableOpacity
               style={styles.menuRow}
@@ -148,20 +150,20 @@ export default function SettingsScreen() {
                 setShowThemeModal(true);
               }}
             >
-              <View style={[styles.iconCircle, { backgroundColor: '#FEE2E2' }]}>
+              <View style={[styles.iconCircle, { backgroundColor: isDark ? '#2D1414' : '#FEE2E2' }]}>
                 <Sun size={18} color="#E53935" />
               </View>
               <View style={styles.menuTextCol}>
-                <Text style={styles.menuTitle}>Theme Mode</Text>
-                <Text style={styles.menuDesc}>Light, Dark (OLED) or System</Text>
+                <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>Theme Mode</Text>
+                <Text style={[styles.menuDesc, { color: colors.textSecondary }]}>Light, Dark (OLED) or System</Text>
               </View>
               <View style={styles.pillBadge}>
-                <Text style={styles.pillBadgeText}>{themeDisplayLabel}</Text>
+                <Text style={[styles.pillBadgeText, { color: colors.textSecondary }]}>{themeDisplayLabel}</Text>
                 <ChevronRight size={16} color="#9CA3AF" />
               </View>
             </TouchableOpacity>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
             {/* Language */}
             <TouchableOpacity
@@ -172,15 +174,15 @@ export default function SettingsScreen() {
                 setShowLangModal(true);
               }}
             >
-              <View style={[styles.iconCircle, { backgroundColor: '#E0F2FE' }]}>
+              <View style={[styles.iconCircle, { backgroundColor: isDark ? '#0C2B44' : '#E0F2FE' }]}>
                 <Globe size={18} color="#0284C7" />
               </View>
               <View style={styles.menuTextCol}>
-                <Text style={styles.menuTitle}>Language</Text>
-                <Text style={styles.menuDesc}>App display language</Text>
+                <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>Language</Text>
+                <Text style={[styles.menuDesc, { color: colors.textSecondary }]}>App display language</Text>
               </View>
               <View style={styles.pillBadge}>
-                <Text style={styles.pillBadgeText}>
+                <Text style={[styles.pillBadgeText, { color: colors.textSecondary }]}>
                   {activeLangObj?.flag} {activeLangObj?.label}
                 </Text>
                 <ChevronRight size={16} color="#9CA3AF" />
@@ -191,16 +193,16 @@ export default function SettingsScreen() {
 
         {/* Section 2: AUDIO & EXPERIENCE */}
         <View style={styles.sectionWrap}>
-          <Text style={styles.sectionHeading}>EXPERIENCE & AUDIO</Text>
-          <View style={styles.cardGroup}>
+          <Text style={[styles.sectionHeading, { color: colors.textSecondary }]}>EXPERIENCE & AUDIO</Text>
+          <View style={[styles.cardGroup, { backgroundColor: colors.card, borderColor: colors.border }]}>
             {/* Notifications */}
             <View style={styles.menuRow}>
-              <View style={[styles.iconCircle, { backgroundColor: '#FEF3C7' }]}>
+              <View style={[styles.iconCircle, { backgroundColor: isDark ? '#33210C' : '#FEF3C7' }]}>
                 <Bell size={18} color="#D97706" />
               </View>
               <View style={styles.menuTextCol}>
-                <Text style={styles.menuTitle}>Notifications</Text>
-                <Text style={styles.menuDesc}>Daily workout reminders & streak alerts</Text>
+                <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>Notifications</Text>
+                <Text style={[styles.menuDesc, { color: colors.textSecondary }]}>Daily workout reminders & streak alerts</Text>
               </View>
               <Switch
                 value={notificationsEnabled}
@@ -208,21 +210,21 @@ export default function SettingsScreen() {
                   haptics.light();
                   toggleNotifications();
                 }}
-                trackColor={{ false: '#E5E7EB', true: '#E53935' }}
+                trackColor={{ false: isDark ? '#2A2D3D' : '#E5E7EB', true: '#E53935' }}
                 thumbColor="#FFFFFF"
               />
             </View>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
             {/* SFX */}
             <View style={styles.menuRow}>
-              <View style={[styles.iconCircle, { backgroundColor: '#EDE9FE' }]}>
-                <Volume2 size={18} color="#7C3AED" />
+              <View style={[styles.iconCircle, { backgroundColor: isDark ? '#26123D' : '#EDE9FE' }]}>
+                <Volume2 size={18} color="#A855F7" />
               </View>
               <View style={styles.menuTextCol}>
-                <Text style={styles.menuTitle}>Sound Effects (SFX)</Text>
-                <Text style={styles.menuDesc}>Rep counts, gate completions & UI sounds</Text>
+                <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>Sound Effects (SFX)</Text>
+                <Text style={[styles.menuDesc, { color: colors.textSecondary }]}>Rep counts, gate completions & UI sounds</Text>
               </View>
               <Switch
                 value={sfxEnabled}
@@ -230,21 +232,21 @@ export default function SettingsScreen() {
                   haptics.light();
                   toggleSfx();
                 }}
-                trackColor={{ false: '#E5E7EB', true: '#E53935' }}
+                trackColor={{ false: isDark ? '#2A2D3D' : '#E5E7EB', true: '#E53935' }}
                 thumbColor="#FFFFFF"
               />
             </View>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
             {/* Haptics */}
             <View style={styles.menuRow}>
-              <View style={[styles.iconCircle, { backgroundColor: '#ECFDF5' }]}>
+              <View style={[styles.iconCircle, { backgroundColor: isDark ? '#0F2E22' : '#ECFDF5' }]}>
                 <Vibrate size={18} color="#059669" />
               </View>
               <View style={styles.menuTextCol}>
-                <Text style={styles.menuTitle}>Vibration Haptics</Text>
-                <Text style={styles.menuDesc}>Tactile pulse feedback on button taps & reps</Text>
+                <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>Vibration Haptics</Text>
+                <Text style={[styles.menuDesc, { color: colors.textSecondary }]}>Tactile pulse feedback on button taps & reps</Text>
               </View>
               <Switch
                 value={hapticsEnabled}
@@ -252,7 +254,7 @@ export default function SettingsScreen() {
                   haptics.light();
                   toggleHaptics();
                 }}
-                trackColor={{ false: '#E5E7EB', true: '#E53935' }}
+                trackColor={{ false: isDark ? '#2A2D3D' : '#E5E7EB', true: '#E53935' }}
                 thumbColor="#FFFFFF"
               />
             </View>
@@ -261,8 +263,8 @@ export default function SettingsScreen() {
 
         {/* Section 3: APP BLOCKING & DETOX */}
         <View style={styles.sectionWrap}>
-          <Text style={styles.sectionHeading}>DIGITAL DETOX & SECURITY</Text>
-          <View style={styles.cardGroup}>
+          <Text style={[styles.sectionHeading, { color: colors.textSecondary }]}>DIGITAL DETOX & SECURITY</Text>
+          <View style={[styles.cardGroup, { backgroundColor: colors.card, borderColor: colors.border }]}>
             {/* Blocked Apps */}
             <TouchableOpacity
               style={styles.menuRow}
@@ -272,17 +274,17 @@ export default function SettingsScreen() {
                 router.push('/settings/apps' as any);
               }}
             >
-              <View style={[styles.iconCircle, { backgroundColor: '#FEE2E2' }]}>
+              <View style={[styles.iconCircle, { backgroundColor: isDark ? '#2D1414' : '#FEE2E2' }]}>
                 <Lock size={18} color="#DC2626" />
               </View>
               <View style={styles.menuTextCol}>
-                <Text style={styles.menuTitle}>App Blocking & Screen Time</Text>
-                <Text style={styles.menuDesc}>Select restricted apps & time limits</Text>
+                <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>App Blocking & Screen Time</Text>
+                <Text style={[styles.menuDesc, { color: colors.textSecondary }]}>Select restricted apps & time limits</Text>
               </View>
               <ChevronRight size={16} color="#9CA3AF" />
             </TouchableOpacity>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
             {/* Permissions */}
             <TouchableOpacity
@@ -293,12 +295,12 @@ export default function SettingsScreen() {
                 router.push('/permissions' as any);
               }}
             >
-              <View style={[styles.iconCircle, { backgroundColor: '#E0F2FE' }]}>
+              <View style={[styles.iconCircle, { backgroundColor: isDark ? '#0C2B44' : '#E0F2FE' }]}>
                 <Shield size={18} color="#0284C7" />
               </View>
               <View style={styles.menuTextCol}>
-                <Text style={styles.menuTitle}>Permissions Hub</Text>
-                <Text style={styles.menuDesc}>Usage access, overlay & camera status</Text>
+                <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>Permissions Hub</Text>
+                <Text style={[styles.menuDesc, { color: colors.textSecondary }]}>Usage access, overlay & camera status</Text>
               </View>
               <ChevronRight size={16} color="#9CA3AF" />
             </TouchableOpacity>
@@ -307,25 +309,25 @@ export default function SettingsScreen() {
 
         {/* Section 4: DATA & PRIVACY */}
         <View style={styles.sectionWrap}>
-          <Text style={styles.sectionHeading}>DATA & PRIVACY</Text>
-          <View style={styles.cardGroup}>
+          <Text style={[styles.sectionHeading, { color: colors.textSecondary }]}>DATA & PRIVACY</Text>
+          <View style={[styles.cardGroup, { backgroundColor: colors.card, borderColor: colors.border }]}>
             {/* Export Backup */}
             <TouchableOpacity
               style={styles.menuRow}
               activeOpacity={0.75}
               onPress={handleExportBackup}
             >
-              <View style={[styles.iconCircle, { backgroundColor: '#D1FAE5' }]}>
+              <View style={[styles.iconCircle, { backgroundColor: isDark ? '#0F2E22' : '#D1FAE5' }]}>
                 <Download size={18} color="#059669" />
               </View>
               <View style={styles.menuTextCol}>
-                <Text style={styles.menuTitle}>Export Offline Backup</Text>
-                <Text style={styles.menuDesc}>Export workouts, XP and streaks to JSON</Text>
+                <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>Export Offline Backup</Text>
+                <Text style={[styles.menuDesc, { color: colors.textSecondary }]}>Export workouts, XP and streaks to JSON</Text>
               </View>
               <ChevronRight size={16} color="#9CA3AF" />
             </TouchableOpacity>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
             {/* Privacy */}
             <TouchableOpacity
@@ -336,12 +338,12 @@ export default function SettingsScreen() {
                 setShowPrivacyModal(true);
               }}
             >
-              <View style={[styles.iconCircle, { backgroundColor: '#EEF2FF' }]}>
-                <Shield size={18} color="#4F46E5" />
+              <View style={[styles.iconCircle, { backgroundColor: isDark ? '#1E1B4B' : '#EEF2FF' }]}>
+                <Shield size={18} color="#6366F1" />
               </View>
               <View style={styles.menuTextCol}>
-                <Text style={styles.menuTitle}>Privacy & Security</Text>
-                <Text style={styles.menuDesc}>100% on-device pose estimation details</Text>
+                <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>Privacy & Security</Text>
+                <Text style={[styles.menuDesc, { color: colors.textSecondary }]}>100% on-device pose estimation details</Text>
               </View>
               <ChevronRight size={16} color="#9CA3AF" />
             </TouchableOpacity>
@@ -350,8 +352,8 @@ export default function SettingsScreen() {
 
         {/* Section 5: GUIDE & ABOUT */}
         <View style={styles.sectionWrap}>
-          <Text style={styles.sectionHeading}>HELP & ABOUT</Text>
-          <View style={styles.cardGroup}>
+          <Text style={[styles.sectionHeading, { color: colors.textSecondary }]}>HELP & ABOUT</Text>
+          <View style={[styles.cardGroup, { backgroundColor: colors.card, borderColor: colors.border }]}>
             {/* How to Use */}
             <TouchableOpacity
               style={styles.menuRow}
@@ -361,17 +363,17 @@ export default function SettingsScreen() {
                 setShowHowToUseModal(true);
               }}
             >
-              <View style={[styles.iconCircle, { backgroundColor: '#FEE2E2' }]}>
+              <View style={[styles.iconCircle, { backgroundColor: isDark ? '#2D1414' : '#FEE2E2' }]}>
                 <PlayCircle size={18} color="#E53935" />
               </View>
               <View style={styles.menuTextCol}>
-                <Text style={styles.menuTitle}>How to Use (Video Guide)</Text>
-                <Text style={styles.menuDesc}>Watch official tutorial in Hindi or English</Text>
+                <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>How to Use (Video Guide)</Text>
+                <Text style={[styles.menuDesc, { color: colors.textSecondary }]}>Watch official tutorial in Hindi or English</Text>
               </View>
               <ChevronRight size={16} color="#9CA3AF" />
             </TouchableOpacity>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
             {/* About ARISE */}
             <TouchableOpacity
@@ -382,12 +384,12 @@ export default function SettingsScreen() {
                 setIsAboutSheetOpen(true);
               }}
             >
-              <View style={[styles.iconCircle, { backgroundColor: '#F3F4F6' }]}>
-                <Info size={18} color="#4B5563" />
+              <View style={[styles.iconCircle, { backgroundColor: isDark ? '#1A1C28' : '#F3F4F6' }]}>
+                <Info size={18} color={colors.textSecondary} />
               </View>
               <View style={styles.menuTextCol}>
-                <Text style={styles.menuTitle}>About ARISE</Text>
-                <Text style={styles.menuDesc}>Version 1.0.0 • Monarch Edition</Text>
+                <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>About ARISE</Text>
+                <Text style={[styles.menuDesc, { color: colors.textSecondary }]}>Version 1.0.0 • Monarch Edition</Text>
               </View>
               <ChevronRight size={16} color="#9CA3AF" />
             </TouchableOpacity>
@@ -397,7 +399,7 @@ export default function SettingsScreen() {
         {/* Section 6: DANGER ZONE */}
         <View style={styles.sectionWrap}>
           <Text style={[styles.sectionHeading, { color: '#DC2626' }]}>DANGER ZONE</Text>
-          <View style={[styles.cardGroup, { borderColor: '#FECACA' }]}>
+          <View style={[styles.cardGroup, { backgroundColor: isDark ? '#1C1214' : '#FFF1F2', borderColor: isDark ? '#4C1D24' : '#FECACA' }]}>
             <TouchableOpacity
               style={styles.menuRow}
               activeOpacity={0.75}
@@ -406,12 +408,12 @@ export default function SettingsScreen() {
                 setShowResetModal(true);
               }}
             >
-              <View style={[styles.iconCircle, { backgroundColor: '#FEE2E2' }]}>
+              <View style={[styles.iconCircle, { backgroundColor: isDark ? '#2D1414' : '#FEE2E2' }]}>
                 <AlertTriangle size={18} color="#DC2626" />
               </View>
               <View style={styles.menuTextCol}>
                 <Text style={[styles.menuTitle, { color: '#DC2626' }]}>Clean Protocol Reset</Text>
-                <Text style={styles.menuDesc}>Delete all local data and restart fresh</Text>
+                <Text style={[styles.menuDesc, { color: isDark ? '#F87171' : '#B91C1C' }]}>Delete all local data and restart fresh</Text>
               </View>
               <ChevronRight size={16} color="#DC2626" />
             </TouchableOpacity>
@@ -424,11 +426,11 @@ export default function SettingsScreen() {
       {/* Theme Modal */}
       <Modal visible={showThemeModal} animationType="fade" transparent onRequestClose={() => setShowThemeModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
+          <View style={[styles.modalSheet, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Theme Mode</Text>
+              <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Select Theme Mode</Text>
               <TouchableOpacity onPress={() => setShowThemeModal(false)}>
-                <X size={20} color="#6B7280" />
+                <X size={20} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
             <View style={{ gap: 8, marginTop: 10 }}>
@@ -441,7 +443,11 @@ export default function SettingsScreen() {
                 return (
                   <TouchableOpacity
                     key={item.mode}
-                    style={[styles.optionCard, isSelected && styles.optionCardActive]}
+                    style={[
+                      styles.optionCard,
+                      { backgroundColor: isDark ? '#12131A' : '#F9FAFB', borderColor: colors.border },
+                      isSelected && { backgroundColor: isDark ? '#2D1414' : '#FFF1F2', borderColor: isDark ? '#4C1D24' : '#FECACA' }
+                    ]}
                     onPress={() => {
                       haptics.light();
                       setTheme(item.mode);
@@ -450,8 +456,8 @@ export default function SettingsScreen() {
                     activeOpacity={0.8}
                   >
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.optionTitle, isSelected && { color: '#E53935' }]}>{item.label}</Text>
-                      <Text style={styles.optionDesc}>{item.desc}</Text>
+                      <Text style={[styles.optionTitle, { color: colors.textPrimary }, isSelected && { color: '#E53935' }]}>{item.label}</Text>
+                      <Text style={[styles.optionDesc, { color: colors.textSecondary }]}>{item.desc}</Text>
                     </View>
                     {isSelected && <Check size={18} color="#E53935" />}
                   </TouchableOpacity>
@@ -465,16 +471,16 @@ export default function SettingsScreen() {
       {/* Privacy Modal */}
       <Modal visible={showPrivacyModal} animationType="fade" transparent onRequestClose={() => setShowPrivacyModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
+          <View style={[styles.modalSheet, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Privacy & Security</Text>
+              <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Privacy & Security</Text>
               <TouchableOpacity onPress={() => setShowPrivacyModal(false)}>
-                <X size={20} color="#6B7280" />
+                <X size={20} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
-            <View style={styles.privacyBox}>
-              <Text style={styles.privacyHeading}>100% ON-DEVICE PRIVACY</Text>
-              <Text style={styles.privacyBody}>
+            <View style={[styles.privacyBox, { backgroundColor: isDark ? '#081D2E' : '#F0F9FF', borderColor: isDark ? '#0C385C' : '#BAE6FD' }]}>
+              <Text style={[styles.privacyHeading, { color: isDark ? '#38BDF8' : '#0284C7' }]}>100% ON-DEVICE PRIVACY</Text>
+              <Text style={[styles.privacyBody, { color: isDark ? '#BAE6FD' : '#334155' }]}>
                 • Camera frames are analyzed entirely in volatile RAM by Google ML Kit and discarded immediately.{'\n\n'}
                 • No workout camera video or images are ever stored or transmitted to remote servers.{'\n\n'}
                 • All quest history, streak metrics, and profile data are stored safely in your local SQLite database on your device.
@@ -494,31 +500,31 @@ export default function SettingsScreen() {
       {/* Reset Confirmation Modal */}
       <Modal visible={showResetModal} animationType="slide" transparent onRequestClose={() => setShowResetModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalSheet, { borderColor: '#DC2626' }]}>
+          <View style={[styles.modalSheet, { backgroundColor: colors.card, borderColor: '#DC2626' }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: '#DC2626' }]}>Clean Protocol Reset</Text>
               <TouchableOpacity onPress={() => setShowResetModal(false)}>
-                <X size={20} color="#6B7280" />
+                <X size={20} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
-            <Text style={styles.resetWarningText}>
+            <Text style={[styles.resetWarningText, { color: colors.textSecondary }]}>
               This will permanently wipe all Coins, XP, Level progress, workout logs, and photos, returning ARISE to the first-launch setup.
             </Text>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: '#6B7280', marginTop: 10 }}>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textSecondary, marginTop: 10 }}>
               Type <Text style={{ color: '#E53935', fontWeight: '900' }}>ARISE</Text> to confirm:
             </Text>
             <TextInput
-              style={styles.resetInput}
+              style={[styles.resetInput, { backgroundColor: isDark ? '#12131A' : '#F9FAFB', borderColor: colors.border, color: colors.textPrimary }]}
               value={confirmInput}
               onChangeText={setConfirmInput}
               placeholder="ARISE"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.textSecondary}
               autoCapitalize="characters"
             />
             <TouchableOpacity
               style={[
                 styles.modalPrimaryBtn,
-                { backgroundColor: confirmInput.trim().toUpperCase() === 'ARISE' ? '#DC2626' : '#E5E7EB' },
+                { backgroundColor: confirmInput.trim().toUpperCase() === 'ARISE' ? '#DC2626' : (isDark ? '#2A2D3D' : '#E5E7EB') },
               ]}
               onPress={handleResetData}
               disabled={confirmInput.trim().toUpperCase() !== 'ARISE'}
@@ -527,7 +533,7 @@ export default function SettingsScreen() {
               <Text
                 style={[
                   styles.modalPrimaryBtnText,
-                  { color: confirmInput.trim().toUpperCase() === 'ARISE' ? '#FFFFFF' : '#9CA3AF' },
+                  { color: confirmInput.trim().toUpperCase() === 'ARISE' ? '#FFFFFF' : colors.textSecondary },
                 ]}
               >
                 PERMANENTLY RESET ALL DATA
