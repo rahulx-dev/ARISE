@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, Image, StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LottieView from 'lottie-react-native';
@@ -13,34 +13,49 @@ import {
 import { useTheme } from '../../src/hooks/useTheme';
 import { useHaptics } from '../../src/hooks/useHaptics';
 
-// Tab Animated Icon Component (Plays once on tab focus)
+// Tab Icon Component (Lottie animated in light theme; Dark theme custom icons in dark theme)
 function TabAnimatedIcon({
   animationSource,
+  darkImageSource,
   fallbackIcon: FallbackIcon,
   focused,
   color,
+  isDark,
   size = 28,
 }: {
   animationSource?: any;
+  darkImageSource?: any;
   fallbackIcon: any;
   focused: boolean;
   color: string;
+  isDark: boolean;
   size?: number;
 }) {
   const lottieRef = useRef<LottieView>(null);
 
   useEffect(() => {
-    if (focused) {
+    if (focused && !isDark) {
       lottieRef.current?.reset();
       lottieRef.current?.play();
     } else {
       lottieRef.current?.reset();
     }
-  }, [focused]);
+  }, [focused, isDark]);
 
   return (
     <View style={styles.iconContainer}>
-      {animationSource ? (
+      {isDark && darkImageSource ? (
+        <Image
+          source={darkImageSource}
+          style={{
+            width: size,
+            height: size,
+            resizeMode: 'contain',
+            opacity: focused ? 1 : 0.6,
+            transform: [{ scale: focused ? 1.08 : 0.95 }],
+          }}
+        />
+      ) : animationSource ? (
         <LottieView
           ref={lottieRef}
           source={animationSource}
@@ -105,9 +120,11 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, focused }) => (
             <TabAnimatedIcon
               animationSource={require('../../assets/Animations/home.json')}
+              darkImageSource={require('../../assets/dark theme nav/home.png')}
               fallbackIcon={House}
               focused={focused}
               color={color}
+              isDark={isDark}
               size={28}
             />
           ),
@@ -122,9 +139,11 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, focused }) => (
             <TabAnimatedIcon
               animationSource={require('../../assets/Animations/icons8-thunder.json')}
+              darkImageSource={require('../../assets/dark theme nav/quest.png')}
               fallbackIcon={Lightning}
               focused={focused}
               color={color}
+              isDark={isDark}
               size={28}
             />
           ),
@@ -139,9 +158,11 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, focused }) => (
             <TabAnimatedIcon
               animationSource={require('../../assets/Animations/trophy.json')}
+              darkImageSource={require('../../assets/dark theme nav/sword.png')}
               fallbackIcon={Trophy}
               focused={focused}
               color={color}
+              isDark={isDark}
               size={28}
             />
           ),
@@ -156,9 +177,11 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, focused }) => (
             <TabAnimatedIcon
               animationSource={require('../../assets/Animations/gym.json')}
+              darkImageSource={require('../../assets/dark theme nav/gym.png')}
               fallbackIcon={Barbell}
               focused={focused}
               color={color}
+              isDark={isDark}
               size={28}
             />
           ),
@@ -173,9 +196,11 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, focused }) => (
             <TabAnimatedIcon
               animationSource={require('../../assets/Animations/profile.json')}
+              darkImageSource={require('../../assets/dark theme nav/profile.png')}
               fallbackIcon={User}
               focused={focused}
               color={color}
+              isDark={isDark}
               size={28}
             />
           ),
