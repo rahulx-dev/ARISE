@@ -1,37 +1,39 @@
-import React, { useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
+import React, { useState, useEffect } from 'react';
+import { Redirect } from 'expo-router';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useSettingsStore } from '../src/stores/useSettingsStore';
 import { getIsOnboardingCompleted } from '../src/services/appStateService';
 
 export default function RootIndex() {
-  const router = useRouter();
+  const [destination, setDestination] = useState<string | null>(null);
 
   useEffect(() => {
-    try {
-      const isStoreDone = useSettingsStore.getState().onboardingCompleted;
-      if (isStoreDone) {
-        router.replace('/(tabs)');
-        return;
-      }
-      const isSqliteDone = getIsOnboardingCompleted();
-      if (isSqliteDone) {
-        useSettingsStore.setState({ onboardingCompleted: true });
-        router.replace('/(tabs)');
-        return;
-      }
-      router.replace('/(onboarding)');
-    } catch {
-      router.replace('/(onboarding)');
+    const isStoreDone = useSettingsStore.getState().onboardingCompleted;
+    const isSqliteDone = getIsOnboardingCompleted();
+    if (isStoreDone || isSqliteDone) {
+      useSettingsStore.setState({ onboardingCompleted: true });
+      setDestination('/(tabs)');
+    } else {
+      setDestination('/(onboarding)');
     }
-  }, [router]);
+  }, []);
 
-  return <View style={styles.container} />;
+  if (!destination) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="small" color="#E53935" />
+      </View>
+    );
+  }
+
+  return <Redirect href={destination as any} />;
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#000000',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

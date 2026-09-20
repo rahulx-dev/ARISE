@@ -23,7 +23,7 @@ import {
   IOSAlertProvider,
   showIOSAlert,
 } from "../src/components/ios/IOSAlertModal";
-import { getIsOnboardingCompleted } from "../src/services/appStateService";
+import { getIsOnboardingCompleted, setIsOnboardingCompletedSync } from "../src/services/appStateService";
 import { adMobService } from "../src/services/adMobService";
 import { coinService } from "../src/services/coinService";
 import * as Linking from "expo-linking";
@@ -152,7 +152,13 @@ function RootLayout() {
       <ErrorBoundary>
         <SafeAreaProvider>
           <StatusBar style="light" />
-          <PermissionsGateModal onAllGranted={() => setAppState("READY")} />
+          <PermissionsGateModal
+            onAllGranted={() => {
+              useSettingsStore.setState({ onboardingCompleted: true });
+              setIsOnboardingCompletedSync(true);
+              setAppState("READY");
+            }}
+          />
         </SafeAreaProvider>
       </ErrorBoundary>
     );

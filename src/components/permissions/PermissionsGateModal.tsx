@@ -25,6 +25,8 @@ import { GlassButton } from "../ios/GlassButton";
 import { AriseLogo } from "../ui/AriseLogo";
 import { appBlockerService } from "../../native";
 import { useHaptics } from "../../hooks/useHaptics";
+import { useSettingsStore } from "../../stores/useSettingsStore";
+import { setIsOnboardingCompletedSync } from "../../services/appStateService";
 
 interface PermissionsGateModalProps {
   onAllGranted: () => void;
@@ -321,6 +323,12 @@ export function PermissionsGateModal({
             onPress={() => {
               if (allGranted) {
                 haptics.success();
+                try {
+                  useSettingsStore.setState({ onboardingCompleted: true });
+                  setIsOnboardingCompletedSync(true);
+                } catch (e) {
+                  console.warn('Error setting onboarding completed:', e);
+                }
                 onAllGranted();
               } else {
                 haptics.warning();
