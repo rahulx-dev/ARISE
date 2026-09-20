@@ -479,67 +479,93 @@ export default function OnboardingScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <SafeAreaView style={styles.safeArea}>
         {/* Top Header Progress Bar */}
-        <View style={[styles.headerBar, { borderBottomColor: colors.border }]}>
-          <View style={styles.headerLeft}>
-            {step > 1 ? (
+        {step === 2 ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 8, paddingBottom: 4 }}>
+            <TouchableOpacity
+              onPress={() => {
+                haptics.light();
+                setStep((prev) => prev - 1);
+              }}
+              activeOpacity={0.7}
+              style={{ padding: 6 }}
+            >
+              <ArrowLeft size={22} color={colors.textPrimary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                haptics.light();
+                setStep((s) => s + 1);
+              }}
+              activeOpacity={0.7}
+              style={{ padding: 6 }}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '500', color: colors.textMuted }}>Skip</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={[styles.headerBar, { borderBottomColor: colors.border }]}>
+            <View style={styles.headerLeft}>
+              {step > 1 ? (
+                <TouchableOpacity
+                  style={[styles.iconBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+                  onPress={() => {
+                    haptics.light();
+                    setStep((prev) => prev - 1);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <ArrowLeft size={18} color={colors.textPrimary} />
+                </TouchableOpacity>
+              ) : (
+                <AriseLogo size={28} glow={false} />
+              )}
+              <Text style={[styles.headerStageText, { color: colors.primary }]}>
+                {step} / {totalSteps}
+              </Text>
+            </View>
+
+            <View style={styles.headerRightArea}>
+              <View style={styles.stepDotsRow}>
+                {[1, 2, 3].map((s) => (
+                  <View
+                    key={s}
+                    style={[
+                      styles.stepDot,
+                      { backgroundColor: colors.border },
+                      s <= step && { backgroundColor: colors.primary },
+                      s === step && { width: 22, backgroundColor: colors.primary },
+                    ]}
+                  />
+                ))}
+              </View>
+
               <TouchableOpacity
-                style={[styles.iconBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+                style={[styles.langPickerPill, { backgroundColor: colors.card, borderColor: colors.border }]}
                 onPress={() => {
                   haptics.light();
-                  setStep((prev) => prev - 1);
+                  setShowLangModal(true);
                 }}
                 activeOpacity={0.8}
               >
-                <ArrowLeft size={18} color={colors.textPrimary} />
+                <Globe size={13} color={colors.primary} />
+                <Text style={[styles.langPickerText, { color: colors.primary }]}>
+                  {currentLang === 'hi' ? 'हिंदी' : 'EN'}
+                </Text>
               </TouchableOpacity>
-            ) : (
-              <AriseLogo size={28} glow={false} />
-            )}
-            <Text style={[styles.headerStageText, { color: colors.primary }]}>
-              {step} / {totalSteps}
-            </Text>
-          </View>
 
-          <View style={styles.headerRightArea}>
-            <View style={styles.stepDotsRow}>
-              {[1, 2, 3].map((s) => (
-                <View
-                  key={s}
-                  style={[
-                    styles.stepDot,
-                    { backgroundColor: colors.border },
-                    s <= step && { backgroundColor: colors.primary },
-                    s === step && { width: 22, backgroundColor: colors.primary },
-                  ]}
-                />
-              ))}
+              <TouchableOpacity
+                onPress={() => {
+                  haptics.light();
+                  if (step < 3) setStep((s) => s + 1);
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.skipText, { color: colors.textMuted }]}>Skip</Text>
+              </TouchableOpacity>
             </View>
-
-            <TouchableOpacity
-              style={[styles.langPickerPill, { backgroundColor: colors.card, borderColor: colors.border }]}
-              onPress={() => {
-                haptics.light();
-                setShowLangModal(true);
-              }}
-              activeOpacity={0.8}
-            >
-              <Globe size={13} color={colors.primary} />
-              <Text style={[styles.langPickerText, { color: colors.primary }]}>
-                {currentLang === 'hi' ? 'हिंदी' : 'EN'}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => {
-                haptics.light();
-                if (step < 3) setStep((s) => s + 1);
-              }}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.skipText, { color: colors.textMuted }]}>Skip</Text>
-            </TouchableOpacity>
           </View>
-        </View>
+        )}
 
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -1037,13 +1063,6 @@ export default function OnboardingScreen() {
                   </View>
                 </TouchableOpacity>
               </View>
-
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 14, paddingHorizontal: 16 }}>
-                <Lock size={14} color={colors.textMuted} />
-                <Text style={[styles.privacyNoteText, { color: colors.textMuted, flex: 1, textAlign: 'center' }]}>
-                  Your data stays on your device. We only use these permissions to power core features.
-                </Text>
-              </View>
             </View>
           )}
 
@@ -1229,9 +1248,9 @@ export default function OnboardingScreen() {
         </ScrollView>
 
         {/* Bottom Prominent CTA Button */}
-        <View style={[styles.footerContainer, { borderTopColor: colors.border }]}>
+        <View style={[styles.footerContainer, { borderTopColor: step === 2 ? 'transparent' : colors.border }]}>
           <TouchableOpacity
-            style={[styles.primaryCtaBtn, { backgroundColor: colors.primary }, isSubmitting && styles.primaryCtaBtnDisabled]}
+            style={[styles.primaryCtaBtn, { backgroundColor: '#E53935' }, isSubmitting && styles.primaryCtaBtnDisabled]}
             onPress={handleNext}
             disabled={isSubmitting}
             activeOpacity={0.85}
@@ -1244,9 +1263,18 @@ export default function OnboardingScreen() {
               </Text>
             )}
           </TouchableOpacity>
-          <Text style={[styles.footerMottoText, { color: colors.textMuted }]}>
-            "Every warrior has a beginning."
-          </Text>
+          {step === 2 ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 4, paddingHorizontal: 16 }}>
+              <Lock size={13} color={colors.textMuted} />
+              <Text style={[styles.privacyNoteText, { color: colors.textMuted, textAlign: 'center', fontSize: 11 }]}>
+                Your data stays on your device. We only use these permissions to power core features.
+              </Text>
+            </View>
+          ) : (
+            <Text style={[styles.footerMottoText, { color: colors.textMuted }]}>
+              "Every warrior has a beginning."
+            </Text>
+          )}
         </View>
 
         {/* Language Selection Modal */}

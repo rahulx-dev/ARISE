@@ -408,31 +408,36 @@ export function PermissionsGateModal({
             );
           })}
         </View>
-
-        {/* Bottom Continue CTA */}
-        <View style={styles.footerSection}>
-          <TouchableOpacity
-            style={styles.continueBtn}
-            onPress={handleProceed}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.continueBtnText}>Continue  →</Text>
-          </TouchableOpacity>
-
-          {/* Privacy Note */}
-          <View style={styles.privacyRow}>
-            <Lock size={14} color={isDark ? "#6B7280" : "#94A3B8"} />
-            <Text
-              style={[
-                styles.privacyText,
-                { color: isDark ? "#8E8E93" : "#64748B" },
-              ]}
-            >
-              Your data stays on your device. We only use these permissions to power core features.
-            </Text>
-          </View>
-        </View>
       </ScrollView>
+
+      {/* Bottom Sticky Continue CTA */}
+      <View
+        style={[
+          styles.footerSection,
+          { backgroundColor: isDark ? "#000000" : "#F8FAFC" },
+        ]}
+      >
+        <TouchableOpacity
+          style={styles.continueBtn}
+          onPress={handleProceed}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.continueBtnText}>Continue  →</Text>
+        </TouchableOpacity>
+
+        {/* Privacy Note */}
+        <View style={styles.privacyRow}>
+          <Lock size={14} color={isDark ? "#6B7280" : "#94A3B8"} />
+          <Text
+            style={[
+              styles.privacyText,
+              { color: isDark ? "#8E8E93" : "#64748B" },
+            ]}
+          >
+            Your data stays on your device. We only use these permissions to power core features.
+          </Text>
+        </View>
+      </View>
     </SafeAreaView>
   );
 }
@@ -571,8 +576,10 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   footerSection: {
-    marginTop: 8,
-    gap: 14,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === "ios" ? 14 : 20,
+    gap: 12,
   },
   continueBtn: {
     height: 54,
