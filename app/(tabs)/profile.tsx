@@ -6,7 +6,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   Switch,
-  Image,
+  Modal,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
@@ -15,6 +16,7 @@ import {
   ChevronRight,
   Mic,
   Moon,
+  Sun,
   Globe,
   Bell,
   Shield,
@@ -24,6 +26,12 @@ import {
   Plus,
   Flame,
   Award,
+  Settings,
+  Edit3,
+  Check,
+  X,
+  PlayCircle,
+  Sparkles,
 } from 'lucide-react-native';
 import { PlayerAvatar } from '../../src/components/ui/PlayerAvatar';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
@@ -33,6 +41,14 @@ import { useTheme } from '../../src/hooks/useTheme';
 import { getRankForLevel } from '../../src/constants/ranks';
 import { db } from '../../src/database/client';
 import { exerciseSession, achievement } from '../../src/database/schema';
+import { LanguageSelectorModal } from '../../src/components/ui/LanguageSelectorModal';
+import { HowToUseModal } from '../../src/components/ui/HowToUseModal';
+import { AboutAriseSheet } from '../../src/components/ui/AboutAriseSheet';
+import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
+import { backupService } from '../../src/services/backupService';
+import { useLanguageStore, SUPPORTED_LANGUAGES } from '../../src/services/i18n';
+import { getTutorialUrl } from '../../src/config/webConfig';
+import { ThemeMode } from '../../src/theme/themeEngine';
 
 export default function WarriorProfileTab() {
   const profile = usePlayerStore((s) => s.profile);
@@ -44,12 +60,22 @@ export default function WarriorProfileTab() {
     notificationsEnabled,
     toggleNotifications,
     theme,
+    setTheme,
   } = useSettingsStore();
+
+  const currentLang = useLanguageStore((s) => s.language);
+  const activeLangObj = SUPPORTED_LANGUAGES.find((l) => l.code === currentLang);
 
   const [voiceCoachActive, setVoiceCoachActive] = useState<boolean>(true);
   const [totalWorkouts, setTotalWorkouts] = useState<number>(0);
   const [totalAchievements, setTotalAchievements] = useState<number>(0);
   const lastFocusLoadRef = useRef<number>(0);
+
+  // Modals state
+  const [showThemeModal, setShowThemeModal] = useState<boolean>(false);
+  const [showLangModal, setShowLangModal] = useState<boolean>(false);
+  const [showHowToUseModal, setShowHowToUseModal] = useState<boolean>(false);
+  const [isAboutSheetOpen, setIsAboutSheetOpen] = useState<boolean>(false);
 
   const fetchStats = async () => {
     try {
@@ -85,20 +111,121 @@ export default function WarriorProfileTab() {
   const currentRank = getRankForLevel(level);
   const avatarIcon = profile?.avatarIcon || 'pfp_01';
 
+  const handleSelectTutorialLang = (lang: 'hi' | 'en') => {
+    setShowHowToUseModal(false);
+    const url = getTutorialUrl(lang);
+    if (url) {
+      Linking.openURL(url).catch(() => {
+        showIOSAlert('Guide', 'Unable to open video guide URL.');
+      });
+    }
+  };
+
+  const handleExportBackup = async () => {
+    haptics.medium();
+    const success = await backupService.exportBackup();
+    if (success) {
+      haptics.success();
+      showIOSAlert(
+        'Backup Created',
+        'Your local ARISE database was exported successfully to offline JSON backup.'
+      );
+    } else {
+      showIOSAlert('Export Failed', 'Could not create offline backup file.');
+    }
+  };
+
+  const themeDisplayLabel =
+    theme === 'light'
+      ? 'Light'
+      : theme === 'dark'
+      ? 'Dark (OLED)'
+      : 'System';
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      edges={['top', 'left', 'right']}
+    >
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Top Action Bar */}
+        <View style={styles.topBarRow}>
+          <Text style={[styles.screenHeaderTitle, { color: colors.textPrimary }]}>
+            WARRIOR PROFILE
+          </Text>
+          <TouchableOpacity
+            style={[
+              styles.settingsBtn,
+              {
+                backgroundColor: isDark ? '#1C1E2A' : '#F1F5F9',
+                borderColor: colors.border,
+              },
+            ]}
+            onPress={() => {
+              haptics.light();
+              router.push('/settings' as any);
+            }}
+            activeOpacity={0.7}
+          >
+            <Settings size={18} color={colors.textPrimary} />
+          </TouchableOpacity>
+        </View>
+
         {/* ================= 1. PROFILE HEADER CARD ================= */}
-        <View style={[styles.profileCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <TouchableOpacity
+          style={[
+            styles.profileCard,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
+          onPress={() => {
+            haptics.light();
+            router.push('/settings/profile-edit' as any);
+          }}
+          activeOpacity={0.88}
+        >
           <View style={styles.avatarRow}>
             <View style={styles.avatarWrap}>
               <PlayerAvatar iconId={avatarIcon} size={72} />
-              <View style={[styles.crownPill, { backgroundColor: isDark ? '#1A1C28' : '#FFFFFF' }]}>
+              <View
+                style={[
+                  styles.crownPill,
+                  { backgroundColor: isDark ? '#1A1C28' : '#FFFFFF' },
+                ]}
+              >
                 <Crown size={14} color="#F59E0B" />
               </View>
             </View>
             <View style={{ flex: 1, gap: 4 }}>
-              <Text style={[styles.displayName, { color: colors.textPrimary }]}>{displayName}</Text>
+              <View style={styles.nameRow}>
+                <Text
+                  style={[styles.displayName, { color: colors.textPrimary }]}
+                  numberOfLines={1}
+                >
+                  {displayName}
+                </Text>
+                <View
+                  style={[
+                    styles.editBadge,
+                    {
+                      backgroundColor: isDark ? '#1C1E2A' : '#F1F5F9',
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  <Edit3 size={12} color={colors.textSecondary} />
+                  <Text
+                    style={[
+                      styles.editBadgeText,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    Edit
+                  </Text>
+                </View>
+              </View>
               <Text style={styles.rankSubText}>
                 Level {level} • {currentRank.rankCode}-Rank Hunter
               </Text>
@@ -108,42 +235,115 @@ export default function WarriorProfileTab() {
           {/* XP Progress Bar */}
           <View style={styles.xpWrap}>
             <View style={styles.xpLabelRow}>
-              <Text style={[styles.xpLabel, { color: colors.textSecondary }]}>XP Progress</Text>
-              <Text style={[styles.xpFraction, { color: colors.textPrimary }]}>380 / 500 XP (76%)</Text>
+              <Text style={[styles.xpLabel, { color: colors.textSecondary }]}>
+                XP Progress
+              </Text>
+              <Text
+                style={[styles.xpFraction, { color: colors.textPrimary }]}
+              >
+                380 / 500 XP (76%)
+              </Text>
             </View>
-            <View style={[styles.xpTrack, { backgroundColor: isDark ? '#1A1C28' : '#F3F4F6' }]}>
+            <View
+              style={[
+                styles.xpTrack,
+                { backgroundColor: isDark ? '#1A1C28' : '#F3F4F6' },
+              ]}
+            >
               <View style={[styles.xpFill, { width: '76%' }]} />
             </View>
           </View>
-        </View>
+        </TouchableOpacity>
 
         {/* ================= 2. ATTRIBUTES SECTION ================= */}
         <View style={styles.sectionWrap}>
-          <Text style={[styles.sectionHeading, { color: colors.textPrimary }]}>Attributes</Text>
+          <Text style={[styles.sectionHeading, { color: colors.textPrimary }]}>
+            Attributes
+          </Text>
           <View style={styles.attributesRow}>
-            <View style={[styles.attributeBadge, { backgroundColor: isDark ? '#2D1414' : '#FEE2E2', borderColor: isDark ? '#4C1D24' : '#FECACA' }]}>
-              <Text style={[styles.attributeCode, { color: '#EF4444' }]}>STR</Text>
-              <Text style={[styles.attributeVal, { color: '#EF4444' }]}>80</Text>
+            <View
+              style={[
+                styles.attributeBadge,
+                {
+                  backgroundColor: isDark ? '#2D1414' : '#FEE2E2',
+                  borderColor: isDark ? '#4C1D24' : '#FECACA',
+                },
+              ]}
+            >
+              <Text style={[styles.attributeCode, { color: '#EF4444' }]}>
+                STR
+              </Text>
+              <Text style={[styles.attributeVal, { color: '#EF4444' }]}>
+                80
+              </Text>
             </View>
 
-            <View style={[styles.attributeBadge, { backgroundColor: isDark ? '#0F2E22' : '#D1FAE5', borderColor: isDark ? '#134E39' : '#A7F3D0' }]}>
-              <Text style={[styles.attributeCode, { color: '#10B981' }]}>DIS</Text>
-              <Text style={[styles.attributeVal, { color: '#10B981' }]}>95</Text>
+            <View
+              style={[
+                styles.attributeBadge,
+                {
+                  backgroundColor: isDark ? '#0F2E22' : '#D1FAE5',
+                  borderColor: isDark ? '#134E39' : '#A7F3D0',
+                },
+              ]}
+            >
+              <Text style={[styles.attributeCode, { color: '#10B981' }]}>
+                DIS
+              </Text>
+              <Text style={[styles.attributeVal, { color: '#10B981' }]}>
+                95
+              </Text>
             </View>
 
-            <View style={[styles.attributeBadge, { backgroundColor: isDark ? '#0C2B44' : '#E0F2FE', borderColor: isDark ? '#0C4A6E' : '#BAE6FD' }]}>
-              <Text style={[styles.attributeCode, { color: '#0EA5E9' }]}>FOC</Text>
-              <Text style={[styles.attributeVal, { color: '#0EA5E9' }]}>78</Text>
+            <View
+              style={[
+                styles.attributeBadge,
+                {
+                  backgroundColor: isDark ? '#0C2B44' : '#E0F2FE',
+                  borderColor: isDark ? '#0C4A6E' : '#BAE6FD',
+                },
+              ]}
+            >
+              <Text style={[styles.attributeCode, { color: '#0EA5E9' }]}>
+                FOC
+              </Text>
+              <Text style={[styles.attributeVal, { color: '#0EA5E9' }]}>
+                78
+              </Text>
             </View>
 
-            <View style={[styles.attributeBadge, { backgroundColor: isDark ? '#26123D' : '#EDE9FE', borderColor: isDark ? '#4A1D75' : '#DDD6FE' }]}>
-              <Text style={[styles.attributeCode, { color: '#A855F7' }]}>HLT</Text>
-              <Text style={[styles.attributeVal, { color: '#A855F7' }]}>70</Text>
+            <View
+              style={[
+                styles.attributeBadge,
+                {
+                  backgroundColor: isDark ? '#26123D' : '#EDE9FE',
+                  borderColor: isDark ? '#4A1D75' : '#DDD6FE',
+                },
+              ]}
+            >
+              <Text style={[styles.attributeCode, { color: '#A855F7' }]}>
+                HLT
+              </Text>
+              <Text style={[styles.attributeVal, { color: '#A855F7' }]}>
+                70
+              </Text>
             </View>
 
-            <View style={[styles.attributeBadge, { backgroundColor: isDark ? '#1E1B4B' : '#EEF2FF', borderColor: isDark ? '#312E81' : '#E0E7FF' }]}>
-              <Text style={[styles.attributeCode, { color: '#6366F1' }]}>INT</Text>
-              <Text style={[styles.attributeVal, { color: '#6366F1' }]}>65</Text>
+            <View
+              style={[
+                styles.attributeBadge,
+                {
+                  backgroundColor: isDark ? '#1E1B4B' : '#EEF2FF',
+                  borderColor: isDark ? '#312E81' : '#E0E7FF',
+                },
+              ]}
+            >
+              <Text style={[styles.attributeCode, { color: '#6366F1' }]}>
+                INT
+              </Text>
+              <Text style={[styles.attributeVal, { color: '#6366F1' }]}>
+                65
+              </Text>
             </View>
           </View>
         </View>
@@ -151,9 +351,16 @@ export default function WarriorProfileTab() {
         {/* ================= 3. TRANSFORMATION JOURNEY ================= */}
         <View style={styles.sectionWrap}>
           <View style={styles.sectionHeaderBetween}>
-            <Text style={[styles.sectionHeading, { color: colors.textPrimary }]}>Transformation Journey</Text>
+            <Text
+              style={[styles.sectionHeading, { color: colors.textPrimary }]}
+            >
+              Transformation Journey
+            </Text>
             <TouchableOpacity
-              onPress={() => router.push('/photos' as any)}
+              onPress={() => {
+                haptics.light();
+                router.push('/photos' as any);
+              }}
               activeOpacity={0.7}
             >
               <Text style={styles.sectionLinkText}>View All</Text>
@@ -167,61 +374,152 @@ export default function WarriorProfileTab() {
           >
             {/* Before Card */}
             <TouchableOpacity
-              style={[styles.transformCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-              onPress={() => router.push('/photos' as any)}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.transformPlaceholder, { backgroundColor: isDark ? '#1A1C28' : '#F3F4F6' }]}>
-                <Text style={styles.transformPlaceholderEmoji}>💪</Text>
-              </View>
-              <Text style={[styles.transformCardTitle, { color: colors.textPrimary }]}>Before</Text>
-              <Text style={[styles.transformCardSub, { color: colors.textSecondary }]}>Day 1 • 78 kg</Text>
-            </TouchableOpacity>
-
-            {/* After Card */}
-            <TouchableOpacity
-              style={[styles.transformCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-              onPress={() => router.push('/photos' as any)}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.transformPlaceholder, { backgroundColor: isDark ? '#2D1414' : '#FEF2F2' }]}>
-                <Text style={styles.transformPlaceholderEmoji}>🔥</Text>
-              </View>
-              <Text style={[styles.transformCardTitle, { color: colors.textPrimary }]}>After</Text>
-              <Text style={[styles.transformCardSub, { color: colors.textSecondary }]}>Day 45 • 72 kg</Text>
-            </TouchableOpacity>
-
-            {/* Add Photo Card */}
-            <TouchableOpacity
-              style={[styles.addPhotoCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+              style={[
+                styles.transformCard,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
               onPress={() => {
                 haptics.light();
                 router.push('/photos' as any);
               }}
               activeOpacity={0.8}
             >
-              <View style={[styles.addPhotoCircle, { backgroundColor: isDark ? '#1A1C28' : '#E5E7EB' }]}>
+              <View
+                style={[
+                  styles.transformPlaceholder,
+                  { backgroundColor: isDark ? '#1A1C28' : '#F3F4F6' },
+                ]}
+              >
+                <Text style={styles.transformPlaceholderEmoji}>💪</Text>
+              </View>
+              <Text
+                style={[
+                  styles.transformCardTitle,
+                  { color: colors.textPrimary },
+                ]}
+              >
+                Before
+              </Text>
+              <Text
+                style={[
+                  styles.transformCardSub,
+                  { color: colors.textSecondary },
+                ]}
+              >
+                Day 1 • 78 kg
+              </Text>
+            </TouchableOpacity>
+
+            {/* After Card */}
+            <TouchableOpacity
+              style={[
+                styles.transformCard,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+              onPress={() => {
+                haptics.light();
+                router.push('/photos' as any);
+              }}
+              activeOpacity={0.8}
+            >
+              <View
+                style={[
+                  styles.transformPlaceholder,
+                  { backgroundColor: isDark ? '#2D1414' : '#FEF2F2' },
+                ]}
+              >
+                <Text style={styles.transformPlaceholderEmoji}>🔥</Text>
+              </View>
+              <Text
+                style={[
+                  styles.transformCardTitle,
+                  { color: colors.textPrimary },
+                ]}
+              >
+                After
+              </Text>
+              <Text
+                style={[
+                  styles.transformCardSub,
+                  { color: colors.textSecondary },
+                ]}
+              >
+                Day 45 • 72 kg
+              </Text>
+            </TouchableOpacity>
+
+            {/* Add Photo Card */}
+            <TouchableOpacity
+              style={[
+                styles.addPhotoCard,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+              onPress={() => {
+                haptics.light();
+                router.push('/photos' as any);
+              }}
+              activeOpacity={0.8}
+            >
+              <View
+                style={[
+                  styles.addPhotoCircle,
+                  { backgroundColor: isDark ? '#1A1C28' : '#E5E7EB' },
+                ]}
+              >
                 <Plus size={20} color={colors.textSecondary} />
               </View>
-              <Text style={[styles.addPhotoText, { color: colors.textSecondary }]}>Add Photo</Text>
+              <Text
+                style={[
+                  styles.addPhotoText,
+                  { color: colors.textSecondary },
+                ]}
+              >
+                Add Photo
+              </Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
 
         {/* ================= 4. SETTINGS & PREFERENCES ================= */}
         <View style={styles.sectionWrap}>
-          <Text style={[styles.sectionHeading, { color: colors.textPrimary }]}>Settings</Text>
+          <Text style={[styles.sectionHeading, { color: colors.textPrimary }]}>
+            Preferences
+          </Text>
 
-          <View style={[styles.settingsGroupCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View
+            style={[
+              styles.settingsGroupCard,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+          >
             {/* Voice Coach */}
             <View style={styles.settingsRow}>
               <View style={styles.settingsRowLeft}>
-                <View style={[styles.settingsIconWrap, { backgroundColor: isDark ? '#2D1414' : '#FEE2E2' }]}>
+                <View
+                  style={[
+                    styles.settingsIconWrap,
+                    { backgroundColor: isDark ? '#2D1414' : '#FEE2E2' },
+                  ]}
+                >
                   <Mic size={18} color="#E53935" />
                 </View>
-                <View>
-                  <Text style={[styles.settingsRowTitle, { color: colors.textPrimary }]}>Voice Coach</Text>
-                  <Text style={[styles.settingsRowSub, { color: colors.textSecondary }]}>Audio rep counts & encouragement</Text>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={[
+                      styles.settingsRowTitle,
+                      { color: colors.textPrimary },
+                    ]}
+                  >
+                    Voice Coach
+                  </Text>
+                  <Text
+                    style={[
+                      styles.settingsRowSub,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    Audio rep counts & encouragement
+                  </Text>
                 </View>
               </View>
               <Switch
@@ -230,8 +528,17 @@ export default function WarriorProfileTab() {
                   haptics.light();
                   setVoiceCoachActive(v);
                 }}
-                trackColor={{ false: isDark ? '#2A2D3D' : '#E5E7EB', true: isDark ? '#3A3F55' : '#D1D5DB' }}
-                thumbColor={voiceCoachActive ? '#0A84FF' : (isDark ? '#6B7280' : '#FFFFFF')}
+                trackColor={{
+                  false: isDark ? '#2A2D3D' : '#E5E7EB',
+                  true: isDark ? '#3A3F55' : '#D1D5DB',
+                }}
+                thumbColor={
+                  voiceCoachActive
+                    ? '#0A84FF'
+                    : isDark
+                    ? '#6B7280'
+                    : '#FFFFFF'
+                }
                 ios_backgroundColor={isDark ? '#2A2D3D' : '#E5E7EB'}
               />
             </View>
@@ -243,17 +550,36 @@ export default function WarriorProfileTab() {
               style={styles.settingsRow}
               onPress={() => {
                 haptics.light();
-                router.push('/settings' as any);
+                setShowThemeModal(true);
               }}
               activeOpacity={0.7}
             >
               <View style={styles.settingsRowLeft}>
-                <View style={[styles.settingsIconWrap, { backgroundColor: isDark ? '#26123D' : '#EDE9FE' }]}>
+                <View
+                  style={[
+                    styles.settingsIconWrap,
+                    { backgroundColor: isDark ? '#26123D' : '#EDE9FE' },
+                  ]}
+                >
                   <Moon size={18} color="#A855F7" />
                 </View>
-                <View>
-                  <Text style={[styles.settingsRowTitle, { color: colors.textPrimary }]}>Theme</Text>
-                  <Text style={[styles.settingsRowSub, { color: colors.textSecondary }]}>{theme === 'dark' ? 'Dark (OLED)' : theme === 'light' ? 'Light' : 'System'}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={[
+                      styles.settingsRowTitle,
+                      { color: colors.textPrimary },
+                    ]}
+                  >
+                    Theme Mode
+                  </Text>
+                  <Text
+                    style={[
+                      styles.settingsRowSub,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    {themeDisplayLabel}
+                  </Text>
                 </View>
               </View>
               <ChevronRight size={18} color="#9CA3AF" />
@@ -266,17 +592,36 @@ export default function WarriorProfileTab() {
               style={styles.settingsRow}
               onPress={() => {
                 haptics.light();
-                router.push('/settings' as any);
+                setShowLangModal(true);
               }}
               activeOpacity={0.7}
             >
               <View style={styles.settingsRowLeft}>
-                <View style={[styles.settingsIconWrap, { backgroundColor: isDark ? '#0C2B44' : '#E0F2FE' }]}>
+                <View
+                  style={[
+                    styles.settingsIconWrap,
+                    { backgroundColor: isDark ? '#0C2B44' : '#E0F2FE' },
+                  ]}
+                >
                   <Globe size={18} color="#0284C7" />
                 </View>
-                <View>
-                  <Text style={[styles.settingsRowTitle, { color: colors.textPrimary }]}>Language</Text>
-                  <Text style={[styles.settingsRowSub, { color: colors.textSecondary }]}>English (US)</Text>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={[
+                      styles.settingsRowTitle,
+                      { color: colors.textPrimary },
+                    ]}
+                  >
+                    Language
+                  </Text>
+                  <Text
+                    style={[
+                      styles.settingsRowSub,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    {activeLangObj?.flag} {activeLangObj?.label} ({activeLangObj?.nativeLabel})
+                  </Text>
                 </View>
               </View>
               <ChevronRight size={18} color="#9CA3AF" />
@@ -287,12 +632,31 @@ export default function WarriorProfileTab() {
             {/* Notifications */}
             <View style={styles.settingsRow}>
               <View style={styles.settingsRowLeft}>
-                <View style={[styles.settingsIconWrap, { backgroundColor: isDark ? '#33210C' : '#FEF3C7' }]}>
+                <View
+                  style={[
+                    styles.settingsIconWrap,
+                    { backgroundColor: isDark ? '#33210C' : '#FEF3C7' },
+                  ]}
+                >
                   <Bell size={18} color="#D97706" />
                 </View>
-                <View>
-                  <Text style={[styles.settingsRowTitle, { color: colors.textPrimary }]}>Notifications</Text>
-                  <Text style={[styles.settingsRowSub, { color: colors.textSecondary }]}>Daily reminders & streak alerts</Text>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={[
+                      styles.settingsRowTitle,
+                      { color: colors.textPrimary },
+                    ]}
+                  >
+                    Notifications
+                  </Text>
+                  <Text
+                    style={[
+                      styles.settingsRowSub,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    Daily reminders & streak alerts
+                  </Text>
                 </View>
               </View>
               <Switch
@@ -301,8 +665,17 @@ export default function WarriorProfileTab() {
                   haptics.light();
                   toggleNotifications();
                 }}
-                trackColor={{ false: isDark ? '#2A2D3D' : '#E5E7EB', true: isDark ? '#3A3F55' : '#D1D5DB' }}
-                thumbColor={notificationsEnabled ? '#0A84FF' : (isDark ? '#6B7280' : '#FFFFFF')}
+                trackColor={{
+                  false: isDark ? '#2A2D3D' : '#E5E7EB',
+                  true: isDark ? '#3A3F55' : '#D1D5DB',
+                }}
+                thumbColor={
+                  notificationsEnabled
+                    ? '#0A84FF'
+                    : isDark
+                    ? '#6B7280'
+                    : '#FFFFFF'
+                }
                 ios_backgroundColor={isDark ? '#2A2D3D' : '#E5E7EB'}
               />
             </View>
@@ -319,12 +692,31 @@ export default function WarriorProfileTab() {
               activeOpacity={0.7}
             >
               <View style={styles.settingsRowLeft}>
-                <View style={[styles.settingsIconWrap, { backgroundColor: isDark ? '#2D1414' : '#FEE2E2' }]}>
+                <View
+                  style={[
+                    styles.settingsIconWrap,
+                    { backgroundColor: isDark ? '#2D1414' : '#FEE2E2' },
+                  ]}
+                >
                   <Shield size={18} color="#DC2626" />
                 </View>
-                <View>
-                  <Text style={[styles.settingsRowTitle, { color: colors.textPrimary }]}>App Blocking</Text>
-                  <Text style={[styles.settingsRowSub, { color: colors.textSecondary }]}>Anti-distraction shield enabled</Text>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={[
+                      styles.settingsRowTitle,
+                      { color: colors.textPrimary },
+                    ]}
+                  >
+                    App Blocking
+                  </Text>
+                  <Text
+                    style={[
+                      styles.settingsRowSub,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    Anti-distraction shield configuration
+                  </Text>
                 </View>
               </View>
               <ChevronRight size={18} color="#9CA3AF" />
@@ -332,22 +724,38 @@ export default function WarriorProfileTab() {
 
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-            {/* Cloud Backup */}
+            {/* Cloud / Local Backup */}
             <TouchableOpacity
               style={styles.settingsRow}
-              onPress={() => {
-                haptics.light();
-                router.push('/settings' as any);
-              }}
+              onPress={handleExportBackup}
               activeOpacity={0.7}
             >
               <View style={styles.settingsRowLeft}>
-                <View style={[styles.settingsIconWrap, { backgroundColor: isDark ? '#0C2B44' : '#E0F2FE' }]}>
+                <View
+                  style={[
+                    styles.settingsIconWrap,
+                    { backgroundColor: isDark ? '#0C2B44' : '#E0F2FE' },
+                  ]}
+                >
                   <Cloud size={18} color="#0A84FF" />
                 </View>
-                <View>
-                  <Text style={[styles.settingsRowTitle, { color: colors.textPrimary }]}>Cloud Backup</Text>
-                  <Text style={[styles.settingsRowSub, { color: colors.textSecondary }]}>Auto-synced with Supabase</Text>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={[
+                      styles.settingsRowTitle,
+                      { color: colors.textPrimary },
+                    ]}
+                  >
+                    Offline Backup & Export
+                  </Text>
+                  <Text
+                    style={[
+                      styles.settingsRowSub,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    Export SQLite profile & workouts to JSON
+                  </Text>
                 </View>
               </View>
               <ChevronRight size={18} color="#9CA3AF" />
@@ -360,17 +768,36 @@ export default function WarriorProfileTab() {
               style={styles.settingsRow}
               onPress={() => {
                 haptics.light();
-                router.push('/settings' as any);
+                setShowHowToUseModal(true);
               }}
               activeOpacity={0.7}
             >
               <View style={styles.settingsRowLeft}>
-                <View style={[styles.settingsIconWrap, { backgroundColor: isDark ? '#1A1C28' : '#F3F4F6' }]}>
+                <View
+                  style={[
+                    styles.settingsIconWrap,
+                    { backgroundColor: isDark ? '#1A1C28' : '#F3F4F6' },
+                  ]}
+                >
                   <HelpCircle size={18} color={colors.textSecondary} />
                 </View>
-                <View>
-                  <Text style={[styles.settingsRowTitle, { color: colors.textPrimary }]}>Help & Support</Text>
-                  <Text style={[styles.settingsRowSub, { color: colors.textSecondary }]}>Video guides & FAQ</Text>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={[
+                      styles.settingsRowTitle,
+                      { color: colors.textPrimary },
+                    ]}
+                  >
+                    Help & Video Guides
+                  </Text>
+                  <Text
+                    style={[
+                      styles.settingsRowSub,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    Watch official guides in Hindi & English
+                  </Text>
                 </View>
               </View>
               <ChevronRight size={18} color="#9CA3AF" />
@@ -383,17 +810,36 @@ export default function WarriorProfileTab() {
               style={styles.settingsRow}
               onPress={() => {
                 haptics.light();
-                router.push('/settings' as any);
+                setIsAboutSheetOpen(true);
               }}
               activeOpacity={0.7}
             >
               <View style={styles.settingsRowLeft}>
-                <View style={[styles.settingsIconWrap, { backgroundColor: isDark ? '#1A1C28' : '#F3F4F6' }]}>
+                <View
+                  style={[
+                    styles.settingsIconWrap,
+                    { backgroundColor: isDark ? '#1A1C28' : '#F3F4F6' },
+                  ]}
+                >
                   <Info size={18} color={colors.textSecondary} />
                 </View>
-                <View>
-                  <Text style={[styles.settingsRowTitle, { color: colors.textPrimary }]}>About ARISE</Text>
-                  <Text style={[styles.settingsRowSub, { color: colors.textSecondary }]}>Version 1.0.0 • Monarch Edition</Text>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={[
+                      styles.settingsRowTitle,
+                      { color: colors.textPrimary },
+                    ]}
+                  >
+                    About ARISE
+                  </Text>
+                  <Text
+                    style={[
+                      styles.settingsRowSub,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    Version 3.3.0 • Release
+                  </Text>
                 </View>
               </View>
               <ChevronRight size={18} color="#9CA3AF" />
@@ -403,6 +849,120 @@ export default function WarriorProfileTab() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Theme Selector Modal */}
+      <Modal
+        visible={showThemeModal}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setShowThemeModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.modalSheet,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
+                Select Theme Mode
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowThemeModal(false)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <X size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ gap: 8, marginTop: 10 }}>
+              {[
+                {
+                  mode: 'light' as ThemeMode,
+                  label: 'Light',
+                  desc: 'Clean white presentation (Recommended)',
+                },
+                {
+                  mode: 'dark' as ThemeMode,
+                  label: 'Dark (OLED)',
+                  desc: 'True AMOLED pure black',
+                },
+                {
+                  mode: 'system' as ThemeMode,
+                  label: 'System',
+                  desc: 'Follow device OS configuration',
+                },
+              ].map((item) => {
+                const isSelected = theme === item.mode;
+                return (
+                  <TouchableOpacity
+                    key={item.mode}
+                    style={[
+                      styles.optionCard,
+                      {
+                        backgroundColor: isDark ? '#12131A' : '#F9FAFB',
+                        borderColor: isSelected ? '#0A84FF' : colors.border,
+                      },
+                    ]}
+                    onPress={() => {
+                      haptics.medium();
+                      setTheme(item.mode);
+                      setShowThemeModal(false);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={[
+                          styles.optionTitle,
+                          {
+                            color: isSelected ? '#0A84FF' : colors.textPrimary,
+                          },
+                        ]}
+                      >
+                        {item.label}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.optionDesc,
+                          { color: colors.textSecondary },
+                        ]}
+                      >
+                        {item.desc}
+                      </Text>
+                    </View>
+                    {isSelected && (
+                      <View style={styles.optionCheck}>
+                        <Check size={14} color="#FFFFFF" strokeWidth={3} />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Language Selector Modal */}
+      <LanguageSelectorModal
+        visible={showLangModal}
+        onClose={() => setShowLangModal(false)}
+      />
+
+      {/* How to Use Video Guide Modal */}
+      <HowToUseModal
+        visible={showHowToUseModal}
+        onClose={() => setShowHowToUseModal(false)}
+        onSelectLanguage={handleSelectTutorialLang}
+      />
+
+      {/* About ARISE Bottom Sheet */}
+      <AboutAriseSheet
+        visible={isAboutSheetOpen}
+        onClose={() => setIsAboutSheetOpen(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -414,9 +974,30 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 12,
-    gap: 24,
+    paddingTop: 8,
+    gap: 20,
     paddingBottom: 40,
+  },
+
+  // Top Bar Row
+  topBarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+  },
+  screenHeaderTitle: {
+    fontSize: 20,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  settingsBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   // 1. Profile Header Card
@@ -451,10 +1032,29 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#F59E0B',
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
   displayName: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '900',
-    color: '#111827',
+    flex: 1,
+  },
+  editBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  editBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
   rankSubText: {
     fontSize: 13,
@@ -472,12 +1072,10 @@ const styles = StyleSheet.create({
   xpLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#6B7280',
   },
   xpFraction: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#111827',
   },
   xpTrack: {
     height: 8,
@@ -498,7 +1096,6 @@ const styles = StyleSheet.create({
   sectionHeading: {
     fontSize: 17,
     fontWeight: '900',
-    color: '#111827',
   },
   sectionHeaderBetween: {
     flexDirection: 'row',
@@ -562,11 +1159,9 @@ const styles = StyleSheet.create({
   transformCardTitle: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#111827',
   },
   transformCardSub: {
     fontSize: 11,
-    color: '#6B7280',
     fontWeight: '600',
   },
   addPhotoCard: {
@@ -592,7 +1187,6 @@ const styles = StyleSheet.create({
   addPhotoText: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#6B7280',
   },
 
   // 4. Settings Group
@@ -615,6 +1209,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 14,
     flex: 1,
+    paddingRight: 10,
   },
   settingsIconWrap: {
     width: 38,
@@ -626,16 +1221,72 @@ const styles = StyleSheet.create({
   settingsRowTitle: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#111827',
   },
   settingsRowSub: {
     fontSize: 11,
-    color: '#6B7280',
     fontWeight: '500',
+    marginTop: 2,
   },
   divider: {
     height: 1,
     backgroundColor: '#F3F4F6',
     marginLeft: 68,
+  },
+
+  // Modals Styling
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalSheet: {
+    width: '100%',
+    maxWidth: 380,
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 20,
+    gap: 12,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '900',
+  },
+  optionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1.5,
+  },
+  optionTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  optionDesc: {
+    fontSize: 11,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  optionCheck: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#0A84FF',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
