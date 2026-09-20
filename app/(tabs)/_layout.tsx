@@ -13,7 +13,7 @@ import {
 import { useTheme } from '../../src/hooks/useTheme';
 import { useHaptics } from '../../src/hooks/useHaptics';
 
-// Tab Icon Component (Lottie animation plays once whenever tapped/focused in light theme)
+// Tab Icon Component (Maintains perfect 1:1 square aspect ratio - zero squish/distortion)
 function TabAnimatedIcon({
   animationSource,
   darkImageSource,
@@ -49,13 +49,15 @@ function TabAnimatedIcon({
       {isDark && darkImageSource ? (
         <Image
           source={darkImageSource}
-          style={{
-            width: size,
-            height: size,
-            resizeMode: 'contain',
-            opacity: focused ? 1 : 0.6,
-            transform: [{ scale: focused ? 1.08 : 0.95 }],
-          }}
+          style={[
+            styles.imageIcon,
+            {
+              width: size,
+              height: size,
+              opacity: focused ? 1 : 0.65,
+              transform: [{ scale: focused ? 1.05 : 0.95 }],
+            },
+          ]}
         />
       ) : animationSource ? (
         <LottieView
@@ -63,7 +65,7 @@ function TabAnimatedIcon({
           source={animationSource}
           autoPlay={false}
           loop={false}
-          style={{ width: size, height: size }}
+          style={[styles.lottieIcon, { width: size, height: size }]}
         />
       ) : (
         <FallbackIcon
@@ -102,7 +104,7 @@ export default function TabsLayout() {
           backgroundColor: isDark ? '#000000' : '#FFFFFF',
           borderTopWidth: 1,
           borderTopColor: isDark ? '#1F222E' : '#EEEEEE',
-          height: 62 + (insets.bottom > 0 ? insets.bottom : 8),
+          height: 64 + (insets.bottom > 0 ? insets.bottom : 8),
           paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
           paddingTop: 6,
           elevation: 8,
@@ -117,7 +119,7 @@ export default function TabsLayout() {
           fontSize: 11,
           fontWeight: '800',
           letterSpacing: -0.2,
-          marginTop: 2,
+          marginTop: 3,
         },
       }}
     >
@@ -254,14 +256,25 @@ const styles = StyleSheet.create({
   iconContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    height: 32,
+    width: 36,
+    height: 34,
     position: 'relative',
   },
+  lottieIcon: {
+    aspectRatio: 1,
+    alignSelf: 'center',
+  },
+  imageIcon: {
+    aspectRatio: 1,
+    resizeMode: 'contain',
+    alignSelf: 'center',
+  },
   activeIndicator: {
+    position: 'absolute',
+    bottom: -3,
     width: 16,
     height: 2.5,
     borderRadius: 1.5,
     backgroundColor: '#E53935',
-    marginTop: 2,
   },
 });
