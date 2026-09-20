@@ -1,12 +1,11 @@
 import React, { useRef, useEffect } from 'react';
-import { View, Image, Platform, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LottieView from 'lottie-react-native';
 import {
   House,
   Lightning,
-  Sword,
   Barbell,
   User,
   Trophy,
@@ -14,17 +13,15 @@ import {
 import { useTheme } from '../../src/hooks/useTheme';
 import { useHaptics } from '../../src/hooks/useHaptics';
 
-// Tab Animated / 3D Icon Component
+// Tab Animated Icon Component (Plays once on tab focus)
 function TabAnimatedIcon({
   animationSource,
-  imageSource,
   fallbackIcon: FallbackIcon,
   focused,
   color,
   size = 28,
 }: {
   animationSource?: any;
-  imageSource?: any;
   fallbackIcon: any;
   focused: boolean;
   color: string;
@@ -34,6 +31,7 @@ function TabAnimatedIcon({
 
   useEffect(() => {
     if (focused) {
+      lottieRef.current?.reset();
       lottieRef.current?.play();
     } else {
       lottieRef.current?.reset();
@@ -46,20 +44,9 @@ function TabAnimatedIcon({
         <LottieView
           ref={lottieRef}
           source={animationSource}
-          autoPlay={focused}
-          loop={focused}
+          autoPlay={false}
+          loop={false}
           style={{ width: size, height: size }}
-        />
-      ) : imageSource ? (
-        <Image
-          source={imageSource}
-          style={{
-            width: size,
-            height: size,
-            resizeMode: 'contain',
-            opacity: focused ? 1 : 0.6,
-            transform: [{ scale: focused ? 1.08 : 0.95 }],
-          }}
         />
       ) : (
         <FallbackIcon
@@ -168,11 +155,11 @@ export default function TabsLayout() {
           title: 'Gym',
           tabBarIcon: ({ color, focused }) => (
             <TabAnimatedIcon
-              imageSource={require('../../assets/3d/sword.png')}
+              animationSource={require('../../assets/Animations/gym.json')}
               fallbackIcon={Barbell}
               focused={focused}
               color={color}
-              size={26}
+              size={28}
             />
           ),
         }}
