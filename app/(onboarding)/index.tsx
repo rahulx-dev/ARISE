@@ -680,7 +680,7 @@ export default function OnboardingScreen() {
 
               {/* Status Header Pill */}
               <View style={[styles.permStatusHeaderPill, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.permStatusHeaderText, { color: allPermissionsGranted ? colors.success : colors.primary }]}>
+                <Text style={[styles.permStatusHeaderText, { color: allPermissionsGranted ? '#0A84FF' : colors.primary }]}>
                   {allPermissionsCount} of 5 granted
                 </Text>
               </View>
@@ -689,8 +689,8 @@ export default function OnboardingScreen() {
                 {/* 1. Camera Tracker */}
                 <View style={[styles.permCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={styles.permCardTop}>
-                    <View style={[styles.permIconBox, { backgroundColor: cameraGranted ? 'rgba(16, 185, 129, 0.12)' : 'rgba(229, 57, 53, 0.1)' }]}>
-                      <CameraIcon size={18} color={cameraGranted ? colors.success : colors.primary} />
+                    <View style={[styles.permIconBox, { backgroundColor: cameraGranted ? 'rgba(10, 132, 255, 0.12)' : 'rgba(229, 57, 53, 0.1)' }]}>
+                      <CameraIcon size={18} color={cameraGranted ? '#0A84FF' : colors.primary} />
                     </View>
                     <View style={styles.permCardHeaderCol}>
                       <Text style={[styles.permCardTitle, { color: colors.textPrimary }]}>AI Camera Tracker</Text>
@@ -700,13 +700,13 @@ export default function OnboardingScreen() {
                       style={[
                         styles.permActionBtn,
                         { backgroundColor: colors.primary },
-                        cameraGranted && { backgroundColor: 'rgba(16, 185, 129, 0.12)', borderWidth: 1, borderColor: colors.success },
+                        cameraGranted && { backgroundColor: 'rgba(10, 132, 255, 0.12)', borderWidth: 1, borderColor: '#0A84FF' },
                       ]}
                       onPress={handleGrantCamera}
                       disabled={cameraGranted}
                       activeOpacity={0.8}
                     >
-                      <Text style={[styles.permActionBtnText, cameraGranted && { color: colors.success }]}>
+                      <Text style={[styles.permActionBtnText, cameraGranted && { color: '#0A84FF' }]}>
                         {cameraGranted ? 'Enabled' : 'Allow'}
                       </Text>
                     </TouchableOpacity>
@@ -716,8 +716,8 @@ export default function OnboardingScreen() {
                 {/* 2. Notifications */}
                 <View style={[styles.permCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={styles.permCardTop}>
-                    <View style={[styles.permIconBox, { backgroundColor: notifGranted ? 'rgba(16, 185, 129, 0.12)' : 'rgba(229, 57, 53, 0.1)' }]}>
-                      <Bell size={18} color={notifGranted ? colors.success : colors.primary} />
+                    <View style={[styles.permIconBox, { backgroundColor: notifGranted ? 'rgba(10, 132, 255, 0.12)' : 'rgba(229, 57, 53, 0.1)' }]}>
+                      <Bell size={18} color={notifGranted ? '#0A84FF' : colors.primary} />
                     </View>
                     <View style={styles.permCardHeaderCol}>
                       <Text style={[styles.permCardTitle, { color: colors.textPrimary }]}>Notifications</Text>
@@ -727,13 +727,13 @@ export default function OnboardingScreen() {
                       style={[
                         styles.permActionBtn,
                         { backgroundColor: colors.primary },
-                        notifGranted && { backgroundColor: 'rgba(16, 185, 129, 0.12)', borderWidth: 1, borderColor: colors.success },
+                        notifGranted && { backgroundColor: 'rgba(10, 132, 255, 0.12)', borderWidth: 1, borderColor: '#0A84FF' },
                       ]}
                       onPress={handleGrantNotifications}
                       disabled={notifGranted}
                       activeOpacity={0.8}
                     >
-                      <Text style={[styles.permActionBtnText, notifGranted && { color: colors.success }]}>
+                      <Text style={[styles.permActionBtnText, notifGranted && { color: '#0A84FF' }]}>
                         {notifGranted ? 'Enabled' : 'Allow'}
                       </Text>
                     </TouchableOpacity>
@@ -743,8 +743,8 @@ export default function OnboardingScreen() {
                 {/* 3. Screen Time Access */}
                 <View style={[styles.permCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={styles.permCardTop}>
-                    <View style={[styles.permIconBox, { backgroundColor: usageGranted ? 'rgba(16, 185, 129, 0.12)' : 'rgba(229, 57, 53, 0.1)' }]}>
-                      <Clock size={18} color={usageGranted ? colors.success : colors.primary} />
+                    <View style={[styles.permIconBox, { backgroundColor: usageGranted ? 'rgba(10, 132, 255, 0.12)' : 'rgba(229, 57, 53, 0.1)' }]}>
+                      <Clock size={18} color={usageGranted ? '#0A84FF' : colors.primary} />
                     </View>
                     <View style={styles.permCardHeaderCol}>
                       <Text style={[styles.permCardTitle, { color: colors.textPrimary }]}>Screen Time Access</Text>
@@ -754,13 +754,13 @@ export default function OnboardingScreen() {
                       style={[
                         styles.permActionBtn,
                         { backgroundColor: colors.primary },
-                        usageGranted && { backgroundColor: 'rgba(16, 185, 129, 0.12)', borderWidth: 1, borderColor: colors.success },
+                        usageGranted && { backgroundColor: 'rgba(10, 132, 255, 0.12)', borderWidth: 1, borderColor: '#0A84FF' },
                       ]}
                       onPress={handleGrantUsage}
                       disabled={usageGranted}
                       activeOpacity={0.8}
                     >
-                      <Text style={[styles.permActionBtnText, usageGranted && { color: colors.success }]}>
+                      <Text style={[styles.permActionBtnText, usageGranted && { color: '#0A84FF' }]}>
                         {usageGranted ? 'Enabled' : 'Allow'}
                       </Text>
                     </TouchableOpacity>
@@ -770,8 +770,8 @@ export default function OnboardingScreen() {
                 {/* 4. Display Over Other Apps */}
                 <View style={[styles.permCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={styles.permCardTop}>
-                    <View style={[styles.permIconBox, { backgroundColor: overlayGranted ? 'rgba(16, 185, 129, 0.12)' : 'rgba(229, 57, 53, 0.1)' }]}>
-                      <Shield size={18} color={overlayGranted ? colors.success : colors.primary} />
+                    <View style={[styles.permIconBox, { backgroundColor: overlayGranted ? 'rgba(10, 132, 255, 0.12)' : 'rgba(229, 57, 53, 0.1)' }]}>
+                      <Shield size={18} color={overlayGranted ? '#0A84FF' : colors.primary} />
                     </View>
                     <View style={styles.permCardHeaderCol}>
                       <Text style={[styles.permCardTitle, { color: colors.textPrimary }]}>Lock Shield Overlay</Text>
@@ -781,13 +781,13 @@ export default function OnboardingScreen() {
                       style={[
                         styles.permActionBtn,
                         { backgroundColor: colors.primary },
-                        overlayGranted && { backgroundColor: 'rgba(16, 185, 129, 0.12)', borderWidth: 1, borderColor: colors.success },
+                        overlayGranted && { backgroundColor: 'rgba(10, 132, 255, 0.12)', borderWidth: 1, borderColor: '#0A84FF' },
                       ]}
                       onPress={handleGrantOverlay}
                       disabled={overlayGranted}
                       activeOpacity={0.8}
                     >
-                      <Text style={[styles.permActionBtnText, overlayGranted && { color: colors.success }]}>
+                      <Text style={[styles.permActionBtnText, overlayGranted && { color: '#0A84FF' }]}>
                         {overlayGranted ? 'Enabled' : 'Allow'}
                       </Text>
                     </TouchableOpacity>
@@ -797,8 +797,8 @@ export default function OnboardingScreen() {
                 {/* 5. Battery Optimization */}
                 <View style={[styles.permCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={styles.permCardTop}>
-                    <View style={[styles.permIconBox, { backgroundColor: batteryGranted ? 'rgba(16, 185, 129, 0.12)' : 'rgba(229, 57, 53, 0.1)' }]}>
-                      <Zap size={18} color={batteryGranted ? colors.success : colors.primary} />
+                    <View style={[styles.permIconBox, { backgroundColor: batteryGranted ? 'rgba(10, 132, 255, 0.12)' : 'rgba(229, 57, 53, 0.1)' }]}>
+                      <Zap size={18} color={batteryGranted ? '#0A84FF' : colors.primary} />
                     </View>
                     <View style={styles.permCardHeaderCol}>
                       <Text style={[styles.permCardTitle, { color: colors.textPrimary }]}>Battery Optimization</Text>
@@ -808,13 +808,13 @@ export default function OnboardingScreen() {
                       style={[
                         styles.permActionBtn,
                         { backgroundColor: colors.primary },
-                        batteryGranted && { backgroundColor: 'rgba(16, 185, 129, 0.12)', borderWidth: 1, borderColor: colors.success },
+                        batteryGranted && { backgroundColor: 'rgba(10, 132, 255, 0.12)', borderWidth: 1, borderColor: '#0A84FF' },
                       ]}
                       onPress={handleGrantBattery}
                       disabled={batteryGranted}
                       activeOpacity={0.8}
                     >
-                      <Text style={[styles.permActionBtnText, batteryGranted && { color: colors.success }]}>
+                      <Text style={[styles.permActionBtnText, batteryGranted && { color: '#0A84FF' }]}>
                         {batteryGranted ? 'Enabled' : 'Allow'}
                       </Text>
                     </TouchableOpacity>

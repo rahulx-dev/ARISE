@@ -242,13 +242,13 @@ export function PermissionsGateModal({
           <View
             style={[
               styles.progressPill,
-              { borderColor: allGranted ? "#10B981" : "#0A84FF" },
+              { borderColor: "#0A84FF" },
             ]}
           >
             <Text
               style={[
                 styles.progressText,
-                { color: allGranted ? "#10B981" : "#0A84FF" },
+                { color: "#0A84FF" },
               ]}
             >
               {allGranted
@@ -268,7 +268,7 @@ export function PermissionsGateModal({
                 variant={p.granted ? "elevated" : "glow"}
                 style={[
                   styles.permCard,
-                  p.granted && { borderColor: "rgba(16, 185, 129, 0.4)" },
+                  p.granted && { borderColor: "rgba(10, 132, 255, 0.4)" },
                 ]}
               >
                 <View style={styles.permRow}>
@@ -276,15 +276,13 @@ export function PermissionsGateModal({
                     style={[
                       styles.iconWrap,
                       {
-                        backgroundColor: p.granted
-                          ? "rgba(16, 185, 129, 0.15)"
-                          : "rgba(10, 132, 255, 0.15)",
+                        backgroundColor: "rgba(10, 132, 255, 0.15)",
                       },
                     ]}
                   >
                     <IconComp
                       size={22}
-                      color={p.granted ? "#10B981" : "#0A84FF"}
+                      color="#0A84FF"
                     />
                   </View>
 
@@ -295,7 +293,7 @@ export function PermissionsGateModal({
 
                   {p.granted ? (
                     <View style={styles.grantedBadge}>
-                      <CheckCircle2 size={16} color="#10B981" />
+                      <CheckCircle2 size={16} color="#0A84FF" />
                       <Text style={styles.grantedText}>ACTIVE</Text>
                     </View>
                   ) : (
@@ -438,17 +436,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "rgba(16, 185, 129, 0.15)",
+    backgroundColor: "rgba(10, 132, 255, 0.15)",
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 100,
     borderWidth: 1,
-    borderColor: "rgba(16, 185, 129, 0.3)",
+    borderColor: "rgba(10, 132, 255, 0.3)",
   },
   grantedText: {
     fontSize: 11,
     fontWeight: "800",
-    color: "#10B981",
+    color: "#0A84FF",
   },
   grantBtn: {
     backgroundColor: "#0A84FF",
