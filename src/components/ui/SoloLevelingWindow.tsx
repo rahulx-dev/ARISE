@@ -127,16 +127,8 @@ export function SoloLevelingWindow({
       ]}
     >
       {/* Top Header Bar */}
-      <View style={styles.topHeaderRow}>
-        <Text
-          style={[
-            styles.brandWordmark,
-            { color: isDark ? '#8E8E93' : '#64748B' },
-          ]}
-        >
-          A R I S E
-        </Text>
-        {onClose && (
+      {onClose && (
+        <View style={styles.topHeaderRow}>
           <TouchableOpacity
             onPress={onClose}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
@@ -145,8 +137,8 @@ export function SoloLevelingWindow({
           >
             <X size={18} color={isDark ? '#8E8E93' : '#64748B'} />
           </TouchableOpacity>
-        )}
-      </View>
+        </View>
+      )}
 
       {/* Center Hero Icon */}
       <View style={[styles.heroIconCircle, { backgroundColor: iconConfig.bg }]}>
@@ -288,7 +280,7 @@ export function SoloLevelingWindow({
           {footerNote ||
             (isDanger
               ? 'If this keeps happening, try restarting the app.'
-              : 'ARISE System Notification')}
+              : 'System Notification')}
         </Text>
         <View
           style={[
@@ -319,13 +311,9 @@ const styles = StyleSheet.create({
   topHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     paddingHorizontal: 2,
-  },
-  brandWordmark: {
-    fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 5,
+    marginBottom: -8,
   },
   closeBtn: {
     padding: 4,
