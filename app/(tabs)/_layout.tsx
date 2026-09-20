@@ -1,16 +1,77 @@
-import React from 'react';
-import { View } from 'react-native';
+import React, { useRef, useEffect } from 'react';
+import { View, Image, Platform, StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import LottieView from 'lottie-react-native';
 import {
   House,
   Lightning,
-  Timer,
-  User,
   Sword,
+  Barbell,
+  User,
+  Trophy,
 } from 'phosphor-react-native';
 import { useTheme } from '../../src/hooks/useTheme';
 import { useHaptics } from '../../src/hooks/useHaptics';
+
+// Tab Animated / 3D Icon Component
+function TabAnimatedIcon({
+  animationSource,
+  imageSource,
+  fallbackIcon: FallbackIcon,
+  focused,
+  color,
+  size = 28,
+}: {
+  animationSource?: any;
+  imageSource?: any;
+  fallbackIcon: any;
+  focused: boolean;
+  color: string;
+  size?: number;
+}) {
+  const lottieRef = useRef<LottieView>(null);
+
+  useEffect(() => {
+    if (focused) {
+      lottieRef.current?.play();
+    } else {
+      lottieRef.current?.reset();
+    }
+  }, [focused]);
+
+  return (
+    <View style={styles.iconContainer}>
+      {animationSource ? (
+        <LottieView
+          ref={lottieRef}
+          source={animationSource}
+          autoPlay={focused}
+          loop={focused}
+          style={{ width: size, height: size }}
+        />
+      ) : imageSource ? (
+        <Image
+          source={imageSource}
+          style={{
+            width: size,
+            height: size,
+            resizeMode: 'contain',
+            opacity: focused ? 1 : 0.6,
+            transform: [{ scale: focused ? 1.08 : 0.95 }],
+          }}
+        />
+      ) : (
+        <FallbackIcon
+          size={24}
+          color={focused ? '#E53935' : color}
+          weight={focused ? 'fill' : 'regular'}
+        />
+      )}
+      {focused && <View style={styles.activeIndicator} />}
+    </View>
+  );
+}
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
@@ -29,110 +90,116 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: isDark ? '#000000' : '#FFFFFF',
           borderTopWidth: 1,
-          borderTopColor: isDark ? '#1F222E' : '#E5E7EB',
-          height: 60 + (insets.bottom > 0 ? insets.bottom : 8),
+          borderTopColor: isDark ? '#1F222E' : '#EEEEEE',
+          height: 62 + (insets.bottom > 0 ? insets.bottom : 8),
           paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
-          paddingTop: 8,
-          elevation: 0,
+          paddingTop: 6,
+          elevation: 8,
+          shadowColor: '#000000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.05,
+          shadowRadius: 8,
         },
         tabBarActiveTintColor: '#E53935',
         tabBarInactiveTintColor: isDark ? '#8E8E93' : '#6B7280',
         tabBarLabelStyle: {
-          fontSize: 10.5,
+          fontSize: 11,
           fontWeight: '800',
           letterSpacing: -0.2,
-          marginTop: 3,
+          marginTop: 2,
         },
       }}
     >
+      {/* 1. HOME TAB */}
       <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
           tabBarIcon: ({ color, focused }) => (
-            <View style={{ alignItems: 'center' }}>
-              <House
-                size={22}
-                color={focused ? '#E53935' : color}
-                weight={focused ? 'fill' : 'regular'}
-              />
-              {focused && (
-                <View style={{ width: 16, height: 2.5, borderRadius: 1.5, backgroundColor: '#E53935', marginTop: 3 }} />
-              )}
-            </View>
+            <TabAnimatedIcon
+              animationSource={require('../../assets/Animations/home.json')}
+              fallbackIcon={House}
+              focused={focused}
+              color={color}
+              size={28}
+            />
           ),
         }}
       />
+
+      {/* 2. QUESTS TAB */}
       <Tabs.Screen
         name="quests"
         options={{
           title: 'Quests',
           tabBarIcon: ({ color, focused }) => (
-            <View style={{ alignItems: 'center' }}>
-              <Lightning
-                size={22}
-                color={focused ? '#E53935' : color}
-                weight={focused ? 'fill' : 'regular'}
-              />
-              {focused && (
-                <View style={{ width: 16, height: 2.5, borderRadius: 1.5, backgroundColor: '#E53935', marginTop: 3 }} />
-              )}
-            </View>
+            <TabAnimatedIcon
+              animationSource={require('../../assets/Animations/icons8-thunder.json')}
+              fallbackIcon={Lightning}
+              focused={focused}
+              color={color}
+              size={28}
+            />
           ),
         }}
       />
-      <Tabs.Screen
-        name="focus"
-        options={{
-          title: 'Focus',
-          tabBarIcon: ({ color, focused }) => (
-            <View style={{ alignItems: 'center' }}>
-              <Timer
-                size={22}
-                color={focused ? '#E53935' : color}
-                weight={focused ? 'fill' : 'regular'}
-              />
-              {focused && (
-                <View style={{ width: 16, height: 2.5, borderRadius: 1.5, backgroundColor: '#E53935', marginTop: 3 }} />
-              )}
-            </View>
-          ),
-        }}
-      />
+
+      {/* 3. DUNGEON / GATES TAB */}
       <Tabs.Screen
         name="gates"
         options={{
           title: 'Dungeon',
           tabBarIcon: ({ color, focused }) => (
-            <View style={{ alignItems: 'center' }}>
-              <Sword
-                size={22}
-                color={focused ? '#E53935' : color}
-                weight={focused ? 'fill' : 'regular'}
-              />
-              {focused && (
-                <View style={{ width: 16, height: 2.5, borderRadius: 1.5, backgroundColor: '#E53935', marginTop: 3 }} />
-              )}
-            </View>
+            <TabAnimatedIcon
+              animationSource={require('../../assets/Animations/trophy.json')}
+              fallbackIcon={Trophy}
+              focused={focused}
+              color={color}
+              size={28}
+            />
           ),
         }}
       />
+
+      {/* 4. GYM TRAINING TAB */}
+      <Tabs.Screen
+        name="gym"
+        options={{
+          title: 'Gym',
+          tabBarIcon: ({ color, focused }) => (
+            <TabAnimatedIcon
+              imageSource={require('../../assets/3d/sword.png')}
+              fallbackIcon={Barbell}
+              focused={focused}
+              color={color}
+              size={26}
+            />
+          ),
+        }}
+      />
+
+      {/* 5. PROFILE / WARRIOR TAB */}
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, focused }) => (
-            <View style={{ alignItems: 'center' }}>
-              <User
-                size={22}
-                color={focused ? '#E53935' : color}
-                weight={focused ? 'fill' : 'regular'}
-              />
-              {focused && (
-                <View style={{ width: 16, height: 2.5, borderRadius: 1.5, backgroundColor: '#E53935', marginTop: 3 }} />
-              )}
-            </View>
+            <TabAnimatedIcon
+              animationSource={require('../../assets/Animations/profile.json')}
+              fallbackIcon={User}
+              focused={focused}
+              color={color}
+              size={28}
+            />
           ),
+        }}
+      />
+
+      {/* HIDDEN / SUB TABS */}
+      <Tabs.Screen
+        name="focus"
+        options={{
+          href: null,
         }}
       />
       <Tabs.Screen
@@ -156,3 +223,19 @@ export default function TabsLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  iconContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 32,
+    position: 'relative',
+  },
+  activeIndicator: {
+    width: 16,
+    height: 2.5,
+    borderRadius: 1.5,
+    backgroundColor: '#E53935',
+    marginTop: 2,
+  },
+});
