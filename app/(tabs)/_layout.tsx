@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { View, Image, StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,7 +13,7 @@ import {
 import { useTheme } from '../../src/hooks/useTheme';
 import { useHaptics } from '../../src/hooks/useHaptics';
 
-// Tab Icon Component (Lottie animated in light theme; Dark theme custom icons in dark theme)
+// Tab Icon Component (Lottie animation plays once whenever tapped/focused in light theme)
 function TabAnimatedIcon({
   animationSource,
   darkImageSource,
@@ -21,6 +21,7 @@ function TabAnimatedIcon({
   focused,
   color,
   isDark,
+  playTrigger,
   size = 28,
 }: {
   animationSource?: any;
@@ -29,18 +30,19 @@ function TabAnimatedIcon({
   focused: boolean;
   color: string;
   isDark: boolean;
+  playTrigger?: number;
   size?: number;
 }) {
   const lottieRef = useRef<LottieView>(null);
 
   useEffect(() => {
-    if (focused && !isDark) {
+    if (focused && !isDark && animationSource) {
       lottieRef.current?.reset();
       lottieRef.current?.play();
-    } else {
+    } else if (!focused) {
       lottieRef.current?.reset();
     }
-  }, [focused, isDark]);
+  }, [focused, isDark, playTrigger, animationSource]);
 
   return (
     <View style={styles.iconContainer}>
@@ -80,13 +82,20 @@ export default function TabsLayout() {
   const { colors, isDark } = useTheme();
   const haptics = useHaptics();
 
+  // State to trigger animation play on every click/tap
+  const [tabTapState, setTabTapState] = useState<{ tab: string; time: number }>({
+    tab: 'index',
+    time: Date.now(),
+  });
+
   return (
     <Tabs
-      screenListeners={{
+      screenListeners={({ route }) => ({
         tabPress: () => {
           haptics.light();
+          setTabTapState({ tab: route.name, time: Date.now() });
         },
-      }}
+      })}
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
@@ -125,6 +134,7 @@ export default function TabsLayout() {
               focused={focused}
               color={color}
               isDark={isDark}
+              playTrigger={tabTapState.tab === 'index' ? tabTapState.time : undefined}
               size={28}
             />
           ),
@@ -144,6 +154,7 @@ export default function TabsLayout() {
               focused={focused}
               color={color}
               isDark={isDark}
+              playTrigger={tabTapState.tab === 'quests' ? tabTapState.time : undefined}
               size={28}
             />
           ),
@@ -163,6 +174,7 @@ export default function TabsLayout() {
               focused={focused}
               color={color}
               isDark={isDark}
+              playTrigger={tabTapState.tab === 'gates' ? tabTapState.time : undefined}
               size={28}
             />
           ),
@@ -182,6 +194,7 @@ export default function TabsLayout() {
               focused={focused}
               color={color}
               isDark={isDark}
+              playTrigger={tabTapState.tab === 'gym' ? tabTapState.time : undefined}
               size={28}
             />
           ),
@@ -201,6 +214,7 @@ export default function TabsLayout() {
               focused={focused}
               color={color}
               isDark={isDark}
+              playTrigger={tabTapState.tab === 'profile' ? tabTapState.time : undefined}
               size={28}
             />
           ),
