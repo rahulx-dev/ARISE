@@ -15,17 +15,15 @@ import {
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
-  ArrowLeft,
+  ChevronLeft,
   Search,
   Lock,
-  LockOpen,
   ShieldAlert,
-  Smartphone,
-  Check,
   Shield,
-  Sparkles,
-  Sliders,
+  Clock,
+  ChevronRight,
   X,
+  Smartphone,
 } from "lucide-react-native";
 import { appBlockerService } from "../../src/native";
 import { db } from "../../src/database/client";
@@ -34,7 +32,6 @@ import { eq } from "drizzle-orm";
 import { useHaptics } from "../../src/hooks/useHaptics";
 import { useTheme } from "../../src/hooks/useTheme";
 import { showIOSAlert } from "../../src/components/ios/IOSAlertModal";
-import { HoloLoader } from "../../src/components/ui/HoloLoader";
 import { useSettingsStore } from "../../src/stores/useSettingsStore";
 
 interface AppItem {
@@ -81,18 +78,19 @@ export default function LockedAppsScreen() {
       setHasUsagePerm(usagePerm);
       setHasOverlayPerm(overlayPerm);
 
+      // Fetch ONLY real installed apps from phone's PackageManager
       const installed = await appBlockerService.getInstalledApps();
       const saved = await db.select().from(appRestriction);
       const restrictedSet = new Set(
         saved
           .filter(
             (r: { isRestricted: number; packageName: string }) =>
-              r.isRestricted === 1,
+              r.isRestricted === 1
           )
-          .map((r: { packageName: string }) => r.packageName),
+          .map((r: { packageName: string }) => r.packageName)
       );
 
-      if (installed.length > 0) {
+      if (installed && installed.length > 0) {
         const merged: AppItem[] = installed.map((app) => ({
           packageName: app.packageName,
           appName: app.appName,
@@ -100,35 +98,16 @@ export default function LockedAppsScreen() {
           appIconBase64: app.appIconBase64,
         }));
         merged.sort(
-          (a, b) => (b.isRestricted ? 1 : 0) - (a.isRestricted ? 1 : 0),
+          (a, b) => (b.isRestricted ? 1 : 0) - (a.isRestricted ? 1 : 0)
         );
         setAllApps(merged);
       } else {
-        if (Platform.OS === "web") {
-          const webDemo = [
-            {
-              packageName: "com.instagram.android",
-              appName: "Instagram",
-              isRestricted: restrictedSet.has("com.instagram.android"),
-            },
-            {
-              packageName: "com.google.android.youtube",
-              appName: "YouTube",
-              isRestricted: restrictedSet.has("com.google.android.youtube"),
-            },
-            {
-              packageName: "com.zhiliaoapp.musically",
-              appName: "TikTok",
-              isRestricted: restrictedSet.has("com.zhiliaoapp.musically"),
-            },
-          ];
-          setAllApps(webDemo);
-        } else {
-          setAllApps([]);
-        }
+        // No fake/default apps — show empty list if nothing installed on platform
+        setAllApps([]);
       }
     } catch (e) {
       console.error("Error loading apps:", e);
+      setAllApps([]);
     } finally {
       setLoading(false);
     }
@@ -140,18 +119,9 @@ export default function LockedAppsScreen() {
     return allApps.filter(
       (app) =>
         app.appName.toLowerCase().includes(q) ||
-        app.packageName.toLowerCase().includes(q),
+        app.packageName.toLowerCase().includes(q)
     );
   }, [allApps, searchQuery]);
-
-  const restrictedApps = useMemo(
-    () => filteredApps.filter((a) => a.isRestricted),
-    [filteredApps],
-  );
-  const availableApps = useMemo(
-    () => filteredApps.filter((a) => !a.isRestricted),
-    [filteredApps],
-  );
 
   const toggleAppRestriction = async (item: AppItem) => {
     haptics.medium();
@@ -162,8 +132,8 @@ export default function LockedAppsScreen() {
       prev.map((a) =>
         a.packageName === item.packageName
           ? { ...a, isRestricted: newStatus }
-          : a,
-      ),
+          : a
+      )
     );
 
     try {
@@ -190,7 +160,7 @@ export default function LockedAppsScreen() {
         .map((a) =>
           a.packageName === item.packageName
             ? { ...a, isRestricted: newStatus }
-            : a,
+            : a
         )
         .filter((a) => a.isRestricted)
         .map((a) => a.packageName);
@@ -207,8 +177,8 @@ export default function LockedAppsScreen() {
         prev.map((a) =>
           a.packageName === item.packageName
             ? { ...a, isRestricted: item.isRestricted }
-            : a,
-        ),
+            : a
+        )
       );
       showIOSAlert("Database Error", "Could not update app lock status.");
     }
@@ -216,898 +186,982 @@ export default function LockedAppsScreen() {
 
   const totalRestrictedCount = allApps.filter((a) => a.isRestricted).length;
 
-  return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <SafeAreaView style={styles.safeArea}>
-        {/* Header */}
-        <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <View style={styles.headerLeft}>
-            <TouchableOpacity
-              style={[
-                styles.backBtn,
-                {
-                  backgroundColor: colors.surfaceLight,
-                  borderColor: colors.border,
-                },
-              ]}
-              onPress={() => router.back()}
-              activeOpacity={0.8}
-            >
-              <ArrowLeft size={19} color={colors.textPrimary} />
-            </TouchableOpacity>
-            <View>
-              <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
-                LOCKED APPS
-              </Text>
-              <Text style={[styles.headerSub, { color: colors.textSecondary }]}>
-                Focus Shield Protocol
-              </Text>
-            </View>
-          </View>
+  const handleCustomTimeSubmit = () => {
+    const parsed = parseInt(customMinutesInput, 10);
+    if (!isNaN(parsed) && parsed >= 0) {
+      haptics.success();
+      updateSetting("dailyBudgetMinutes", parsed);
+      appBlockerService.setAppBudget?.(null, parsed);
+      setShowCustomTimeModal(false);
+      setCustomMinutesInput("");
+    } else {
+      haptics.warning();
+    }
+  };
 
-          <View style={styles.activeCountBadge}>
-            <Shield size={13} color="#0A84FF" />
-            <Text style={styles.activeCountText}>
-              {totalRestrictedCount} LOCKED
-            </Text>
-          </View>
+  const isPresetSelected = (mins: number) => dailyBudgetMinutes === mins;
+  const isCustomSelected = ![0, 15, 30, 45, 60, 120].includes(
+    dailyBudgetMinutes
+  );
+
+  return (
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: isDark ? "#0A0B10" : "#F8FAFC" }]}
+      edges={["top", "left", "right"]}
+    >
+      {/* 1. Header Row (1:1 with reference) */}
+      <View style={styles.topHeader}>
+        <TouchableOpacity
+          style={[
+            styles.backBtn,
+            { backgroundColor: isDark ? "#161822" : "#FFFFFF" },
+          ]}
+          onPress={() => router.back()}
+          activeOpacity={0.75}
+        >
+          <ChevronLeft
+            size={22}
+            color={isDark ? "#FFFFFF" : "#0F172A"}
+            strokeWidth={2.5}
+          />
+        </TouchableOpacity>
+
+        <View style={styles.headerCenterCol}>
+          <Text
+            style={[
+              styles.headerTitle,
+              { color: isDark ? "#FFFFFF" : "#0F172A" },
+            ]}
+          >
+            Locked Apps
+          </Text>
+          <Text
+            style={[
+              styles.headerSubtitle,
+              { color: isDark ? "#8E8E93" : "#64748B" },
+            ]}
+          >
+            Focus Shield Protocol
+          </Text>
         </View>
 
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
+        <View
+          style={[
+            styles.lockedBadgePill,
+            {
+              backgroundColor: isDark
+                ? "rgba(239, 68, 68, 0.15)"
+                : "#FFF1F2",
+            },
+          ]}
         >
-          {/* Permission Banner if missing */}
-          {(!hasUsagePerm || !hasOverlayPerm) && (
+          <Shield size={13} color="#EF4444" />
+          <Text style={styles.lockedBadgeText}>
+            {totalRestrictedCount} Locked
+          </Text>
+        </View>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* 2. Permissions Banner (if missing) */}
+        {(!hasUsagePerm || !hasOverlayPerm) && (
+          <View
+            style={[
+              styles.permCard,
+              {
+                backgroundColor: isDark ? "#1A1215" : "#FFF5F5",
+                borderColor: isDark ? "#3D1C22" : "#FFE4E6",
+              },
+            ]}
+          >
+            <View style={styles.permIconCircle}>
+              <ShieldAlert size={20} color="#EF4444" />
+            </View>
+
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text
+                style={[
+                  styles.permTitle,
+                  { color: isDark ? "#FFFFFF" : "#0F172A" },
+                ]}
+              >
+                Permissions Required
+              </Text>
+              <Text
+                style={[
+                  styles.permDesc,
+                  { color: isDark ? "#8E8E93" : "#64748B" },
+                ]}
+              >
+                App blocker requires system permissions to lock apps during focus.
+              </Text>
+            </View>
+
             <TouchableOpacity
-              style={styles.permBanner}
+              style={styles.permGrantBtn}
               onPress={() => router.push("/permissions" as any)}
               activeOpacity={0.85}
             >
-              <ShieldAlert size={20} color="#F59E0B" />
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text style={styles.permBannerTitle}>PERMISSIONS REQUIRED</Text>
-                <Text style={styles.permBannerDesc}>
-                  App blocker requires system permissions to lock apps during
-                  focus.
-                </Text>
-              </View>
-              <View style={styles.permBannerBtn}>
-                <Text style={styles.permBannerBtnText}>GRANT</Text>
-              </View>
+              <Text style={styles.permGrantBtnText}>Grant</Text>
+              <ChevronRight size={14} color="#FFFFFF" strokeWidth={2.5} />
             </TouchableOpacity>
-          )}
-
-          {/* Daily Screen Time Budget Allowance Card */}
-          <View
-            style={[
-              styles.budgetBox,
-              {
-                backgroundColor: isDark ? "#0D0F17" : "#FFFFFF",
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <View style={{ gap: 2 }}>
-              <Text
-                style={[
-                  styles.budgetHeaderTitle,
-                  { color: colors.textPrimary },
-                ]}
-              >
-                DAILY SCREEN TIME ALLOWANCE
-              </Text>
-              <Text
-                style={[
-                  styles.budgetHeaderSub,
-                  { color: colors.textSecondary },
-                ]}
-              >
-                Free minutes per app before lockdown quarantine triggers:
-              </Text>
-            </View>
-            <View style={styles.budgetPillsRow}>
-              {[
-                { mins: 0, label: "0m (Immediate)" },
-                { mins: 15, label: "15 Mins" },
-                { mins: 30, label: "30 Mins" },
-                { mins: 45, label: "45 Mins" },
-                { mins: 60, label: "60 Mins" },
-                { mins: 120, label: "120 Mins" },
-              ].map((b) => {
-                const isSelected = dailyBudgetMinutes === b.mins;
-                return (
-                  <TouchableOpacity
-                    key={b.mins}
-                    style={[
-                      styles.budgetPillBtn,
-                      {
-                        backgroundColor: isSelected
-                          ? "rgba(10, 132, 255, 0.18)"
-                          : isDark
-                            ? "#161926"
-                            : "#F1F5F9",
-                        borderColor: isSelected
-                          ? colors.primary
-                          : colors.border,
-                      },
-                    ]}
-                    onPress={() => {
-                      haptics.light();
-                      updateSetting("dailyBudgetMinutes", b.mins);
-                      appBlockerService.setAppBudget?.(null, b.mins);
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 11.5,
-                        fontWeight: isSelected ? "800" : "600",
-                        color: isSelected ? colors.primary : colors.textPrimary,
-                      }}
-                    >
-                      {b.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-
-              {/* Custom Time Option Button */}
-              {(() => {
-                const isCustom = ![0, 15, 30, 45, 60, 120].includes(
-                  dailyBudgetMinutes,
-                );
-                return (
-                  <TouchableOpacity
-                    style={[
-                      styles.budgetPillBtn,
-                      {
-                        backgroundColor: isCustom
-                          ? "rgba(10, 132, 255, 0.18)"
-                          : isDark
-                            ? "#161926"
-                            : "#F1F5F9",
-                        borderColor: isCustom ? colors.primary : colors.border,
-                      },
-                    ]}
-                    onPress={() => {
-                      haptics.light();
-                      setCustomMinutesInput(String(dailyBudgetMinutes || 25));
-                      setShowCustomTimeModal(true);
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 11.5,
-                        fontWeight: isCustom ? "800" : "600",
-                        color: isCustom ? colors.primary : colors.textPrimary,
-                      }}
-                    >
-                      {isCustom
-                        ? `${dailyBudgetMinutes}m (Custom)`
-                        : "+ Custom"}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })()}
-            </View>
           </View>
+        )}
 
-          {/* Search Box */}
-          <View
-            style={[
-              styles.searchBar,
-              {
-                backgroundColor: isDark ? "#0C101A" : colors.surfaceLight,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <Search size={16} color={colors.textSecondary} />
-            <TextInput
-              style={[styles.searchInput, { color: colors.textPrimary }]}
-              placeholder="Search apps..."
-              placeholderTextColor={colors.textSecondary}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity
-                onPress={() => setSearchQuery("")}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={{
-                    fontSize: 12,
-                    color: colors.textSecondary,
-                    fontWeight: "700",
-                  }}
-                >
-                  CLEAR
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {/* App List */}
-          {loading ? (
-            <View style={styles.loadingWrap}>
-              <HoloLoader
-                message="SCANNING INSTALLED APPS"
-                subMessage="DETECTING APPLICATION PACKAGES..."
+        {/* 3. Daily Screen Time Allowance Card (1:1 with reference) */}
+        <View
+          style={[
+            styles.allowanceCard,
+            {
+              backgroundColor: isDark ? "#111218" : "#FFFFFF",
+              borderColor: isDark ? "#1C1E2A" : "#F1F5F9",
+            },
+          ]}
+        >
+          <View style={styles.allowanceHeaderRow}>
+            <View
+              style={[
+                styles.clockIconCircle,
+                { backgroundColor: isDark ? "#1C1E2A" : "#F1F5F9" },
+              ]}
+            >
+              <Clock
+                size={18}
+                color={isDark ? "#8E8E93" : "#64748B"}
+                strokeWidth={2.2}
               />
             </View>
-          ) : filteredApps.length === 0 ? (
-            <View style={styles.emptyWrap}>
-              <Smartphone size={40} color="#334155" />
-              <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
-                No Apps Found
+            <View style={{ flex: 1 }}>
+              <Text
+                style={[
+                  styles.allowanceTitle,
+                  { color: isDark ? "#FFFFFF" : "#0F172A" },
+                ]}
+              >
+                Daily Screen Time Allowance
               </Text>
-              <Text style={[styles.emptyDesc, { color: colors.textSecondary }]}>
-                {searchQuery
-                  ? "No application matches your search keyword."
-                  : "No installed apps detected on this system."}
+              <Text
+                style={[
+                  styles.allowanceSubtitle,
+                  { color: isDark ? "#8E8E93" : "#64748B" },
+                ]}
+              >
+                Free minutes per app before lockdown triggers.
               </Text>
             </View>
-          ) : (
-            <View style={{ gap: 22 }}>
-              {/* 1. RESTRICTED / SHIELDED APPS GROUP */}
-              {restrictedApps.length > 0 && (
-                <View style={styles.groupSection}>
-                  <View style={styles.sectionHeaderRow}>
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 8,
-                      }}
-                    >
-                      <View style={styles.activeDot} />
-                      <Text
+          </View>
+
+          {/* Row 1 Presets */}
+          <View style={styles.pillsRow}>
+            {[
+              { mins: 0, label: "0m\n(Immediate)" },
+              { mins: 15, label: "15 mins" },
+              { mins: 30, label: "30 mins" },
+              { mins: 45, label: "45 mins" },
+            ].map((item) => {
+              const isSelected = isPresetSelected(item.mins);
+              return (
+                <TouchableOpacity
+                  key={item.mins}
+                  style={[
+                    styles.allowancePill,
+                    {
+                      backgroundColor: isSelected
+                        ? isDark
+                          ? "rgba(239, 68, 68, 0.15)"
+                          : "#FFF5F5"
+                        : isDark
+                        ? "#161822"
+                        : "#F1F5F9",
+                      borderColor: isSelected ? "#EF4444" : "transparent",
+                    },
+                  ]}
+                  onPress={() => {
+                    haptics.light();
+                    updateSetting("dailyBudgetMinutes", item.mins);
+                    appBlockerService.setAppBudget?.(null, item.mins);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text
+                    style={[
+                      styles.allowancePillText,
+                      {
+                        color: isSelected
+                          ? "#EF4444"
+                          : isDark
+                          ? "#FFFFFF"
+                          : "#0F172A",
+                        fontWeight: isSelected ? "800" : "600",
+                      },
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {/* Row 2 Presets */}
+          <View style={styles.pillsRow}>
+            {[
+              { mins: 60, label: "60 mins" },
+              { mins: 120, label: "120 mins" },
+            ].map((item) => {
+              const isSelected = isPresetSelected(item.mins);
+              return (
+                <TouchableOpacity
+                  key={item.mins}
+                  style={[
+                    styles.allowancePillWide,
+                    {
+                      backgroundColor: isSelected
+                        ? isDark
+                          ? "rgba(239, 68, 68, 0.15)"
+                          : "#FFF5F5"
+                        : isDark
+                        ? "#161822"
+                        : "#F1F5F9",
+                      borderColor: isSelected ? "#EF4444" : "transparent",
+                    },
+                  ]}
+                  onPress={() => {
+                    haptics.light();
+                    updateSetting("dailyBudgetMinutes", item.mins);
+                    appBlockerService.setAppBudget?.(null, item.mins);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text
+                    style={[
+                      styles.allowancePillText,
+                      {
+                        color: isSelected
+                          ? "#EF4444"
+                          : isDark
+                          ? "#FFFFFF"
+                          : "#0F172A",
+                        fontWeight: isSelected ? "800" : "600",
+                      },
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+
+            {/* Custom Button */}
+            <TouchableOpacity
+              style={[
+                styles.allowancePillWide,
+                {
+                  backgroundColor: isCustomSelected
+                    ? isDark
+                      ? "rgba(239, 68, 68, 0.15)"
+                      : "#FFF5F5"
+                    : isDark
+                    ? "#161822"
+                    : "#F1F5F9",
+                  borderColor: isCustomSelected ? "#EF4444" : "transparent",
+                },
+              ]}
+              onPress={() => {
+                haptics.light();
+                setShowCustomTimeModal(true);
+              }}
+              activeOpacity={0.8}
+            >
+              <Text
+                style={[
+                  styles.allowancePillText,
+                  {
+                    color: isCustomSelected
+                      ? "#EF4444"
+                      : isDark
+                      ? "#FFFFFF"
+                      : "#0F172A",
+                    fontWeight: isCustomSelected ? "800" : "600",
+                  },
+                ]}
+              >
+                {isCustomSelected ? `${dailyBudgetMinutes} mins` : "Custom"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* 4. Search Bar (1:1 with reference) */}
+        <View
+          style={[
+            styles.searchBarWrap,
+            {
+              backgroundColor: isDark ? "#111218" : "#F1F5F9",
+              borderColor: isDark ? "#1C1E2A" : "transparent",
+            },
+          ]}
+        >
+          <Search size={18} color={isDark ? "#8E8E93" : "#64748B"} />
+          <TextInput
+            style={[
+              styles.searchInput,
+              { color: isDark ? "#FFFFFF" : "#0F172A" },
+            ]}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search apps..."
+            placeholderTextColor={isDark ? "#8E8E93" : "#94A3B8"}
+            autoCorrect={false}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setSearchQuery("")}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <X size={16} color={isDark ? "#8E8E93" : "#64748B"} />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* 5. Section Header */}
+        <View style={styles.listSectionHeader}>
+          <Text
+            style={[
+              styles.listSectionTitle,
+              { color: isDark ? "#FFFFFF" : "#0F172A" },
+            ]}
+          >
+            All Installed Apps ({filteredApps.length})
+          </Text>
+          <Text
+            style={[
+              styles.listSectionSub,
+              { color: isDark ? "#8E8E93" : "#64748B" },
+            ]}
+          >
+            Tap to lock
+          </Text>
+        </View>
+
+        {/* 6. Apps List Container */}
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#EF4444" />
+            <Text
+              style={[
+                styles.loadingText,
+                { color: isDark ? "#8E8E93" : "#64748B" },
+              ]}
+            >
+              Scanning installed apps...
+            </Text>
+          </View>
+        ) : filteredApps.length === 0 ? (
+          <View
+            style={[
+              styles.emptyStateCard,
+              {
+                backgroundColor: isDark ? "#111218" : "#FFFFFF",
+                borderColor: isDark ? "#1C1E2A" : "#F1F5F9",
+              },
+            ]}
+          >
+            <Smartphone size={36} color={isDark ? "#8E8E93" : "#94A3B8"} />
+            <Text
+              style={[
+                styles.emptyStateTitle,
+                { color: isDark ? "#FFFFFF" : "#0F172A" },
+              ]}
+            >
+              {searchQuery ? "No matching apps found" : "No installed apps detected"}
+            </Text>
+            <Text
+              style={[
+                styles.emptyStateDesc,
+                { color: isDark ? "#8E8E93" : "#64748B" },
+              ]}
+            >
+              {searchQuery
+                ? "Try searching for a different package or app name."
+                : "Real installed applications from your device will appear here."}
+            </Text>
+          </View>
+        ) : (
+          <View
+            style={[
+              styles.appsListCard,
+              {
+                backgroundColor: isDark ? "#111218" : "#FFFFFF",
+                borderColor: isDark ? "#1C1E2A" : "#F1F5F9",
+              },
+            ]}
+          >
+            {filteredApps.map((item, index) => {
+              const isLocked = item.isRestricted;
+              const isLast = index === filteredApps.length - 1;
+
+              return (
+                <View key={item.packageName}>
+                  <TouchableOpacity
+                    style={styles.appRow}
+                    onPress={() => toggleAppRestriction(item)}
+                    activeOpacity={0.7}
+                  >
+                    {/* App Icon */}
+                    {item.appIconBase64 ? (
+                      <Image
+                        source={{
+                          uri: `data:image/png;base64,${item.appIconBase64}`,
+                        }}
+                        style={styles.appIconImg}
+                        resizeMode="contain"
+                      />
+                    ) : (
+                      <View
                         style={[
-                          styles.sectionHeaderTitle,
-                          { color: colors.textPrimary },
+                          styles.appIconPlaceholder,
+                          {
+                            backgroundColor: isDark ? "#1C1E2A" : "#EEF2FF",
+                          },
                         ]}
                       >
-                        LOCKED APPS ({restrictedApps.length})
+                        <Text
+                          style={[
+                            styles.appIconInitial,
+                            { color: isDark ? "#8E8E93" : "#4F46E5" },
+                          ]}
+                        >
+                          {item.appName ? item.appName.charAt(0).toUpperCase() : "A"}
+                        </Text>
+                      </View>
+                    )}
+
+                    {/* App Name & Package */}
+                    <View style={styles.appMetaCol}>
+                      <Text
+                        style={[
+                          styles.appNameText,
+                          { color: isDark ? "#FFFFFF" : "#0F172A" },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {item.appName}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.appPackageText,
+                          { color: isDark ? "#8E8E93" : "#64748B" },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {item.packageName}
                       </Text>
                     </View>
-                    <Text
-                      style={[styles.sectionHeaderSub, { color: "#0A84FF" }]}
-                    >
-                      10 Pushups to unlock
-                    </Text>
-                  </View>
 
-                  <View
-                    style={[
-                      styles.groupedCard,
-                      {
-                        backgroundColor: isDark ? "#0A0D15" : colors.card,
-                        borderColor: "#1E293B",
-                      },
-                    ]}
-                  >
-                    {restrictedApps.map((item, idx) => (
-                      <View key={item.packageName}>
-                        <TouchableOpacity
-                          style={[styles.appRow, styles.appRowRestricted]}
-                          onPress={() => toggleAppRestriction(item)}
-                          activeOpacity={0.75}
-                        >
-                          <View style={styles.appRowLeft}>
-                            <View style={styles.appIconWrapper}>
-                              {item.appIconBase64 ? (
-                                <Image
-                                  source={{ uri: item.appIconBase64 }}
-                                  style={styles.appIconImg}
-                                  resizeMode="contain"
-                                />
-                              ) : (
-                                <Smartphone size={24} color="#0A84FF" />
-                              )}
-                            </View>
-
-                            <View style={{ flex: 1, gap: 3 }}>
-                              <Text
-                                style={[
-                                  styles.appRowTitle,
-                                  { color: colors.textPrimary },
-                                ]}
-                                numberOfLines={1}
-                              >
-                                {item.appName}
-                              </Text>
-                              <Text
-                                style={[
-                                  styles.appRowPkg,
-                                  { color: colors.textSecondary },
-                                ]}
-                                numberOfLines={1}
-                              >
-                                {item.packageName}
-                              </Text>
-                            </View>
-                          </View>
-
-                          <View style={styles.lockedPillActive}>
-                            <Lock size={14} color="#0A84FF" />
-                            <Text style={styles.lockedPillActiveText}>
-                              LOCKED
-                            </Text>
-                          </View>
-                        </TouchableOpacity>
-                        {idx < restrictedApps.length - 1 && (
-                          <View
-                            style={[
-                              styles.divider,
-                              { backgroundColor: colors.border },
-                            ]}
-                          />
-                        )}
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              )}
-
-              {/* 2. AVAILABLE / UNLOCKED APPS GROUP */}
-              {availableApps.length > 0 && (
-                <View style={styles.groupSection}>
-                  <View style={styles.sectionHeaderRow}>
-                    <Text
+                    {/* Lock Toggle Pill */}
+                    <View
                       style={[
-                        styles.sectionHeaderTitle,
-                        { color: colors.textSecondary },
+                        styles.lockStatusPill,
+                        isLocked
+                          ? styles.lockStatusPillLocked
+                          : {
+                              backgroundColor: isDark
+                                ? "#1C1E2A"
+                                : "#F1F5F9",
+                            },
                       ]}
                     >
-                      ALL INSTALLED APPS ({availableApps.length})
-                    </Text>
-                    <Text
+                      <Lock
+                        size={13}
+                        color={isLocked ? "#FFFFFF" : isDark ? "#8E8E93" : "#64748B"}
+                        strokeWidth={2.4}
+                      />
+                      <Text
+                        style={[
+                          styles.lockStatusText,
+                          {
+                            color: isLocked
+                              ? "#FFFFFF"
+                              : isDark
+                              ? "#8E8E93"
+                              : "#64748B",
+                          },
+                        ]}
+                      >
+                        {isLocked ? "LOCKED" : "OFF"}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  {!isLast && (
+                    <View
                       style={[
-                        styles.sectionHeaderSub,
-                        { color: colors.textSecondary },
+                        styles.appRowDivider,
+                        {
+                          backgroundColor: isDark ? "#1C1E2A" : "#F8FAFC",
+                        },
                       ]}
-                    >
-                      Tap to lock
-                    </Text>
-                  </View>
-
-                  <View
-                    style={[
-                      styles.groupedCard,
-                      {
-                        backgroundColor: isDark ? "#0A0D15" : colors.card,
-                        borderColor: colors.border,
-                      },
-                    ]}
-                  >
-                    {availableApps.map((item, idx) => (
-                      <View key={item.packageName}>
-                        <TouchableOpacity
-                          style={styles.appRow}
-                          onPress={() => toggleAppRestriction(item)}
-                          activeOpacity={0.75}
-                        >
-                          <View style={styles.appRowLeft}>
-                            <View style={styles.appIconWrapperMuted}>
-                              {item.appIconBase64 ? (
-                                <Image
-                                  source={{ uri: item.appIconBase64 }}
-                                  style={styles.appIconImg}
-                                  resizeMode="contain"
-                                />
-                              ) : (
-                                <Smartphone size={24} color="#64748B" />
-                              )}
-                            </View>
-
-                            <View style={{ flex: 1, gap: 3 }}>
-                              <Text
-                                style={[
-                                  styles.appRowTitleMuted,
-                                  { color: colors.textPrimary },
-                                ]}
-                                numberOfLines={1}
-                              >
-                                {item.appName}
-                              </Text>
-                              <Text
-                                style={[
-                                  styles.appRowPkg,
-                                  { color: colors.textSecondary },
-                                ]}
-                                numberOfLines={1}
-                              >
-                                {item.packageName}
-                              </Text>
-                            </View>
-                          </View>
-
-                          <View
-                            style={[
-                              styles.lockedPillInactive,
-                              {
-                                backgroundColor: isDark
-                                  ? "#111522"
-                                  : colors.surfaceLight,
-                                borderColor: colors.border,
-                              },
-                            ]}
-                          >
-                            <LockOpen size={13} color={colors.textSecondary} />
-                            <Text
-                              style={[
-                                styles.lockedPillInactiveText,
-                                { color: colors.textSecondary },
-                              ]}
-                            >
-                              OFF
-                            </Text>
-                          </View>
-                        </TouchableOpacity>
-                        {idx < availableApps.length - 1 && (
-                          <View
-                            style={[
-                              styles.divider,
-                              { backgroundColor: colors.border },
-                            ]}
-                          />
-                        )}
-                      </View>
-                    ))}
-                  </View>
+                    />
+                  )}
                 </View>
-              )}
-            </View>
-          )}
+              );
+            })}
+          </View>
+        )}
 
-          <View style={{ height: 40 }} />
-        </ScrollView>
-      </SafeAreaView>
+        <View style={{ height: 40 }} />
+      </ScrollView>
 
-      {/* Custom Budget Time Modal */}
+      {/* Custom Allowance Modal */}
       <Modal
         visible={showCustomTimeModal}
         animationType="fade"
-        transparent={true}
+        transparent
         onRequestClose={() => setShowCustomTimeModal(false)}
       >
         <View style={styles.modalOverlay}>
           <View
             style={[
-              styles.customModalSheet,
+              styles.customModalCard,
               {
                 backgroundColor: isDark ? "#111218" : "#FFFFFF",
-                borderColor: colors.primary,
+                borderColor: isDark ? "#1C1E2A" : "#F1F5F9",
               },
             ]}
           >
-            <View style={styles.modalHeader}>
-              <Sliders size={22} color={colors.primary} />
-              <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
-                Custom Screen Time Allowance
+            <View style={styles.customModalHeader}>
+              <Text
+                style={[
+                  styles.customModalTitle,
+                  { color: isDark ? "#FFFFFF" : "#0F172A" },
+                ]}
+              >
+                Custom Time Allowance
               </Text>
               <TouchableOpacity
                 onPress={() => setShowCustomTimeModal(false)}
-                style={{ padding: 4 }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <X size={20} color={colors.textSecondary} />
+                <X size={20} color={isDark ? "#8E8E93" : "#64748B"} />
               </TouchableOpacity>
             </View>
 
-            <Text style={[styles.modalDesc, { color: colors.textSecondary }]}>
-              Enter daily free minutes per locked app before focus workout
-              quarantine activates:
+            <Text
+              style={[
+                styles.customModalDesc,
+                { color: isDark ? "#8E8E93" : "#64748B" },
+              ]}
+            >
+              Enter daily free usage limit in minutes per locked app:
             </Text>
 
             <TextInput
               style={[
-                styles.modalInput,
+                styles.customInput,
                 {
-                  color: colors.textPrimary,
-                  borderColor: colors.border,
-                  backgroundColor: isDark ? "#181A20" : "#F1F5F9",
+                  backgroundColor: isDark ? "#161822" : "#F1F5F9",
+                  borderColor: isDark ? "#232A38" : "#E2E8F0",
+                  color: isDark ? "#FFFFFF" : "#0F172A",
                 },
               ]}
               value={customMinutesInput}
               onChangeText={setCustomMinutesInput}
+              placeholder="e.g. 20"
+              placeholderTextColor={isDark ? "#8E8E93" : "#94A3B8"}
               keyboardType="number-pad"
-              placeholder="e.g. 66"
-              placeholderTextColor="#64748B"
-              maxLength={4}
               autoFocus
             />
 
-            <View style={{ flexDirection: "row", gap: 10, marginTop: 6 }}>
+            <View style={styles.customModalActions}>
               <TouchableOpacity
                 style={[
-                  styles.modalBtnCancel,
-                  { backgroundColor: isDark ? "#1E2330" : "#E2E8F0" },
+                  styles.customCancelBtn,
+                  { backgroundColor: isDark ? "#1C1E2A" : "#F1F5F9" },
                 ]}
                 onPress={() => setShowCustomTimeModal(false)}
               >
                 <Text
-                  style={{
-                    fontSize: 13,
-                    fontWeight: "700",
-                    color: colors.textSecondary,
-                  }}
+                  style={[
+                    styles.customCancelBtnText,
+                    { color: isDark ? "#FFFFFF" : "#0F172A" },
+                  ]}
                 >
                   Cancel
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[
-                  styles.modalBtnSave,
-                  { backgroundColor: colors.primary },
-                ]}
-                onPress={() => {
-                  const mins = parseInt(customMinutesInput, 10);
-                  if (!isNaN(mins) && mins >= 0) {
-                    haptics.success();
-                    updateSetting("dailyBudgetMinutes", mins);
-                    appBlockerService.setAppBudget?.(null, mins);
-                    setShowCustomTimeModal(false);
-                  }
-                }}
+                style={styles.customSaveBtn}
+                onPress={handleCustomTimeSubmit}
               >
-                <Text
-                  style={{ fontSize: 13, fontWeight: "800", color: "#000000" }}
-                >
-                  Save Limit
-                </Text>
+                <Text style={styles.customSaveBtnText}>Save</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#000000" },
-  safeArea: { flex: 1 },
-  header: {
+  container: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    gap: 16,
+    paddingBottom: 40,
+  },
+
+  // 1. Top Header Row
+  topHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 18,
-    paddingTop: 8,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "#121722",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
-  headerLeft: {
-    flexDirection: "row",
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
     alignItems: "center",
-    gap: 12,
+    justifyContent: "center",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  headerCenterCol: {
+    alignItems: "center",
+    gap: 2,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: "900",
-    color: "#FFFFFF",
-    letterSpacing: 0.5,
+    letterSpacing: 0.2,
   },
-  headerSub: {
-    fontSize: 11.5,
+  headerSubtitle: {
+    fontSize: 12,
     fontWeight: "600",
-    color: "#64748B",
   },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "#101420",
-    borderWidth: 1,
-    borderColor: "#1C263B",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  activeCountBadge: {
+  lockedBadgePill: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 12,
+    gap: 5,
+    paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 100,
-    backgroundColor: "rgba(10, 132, 255, 0.14)",
-    borderWidth: 1,
-    borderColor: "rgba(10, 132, 255, 0.35)",
+    borderRadius: 12,
   },
-  activeCountText: {
-    fontSize: 11,
+  lockedBadgeText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#EF4444",
+  },
+
+  // 2. Permissions Required Banner
+  permCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 20,
+    borderWidth: 1.5,
+    padding: 16,
+    gap: 12,
+  },
+  permIconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "#FFF1F2",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  permTitle: {
+    fontSize: 14.5,
     fontWeight: "900",
-    color: "#0A84FF",
-    letterSpacing: 0.6,
   },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    gap: 16,
+  permDesc: {
+    fontSize: 11.5,
+    lineHeight: 15,
   },
-  permBanner: {
+  permGrantBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#EF4444",
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 12,
+  },
+  permGrantBtnText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#FFFFFF",
+  },
+
+  // 3. Daily Screen Time Allowance Card
+  allowanceCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 18,
+    gap: 14,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  allowanceHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: "#1A1308",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "rgba(245, 158, 11, 0.3)",
-    padding: 14,
   },
-  permBannerTitle: {
+  clockIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  allowanceTitle: {
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  allowanceSubtitle: {
     fontSize: 12,
-    fontWeight: "900",
-    color: "#F59E0B",
-    letterSpacing: 0.5,
+    marginTop: 1,
   },
-  permBannerDesc: {
-    fontSize: 11,
-    color: "#94A3B8",
-    lineHeight: 15,
+  pillsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
-  permBannerBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 8,
-    backgroundColor: "#F59E0B",
+  allowancePill: {
+    flex: 1,
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
   },
-  permBannerBtnText: {
-    fontSize: 11,
-    fontWeight: "900",
-    color: "#000000",
-    letterSpacing: 0.5,
+  allowancePillWide: {
+    flex: 1,
+    height: 46,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 6,
   },
-  searchBar: {
+  allowancePillText: {
+    fontSize: 12,
+    textAlign: "center",
+  },
+
+  // 4. Search Bar
+  searchBarWrap: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: "#0C101A",
+    height: 46,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#1C2436",
-    paddingHorizontal: 15,
-    paddingVertical: 12,
+    paddingHorizontal: 14,
   },
   searchInput: {
     flex: 1,
     fontSize: 14,
-    color: "#FFFFFF",
     fontWeight: "600",
-    padding: 0,
-  },
-  loadingWrap: {
-    alignItems: "center",
-    paddingVertical: 40,
-    gap: 10,
-  },
-  emptyWrap: {
-    alignItems: "center",
-    paddingVertical: 48,
-    gap: 10,
-  },
-  emptyTitle: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: "#FFFFFF",
-  },
-  emptyDesc: {
-    fontSize: 12,
-    color: "#64748B",
-    textAlign: "center",
-    maxWidth: 260,
-    lineHeight: 16,
   },
 
-  // Grouped Inset Sections
-  groupSection: {
-    gap: 10,
-  },
-  sectionHeaderRow: {
+  // 5. Section Header
+  listSectionHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 4,
+    justifyContent: "space-between",
+    marginTop: 4,
+    paddingHorizontal: 2,
   },
-  activeDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: "#0A84FF",
-  },
-  sectionHeaderTitle: {
-    fontSize: 11.5,
+  listSectionTitle: {
+    fontSize: 15.5,
     fontWeight: "900",
-    letterSpacing: 0.8,
   },
-  sectionHeaderSub: {
-    fontSize: 11,
-    fontWeight: "700",
+  listSectionSub: {
+    fontSize: 12,
+    fontWeight: "600",
   },
-  groupedCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
+
+  // 6. Apps List Card
+  appsListCard: {
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#EEEEEE",
     overflow: "hidden",
-  },
-  divider: {
-    height: 1,
-    backgroundColor: "#F3F4F6",
-    marginLeft: 70,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 2,
   },
   appRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 14,
-  },
-  appRowRestricted: {
-    backgroundColor: "rgba(229, 57, 53, 0.04)",
-  },
-  appRowLeft: {
-    flexDirection: "row",
-    alignItems: "center",
     gap: 14,
-    flex: 1,
-  },
-  appIconWrapper: {
-    width: 46,
-    height: 46,
-    borderRadius: 12,
-    backgroundColor: "#FEE2E2",
-    borderWidth: 1.5,
-    borderColor: "rgba(229, 57, 53, 0.4)",
-    justifyContent: "center",
-    alignItems: "center",
-    overflow: "hidden",
-  },
-  appIconWrapperMuted: {
-    width: 46,
-    height: 46,
-    borderRadius: 12,
-    backgroundColor: "#F3F4F6",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    justifyContent: "center",
-    alignItems: "center",
-    overflow: "hidden",
   },
   appIconImg: {
-    width: 42,
-    height: 42,
-    borderRadius: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
   },
-  appRowTitle: {
-    fontSize: 14.5,
+  appIconPlaceholder: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  appIconInitial: {
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  appMetaCol: {
+    flex: 1,
+    gap: 2,
+  },
+  appNameText: {
+    fontSize: 15,
     fontWeight: "800",
-    color: "#111827",
-    letterSpacing: 0.2,
   },
-  appRowTitleMuted: {
-    fontSize: 14.5,
-    fontWeight: "700",
-    color: "#4B5563",
-    letterSpacing: 0.2,
-  },
-  appRowPkg: {
-    fontSize: 11,
-    color: "#64748B",
+  appPackageText: {
+    fontSize: 12,
     fontWeight: "500",
   },
-  lockedPillActive: {
+  lockStatusPill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 7,
-    borderRadius: 10,
-    backgroundColor: "#FEE2E2",
-    borderWidth: 1,
-    borderColor: "#FECACA",
+    borderRadius: 12,
   },
-  lockedPillActiveText: {
-    fontSize: 11,
-    fontWeight: "900",
-    color: "#DC2626",
-    letterSpacing: 0.5,
+  lockStatusPillLocked: {
+    backgroundColor: "#EF4444",
   },
-  lockedPillInactive: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 10,
-    backgroundColor: "#F3F4F6",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  lockedPillInactiveText: {
-    fontSize: 11,
+  lockStatusText: {
+    fontSize: 12,
     fontWeight: "800",
-    color: "#6B7280",
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
-  budgetBox: {
-    padding: 16,
-    borderRadius: 16,
+  appRowDivider: {
+    height: 1,
+    marginLeft: 74,
+  },
+
+  // Loading & Empty States
+  loadingContainer: {
+    paddingVertical: 40,
+    alignItems: "center",
+    gap: 10,
+  },
+  loadingText: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  emptyStateCard: {
+    borderRadius: 20,
     borderWidth: 1,
-    gap: 12,
+    padding: 30,
+    alignItems: "center",
+    gap: 10,
   },
-  budgetHeaderTitle: {
-    fontSize: 12.5,
-    fontWeight: "900",
-    letterSpacing: 1,
+  emptyStateTitle: {
+    fontSize: 16,
+    fontWeight: "800",
   },
-  budgetHeaderSub: {
-    fontSize: 11.5,
+  emptyStateDesc: {
+    fontSize: 12,
+    textAlign: "center",
     lineHeight: 17,
   },
-  budgetPillsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  budgetPillBtn: {
-    paddingHorizontal: 13,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
+
+  // Custom Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.75)",
+    backgroundColor: "rgba(0, 0, 0, 0.65)",
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
   },
-  customModalSheet: {
+  customModalCard: {
     width: "100%",
-    borderRadius: 20,
-    borderWidth: 1.5,
-    padding: 22,
-    gap: 16,
+    maxWidth: 360,
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 20,
+    gap: 14,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 10,
   },
-  modalHeader: {
+  customModalHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  modalTitle: {
+  customModalTitle: {
     fontSize: 16,
-    fontWeight: "800",
-    letterSpacing: 0.3,
+    fontWeight: "900",
   },
-  modalDesc: {
-    fontSize: 13,
-    lineHeight: 18,
+  customModalDesc: {
+    fontSize: 12.5,
+    lineHeight: 17,
   },
-  modalInput: {
-    height: 50,
+  customInput: {
+    height: 48,
     borderRadius: 12,
-    borderWidth: 1.5,
-    paddingHorizontal: 16,
+    borderWidth: 1,
+    paddingHorizontal: 14,
     fontSize: 16,
     fontWeight: "700",
   },
-  modalBtnCancel: {
+  customModalActions: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 4,
+  },
+  customCancelBtn: {
     flex: 1,
-    paddingVertical: 13,
+    height: 44,
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
   },
-  modalBtnSave: {
+  customCancelBtnText: {
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  customSaveBtn: {
     flex: 1,
-    paddingVertical: 13,
+    height: 44,
     borderRadius: 12,
+    backgroundColor: "#EF4444",
     alignItems: "center",
     justifyContent: "center",
+  },
+  customSaveBtnText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#FFFFFF",
   },
 });
