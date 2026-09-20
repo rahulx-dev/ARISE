@@ -127,9 +127,9 @@ export default function HomeDashboard() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* 1. TOP HEADER (1:1 with reference mockup) */}
+        {/* 1. TOP HEADER */}
         <View style={styles.topHeader}>
-          {/* Left: Avatar + Greeting */}
+          {/* Left: Avatar + Name */}
           <TouchableOpacity
             style={styles.headerLeftCol}
             onPress={() => router.push('/(tabs)/profile')}
@@ -143,26 +143,16 @@ export default function HomeDashboard() {
             >
               <Image source={avatarSrc} style={styles.avatarImg} />
             </View>
-            <View style={styles.greetingCol}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Text
                 style={[
-                  styles.greetingSubtext,
-                  { color: isDark ? '#8E8E93' : '#64748B' },
+                  styles.userNameText,
+                  { color: isDark ? '#FFFFFF' : '#0F172A' },
                 ]}
               >
-                Good morning,
+                {displayName}
               </Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Text
-                  style={[
-                    styles.userNameText,
-                    { color: isDark ? '#FFFFFF' : '#0F172A' },
-                  ]}
-                >
-                  {displayName}
-                </Text>
-                <Flame size={18} color="#F97316" fill="#F97316" />
-              </View>
+              <Flame size={18} color="#F97316" fill="#F97316" />
             </View>
           </TouchableOpacity>
 
@@ -213,17 +203,7 @@ export default function HomeDashboard() {
           </View>
         </View>
 
-        {/* Header Motto Quote */}
-        <Text
-          style={[
-            styles.mottoSubtext,
-            { color: isDark ? '#8E8E93' : '#64748B' },
-          ]}
-        >
-          “Discipline Today. A Better You Tomorrow.”
-        </Text>
-
-        {/* 2. LEVEL & IDENTITY CARD (1:1 with reference mockup) */}
+        {/* 2. LEVEL & IDENTITY CARD */}
         <View
           style={[
             styles.levelCard,
@@ -299,32 +279,6 @@ export default function HomeDashboard() {
                 styles.xpFill,
                 { width: `${Math.max(5, xpPercent)}%`, backgroundColor: '#0A84FF' },
               ]}
-            />
-          </View>
-
-          {/* Quote Pill inside Level Card */}
-          <View
-            style={[
-              styles.levelQuoteBlock,
-              {
-                backgroundColor: isDark ? '#141824' : '#F8FAFC',
-                borderColor: isDark ? '#1F263A' : '#E2E8F0',
-              },
-            ]}
-          >
-            <Text style={{ fontSize: 14 }}>🌱</Text>
-            <Text
-              style={[
-                styles.levelQuoteText,
-                { color: isDark ? '#8E8E93' : '#64748B' },
-              ]}
-              numberOfLines={1}
-            >
-              “Small steps today, big changes tomorrow.”
-            </Text>
-            <ChevronRight
-              size={15}
-              color={isDark ? '#8E8E93' : '#64748B'}
             />
           </View>
         </View>
