@@ -230,8 +230,8 @@ export default function WarriorProfileTab() {
                   haptics.light();
                   setVoiceCoachActive(v);
                 }}
-                trackColor={{ false: isDark ? '#2A2D3D' : '#E5E7EB', true: '#E53935' }}
-                thumbColor="#FFFFFF"
+                trackColor={{ false: isDark ? '#2A2D3D' : '#E5E7EB', true: isDark ? '#3A3F55' : '#D1D5DB' }}
+                thumbColor={voiceCoachActive ? '#0A84FF' : (isDark ? '#6B7280' : '#FFFFFF')}
                 ios_backgroundColor={isDark ? '#2A2D3D' : '#E5E7EB'}
               />
             </View>
@@ -301,8 +301,8 @@ export default function WarriorProfileTab() {
                   haptics.light();
                   toggleNotifications();
                 }}
-                trackColor={{ false: isDark ? '#2A2D3D' : '#E5E7EB', true: '#E53935' }}
-                thumbColor="#FFFFFF"
+                trackColor={{ false: isDark ? '#2A2D3D' : '#E5E7EB', true: isDark ? '#3A3F55' : '#D1D5DB' }}
+                thumbColor={notificationsEnabled ? '#0A84FF' : (isDark ? '#6B7280' : '#FFFFFF')}
                 ios_backgroundColor={isDark ? '#2A2D3D' : '#E5E7EB'}
               />
             </View>

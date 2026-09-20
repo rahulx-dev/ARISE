@@ -21,7 +21,7 @@ export default function RootIndex() {
   if (!destination) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="small" color="#E53935" />
+        <ActivityIndicator size="small" color="#979797" />
       </View>
     );
   }

@@ -210,8 +210,8 @@ export default function SettingsScreen() {
                   haptics.light();
                   toggleNotifications();
                 }}
-                trackColor={{ false: isDark ? '#2A2D3D' : '#E5E7EB', true: '#E53935' }}
-                thumbColor="#FFFFFF"
+                trackColor={{ false: isDark ? '#2A2D3D' : '#E5E7EB', true: isDark ? '#3A3F55' : '#D1D5DB' }}
+                thumbColor={notificationsEnabled ? '#0A84FF' : (isDark ? '#6B7280' : '#FFFFFF')}
                 ios_backgroundColor={isDark ? '#2A2D3D' : '#E5E7EB'}
               />
             </View>
@@ -233,8 +233,8 @@ export default function SettingsScreen() {
                   haptics.light();
                   toggleSfx();
                 }}
-                trackColor={{ false: isDark ? '#2A2D3D' : '#E5E7EB', true: '#E53935' }}
-                thumbColor="#FFFFFF"
+                trackColor={{ false: isDark ? '#2A2D3D' : '#E5E7EB', true: isDark ? '#3A3F55' : '#D1D5DB' }}
+                thumbColor={sfxEnabled ? '#0A84FF' : (isDark ? '#6B7280' : '#FFFFFF')}
                 ios_backgroundColor={isDark ? '#2A2D3D' : '#E5E7EB'}
               />
             </View>
@@ -256,8 +256,8 @@ export default function SettingsScreen() {
                   haptics.light();
                   toggleHaptics();
                 }}
-                trackColor={{ false: isDark ? '#2A2D3D' : '#E5E7EB', true: '#E53935' }}
-                thumbColor="#FFFFFF"
+                trackColor={{ false: isDark ? '#2A2D3D' : '#E5E7EB', true: isDark ? '#3A3F55' : '#D1D5DB' }}
+                thumbColor={hapticsEnabled ? '#0A84FF' : (isDark ? '#6B7280' : '#FFFFFF')}
                 ios_backgroundColor={isDark ? '#2A2D3D' : '#E5E7EB'}
               />
             </View>
