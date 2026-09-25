@@ -31,7 +31,6 @@ import {
   Users,
 } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { useTheme } from '../../src/hooks/useTheme';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useSound } from '../../src/hooks/useSound';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
@@ -48,6 +47,7 @@ import { gateSpawnService, SpawnedDungeonGate } from '../../src/services/gateSpa
 import { supabase, isSupabaseConfigured, getCloudUserId } from '../../src/services/supabaseClient';
 import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
 import { NotificationSheet } from '../../src/components/notifications/NotificationSheet';
+import { LiquidGlassView } from '../../src/components/ui/LiquidGlassView';
 
 const MOUNTAIN_BG = require('../../assets/img/mountain_dungeon_bg.jpg');
 
@@ -174,18 +174,18 @@ export default function DungeonScreen() {
   const getRankBadgeStyle = (rankCode: string) => {
     switch (rankCode) {
       case 'S':
-        return { bg: 'rgba(239, 68, 68, 0.28)', border: 'rgba(239, 68, 68, 0.5)', text: '#EF4444' };
+        return { bg: 'rgba(239, 68, 68, 0.32)', border: 'rgba(239, 68, 68, 0.65)', text: '#EF4444' };
       case 'A':
-        return { bg: 'rgba(245, 158, 11, 0.28)', border: 'rgba(245, 158, 11, 0.5)', text: '#F59E0B' };
+        return { bg: 'rgba(245, 158, 11, 0.32)', border: 'rgba(245, 158, 11, 0.65)', text: '#F59E0B' };
       case 'B':
-        return { bg: 'rgba(225, 29, 72, 0.28)', border: 'rgba(225, 29, 72, 0.5)', text: '#E11D48' };
+        return { bg: 'rgba(225, 29, 72, 0.32)', border: 'rgba(225, 29, 72, 0.65)', text: '#E11D48' };
       case 'C':
-        return { bg: 'rgba(139, 92, 246, 0.28)', border: 'rgba(139, 92, 246, 0.5)', text: '#8B5CF6' };
+        return { bg: 'rgba(139, 92, 246, 0.32)', border: 'rgba(139, 92, 246, 0.65)', text: '#8B5CF6' };
       case 'D':
-        return { bg: 'rgba(14, 165, 233, 0.28)', border: 'rgba(14, 165, 233, 0.5)', text: '#0EA5E9' };
+        return { bg: 'rgba(14, 165, 233, 0.32)', border: 'rgba(14, 165, 233, 0.65)', text: '#0EA5E9' };
       case 'E':
       default:
-        return { bg: 'rgba(16, 185, 129, 0.28)', border: 'rgba(52, 211, 153, 0.5)', text: '#10B981' };
+        return { bg: 'rgba(16, 185, 129, 0.32)', border: 'rgba(52, 211, 153, 0.65)', text: '#10B981' };
     }
   };
 
@@ -283,18 +283,18 @@ export default function DungeonScreen() {
       style={styles.bgImage}
       resizeMode="cover"
     >
-      {/* Soft gradient overlay matching reference mockup atmosphere */}
+      {/* Cinematic subtle mountain light diffusion */}
       <LinearGradient
         colors={[
-          'rgba(15, 23, 42, 0.40)',
-          'rgba(15, 23, 42, 0.20)',
-          'rgba(15, 23, 42, 0.55)',
+          'rgba(15, 23, 42, 0.35)',
+          'rgba(15, 23, 42, 0.15)',
+          'rgba(15, 23, 42, 0.50)',
         ]}
         style={StyleSheet.absoluteFillObject}
       />
 
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-        {/* 1. TOP HEADER (Avatar, Name, Level on Left; Crystal Capsule + Notification Bell on Right) */}
+        {/* 1. TOP HEADER (Avatar, Name, Level on Left; Liquid Crystal Capsule + Bell on Right) */}
         <View style={styles.topHeader}>
           {/* Left: Avatar + Identity */}
           <TouchableOpacity
@@ -320,39 +320,68 @@ export default function DungeonScreen() {
             </View>
           </TouchableOpacity>
 
-          {/* Right: Mana Crystals Capsule + Notification Bell */}
+          {/* Right: Liquid Mana Crystals Capsule + Bell */}
           <View style={styles.headerRightCol}>
             <TouchableOpacity
-              style={styles.crystalCapsule}
               onPress={() => {
                 haptics.light();
                 router.push('/redeem' as any);
               }}
               activeOpacity={0.8}
             >
-              <ManaCrystalIcon size={18} />
-              <Text style={styles.crystalCountText}>{manaCrystals.toLocaleString()}</Text>
-              <View style={styles.plusMiniCircle}>
-                <Plus size={11} color="#FFFFFF" strokeWidth={3} />
-              </View>
+              <LiquidGlassView
+                borderRadius={24}
+                intensity={50}
+                style={styles.crystalCapsuleGlass}
+                gradientColors={[
+                  'rgba(255, 255, 255, 0.32)',
+                  'rgba(255, 255, 255, 0.16)',
+                  'rgba(255, 255, 255, 0.08)',
+                ]}
+              >
+                <ManaCrystalIcon size={18} />
+                <Text style={styles.crystalCountText}>{manaCrystals.toLocaleString()}</Text>
+                <View style={styles.plusMiniCircle}>
+                  <Plus size={11} color="#FFFFFF" strokeWidth={3} />
+                </View>
+              </LiquidGlassView>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.bellBtn}
               onPress={() => {
                 haptics.light();
                 setIsNotifOpen(true);
               }}
               activeOpacity={0.8}
             >
-              <Bell size={19} color="#FFFFFF" />
-              <View style={styles.bellRedDot} />
+              <LiquidGlassView
+                borderRadius={21}
+                intensity={50}
+                style={styles.bellBtnGlass}
+                gradientColors={[
+                  'rgba(255, 255, 255, 0.32)',
+                  'rgba(255, 255, 255, 0.16)',
+                  'rgba(255, 255, 255, 0.08)',
+                ]}
+              >
+                <Bell size={19} color="#FFFFFF" />
+                <View style={styles.bellRedDot} />
+              </LiquidGlassView>
             </TouchableOpacity>
           </View>
         </View>
 
         {/* 2. SUB-TABS SEGMENTED CONTROL: [Gates] vs [Leaderboard] */}
-        <View style={styles.tabSegmentWrap}>
+        <LiquidGlassView
+          borderRadius={30}
+          intensity={55}
+          style={styles.tabSegmentGlass}
+          gradientColors={[
+            'rgba(255, 255, 255, 0.30)',
+            'rgba(255, 255, 255, 0.15)',
+            'rgba(255, 255, 255, 0.06)',
+          ]}
+        >
           <TouchableOpacity
             style={[styles.segmentBtn, activeTab === 'gates' && styles.segmentBtnActive]}
             onPress={() => {
@@ -363,7 +392,7 @@ export default function DungeonScreen() {
           >
             <Swords
               size={17}
-              color={activeTab === 'gates' ? '#0284C7' : 'rgba(255, 255, 255, 0.75)'}
+              color={activeTab === 'gates' ? '#0284C7' : 'rgba(255, 255, 255, 0.8)'}
               strokeWidth={2.4}
             />
             <Text style={[styles.segmentBtnText, activeTab === 'gates' && styles.segmentBtnTextActive]}>
@@ -381,22 +410,21 @@ export default function DungeonScreen() {
           >
             <Trophy
               size={17}
-              color={activeTab === 'leaderboard' ? '#0284C7' : 'rgba(255, 255, 255, 0.75)'}
+              color={activeTab === 'leaderboard' ? '#0284C7' : 'rgba(255, 255, 255, 0.8)'}
               strokeWidth={2.4}
             />
             <Text style={[styles.segmentBtnText, activeTab === 'leaderboard' && styles.segmentBtnTextActive]}>
               Leaderboard
             </Text>
           </TouchableOpacity>
-        </View>
+        </LiquidGlassView>
 
-        {/* ======================= TAB 1: GATES (1:1 WITH REFERENCE MOCKUP) ======================= */}
+        {/* ======================= TAB 1: GATES (1:1 LIQUID GLASS REF) ======================= */}
         {activeTab === 'gates' && (
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
             {/* Active Emergency Red Gate Alert (If manifested) */}
             {activeRedGate && !activeRedGate.isCleared && (
               <TouchableOpacity
-                style={styles.redGateHeroBanner}
                 activeOpacity={0.88}
                 onPress={() => {
                   haptics.heavy();
@@ -404,31 +432,51 @@ export default function DungeonScreen() {
                   setIsRedGateModalOpen(true);
                 }}
               >
-                <View style={styles.redGateHeroTopRow}>
-                  <View style={styles.redGateAlertPill}>
-                    <ShieldAlert size={13} color="#EF4444" />
-                    <Text style={styles.redGateAlertPillText}>EMERGENCY RED GATE ACTIVE</Text>
+                <LiquidGlassView
+                  borderRadius={22}
+                  intensity={60}
+                  gradientColors={[
+                    'rgba(239, 68, 68, 0.35)',
+                    'rgba(185, 28, 28, 0.22)',
+                    'rgba(15, 23, 42, 0.65)',
+                  ]}
+                  style={styles.redGateHeroBanner}
+                >
+                  <View style={styles.redGateHeroTopRow}>
+                    <View style={styles.redGateAlertPill}>
+                      <ShieldAlert size={13} color="#EF4444" />
+                      <Text style={styles.redGateAlertPillText}>EMERGENCY RED GATE ACTIVE</Text>
+                    </View>
+                    <View style={styles.redGateBountyPill}>
+                      <ManaCrystalIcon size={13} />
+                      <Text style={styles.redGateBountyPillText}>+{activeRedGate.bountyCoins} Crystals</Text>
+                    </View>
                   </View>
-                  <View style={styles.redGateBountyPill}>
-                    <ManaCrystalIcon size={13} />
-                    <Text style={styles.redGateBountyPillText}>+{activeRedGate.bountyCoins} Crystals</Text>
+
+                  <Text style={styles.redGateHeroTitle}>{activeRedGate.threatName.toUpperCase()}</Text>
+                  <Text style={styles.redGateHeroSub} numberOfLines={2}>
+                    {activeRedGate.lore}
+                  </Text>
+
+                  <View style={styles.redGateHeroActionRow}>
+                    <Text style={styles.redGateHeroActionText}>ENGAGE EMERGENCY TRIAL</Text>
+                    <ChevronRight size={15} color="#FFFFFF" />
                   </View>
-                </View>
-
-                <Text style={styles.redGateHeroTitle}>{activeRedGate.threatName.toUpperCase()}</Text>
-                <Text style={styles.redGateHeroSub} numberOfLines={2}>
-                  {activeRedGate.lore}
-                </Text>
-
-                <View style={styles.redGateHeroActionRow}>
-                  <Text style={styles.redGateHeroActionText}>ENGAGE EMERGENCY TRIAL</Text>
-                  <ChevronRight size={15} color="#FFFFFF" />
-                </View>
+                </LiquidGlassView>
               </TouchableOpacity>
             )}
 
-            {/* 3. ACTIVE DUNGEON GATE HERO CARD (1:1 with reference: Lesser Goblin Cave) */}
-            <View style={styles.heroGateCard}>
+            {/* 3. ACTIVE DUNGEON GATE HERO CARD (1:1 Lesser Goblin Cave with Liquid Glass Refraction) */}
+            <LiquidGlassView
+              borderRadius={26}
+              intensity={50}
+              gradientColors={[
+                'rgba(255, 255, 255, 0.28)',
+                'rgba(255, 255, 255, 0.15)',
+                'rgba(255, 255, 255, 0.08)',
+              ]}
+              style={styles.heroGateCard}
+            >
               {/* Top Row: E-RANK badge + Countdown timer capsule + Circular Arrow button */}
               <View style={styles.heroGateCardTopRow}>
                 <View style={[styles.rankPillBadge, { backgroundColor: rankStyle.bg, borderColor: rankStyle.border }]}>
@@ -500,13 +548,22 @@ export default function DungeonScreen() {
                   <ArrowRight size={14} color="#0F172A" strokeWidth={2.5} />
                 </TouchableOpacity>
               </View>
-            </View>
+            </LiquidGlassView>
 
-            {/* 4. MANA CRYSTAL MINES CARD (1:1 with reference) */}
-            <View style={styles.surveyStationHeroCard}>
+            {/* 4. MANA CRYSTAL MINES CARD (Liquid Blue Glass Ambient Refraction) */}
+            <LiquidGlassView
+              borderRadius={26}
+              intensity={52}
+              gradientColors={[
+                'rgba(14, 165, 233, 0.32)',
+                'rgba(2, 132, 199, 0.18)',
+                'rgba(15, 23, 42, 0.40)',
+              ]}
+              style={styles.surveyStationHeroCard}
+            >
               <View style={styles.surveyStationTopRow}>
                 <View style={styles.surveyLiveBadge}>
-                  <ManaCrystalIcon size={12} />
+                  <ManaCrystalIcon size={13} />
                   <Text style={styles.surveyLiveBadgeText}>MANA CRYSTAL MINES</Text>
                 </View>
 
@@ -532,26 +589,48 @@ export default function DungeonScreen() {
               {/* Dual Action Buttons */}
               <View style={styles.surveyActionBtnsRow}>
                 <TouchableOpacity
-                  style={styles.frostedActionBtn}
+                  style={{ flex: 1 }}
                   onPress={handleOpenCPXSurveys}
                   activeOpacity={0.85}
                 >
-                  <Text style={styles.frostedActionBtnText}>CPX Wall</Text>
-                  <ExternalLink size={14} color="#FFFFFF" strokeWidth={2.2} />
+                  <LiquidGlassView
+                    borderRadius={14}
+                    intensity={40}
+                    gradientColors={[
+                      'rgba(255, 255, 255, 0.28)',
+                      'rgba(255, 255, 255, 0.12)',
+                      'rgba(255, 255, 255, 0.05)',
+                    ]}
+                    style={styles.frostedActionBtn}
+                  >
+                    <Text style={styles.frostedActionBtnText}>CPX Wall</Text>
+                    <ExternalLink size={14} color="#FFFFFF" strokeWidth={2.2} />
+                  </LiquidGlassView>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.frostedActionBtn}
+                  style={{ flex: 1 }}
                   onPress={handleOpenBitLabsSurveys}
                   activeOpacity={0.85}
                 >
-                  <Text style={styles.frostedActionBtnText}>BitLabs Mine</Text>
-                  <ExternalLink size={14} color="#FFFFFF" strokeWidth={2.2} />
+                  <LiquidGlassView
+                    borderRadius={14}
+                    intensity={40}
+                    gradientColors={[
+                      'rgba(255, 255, 255, 0.28)',
+                      'rgba(255, 255, 255, 0.12)',
+                      'rgba(255, 255, 255, 0.05)',
+                    ]}
+                    style={styles.frostedActionBtn}
+                  >
+                    <Text style={styles.frostedActionBtnText}>BitLabs Mine</Text>
+                    <ExternalLink size={14} color="#FFFFFF" strokeWidth={2.2} />
+                  </LiquidGlassView>
                 </TouchableOpacity>
               </View>
-            </View>
+            </LiquidGlassView>
 
-            {/* 5. FEATURED SURVEYS SECTION (1:1 with reference) */}
+            {/* 5. FEATURED SURVEYS SECTION (Liquid Glass Refraction) */}
             <View style={styles.sectionWrap}>
               <View style={styles.sectionHeaderRow}>
                 <Text style={styles.sectionTitleText}>Featured Surveys</Text>
@@ -562,14 +641,23 @@ export default function DungeonScreen() {
               </View>
 
               {/* Glass Card List Container */}
-              <View style={styles.surveysGlassContainer}>
+              <LiquidGlassView
+                borderRadius={24}
+                intensity={50}
+                gradientColors={[
+                  'rgba(255, 255, 255, 0.26)',
+                  'rgba(255, 255, 255, 0.14)',
+                  'rgba(255, 255, 255, 0.06)',
+                ]}
+                style={styles.surveysGlassContainer}
+              >
                 {/* Row 1: CPX Research Survey Wall */}
                 <TouchableOpacity
                   style={styles.surveyItemRow}
                   onPress={handleOpenCPXSurveys}
                   activeOpacity={0.85}
                 >
-                  <View style={[styles.surveyIconSquare, { backgroundColor: 'rgba(56, 189, 248, 0.22)' }]}>
+                  <View style={[styles.surveyIconSquare, { backgroundColor: 'rgba(56, 189, 248, 0.25)' }]}>
                     <Sparkles size={22} color="#38BDF8" />
                   </View>
 
@@ -602,7 +690,7 @@ export default function DungeonScreen() {
                   onPress={handleOpenBitLabsSurveys}
                   activeOpacity={0.85}
                 >
-                  <View style={[styles.surveyIconSquare, { backgroundColor: 'rgba(239, 68, 68, 0.22)' }]}>
+                  <View style={[styles.surveyIconSquare, { backgroundColor: 'rgba(239, 68, 68, 0.25)' }]}>
                     <Flame size={22} color="#F87171" fill="#F87171" />
                   </View>
 
@@ -625,66 +713,110 @@ export default function DungeonScreen() {
                     <ArrowRight size={13} color="#FFFFFF" strokeWidth={2.2} />
                   </View>
                 </TouchableOpacity>
-              </View>
+              </LiquidGlassView>
             </View>
 
-            {/* 6. QUICK ACTIONS SECTION (1:1 with reference) */}
+            {/* 6. QUICK ACTIONS SECTION (Liquid Glass Lens Bubbles) */}
             <View style={styles.sectionWrap}>
               <Text style={styles.sectionTitleText}>Quick Actions</Text>
 
               <View style={styles.quickActionsRow}>
                 {/* 1. Daily Bonus */}
                 <TouchableOpacity
-                  style={styles.quickActionCard}
+                  style={{ flex: 1 }}
                   onPress={handleDailyBonus}
                   activeOpacity={0.8}
                 >
-                  <View style={[styles.quickActionIconWrap, { backgroundColor: 'rgba(244, 63, 94, 0.2)' }]}>
-                    <Gift size={24} color="#FB7185" />
-                  </View>
-                  <Text style={styles.quickActionLabel}>Daily Bonus</Text>
+                  <LiquidGlassView
+                    borderRadius={20}
+                    intensity={45}
+                    gradientColors={[
+                      'rgba(255, 255, 255, 0.28)',
+                      'rgba(255, 255, 255, 0.14)',
+                      'rgba(255, 255, 255, 0.06)',
+                    ]}
+                    style={styles.quickActionCard}
+                  >
+                    <View style={[styles.quickActionIconWrap, { backgroundColor: 'rgba(244, 63, 94, 0.22)' }]}>
+                      <Gift size={24} color="#FB7185" />
+                    </View>
+                    <Text style={styles.quickActionLabel}>Daily Bonus</Text>
+                  </LiquidGlassView>
                 </TouchableOpacity>
 
                 {/* 2. Achievements */}
                 <TouchableOpacity
-                  style={styles.quickActionCard}
+                  style={{ flex: 1 }}
                   onPress={() => {
                     haptics.light();
                     router.push('/rewards/streak-milestones' as any);
                   }}
                   activeOpacity={0.8}
                 >
-                  <View style={[styles.quickActionIconWrap, { backgroundColor: 'rgba(245, 158, 11, 0.2)' }]}>
-                    <Medal size={24} color="#FBBF24" />
-                  </View>
-                  <Text style={styles.quickActionLabel}>Achievements</Text>
+                  <LiquidGlassView
+                    borderRadius={20}
+                    intensity={45}
+                    gradientColors={[
+                      'rgba(255, 255, 255, 0.28)',
+                      'rgba(255, 255, 255, 0.14)',
+                      'rgba(255, 255, 255, 0.06)',
+                    ]}
+                    style={styles.quickActionCard}
+                  >
+                    <View style={[styles.quickActionIconWrap, { backgroundColor: 'rgba(245, 158, 11, 0.22)' }]}>
+                      <Medal size={24} color="#FBBF24" />
+                    </View>
+                    <Text style={styles.quickActionLabel}>Achievements</Text>
+                  </LiquidGlassView>
                 </TouchableOpacity>
 
                 {/* 3. Shop */}
                 <TouchableOpacity
-                  style={styles.quickActionCard}
+                  style={{ flex: 1 }}
                   onPress={() => {
                     haptics.light();
                     router.push('/shop' as any);
                   }}
                   activeOpacity={0.8}
                 >
-                  <View style={[styles.quickActionIconWrap, { backgroundColor: 'rgba(168, 85, 247, 0.2)' }]}>
-                    <ShoppingBag size={24} color="#C084FC" />
-                  </View>
-                  <Text style={styles.quickActionLabel}>Shop</Text>
+                  <LiquidGlassView
+                    borderRadius={20}
+                    intensity={45}
+                    gradientColors={[
+                      'rgba(255, 255, 255, 0.28)',
+                      'rgba(255, 255, 255, 0.14)',
+                      'rgba(255, 255, 255, 0.06)',
+                    ]}
+                    style={styles.quickActionCard}
+                  >
+                    <View style={[styles.quickActionIconWrap, { backgroundColor: 'rgba(168, 85, 247, 0.22)' }]}>
+                      <ShoppingBag size={24} color="#C084FC" />
+                    </View>
+                    <Text style={styles.quickActionLabel}>Shop</Text>
+                  </LiquidGlassView>
                 </TouchableOpacity>
 
                 {/* 4. Invite Friends */}
                 <TouchableOpacity
-                  style={styles.quickActionCard}
+                  style={{ flex: 1 }}
                   onPress={handleInviteFriends}
                   activeOpacity={0.8}
                 >
-                  <View style={[styles.quickActionIconWrap, { backgroundColor: 'rgba(6, 182, 212, 0.2)' }]}>
-                    <Users size={24} color="#38BDF8" />
-                  </View>
-                  <Text style={styles.quickActionLabel}>Invite Friends</Text>
+                  <LiquidGlassView
+                    borderRadius={20}
+                    intensity={45}
+                    gradientColors={[
+                      'rgba(255, 255, 255, 0.28)',
+                      'rgba(255, 255, 255, 0.14)',
+                      'rgba(255, 255, 255, 0.06)',
+                    ]}
+                    style={styles.quickActionCard}
+                  >
+                    <View style={[styles.quickActionIconWrap, { backgroundColor: 'rgba(6, 182, 212, 0.22)' }]}>
+                      <Users size={24} color="#38BDF8" />
+                    </View>
+                    <Text style={styles.quickActionLabel}>Invite Friends</Text>
+                  </LiquidGlassView>
                 </TouchableOpacity>
               </View>
             </View>
@@ -723,7 +855,16 @@ export default function DungeonScreen() {
               </View>
 
               {/* Top 3 Podium (Rank 2 Left, Rank 1 Center 👑, Rank 3 Right) */}
-              <View style={styles.podiumGlassCard}>
+              <LiquidGlassView
+                borderRadius={26}
+                intensity={50}
+                gradientColors={[
+                  'rgba(255, 255, 255, 0.28)',
+                  'rgba(255, 255, 255, 0.15)',
+                  'rgba(255, 255, 255, 0.08)',
+                ]}
+                style={styles.podiumGlassCard}
+              >
                 {/* #2 Left: Rank 2 Hunter */}
                 <View style={styles.podiumCol}>
                   <View style={[styles.podiumAvatarWrap, { borderColor: '#CBD5E1' }]}>
@@ -781,7 +922,7 @@ export default function DungeonScreen() {
                     </Text>
                   </View>
                 </View>
-              </View>
+              </LiquidGlassView>
 
               {/* Ranks 4 to 10 List */}
               <View style={styles.ranksListWrap}>
@@ -794,7 +935,17 @@ export default function DungeonScreen() {
                 ]).map((item, idx) => {
                   const rankNum = idx + 4;
                   return (
-                    <View key={item.id || rankNum} style={styles.rankListRow}>
+                    <LiquidGlassView
+                      key={item.id || rankNum}
+                      borderRadius={18}
+                      intensity={40}
+                      gradientColors={[
+                        'rgba(255, 255, 255, 0.24)',
+                        'rgba(255, 255, 255, 0.12)',
+                        'rgba(255, 255, 255, 0.05)',
+                      ]}
+                      style={styles.rankListRow}
+                    >
                       <Text style={styles.rankListNumber}>{rankNum}</Text>
                       <PlayerAvatar iconId={item.avatarIcon} size={36} />
                       <View style={{ flex: 1, marginLeft: 10 }}>
@@ -809,7 +960,7 @@ export default function DungeonScreen() {
                           {item.crystalsMined.toLocaleString()}
                         </Text>
                       </View>
-                    </View>
+                    </LiquidGlassView>
                   );
                 })}
               </View>
@@ -901,12 +1052,12 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 24,
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.65)',
+    borderColor: 'rgba(255, 255, 255, 0.75)',
     shadowColor: '#38BDF8',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOpacity: 0.55,
+    shadowRadius: 10,
+    elevation: 5,
     overflow: 'hidden',
   },
   avatarImg: {
@@ -920,7 +1071,7 @@ const styles = StyleSheet.create({
   greetingSubtext: {
     fontSize: 12.5,
     fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: 'rgba(255, 255, 255, 0.85)',
     letterSpacing: 0.2,
   },
   nameRow: {
@@ -936,7 +1087,7 @@ const styles = StyleSheet.create({
   hunterRankSub: {
     fontSize: 11,
     fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.72)',
+    color: 'rgba(255, 255, 255, 0.75)',
     marginTop: 1,
   },
   headerRightCol: {
@@ -944,16 +1095,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  crystalCapsule: {
+  crystalCapsuleGlass: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
-    backgroundColor: 'rgba(255, 255, 255, 0.22)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.38)',
-    paddingHorizontal: 12,
+    paddingHorizontal: 13,
     paddingVertical: 7,
-    borderRadius: 24,
   },
   crystalCountText: {
     fontSize: 15,
@@ -965,17 +1112,13 @@ const styles = StyleSheet.create({
     width: 19,
     height: 19,
     borderRadius: 9.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: 'rgba(255, 255, 255, 0.35)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bellBtn: {
+  bellBtnGlass: {
     width: 42,
     height: 42,
-    borderRadius: 21,
-    backgroundColor: 'rgba(255, 255, 255, 0.22)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.38)',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -993,16 +1136,12 @@ const styles = StyleSheet.create({
   },
 
   // 2. Sub-Tabs Segmented Control
-  tabSegmentWrap: {
+  tabSegmentGlass: {
     flexDirection: 'row',
     alignItems: 'center',
     marginHorizontal: 18,
     marginBottom: 16,
     padding: 4,
-    borderRadius: 30,
-    backgroundColor: 'rgba(255, 255, 255, 0.20)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.32)',
     gap: 4,
   },
   segmentBtn: {
@@ -1018,14 +1157,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 4,
   },
   segmentBtnText: {
     fontSize: 14,
     fontWeight: '700',
-    color: 'rgba(255, 255, 255, 0.85)',
+    color: 'rgba(255, 255, 255, 0.88)',
   },
   segmentBtnTextActive: {
     color: '#0F172A',
@@ -1040,17 +1179,8 @@ const styles = StyleSheet.create({
 
   // 3. Active Dungeon Gate Hero Card (1:1 Lesser Goblin Cave)
   heroGateCard: {
-    borderRadius: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.17)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.34)',
     padding: 18,
     gap: 12,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 4,
   },
   heroGateCardTopRow: {
     flexDirection: 'row',
@@ -1077,9 +1207,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: 'rgba(0, 0, 0, 0.22)',
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
+    borderColor: 'rgba(255, 255, 255, 0.28)',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 12,
@@ -1094,9 +1224,9 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    backgroundColor: 'rgba(255, 255, 255, 0.24)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
+    borderColor: 'rgba(255, 255, 255, 0.40)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1113,7 +1243,7 @@ const styles = StyleSheet.create({
   heroGateSubTitle: {
     fontSize: 13,
     fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.78)',
+    color: 'rgba(255, 255, 255, 0.82)',
   },
   heroGateStatsRow: {
     flexDirection: 'row',
@@ -1147,7 +1277,7 @@ const styles = StyleSheet.create({
   statsDivider: {
     width: 1,
     height: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: 'rgba(255, 255, 255, 0.35)',
   },
   statCrystalGroup: {
     flexDirection: 'row',
@@ -1167,7 +1297,7 @@ const styles = StyleSheet.create({
   inquestValueText: {
     fontSize: 13,
     fontWeight: '700',
-    color: 'rgba(255, 255, 255, 0.88)',
+    color: 'rgba(255, 255, 255, 0.90)',
   },
   heroGateBottomRow: {
     flexDirection: 'row',
@@ -1176,9 +1306,9 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   levelReqPill: {
-    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.28)',
+    borderColor: 'rgba(255, 255, 255, 0.35)',
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: 14,
@@ -1186,7 +1316,7 @@ const styles = StyleSheet.create({
   levelReqPillText: {
     fontSize: 12,
     fontWeight: '700',
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: 'rgba(255, 255, 255, 0.95)',
   },
   enterGateWhiteBtn: {
     backgroundColor: '#FFFFFF',
@@ -1198,7 +1328,7 @@ const styles = StyleSheet.create({
     gap: 6,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.18,
     shadowRadius: 6,
     elevation: 3,
   },
@@ -1211,10 +1341,6 @@ const styles = StyleSheet.create({
 
   // 4. Mana Crystal Mines Card
   surveyStationHeroCard: {
-    borderRadius: 24,
-    backgroundColor: 'rgba(14, 116, 144, 0.26)',
-    borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.42)',
     padding: 18,
     gap: 14,
   },
@@ -1227,9 +1353,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.38)',
     paddingHorizontal: 10,
     paddingVertical: 4.5,
     borderRadius: 10,
@@ -1244,7 +1370,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: 'rgba(56, 189, 248, 0.25)',
+    backgroundColor: 'rgba(56, 189, 248, 0.28)',
     paddingHorizontal: 10,
     paddingVertical: 4.5,
     borderRadius: 10,
@@ -1273,7 +1399,7 @@ const styles = StyleSheet.create({
   surveyHeroDesc: {
     fontSize: 12,
     fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: 'rgba(255, 255, 255, 0.85)',
     lineHeight: 17,
   },
   surveyGraphicCol: {
@@ -1287,16 +1413,11 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   frostedActionBtn: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.32)',
     paddingVertical: 11,
-    borderRadius: 14,
   },
   frostedActionBtnText: {
     fontSize: 13,
@@ -1329,13 +1450,9 @@ const styles = StyleSheet.create({
   seeAllText: {
     fontSize: 13,
     fontWeight: '700',
-    color: 'rgba(255, 255, 255, 0.85)',
+    color: 'rgba(255, 255, 255, 0.88)',
   },
   surveysGlassContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.16)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: 24,
     overflow: 'hidden',
   },
   surveyItemRow: {
@@ -1391,7 +1508,7 @@ const styles = StyleSheet.create({
   surveyItemSub: {
     fontSize: 11,
     fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.72)',
+    color: 'rgba(255, 255, 255, 0.78)',
     lineHeight: 15,
   },
   surveyBountyRow: {
@@ -1409,9 +1526,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
+    borderColor: 'rgba(255, 255, 255, 0.40)',
     paddingHorizontal: 15,
     paddingVertical: 8,
     borderRadius: 14,
@@ -1423,7 +1540,7 @@ const styles = StyleSheet.create({
   },
   surveysInnerDivider: {
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     marginHorizontal: 14,
   },
 
@@ -1434,20 +1551,10 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   quickActionCard: {
-    flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.16)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: 20,
     paddingVertical: 16,
     paddingHorizontal: 6,
     alignItems: 'center',
     gap: 8,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 2,
   },
   quickActionIconWrap: {
     width: 44,
@@ -1465,17 +1572,10 @@ const styles = StyleSheet.create({
 
   // Emergency Red Gate Alert Banner
   redGateHeroBanner: {
-    borderRadius: 20,
     borderWidth: 1.5,
     borderColor: '#EF4444',
-    backgroundColor: 'rgba(22, 8, 10, 0.85)',
     padding: 16,
     gap: 10,
-    shadowColor: '#EF4444',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 4,
   },
   redGateHeroTopRow: {
     flexDirection: 'row',
@@ -1486,7 +1586,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(239, 68, 68, 0.25)',
+    backgroundColor: 'rgba(239, 68, 68, 0.35)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
@@ -1503,7 +1603,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: 'rgba(0, 210, 238, 0.15)',
+    backgroundColor: 'rgba(0, 210, 238, 0.22)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
@@ -1564,13 +1664,13 @@ const styles = StyleSheet.create({
     borderColor: '#FFFFFF',
   },
   lbFilterPillInactive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.16)',
-    borderColor: 'rgba(255, 255, 255, 0.28)',
+    backgroundColor: 'rgba(255, 255, 255, 0.20)',
+    borderColor: 'rgba(255, 255, 255, 0.32)',
   },
   lbFilterPillText: {
     fontSize: 12,
     fontWeight: '800',
-    color: 'rgba(255, 255, 255, 0.85)',
+    color: 'rgba(255, 255, 255, 0.90)',
   },
   podiumGlassCard: {
     flexDirection: 'row',
@@ -1578,10 +1678,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     paddingVertical: 20,
     paddingHorizontal: 12,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.16)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   podiumCol: {
     alignItems: 'center',
@@ -1626,17 +1722,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 14,
-    paddingVertical: 11,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.16)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    paddingVertical: 12,
   },
   rankListNumber: {
     fontSize: 13,
     fontWeight: '900',
     width: 24,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: 'rgba(255, 255, 255, 0.85)',
   },
   rankListName: {
     fontSize: 13.5,
@@ -1646,7 +1738,7 @@ const styles = StyleSheet.create({
   rankListSub: {
     fontSize: 10.5,
     fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.72)',
+    color: 'rgba(255, 255, 255, 0.75)',
   },
   rankListXP: {
     fontSize: 12,
@@ -1663,9 +1755,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 13,
-    backgroundColor: 'rgba(15, 23, 42, 0.88)',
+    backgroundColor: 'rgba(15, 23, 42, 0.90)',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.25)',
+    borderTopColor: 'rgba(255, 255, 255, 0.28)',
   },
   yourRankTitle: {
     fontSize: 10.5,
