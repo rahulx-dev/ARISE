@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { View, Image, StyleSheet, Platform } from 'react-native';
+import { View, Image, StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LottieView from 'lottie-react-native';
@@ -13,27 +13,68 @@ import {
 import { useTheme } from '../../src/hooks/useTheme';
 import { useHaptics } from '../../src/hooks/useHaptics';
 
-// Tab Icon Component (Maintains sleek minimal iOS vector style matching reference mockup)
+// Tab Icon Component (Maintains perfect 1:1 square aspect ratio - zero squish/distortion)
 function TabAnimatedIcon({
+  animationSource,
+  darkImageSource,
   fallbackIcon: FallbackIcon,
   focused,
+  color,
+  isDark,
+  playTrigger,
+  size = 28,
 }: {
   animationSource?: any;
   darkImageSource?: any;
   fallbackIcon: any;
   focused: boolean;
-  color?: string;
-  isDark?: boolean;
+  color: string;
+  isDark: boolean;
   playTrigger?: number;
   size?: number;
 }) {
+  const lottieRef = useRef<LottieView>(null);
+
+  useEffect(() => {
+    if (focused && !isDark && animationSource) {
+      lottieRef.current?.reset();
+      lottieRef.current?.play();
+    } else if (!focused) {
+      lottieRef.current?.reset();
+    }
+  }, [focused, isDark, playTrigger, animationSource]);
+
   return (
     <View style={styles.iconContainer}>
-      <FallbackIcon
-        size={23}
-        color={focused ? '#38BDF8' : 'rgba(255, 255, 255, 0.65)'}
-        weight={focused ? 'fill' : 'regular'}
-      />
+      {isDark && darkImageSource ? (
+        <Image
+          source={darkImageSource}
+          style={[
+            styles.imageIcon,
+            {
+              width: size,
+              height: size,
+              opacity: focused ? 1 : 0.65,
+              transform: [{ scale: focused ? 1.05 : 0.95 }],
+            },
+          ]}
+        />
+      ) : animationSource ? (
+        <LottieView
+          ref={lottieRef}
+          source={animationSource}
+          autoPlay={false}
+          loop={false}
+          style={[styles.lottieIcon, { width: size, height: size }]}
+        />
+      ) : (
+        <FallbackIcon
+          size={24}
+          color={focused ? '#E53935' : color}
+          weight={focused ? 'fill' : 'regular'}
+        />
+      )}
+      {focused && <View style={styles.activeIndicator} />}
     </View>
   );
 }
@@ -60,34 +101,25 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          position: 'absolute',
-          bottom: insets.bottom > 0 ? insets.bottom + 6 : 14,
-          left: 18,
-          right: 18,
-          height: 64,
-          borderRadius: 36,
-          backgroundColor: 'rgba(15, 23, 42, 0.82)',
-          borderWidth: 1,
-          borderColor: 'rgba(255, 255, 255, 0.22)',
-          paddingBottom: 6,
-          paddingTop: 8,
-          elevation: 12,
+          backgroundColor: isDark ? '#000000' : '#FFFFFF',
+          borderTopWidth: 1,
+          borderTopColor: isDark ? '#1F222E' : '#EEEEEE',
+          height: 64 + (insets.bottom > 0 ? insets.bottom : 8),
+          paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
+          paddingTop: 6,
+          elevation: 8,
           shadowColor: '#000000',
-          shadowOffset: { width: 0, height: 10 },
-          shadowOpacity: 0.35,
-          shadowRadius: 18,
-          ...(Platform.OS === 'web' ? {
-            backdropFilter: 'blur(28px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(28px) saturate(180%)',
-          } : {}),
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.05,
+          shadowRadius: 8,
         },
-        tabBarActiveTintColor: '#38BDF8',
-        tabBarInactiveTintColor: 'rgba(255, 255, 255, 0.65)',
+        tabBarActiveTintColor: '#E53935',
+        tabBarInactiveTintColor: isDark ? '#8E8E93' : '#6B7280',
         tabBarLabelStyle: {
           fontSize: 11,
-          fontWeight: '700',
-          letterSpacing: -0.1,
-          marginTop: 2,
+          fontWeight: '800',
+          letterSpacing: -0.2,
+          marginTop: 3,
         },
       }}
     >
