@@ -283,12 +283,12 @@ export default function DungeonScreen() {
       style={styles.bgImage}
       resizeMode="cover"
     >
-      {/* Cinematic subtle mountain light diffusion */}
+      {/* Soft atmospheric morning vignette (preserves alpine daylight clarity) */}
       <LinearGradient
         colors={[
-          'rgba(15, 23, 42, 0.35)',
-          'rgba(15, 23, 42, 0.15)',
-          'rgba(15, 23, 42, 0.50)',
+          'rgba(0, 0, 0, 0.08)',
+          'transparent',
+          'rgba(10, 15, 25, 0.35)',
         ]}
         style={StyleSheet.absoluteFillObject}
       />
@@ -331,13 +331,8 @@ export default function DungeonScreen() {
             >
               <LiquidGlassView
                 borderRadius={24}
-                intensity={50}
+                variant="pill"
                 style={styles.crystalCapsuleGlass}
-                gradientColors={[
-                  'rgba(255, 255, 255, 0.32)',
-                  'rgba(255, 255, 255, 0.16)',
-                  'rgba(255, 255, 255, 0.08)',
-                ]}
               >
                 <ManaCrystalIcon size={18} />
                 <Text style={styles.crystalCountText}>{manaCrystals.toLocaleString()}</Text>
@@ -356,13 +351,8 @@ export default function DungeonScreen() {
             >
               <LiquidGlassView
                 borderRadius={21}
-                intensity={50}
+                variant="pill"
                 style={styles.bellBtnGlass}
-                gradientColors={[
-                  'rgba(255, 255, 255, 0.32)',
-                  'rgba(255, 255, 255, 0.16)',
-                  'rgba(255, 255, 255, 0.08)',
-                ]}
               >
                 <Bell size={19} color="#FFFFFF" />
                 <View style={styles.bellRedDot} />
@@ -374,13 +364,8 @@ export default function DungeonScreen() {
         {/* 2. SUB-TABS SEGMENTED CONTROL: [Gates] vs [Leaderboard] */}
         <LiquidGlassView
           borderRadius={30}
-          intensity={55}
+          variant="pill"
           style={styles.tabSegmentGlass}
-          gradientColors={[
-            'rgba(255, 255, 255, 0.30)',
-            'rgba(255, 255, 255, 0.15)',
-            'rgba(255, 255, 255, 0.06)',
-          ]}
         >
           <TouchableOpacity
             style={[styles.segmentBtn, activeTab === 'gates' && styles.segmentBtnActive]}
@@ -468,13 +453,8 @@ export default function DungeonScreen() {
 
             {/* 3. ACTIVE DUNGEON GATE HERO CARD (1:1 Lesser Goblin Cave with Liquid Glass Refraction) */}
             <LiquidGlassView
-              borderRadius={26}
-              intensity={50}
-              gradientColors={[
-                'rgba(255, 255, 255, 0.28)',
-                'rgba(255, 255, 255, 0.15)',
-                'rgba(255, 255, 255, 0.08)',
-              ]}
+              borderRadius={28}
+              variant="card"
               style={styles.heroGateCard}
             >
               {/* Top Row: E-RANK badge + Countdown timer capsule + Circular Arrow button */}
@@ -552,13 +532,8 @@ export default function DungeonScreen() {
 
             {/* 4. MANA CRYSTAL MINES CARD (Liquid Blue Glass Ambient Refraction) */}
             <LiquidGlassView
-              borderRadius={26}
-              intensity={52}
-              gradientColors={[
-                'rgba(14, 165, 233, 0.32)',
-                'rgba(2, 132, 199, 0.18)',
-                'rgba(15, 23, 42, 0.40)',
-              ]}
+              borderRadius={28}
+              variant="accent-blue"
               style={styles.surveyStationHeroCard}
             >
               <View style={styles.surveyStationTopRow}>
@@ -595,12 +570,7 @@ export default function DungeonScreen() {
                 >
                   <LiquidGlassView
                     borderRadius={14}
-                    intensity={40}
-                    gradientColors={[
-                      'rgba(255, 255, 255, 0.28)',
-                      'rgba(255, 255, 255, 0.12)',
-                      'rgba(255, 255, 255, 0.05)',
-                    ]}
+                    variant="button"
                     style={styles.frostedActionBtn}
                   >
                     <Text style={styles.frostedActionBtnText}>CPX Wall</Text>
@@ -615,12 +585,7 @@ export default function DungeonScreen() {
                 >
                   <LiquidGlassView
                     borderRadius={14}
-                    intensity={40}
-                    gradientColors={[
-                      'rgba(255, 255, 255, 0.28)',
-                      'rgba(255, 255, 255, 0.12)',
-                      'rgba(255, 255, 255, 0.05)',
-                    ]}
+                    variant="button"
                     style={styles.frostedActionBtn}
                   >
                     <Text style={styles.frostedActionBtnText}>BitLabs Mine</Text>
@@ -642,13 +607,8 @@ export default function DungeonScreen() {
 
               {/* Glass Card List Container */}
               <LiquidGlassView
-                borderRadius={24}
-                intensity={50}
-                gradientColors={[
-                  'rgba(255, 255, 255, 0.26)',
-                  'rgba(255, 255, 255, 0.14)',
-                  'rgba(255, 255, 255, 0.06)',
-                ]}
+                borderRadius={26}
+                variant="card"
                 style={styles.surveysGlassContainer}
               >
                 {/* Row 1: CPX Research Survey Wall */}
@@ -729,12 +689,7 @@ export default function DungeonScreen() {
                 >
                   <LiquidGlassView
                     borderRadius={20}
-                    intensity={45}
-                    gradientColors={[
-                      'rgba(255, 255, 255, 0.28)',
-                      'rgba(255, 255, 255, 0.14)',
-                      'rgba(255, 255, 255, 0.06)',
-                    ]}
+                    variant="card"
                     style={styles.quickActionCard}
                   >
                     <View style={[styles.quickActionIconWrap, { backgroundColor: 'rgba(244, 63, 94, 0.22)' }]}>
@@ -755,12 +710,7 @@ export default function DungeonScreen() {
                 >
                   <LiquidGlassView
                     borderRadius={20}
-                    intensity={45}
-                    gradientColors={[
-                      'rgba(255, 255, 255, 0.28)',
-                      'rgba(255, 255, 255, 0.14)',
-                      'rgba(255, 255, 255, 0.06)',
-                    ]}
+                    variant="card"
                     style={styles.quickActionCard}
                   >
                     <View style={[styles.quickActionIconWrap, { backgroundColor: 'rgba(245, 158, 11, 0.22)' }]}>
@@ -781,12 +731,7 @@ export default function DungeonScreen() {
                 >
                   <LiquidGlassView
                     borderRadius={20}
-                    intensity={45}
-                    gradientColors={[
-                      'rgba(255, 255, 255, 0.28)',
-                      'rgba(255, 255, 255, 0.14)',
-                      'rgba(255, 255, 255, 0.06)',
-                    ]}
+                    variant="card"
                     style={styles.quickActionCard}
                   >
                     <View style={[styles.quickActionIconWrap, { backgroundColor: 'rgba(168, 85, 247, 0.22)' }]}>
@@ -804,12 +749,7 @@ export default function DungeonScreen() {
                 >
                   <LiquidGlassView
                     borderRadius={20}
-                    intensity={45}
-                    gradientColors={[
-                      'rgba(255, 255, 255, 0.28)',
-                      'rgba(255, 255, 255, 0.14)',
-                      'rgba(255, 255, 255, 0.06)',
-                    ]}
+                    variant="card"
                     style={styles.quickActionCard}
                   >
                     <View style={[styles.quickActionIconWrap, { backgroundColor: 'rgba(6, 182, 212, 0.22)' }]}>
@@ -857,12 +797,7 @@ export default function DungeonScreen() {
               {/* Top 3 Podium (Rank 2 Left, Rank 1 Center 👑, Rank 3 Right) */}
               <LiquidGlassView
                 borderRadius={26}
-                intensity={50}
-                gradientColors={[
-                  'rgba(255, 255, 255, 0.28)',
-                  'rgba(255, 255, 255, 0.15)',
-                  'rgba(255, 255, 255, 0.08)',
-                ]}
+                variant="card"
                 style={styles.podiumGlassCard}
               >
                 {/* #2 Left: Rank 2 Hunter */}
@@ -938,12 +873,7 @@ export default function DungeonScreen() {
                     <LiquidGlassView
                       key={item.id || rankNum}
                       borderRadius={18}
-                      intensity={40}
-                      gradientColors={[
-                        'rgba(255, 255, 255, 0.24)',
-                        'rgba(255, 255, 255, 0.12)',
-                        'rgba(255, 255, 255, 0.05)',
-                      ]}
+                      variant="card"
                       style={styles.rankListRow}
                     >
                       <Text style={styles.rankListNumber}>{rankNum}</Text>
@@ -1207,12 +1137,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    backgroundColor: 'rgba(0, 0, 0, 0.20)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.28)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
+    paddingHorizontal: 11,
+    paddingVertical: 5.5,
+    borderRadius: 14,
   },
   countdownPillText: {
     fontSize: 11,
@@ -1224,9 +1154,9 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.24)',
+    backgroundColor: 'rgba(255, 255, 255, 0.20)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.40)',
+    borderColor: 'rgba(255, 255, 255, 0.38)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1277,7 +1207,7 @@ const styles = StyleSheet.create({
   statsDivider: {
     width: 1,
     height: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.35)',
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
   },
   statCrystalGroup: {
     flexDirection: 'row',
@@ -1306,10 +1236,10 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   levelReqPill: {
-    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
-    paddingHorizontal: 14,
+    borderColor: 'rgba(255, 255, 255, 0.30)',
+    paddingHorizontal: 15,
     paddingVertical: 9,
     borderRadius: 14,
   },
@@ -1327,10 +1257,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.18,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowRadius: 10,
+    elevation: 4,
   },
   enterGateWhiteBtnText: {
     fontSize: 13,
@@ -1526,10 +1456,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    backgroundColor: 'rgba(255, 255, 255, 0.20)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.40)',
-    paddingHorizontal: 15,
+    borderColor: 'rgba(255, 255, 255, 0.38)',
+    paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 14,
   },
@@ -1540,7 +1470,7 @@ const styles = StyleSheet.create({
   },
   surveysInnerDivider: {
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
     marginHorizontal: 14,
   },
 

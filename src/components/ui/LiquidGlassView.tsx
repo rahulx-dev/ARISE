@@ -3,32 +3,76 @@ import { View, StyleSheet, ViewStyle, StyleProp, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 
+export type LiquidGlassVariant = 'card' | 'pill' | 'button' | 'accent-blue' | 'accent-red' | 'flat';
+
 export interface LiquidGlassViewProps {
   children?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
   borderRadius?: number;
   intensity?: number;
   tint?: 'light' | 'dark' | 'default';
+  variant?: LiquidGlassVariant;
   gradientColors?: readonly [string, string, ...string[]];
-  sheen?: boolean;
+  interactive?: boolean;
 }
 
-const DEFAULT_GRADIENT = [
-  'rgba(255, 255, 255, 0.26)',
-  'rgba(255, 255, 255, 0.14)',
-  'rgba(255, 255, 255, 0.08)',
-] as const;
+const VARIANT_GRADIENTS: Record<LiquidGlassVariant, readonly [string, string, ...string[]]> = {
+  card: [
+    'rgba(255, 255, 255, 0.16)',
+    'rgba(255, 255, 255, 0.06)',
+    'rgba(255, 255, 255, 0.02)',
+  ],
+  pill: [
+    'rgba(255, 255, 255, 0.22)',
+    'rgba(255, 255, 255, 0.10)',
+    'rgba(255, 255, 255, 0.05)',
+  ],
+  button: [
+    'rgba(255, 255, 255, 0.24)',
+    'rgba(255, 255, 255, 0.12)',
+    'rgba(255, 255, 255, 0.06)',
+  ],
+  'accent-blue': [
+    'rgba(56, 189, 248, 0.18)',
+    'rgba(14, 165, 233, 0.09)',
+    'rgba(15, 23, 42, 0.22)',
+  ],
+  'accent-red': [
+    'rgba(239, 68, 68, 0.22)',
+    'rgba(185, 28, 28, 0.12)',
+    'rgba(15, 23, 42, 0.35)',
+  ],
+  flat: [
+    'rgba(255, 255, 255, 0.08)',
+    'rgba(255, 255, 255, 0.04)',
+    'transparent',
+  ],
+};
 
 export function LiquidGlassView({
   children,
   style,
   borderRadius = 24,
-  intensity = 45,
-  tint = 'default',
-  gradientColors = DEFAULT_GRADIENT,
-  sheen = true,
+  intensity = 38,
+  tint = 'light',
+  variant = 'card',
+  gradientColors,
 }: LiquidGlassViewProps) {
   const isWeb = Platform.OS === 'web';
+  const activeGradient = gradientColors || VARIANT_GRADIENTS[variant];
+
+  // Dynamic web glass styling for optical physics
+  const webGlassStyle = isWeb
+    ? {
+        backdropFilter: 'blur(34px) saturate(185%) contrast(103%) brightness(105%)',
+        WebkitBackdropFilter: 'blur(34px) saturate(185%) contrast(103%) brightness(105%)',
+        boxShadow:
+          variant === 'pill' || variant === 'button'
+            ? '0 6px 20px -4px rgba(0, 0, 0, 0.20), inset 0 1px 1px 0 rgba(255, 255, 255, 0.65), inset 0 -1px 1px 0 rgba(255, 255, 255, 0.12)'
+            : '0 20px 48px -12px rgba(0, 0, 0, 0.28), inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.60), inset 0 -1px 1px 0 rgba(255, 255, 255, 0.12), inset 0 0 20px 0 rgba(255, 255, 255, 0.03)',
+        border: '1px solid rgba(255, 255, 255, 0.32)',
+      }
+    : null;
 
   return (
     <View
@@ -37,56 +81,39 @@ export function LiquidGlassView({
         {
           borderRadius,
         },
-        isWeb && ({
-          backdropFilter: 'blur(28px) saturate(190%)',
-          WebkitBackdropFilter: 'blur(28px) saturate(190%)',
-        } as any),
+        webGlassStyle as any,
         style,
       ]}
     >
-      {/* 1. Underlying Optical Blur Layer */}
+      {/* 1. Underlying Optical Backdrop Blur */}
       <BlurView
         intensity={intensity}
         tint={tint}
         style={[StyleSheet.absoluteFillObject, { borderRadius, overflow: 'hidden' }]}
       />
 
-      {/* 2. Liquid Specular Gradient Fill */}
+      {/* 2. Fluid Specular Liquid Gradient (Translucent optical body) */}
       <LinearGradient
-        colors={gradientColors}
+        colors={activeGradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 0.8, y: 1 }}
         style={[StyleSheet.absoluteFillObject, { borderRadius }]}
       />
 
-      {/* 3. Diagonal Liquid Glass Sheen */}
-      {sheen && (
-        <LinearGradient
-          colors={[
-            'rgba(255, 255, 255, 0.32)',
-            'rgba(255, 255, 255, 0.06)',
-            'transparent',
-          ]}
-          start={{ x: 0.1, y: 0 }}
-          end={{ x: 0.9, y: 0.7 }}
-          style={[StyleSheet.absoluteFillObject, { borderRadius, opacity: 0.85 }]}
-          pointerEvents="none"
-        />
-      )}
-
-      {/* 4. Top Rim Liquid Edge Highlight */}
-      <View
-        style={[
-          styles.topRimHighlight,
-          {
-            borderTopLeftRadius: borderRadius,
-            borderTopRightRadius: borderRadius,
-          },
+      {/* 3. Upper Curved Liquid Lensing Reflection (Simulates surface tension curvature) */}
+      <LinearGradient
+        colors={[
+          'rgba(255, 255, 255, 0.18)',
+          'rgba(255, 255, 255, 0.04)',
+          'transparent',
         ]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 0.40 }}
+        style={[StyleSheet.absoluteFillObject, { borderRadius }]}
         pointerEvents="none"
       />
 
-      {/* Child Content */}
+      {/* Content */}
       {children}
     </View>
   );
@@ -97,22 +124,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     position: 'relative',
     borderWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.65)',
-    borderLeftColor: 'rgba(255, 255, 255, 0.35)',
-    borderRightColor: 'rgba(255, 255, 255, 0.30)',
-    borderBottomColor: 'rgba(255, 255, 255, 0.18)',
+    borderColor: 'rgba(255, 255, 255, 0.32)',
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.16,
-    shadowRadius: 16,
-    elevation: 5,
-  },
-  topRimHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.75)',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.20,
+    shadowRadius: 20,
+    elevation: 6,
   },
 });
