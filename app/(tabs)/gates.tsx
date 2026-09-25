@@ -50,6 +50,7 @@ import { NotificationSheet } from '../../src/components/notifications/Notificati
 import { LiquidGlassView } from '../../src/components/ui/LiquidGlassView';
 
 const MOUNTAIN_BG = require('../../assets/img/mountain_dungeon_bg.jpg');
+const GLOWING_GEM_IMG = require('../../assets/img/glowing_mana_gem.jpg');
 
 export default function DungeonScreen() {
   const haptics = useHaptics();
@@ -253,8 +254,8 @@ export default function DungeonScreen() {
   };
 
   const userLevel = profile?.level || 1;
-  const heroGate = spawnedGates.length > 0 ? spawnedGates[0] : {
-    id: 'gate_e_goblin_01',
+  const heroGate = {
+    id: spawnedGates[0]?.id || 'gate_e_goblin_01',
     rankCode: 'E' as const,
     title: 'Lesser Goblin Cave',
     threatName: 'Goblin Scout Vanguard',
@@ -264,11 +265,11 @@ export default function DungeonScreen() {
     softGlow: 'rgba(16, 185, 129, 0.2)',
     requiredLevel: 1,
     spawnedAt: Date.now(),
-    expiresAt: Date.now() + 4 * 3600 * 1000,
+    expiresAt: Date.now() + (3 * 3600 + 59 * 60 + 33) * 1000,
     isCleared: false,
     missions: [
-      { id: 'm1', provider: 'CPX Research', title: 'Goblin Recon', topic: 'Gaming', durationMinutes: 5, durationLabel: '5 Mins', grossPayoutInr: 37, hunterCrystals: 74, xpReward: 150, questions: [] },
-      { id: 'm2', provider: 'BitLabs', title: 'Scout Perimeter', topic: 'Tech', durationMinutes: 7, durationLabel: '7 Mins', grossPayoutInr: 45, hunterCrystals: 90, xpReward: 200, questions: [] },
+      { id: 'm1', provider: 'CPX Research', title: 'Goblin Recon', topic: 'Gaming', durationMinutes: 5, durationLabel: '5 Mins', grossPayoutInr: 37, hunterCrystals: 74, xpReward: 150, questions: [], isCompleted: false },
+      { id: 'm2', provider: 'BitLabs', title: 'Scout Perimeter', topic: 'Tech', durationMinutes: 7, durationLabel: '7 Mins', grossPayoutInr: 45, hunterCrystals: 90, xpReward: 200, questions: [], isCompleted: false },
     ],
   };
 
@@ -557,7 +558,11 @@ export default function DungeonScreen() {
                 </View>
 
                 <View style={styles.surveyGraphicCol}>
-                  <ManaCrystalIcon size={84} />
+                  <Image
+                    source={GLOWING_GEM_IMG}
+                    style={{ width: 84, height: 84, borderRadius: 18 }}
+                    resizeMode="contain"
+                  />
                 </View>
               </View>
 
