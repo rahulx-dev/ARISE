@@ -30,6 +30,7 @@ import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { db } from '../../src/database/client';
 import { exerciseSession } from '../../src/database/schema';
 import { fontFamilies } from '../../src/theme/typography';
+import { useTranslation } from '../../src/services/i18n';
 
 interface ExerciseCardItem {
   id: string;
@@ -49,6 +50,7 @@ export default function GymTabScreen() {
   const haptics = useHaptics();
   const sound = useSound();
   const { colors, isDark } = useTheme();
+  const { t } = useTranslation();
   const profile = usePlayerStore((s) => s.profile);
   const loadProfile = usePlayerStore((s) => s.loadProfile);
 
@@ -162,13 +164,13 @@ export default function GymTabScreen() {
       {/* 1. Header */}
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <View>
-          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Gym Training</Text>
-          <Text style={[styles.headerSub, { color: colors.textSecondary }]}>AI-Powered Vision Pose Tracker</Text>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>{t('tabGym', 'Gym Training')}</Text>
+          <Text style={[styles.headerSub, { color: colors.textSecondary }]}>{t('gymSub', 'AI-Powered Vision Pose Tracker')}</Text>
         </View>
 
         <View style={[styles.headerStatsPill, { backgroundColor: isDark ? '#231214' : '#FFF1F2', borderColor: isDark ? '#4C1D24' : '#FFE4E6' }]}>
           <Flame size={16} color="#E53935" />
-          <Text style={styles.headerStatsText}>{profile?.currentStreak || 1} Day Streak</Text>
+          <Text style={styles.headerStatsText}>{profile?.currentStreak || 1} {t('dayStreak', 'Day Streak')}</Text>
         </View>
       </View>
 
@@ -177,7 +179,7 @@ export default function GymTabScreen() {
         <View style={[styles.heroStatsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.statCol}>
             <Text style={[styles.statNumber, { color: colors.textPrimary }]}>{todayReps.toLocaleString()}</Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>TOTAL REPS</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('repsToday', 'TOTAL REPS')}</Text>
           </View>
           <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
           <View style={styles.statCol}>
@@ -196,7 +198,7 @@ export default function GymTabScreen() {
         {/* 3. Category Filter Pills */}
         <View style={styles.filterRow}>
           {[
-            { id: 'all', label: 'All Protocols' },
+            { id: 'all', label: t('allExercises', 'All Protocols') },
             { id: 'bodyweight', label: 'Upper Body' },
             { id: 'core', label: 'Core & Legs' },
             { id: 'cardio', label: 'Cardio' },

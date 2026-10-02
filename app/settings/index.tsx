@@ -39,7 +39,7 @@ import { HowToUseModal } from '../../src/components/ui/HowToUseModal';
 import { InAppSurveyModal } from '../../src/components/surveys/InAppSurveyModal';
 import { AboutAriseSheet } from '../../src/components/ui/AboutAriseSheet';
 import { getTutorialUrl } from '../../src/config/webConfig';
-import { useLanguageStore, SUPPORTED_LANGUAGES } from '../../src/services/i18n';
+import { useTranslation, SUPPORTED_LANGUAGES } from '../../src/services/i18n';
 import { backupService } from '../../src/services/backupService';
 import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
 import { GoogleSignInModal, GoogleSignInResult } from '../../src/components/auth/GoogleSignInModal';
@@ -147,8 +147,7 @@ export default function SettingsScreen() {
     }
   };
 
-  const currentLang = useLanguageStore((s) => s.language);
-  const activeLangObj = SUPPORTED_LANGUAGES.find((l) => l.code === currentLang);
+  const { t, language: currentLang, currentLangObj: activeLangObj } = useTranslation();
 
   const handleSelectTutorialLang = (lang: 'hi' | 'en') => {
     setShowHowToUseModal(false);
@@ -218,14 +217,14 @@ export default function SettingsScreen() {
         >
           <ArrowLeft size={20} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Settings</Text>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>{t('settingsTitle', 'Settings')}</Text>
         <View style={{ width: 38 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Section 1: APPEARANCE */}
         <View style={styles.sectionWrap}>
-          <Text style={[styles.sectionHeading, { color: colors.textSecondary }]}>APPEARANCE</Text>
+          <Text style={[styles.sectionHeading, { color: colors.textSecondary }]}>{t('appearance', 'APPEARANCE')}</Text>
           <View style={[styles.cardGroup, { backgroundColor: colors.card, borderColor: colors.border }]}>
             {/* Theme */}
             <TouchableOpacity
@@ -240,7 +239,7 @@ export default function SettingsScreen() {
                 <Sun size={18} color="#E53935" />
               </View>
               <View style={styles.menuTextCol}>
-                <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>Theme Mode</Text>
+                <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>{t('themeMode', 'Theme Mode')}</Text>
               </View>
               <View style={styles.pillBadge}>
                 <Text style={[styles.pillBadgeText, { color: colors.textSecondary }]}>{themeDisplayLabel}</Text>
@@ -263,7 +262,7 @@ export default function SettingsScreen() {
                 <Globe size={18} color="#0284C7" />
               </View>
               <View style={styles.menuTextCol}>
-                <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>Language</Text>
+                <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>{t('language', 'Language')}</Text>
               </View>
               <View style={styles.pillBadge}>
                 <Text style={[styles.pillBadgeText, { color: colors.textSecondary }]}>
@@ -277,7 +276,7 @@ export default function SettingsScreen() {
 
         {/* Section 2: AUDIO & EXPERIENCE */}
         <View style={styles.sectionWrap}>
-          <Text style={[styles.sectionHeading, { color: colors.textSecondary }]}>EXPERIENCE & AUDIO</Text>
+          <Text style={[styles.sectionHeading, { color: colors.textSecondary }]}>{t('generalPreferences', 'EXPERIENCE & AUDIO')}</Text>
           <View style={[styles.cardGroup, { backgroundColor: colors.card, borderColor: colors.border }]}>
             {/* Notifications */}
             <View style={styles.menuRow}>
@@ -285,7 +284,7 @@ export default function SettingsScreen() {
                 <Bell size={18} color="#D97706" />
               </View>
               <View style={styles.menuTextCol}>
-                <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>Notifications</Text>
+                <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>{t('notifications', 'Notifications')}</Text>
               </View>
               <Switch
                 value={notificationsEnabled}
@@ -307,7 +306,7 @@ export default function SettingsScreen() {
                 <Volume2 size={18} color="#A855F7" />
               </View>
               <View style={styles.menuTextCol}>
-                <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>Sound Effects (SFX)</Text>
+                <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>{t('soundEffects', 'Sound Effects (SFX)')}</Text>
               </View>
               <Switch
                 value={sfxEnabled}
@@ -329,7 +328,7 @@ export default function SettingsScreen() {
                 <Vibrate size={18} color="#0A84FF" />
               </View>
               <View style={styles.menuTextCol}>
-                <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>Vibration Haptics</Text>
+                <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>{t('tactileHaptics', 'Vibration Haptics')}</Text>
               </View>
               <Switch
                 value={hapticsEnabled}
@@ -347,7 +346,7 @@ export default function SettingsScreen() {
 
         {/* Section 3: APP BLOCKING & DETOX */}
         <View style={styles.sectionWrap}>
-          <Text style={[styles.sectionHeading, { color: colors.textSecondary }]}>DIGITAL DETOX & SECURITY</Text>
+          <Text style={[styles.sectionHeading, { color: colors.textSecondary }]}>{t('systemProtocols', 'DIGITAL DETOX & SECURITY')}</Text>
           <View style={[styles.cardGroup, { backgroundColor: colors.card, borderColor: colors.border }]}>
             {/* Blocked Apps */}
             <TouchableOpacity
@@ -362,7 +361,7 @@ export default function SettingsScreen() {
                 <Lock size={18} color="#DC2626" />
               </View>
               <View style={styles.menuTextCol}>
-                <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>App Blocking & Screen Time</Text>
+                <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>{t('appBlocker', 'App Blocking & Screen Time')}</Text>
               </View>
               <ChevronRight size={16} color="#9CA3AF" />
             </TouchableOpacity>
@@ -382,7 +381,7 @@ export default function SettingsScreen() {
                 <Shield size={18} color="#0284C7" />
               </View>
               <View style={styles.menuTextCol}>
-                <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>Permissions Hub</Text>
+                <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>{t('permissionsHub', 'Permissions Hub')}</Text>
               </View>
               <ChevronRight size={16} color="#9CA3AF" />
             </TouchableOpacity>
@@ -391,7 +390,7 @@ export default function SettingsScreen() {
 
         {/* Section: ACCOUNT & CLOUD */}
         <View style={styles.sectionWrap}>
-          <Text style={[styles.sectionHeading, { color: colors.textSecondary }]}>ACCOUNT & CLOUD</Text>
+          <Text style={[styles.sectionHeading, { color: colors.textSecondary }]}>{t('dataAndCloud', 'ACCOUNT & CLOUD')}</Text>
           <View style={[styles.cardGroup, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <TouchableOpacity
               style={styles.menuRow}
@@ -406,7 +405,7 @@ export default function SettingsScreen() {
               </View>
               <View style={styles.menuTextCol}>
                 <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>
-                  {googleUser ? 'Google Account' : 'Connect Google Account'}
+                  {googleUser ? t('connectGoogle', 'Google Account') : t('connectGoogle', 'Connect Google Account')}
                 </Text>
                 <Text style={[styles.menuDesc, { color: colors.textSecondary }]}>
                   {googleUser ? googleUser.email : 'Sign in to sync your hunter name & stats'}

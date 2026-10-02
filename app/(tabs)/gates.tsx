@@ -43,6 +43,7 @@ import { useHaptics } from '../../src/hooks/useHaptics';
 import { useSound } from '../../src/hooks/useSound';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { fontFamilies } from '../../src/theme/typography';
+import { useTranslation } from '../../src/services/i18n';
 import { crystalRepository, CrystalLeaderboardHunter } from '../../src/database/repositories/crystalRepository';
 import { redGateService, RedGateEncounter, RedGateTrial } from '../../src/services/redGateService';
 import { RedGateEncounterModal } from '../../src/components/gates/RedGateEncounterModal';
@@ -400,6 +401,7 @@ export default function DungeonScreen() {
   const haptics = useHaptics();
   const sound = useSound();
   const router = useRouter();
+  const { t } = useTranslation();
 
   const profile = usePlayerStore((s) => s.profile);
   const loadProfile = usePlayerStore((s) => s.loadProfile);
@@ -699,7 +701,7 @@ export default function DungeonScreen() {
               },
             ]}
           >
-            Gates
+            {t('activeGates', 'Gates')}
           </Text>
         </TouchableOpacity>
 
@@ -723,7 +725,7 @@ export default function DungeonScreen() {
               },
             ]}
           >
-            Leaderboard
+            {t('leaderboard', 'Leaderboard')}
           </Text>
         </TouchableOpacity>
       </View>

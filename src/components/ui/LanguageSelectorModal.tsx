@@ -13,7 +13,9 @@ import {
   useLanguageStore,
   SUPPORTED_LANGUAGES,
   LanguageCode,
+  useTranslation,
 } from '../../services/i18n';
+import { useHaptics } from '../../hooks/useHaptics';
 import { SoloLevelingWindow } from './SoloLevelingWindow';
 
 interface LanguageSelectorModalProps {
@@ -25,11 +27,12 @@ export function LanguageSelectorModal({
   visible,
   onClose,
 }: LanguageSelectorModalProps) {
-  const currentLang = useLanguageStore((s) => s.language);
-  const setLanguage = useLanguageStore((s) => s.setLanguage);
+  const { language: currentLang, setLanguage, t } = useTranslation();
+  const haptics = useHaptics();
 
-  const handleSelect = (code: LanguageCode) => {
-    setLanguage(code);
+  const handleSelect = async (code: LanguageCode) => {
+    haptics.light();
+    await setLanguage(code);
     onClose();
   };
 
@@ -49,10 +52,10 @@ export function LanguageSelectorModal({
                 variant="quest"
                 tag="SYSTEM LOCALIZATION"
                 subtag="SELECT LANGUAGE"
-                title="SELECT LANGUAGE / भाषा चुनें"
+                title={`${t('selectLanguage', 'Select Language')} / भाषा चुनें`}
                 buttons={[
                   {
-                    text: 'CLOSE',
+                    text: t('close', 'CLOSE').toUpperCase(),
                     style: 'cancel',
                     onPress: onClose,
                   },

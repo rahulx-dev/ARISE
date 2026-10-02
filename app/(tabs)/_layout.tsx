@@ -13,6 +13,7 @@ import {
 import { useTheme } from '../../src/hooks/useTheme';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { fontFamilies } from '../../src/theme/typography';
+import { useTranslation } from '../../src/services/i18n';
 
 // Tab Icon Component (Maintains perfect 1:1 square aspect ratio - zero squish/distortion)
 function TabAnimatedIcon({
@@ -84,6 +85,7 @@ export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
   const haptics = useHaptics();
+  const { t } = useTranslation();
 
   // State to trigger animation play on every click/tap
   const [tabTapState, setTabTapState] = useState<{ tab: string; time: number }>({
@@ -129,7 +131,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: t('tabHome', 'Home'),
           tabBarIcon: ({ color, focused }) => (
             <TabAnimatedIcon
               animationSource={require('../../assets/Animations/home.json')}
@@ -149,7 +151,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="quests"
         options={{
-          title: 'Quests',
+          title: t('tabQuests', 'Quests'),
           tabBarIcon: ({ color, focused }) => (
             <TabAnimatedIcon
               animationSource={require('../../assets/Animations/icons8-thunder.json')}
@@ -169,7 +171,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="gates"
         options={{
-          title: 'Dungeon',
+          title: t('tabDungeon', 'Dungeon'),
           tabBarIcon: ({ color, focused }) => (
             <TabAnimatedIcon
               animationSource={require('../../assets/Animations/trophy.json')}
@@ -189,7 +191,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="gym"
         options={{
-          title: 'Gym',
+          title: t('tabGym', 'Gym'),
           tabBarIcon: ({ color, focused }) => (
             <TabAnimatedIcon
               animationSource={require('../../assets/Animations/gym.json')}
@@ -209,7 +211,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
+          title: t('tabProfile', 'Profile'),
           tabBarIcon: ({ color, focused }) => (
             <TabAnimatedIcon
               animationSource={require('../../assets/Animations/profile.json')}

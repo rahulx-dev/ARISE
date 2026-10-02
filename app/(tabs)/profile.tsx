@@ -44,7 +44,7 @@ import { LanguageSelectorModal } from '../../src/components/ui/LanguageSelectorM
 import { AboutAriseSheet } from '../../src/components/ui/AboutAriseSheet';
 import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
 import { backupService } from '../../src/services/backupService';
-import { useLanguageStore, SUPPORTED_LANGUAGES } from '../../src/services/i18n';
+import { useTranslation, SUPPORTED_LANGUAGES } from '../../src/services/i18n';
 import { ThemeMode } from '../../src/theme/themeEngine';
 import { fontFamilies } from '../../src/theme/typography';
 
@@ -53,6 +53,7 @@ export default function WarriorProfileTab() {
   const loadProfile = usePlayerStore((s) => s.loadProfile);
   const haptics = useHaptics();
   const { colors, isDark } = useTheme();
+  const { t, language: currentLang, currentLangObj: activeLangObj } = useTranslation();
 
   const {
     notificationsEnabled,
@@ -60,9 +61,6 @@ export default function WarriorProfileTab() {
     theme,
     setTheme,
   } = useSettingsStore();
-
-  const currentLang = useLanguageStore((s) => s.language);
-  const activeLangObj = SUPPORTED_LANGUAGES.find((l) => l.code === currentLang);
 
   const [voiceCoachActive, setVoiceCoachActive] = useState<boolean>(true);
   const [totalWorkouts, setTotalWorkouts] = useState<number>(0);
@@ -215,7 +213,7 @@ export default function WarriorProfileTab() {
                 </View>
               </View>
               <Text style={styles.rankSubText}>
-                Level {level} • {currentRank.rankCode}-Rank Hunter
+                {t('level', 'Level')} {level} • {currentRank.rankCode}-{t('rankHunter', 'Rank Hunter').replace('{0}-', '')}
               </Text>
             </View>
           </View>
@@ -471,7 +469,7 @@ export default function WarriorProfileTab() {
         {/* ================= 4. SETTINGS & PREFERENCES ================= */}
         <View style={styles.sectionWrap}>
           <Text style={[styles.sectionHeading, { color: colors.textPrimary }]}>
-            Preferences
+            {t('generalSettings', 'Preferences')}
           </Text>
 
           <View
@@ -497,7 +495,7 @@ export default function WarriorProfileTab() {
                     { color: colors.textPrimary },
                   ]}
                 >
-                  Voice Coach
+                  {t('voiceCoach', 'Voice Coach')}
                 </Text>
               </View>
               <Switch
@@ -547,7 +545,7 @@ export default function WarriorProfileTab() {
                     { color: colors.textPrimary },
                   ]}
                 >
-                  Theme Mode
+                  {t('themeMode', 'Theme Mode')}
                 </Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -582,7 +580,7 @@ export default function WarriorProfileTab() {
                     { color: colors.textPrimary },
                   ]}
                 >
-                  Language
+                  {t('language', 'Language')}
                 </Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -612,7 +610,7 @@ export default function WarriorProfileTab() {
                     { color: colors.textPrimary },
                   ]}
                 >
-                  Notifications
+                  {t('notifications', 'Notifications')}
                 </Text>
               </View>
               <Switch
@@ -662,7 +660,7 @@ export default function WarriorProfileTab() {
                     { color: colors.textPrimary },
                   ]}
                 >
-                  App Blocking & Detox
+                  {t('appBlocker', 'App Blocking & Detox')}
                 </Text>
               </View>
               <ChevronRight size={18} color="#9CA3AF" />
@@ -691,7 +689,7 @@ export default function WarriorProfileTab() {
                     { color: colors.textPrimary },
                   ]}
                 >
-                  Offline Backup & Export
+                  {t('backupData', 'Offline Backup & Export')}
                 </Text>
               </View>
               <ChevronRight size={18} color="#9CA3AF" />
@@ -724,7 +722,7 @@ export default function WarriorProfileTab() {
                     { color: colors.textPrimary },
                   ]}
                 >
-                  About ARISE
+                  {t('aboutArise', 'About ARISE')}
                 </Text>
               </View>
               <ChevronRight size={18} color="#9CA3AF" />

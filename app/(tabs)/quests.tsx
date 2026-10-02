@@ -38,6 +38,7 @@ import { APP_3D_ASSETS } from '../../src/constants/assets';
 import { fontFamilies } from '../../src/theme/typography';
 import { EXERCISE_REGISTRY, ExerciseType } from '../../src/exercise';
 import { QuestData } from '../../src/services/questService';
+import { useTranslation } from '../../src/services/i18n';
 
 type QuestTabFilter = 'ALL' | 'DAILY' | 'WEEKLY' | 'SPECIAL';
 
@@ -207,6 +208,7 @@ export default function QuestsScreen() {
   const { colors, isDark } = useTheme();
   const sound = useSound();
   const haptics = useHaptics();
+  const { t } = useTranslation();
 
   const dailyQuests = useQuestStore((s) => s.dailyQuests);
   const weeklyQuests = useQuestStore((s) => s.weeklyQuests);
@@ -353,7 +355,7 @@ export default function QuestsScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       {/* 1. TOP HEADER */}
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <Text style={[styles.screenTitle, { color: colors.textPrimary }]}>Quests</Text>
+        <Text style={[styles.screenTitle, { color: colors.textPrimary }]}>{t('tabQuests', 'Quests')}</Text>
         <View style={[styles.systemProtocolsPill, { backgroundColor: isDark ? '#1C1215' : '#FFF1F2', borderColor: isDark ? '#3E1C22' : '#FFE4E6' }]}>
           <Lightning size={14} color="#E53935" weight="fill" />
           <Text style={styles.systemProtocolsText}>System Protocols</Text>
@@ -365,7 +367,7 @@ export default function QuestsScreen() {
         <View style={[styles.progressSummaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.progressSummaryHeader}>
             <View style={{ gap: 2 }}>
-              <Text style={[styles.progressSummaryTitle, { color: colors.textPrimary }]}>Daily Objectives</Text>
+              <Text style={[styles.progressSummaryTitle, { color: colors.textPrimary }]}>{t('dailySystemDirectives', 'Daily Objectives')}</Text>
               <Text style={[styles.progressSummarySub, { color: colors.textSecondary }]}>
                 {completedDailyCount} of {totalDailyCount} protocols completed
               </Text>
@@ -419,12 +421,12 @@ export default function QuestsScreen() {
                   ]}
                 >
                   {tab === 'ALL'
-                    ? 'All'
+                    ? t('filterAll', 'All')
                     : tab === 'DAILY'
-                    ? 'Daily'
+                    ? t('filterDaily', 'Daily')
                     : tab === 'WEEKLY'
-                    ? 'Weekly'
-                    : 'Special'}
+                    ? t('filterWeekly', 'Weekly')
+                    : t('filterSpecial', 'Special')}
                 </Text>
               </TouchableOpacity>
             );
@@ -455,11 +457,11 @@ export default function QuestsScreen() {
               const isCameraTracked = cameraExercise !== null && q.questType !== 'MANUAL';
               const rank = getRankConfig(q.difficulty);
 
-              let buttonLabel = 'COMPLETE';
+              let buttonLabel = t('claimReward', 'COMPLETE');
               if (isCameraTracked) {
-                buttonLabel = 'START TRACKER';
+                buttonLabel = t('startAiWorkout', 'START TRACKER');
               } else if (isFocus) {
-                buttonLabel = 'START FOCUS';
+                buttonLabel = t('startFocus', 'START FOCUS');
               }
 
               return (

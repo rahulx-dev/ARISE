@@ -39,6 +39,7 @@ import { getRankForLevel } from '../../src/constants/ranks';
 import { getDailyQuote } from '../../src/constants/quotes';
 import { NotificationSheet } from '../../src/components/notifications/NotificationSheet';
 import { fontFamilies } from '../../src/theme/typography';
+import { useTranslation } from '../../src/services/i18n';
 
 const { width } = Dimensions.get('window');
 
@@ -46,6 +47,7 @@ export default function HomeDashboard() {
   const { colors, isDark } = useTheme();
   const haptics = useHaptics();
   const sound = useSound();
+  const { t } = useTranslation();
 
   const profile = usePlayerStore((s) => s.profile);
   const loadProfile = usePlayerStore((s) => s.loadProfile);
@@ -242,7 +244,7 @@ export default function HomeDashboard() {
                     { color: isDark ? '#FFFFFF' : '#0F172A' },
                   ]}
                 >
-                  Level {level}
+                  {t('level', 'Level')} {level}
                 </Text>
                 <Text
                   style={[
@@ -250,7 +252,7 @@ export default function HomeDashboard() {
                     { color: isDark ? '#8E8E93' : '#64748B' },
                   ]}
                 >
-                  {rank.rankCode}-Rank Hunter
+                  {rank.rankCode}-{t('rankHunter', 'Rank Hunter').replace('{0}-', '')}
                 </Text>
               </View>
             </View>
@@ -319,7 +321,7 @@ export default function HomeDashboard() {
                   { color: isDark ? '#8E8E93' : '#64748B' },
                 ]}
               >
-                Day Streak
+                {t('dayStreak', 'Day Streak')}
               </Text>
               <ChevronRight size={11} color={isDark ? '#8E8E93' : '#64748B'} />
             </View>
@@ -360,7 +362,7 @@ export default function HomeDashboard() {
                   { color: isDark ? '#8E8E93' : '#64748B' },
                 ]}
               >
-                Reps Today
+                {t('repsToday', 'Reps Today')}
               </Text>
               <ChevronRight size={11} color={isDark ? '#8E8E93' : '#64748B'} />
             </View>
@@ -401,7 +403,7 @@ export default function HomeDashboard() {
                   { color: isDark ? '#8E8E93' : '#64748B' },
                 ]}
               >
-                Focus Time
+                {t('focusTime', 'Focus Time')}
               </Text>
               <ChevronRight size={11} color={isDark ? '#8E8E93' : '#64748B'} />
             </View>
@@ -445,7 +447,7 @@ export default function HomeDashboard() {
                   { color: isDark ? '#8E8E93' : '#64748B' },
                 ]}
               >
-                Coins
+                {t('coins', 'Coins')}
               </Text>
               <ChevronRight size={11} color={isDark ? '#8E8E93' : '#64748B'} />
             </View>
@@ -470,7 +472,7 @@ export default function HomeDashboard() {
                 { color: isDark ? '#FFFFFF' : '#0F172A' },
               ]}
             >
-              Today’s Quests
+              {t('todaysQuests', "Today's Quests")}
             </Text>
             <Text
               style={[
@@ -611,7 +613,7 @@ export default function HomeDashboard() {
                 { color: isDark ? '#FFFFFF' : '#0F172A' },
               ]}
             >
-              View All Quests
+              {t('viewAllQuests', 'View All Quests')}
             </Text>
             <ChevronRight
               size={15}
@@ -630,7 +632,7 @@ export default function HomeDashboard() {
                 { color: isDark ? '#FFFFFF' : '#0F172A' },
               ]}
             >
-              Quick Actions
+              {t('quickActions', 'Quick Actions')}
             </Text>
             <TouchableOpacity
               onPress={() => router.push('/(tabs)/quests')}
@@ -643,7 +645,7 @@ export default function HomeDashboard() {
                   { color: isDark ? '#8E8E93' : '#64748B' },
                 ]}
               >
-                See All
+                {t('seeAll', 'See All')}
               </Text>
               <ChevronRight
                 size={13}
@@ -693,7 +695,7 @@ export default function HomeDashboard() {
                     { color: isDark ? '#FFFFFF' : '#0F172A' },
                   ]}
                 >
-                  Workout
+                  {t('workout', 'Workout')}
                 </Text>
                 <ChevronRight
                   size={14}
@@ -706,7 +708,7 @@ export default function HomeDashboard() {
                   { color: isDark ? '#8E8E93' : '#64748B' },
                 ]}
               >
-                Start your session
+                {t('startSession', 'Start your session')}
               </Text>
             </TouchableOpacity>
 
@@ -750,7 +752,7 @@ export default function HomeDashboard() {
                     { color: isDark ? '#FFFFFF' : '#0F172A' },
                   ]}
                 >
-                  Focus
+                  {t('focus', 'Focus')}
                 </Text>
                 <ChevronRight
                   size={14}
@@ -763,7 +765,7 @@ export default function HomeDashboard() {
                   { color: isDark ? '#8E8E93' : '#64748B' },
                 ]}
               >
-                Stay in the zone
+                {t('stayInZone', 'Stay in the zone')}
               </Text>
             </TouchableOpacity>
 
@@ -807,7 +809,7 @@ export default function HomeDashboard() {
                     { color: isDark ? '#FFFFFF' : '#0F172A' },
                   ]}
                 >
-                  Shop
+                  {t('shop', 'Shop')}
                 </Text>
                 <ChevronRight
                   size={14}
@@ -820,7 +822,7 @@ export default function HomeDashboard() {
                   { color: isDark ? '#8E8E93' : '#64748B' },
                 ]}
               >
-                Spend your coins
+                {t('upgradeUnlock', 'Spend your coins')}
               </Text>
             </TouchableOpacity>
           </View>
