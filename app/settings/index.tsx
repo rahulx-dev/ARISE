@@ -42,9 +42,10 @@ import { getTutorialUrl } from '../../src/config/webConfig';
 import { useLanguageStore, SUPPORTED_LANGUAGES } from '../../src/services/i18n';
 import { backupService } from '../../src/services/backupService';
 import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
-import { GoogleSignInModal } from '../../src/components/auth/GoogleSignInModal';
+import { GoogleSignInModal, GoogleSignInResult } from '../../src/components/auth/GoogleSignInModal';
 import { GoogleLogo } from '../../src/components/auth/GoogleLogo';
 import { googleAuthService, GoogleAuthUser } from '../../src/services/googleAuthService';
+import { cloudSyncService } from '../../src/services/cloudSyncService';
 import { ThemeMode } from '../../src/theme/themeEngine';
 import { fontFamilies } from '../../src/theme/typography';
 import { spacing } from '../../src/theme/spacing';
@@ -87,17 +88,63 @@ export default function SettingsScreen() {
   const [isBusy, setIsBusy] = useState(false);
   const [googleUser, setGoogleUser] = useState<GoogleAuthUser | null>(null);
   const [showGoogleModal, setShowGoogleModal] = useState<boolean>(false);
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
 
   useEffect(() => {
     googleAuthService.getStoredGoogleUser().then(setGoogleUser);
+    cloudSyncService.getLastSyncTime().then(setLastSyncTime);
   }, []);
 
-  const handleGoogleSuccess = async (user: GoogleAuthUser) => {
+  const handleGoogleSuccess = async (result: GoogleSignInResult) => {
+    const { user, restored, message } = result;
     setGoogleUser(user);
-    if (user.displayName) {
-      await usePlayerStore.getState().updateProfile({ displayName: user.displayName });
+    if (restored) {
+      await usePlayerStore.getState().loadProfile();
+      showIOSAlert('Cloud Save Restored', message);
+    } else {
+      if (user.displayName) {
+        await usePlayerStore.getState().updateProfile({ displayName: user.displayName });
+      }
+      showIOSAlert('Google Account Linked', `Signed in as ${user.displayName} (${user.email}).`);
     }
-    showIOSAlert('Google Account Linked', `Signed in as ${user.displayName} (${user.email}).`);
+  };
+
+  const handleBackupNow = async () => {
+    if (!googleUser?.email) {
+      setShowGoogleModal(true);
+      return;
+    }
+    haptics.medium();
+    setIsBusy(true);
+    const res = await cloudSyncService.saveToCloud(googleUser.email);
+    setIsBusy(false);
+    if (res.success) {
+      setLastSyncTime(res.timestamp || new Date().toISOString());
+      haptics.success();
+      showIOSAlert('Cloud Backup Complete', res.message);
+    } else {
+      haptics.warning();
+      showIOSAlert('Backup Note', res.message);
+    }
+  };
+
+  const handleRestoreNow = async () => {
+    if (!googleUser?.email) {
+      setShowGoogleModal(true);
+      return;
+    }
+    haptics.medium();
+    setIsBusy(true);
+    const res = await cloudSyncService.restoreFromCloud(googleUser.email);
+    setIsBusy(false);
+    if (res.restored) {
+      await usePlayerStore.getState().loadProfile();
+      haptics.success();
+      showIOSAlert('Cloud Restore Complete', res.message);
+    } else {
+      haptics.warning();
+      showIOSAlert('Restore Note', res.message);
+    }
   };
 
   const currentLang = useLanguageStore((s) => s.language);
@@ -374,6 +421,54 @@ export default function SettingsScreen() {
                 <ChevronRight size={16} color="#9CA3AF" />
               )}
             </TouchableOpacity>
+
+            {googleUser && (
+              <>
+                <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+                {/* Sync to Cloud Now */}
+                <TouchableOpacity
+                  disabled={isBusy}
+                  style={styles.menuRow}
+                  activeOpacity={0.75}
+                  onPress={handleBackupNow}
+                >
+                  <View style={[styles.iconCircle, { backgroundColor: isDark ? '#0C2B44' : '#E0F2FE' }]}>
+                    <Cloud size={18} color="#0A84FF" />
+                  </View>
+                  <View style={styles.menuTextCol}>
+                    <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>Sync to Cloud Now</Text>
+                    <Text style={[styles.menuDesc, { color: colors.textSecondary }]}>
+                      {lastSyncTime
+                        ? `Last synced: ${new Date(lastSyncTime).toLocaleDateString()} ${new Date(lastSyncTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                        : 'Upload progression to remote cloud'}
+                    </Text>
+                  </View>
+                  <ChevronRight size={16} color="#9CA3AF" />
+                </TouchableOpacity>
+
+                <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+                {/* Restore Progression from Cloud */}
+                <TouchableOpacity
+                  disabled={isBusy}
+                  style={styles.menuRow}
+                  activeOpacity={0.75}
+                  onPress={handleRestoreNow}
+                >
+                  <View style={[styles.iconCircle, { backgroundColor: isDark ? '#143825' : '#E8F5E9' }]}>
+                    <Download size={18} color="#10B981" />
+                  </View>
+                  <View style={styles.menuTextCol}>
+                    <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>Restore Progression</Text>
+                    <Text style={[styles.menuDesc, { color: colors.textSecondary }]}>
+                      Fetch saved coins, level & avatars from cloud
+                    </Text>
+                  </View>
+                  <ChevronRight size={16} color="#9CA3AF" />
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         </View>
 

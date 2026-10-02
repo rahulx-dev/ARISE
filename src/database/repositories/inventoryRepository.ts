@@ -46,6 +46,12 @@ class InventoryRepository {
         "INSERT OR IGNORE INTO user_inventory (item_id, item_type, unlocked_at, is_equipped) VALUES (?, ?, ?, 1)",
         [itemId, itemType.toUpperCase(), now],
       );
+      // Non-blocking background cloud sync
+      import('../../services/cloudSyncService')
+        .then(({ cloudSyncService }) => {
+          cloudSyncService.triggerAutoSync().catch(() => {});
+        })
+        .catch(() => {});
     } catch (e) {
       console.warn("Error unlocking item:", e);
     }

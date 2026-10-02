@@ -51,6 +51,26 @@ CREATE TABLE IF NOT EXISTS public.user_wallets (
 
 CREATE INDEX IF NOT EXISTS idx_user_wallets_synced ON public.user_wallets (last_synced_at);
 
+-- 3b. Persistent Google Cloud Saves (Preserves game progression across app uninstalls & reinstalls)
+CREATE TABLE IF NOT EXISTS public.user_cloud_saves (
+    email TEXT PRIMARY KEY,
+    display_name TEXT DEFAULT 'Warrior',
+    avatar_icon TEXT DEFAULT 'img_pfp_01',
+    backup_data JSONB NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW())
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_cloud_saves_updated ON public.user_cloud_saves (updated_at DESC);
+
+-- Allow public access for client cloud saves
+ALTER TABLE public.user_cloud_saves ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow public read-write on user_cloud_saves"
+ON public.user_cloud_saves
+FOR ALL
+USING (true)
+WITH CHECK (true);
+
 -- 4. Public Crystal & Hunter Leaderboard Projection (PUBLIC READ)
 CREATE TABLE IF NOT EXISTS public.crystal_leaderboard (
     user_id TEXT PRIMARY KEY,

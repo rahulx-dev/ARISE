@@ -58,9 +58,10 @@ import { inventoryRepository } from '../../src/database/repositories/inventoryRe
 import { HUNTER_ALIASES, getRandomHunterName } from '../../src/constants/names';
 import { getIsOnboardingCompleted, setIsOnboardingCompletedSync } from '../../src/services/appStateService';
 import { LanguageSelectorModal } from '../../src/components/ui/LanguageSelectorModal';
-import { GoogleSignInModal } from '../../src/components/auth/GoogleSignInModal';
+import { GoogleSignInModal, GoogleSignInResult } from '../../src/components/auth/GoogleSignInModal';
 import { GoogleLogo } from '../../src/components/auth/GoogleLogo';
 import { GoogleAuthUser } from '../../src/services/googleAuthService';
+import { cloudSyncService } from '../../src/services/cloudSyncService';
 import { useLanguageStore } from '../../src/services/i18n';
 import { Globe } from 'phosphor-react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -356,7 +357,32 @@ export default function OnboardingScreen() {
     setShowGoogleModal(true);
   };
 
-  const handleGoogleSuccess = (user: GoogleAuthUser) => {
+  const handleGoogleSuccess = async (result: GoogleSignInResult) => {
+    const { user, restored, message } = result;
+
+    if (restored) {
+      haptics.success();
+      sound.play('level_up');
+      showIOSAlert(
+        'Cloud Save Restored!',
+        message,
+        [
+          {
+            text: 'Enter ARISE',
+            onPress: async () => {
+              await usePlayerStore.getState().loadProfile();
+              router.replace('/(tabs)');
+            },
+          },
+        ]
+      );
+      setTimeout(async () => {
+        await usePlayerStore.getState().loadProfile();
+        router.replace('/(tabs)');
+      }, 1200);
+      return;
+    }
+
     if (user.displayName) {
       setUserName(user.displayName);
       setNameError('');
@@ -470,6 +496,7 @@ export default function OnboardingScreen() {
       await updateSetting('dailyBudgetMinutes', finalMinutes);
       await setOnboardingCompleted();
       setIsOnboardingCompletedSync(true);
+      cloudSyncService.triggerAutoSync();
 
       sound.play('level_up');
       haptics.success();

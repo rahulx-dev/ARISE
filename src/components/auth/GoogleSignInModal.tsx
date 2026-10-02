@@ -18,11 +18,19 @@ import { useTheme } from '../../hooks/useTheme';
 import { useHaptics } from '../../hooks/useHaptics';
 import { useSound } from '../../hooks/useSound';
 import { googleAuthService, GoogleAuthUser } from '../../services/googleAuthService';
+import { cloudSyncService, HunterCloudBackup } from '../../services/cloudSyncService';
+
+export interface GoogleSignInResult {
+  user: GoogleAuthUser;
+  restored: boolean;
+  message: string;
+  backup?: HunterCloudBackup;
+}
 
 interface GoogleSignInModalProps {
   visible: boolean;
   onClose: () => void;
-  onSuccess: (user: GoogleAuthUser) => void;
+  onSuccess: (result: GoogleSignInResult) => void;
 }
 
 export function GoogleSignInModal({ visible, onClose, onSuccess }: GoogleSignInModalProps) {
@@ -55,15 +63,25 @@ export function GoogleSignInModal({ visible, onClose, onSuccess }: GoogleSignInM
   const handleSelectAccount = async (account: { displayName: string; email: string }) => {
     haptics.medium();
     setLoading(true);
-    setLoadingMessage('Verifying Google credentials...');
+    setLoadingMessage('Connecting to Google...');
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 700));
+      await new Promise((resolve) => setTimeout(resolve, 500));
       const authUser = await googleAuthService.signInWithAccount(account);
+
+      setLoadingMessage('Checking Cloud Backup...');
+      const restoreRes = await cloudSyncService.restoreFromCloud(authUser.email);
+
       sound.play('level_up');
       haptics.success();
       setLoading(false);
-      onSuccess(authUser);
+
+      onSuccess({
+        user: authUser,
+        restored: restoreRes.restored,
+        message: restoreRes.message,
+        backup: restoreRes.backup,
+      });
       onClose();
     } catch (e: any) {
       setLoading(false);

@@ -75,6 +75,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       await userRepository.updateProfile(updates as any);
       const profile = (await userRepository.getProfile()) as PlayerProfile | undefined;
       set({ profile: profile || null });
+      scheduleCloudSync();
     } catch (error: any) {
       set({ error: error.message });
     }
@@ -88,6 +89,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       await userRepository.addXP(amount);
       const newProfile = (await userRepository.getProfile()) as PlayerProfile | undefined;
       set({ profile: newProfile || null });
+      scheduleCloudSync();
 
       if (newProfile && newProfile.level > oldLevel) {
         const newRank = getRankForLevel(newProfile.level);
@@ -124,6 +126,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       await userRepository.addCoins(amount, description, source);
       const profile = (await userRepository.getProfile()) as PlayerProfile | undefined;
       set({ profile: profile || null });
+      scheduleCloudSync();
     } catch (error: any) {
       set({ error: error.message });
     }
@@ -135,6 +138,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       if (success) {
         const profile = (await userRepository.getProfile()) as PlayerProfile | undefined;
         set({ profile: profile || null });
+        scheduleCloudSync();
       }
       return success;
     } catch (error: any) {
@@ -148,6 +152,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       await userRepository.updateStat(stat, amount);
       const profile = (await userRepository.getProfile()) as PlayerProfile | undefined;
       set({ profile: profile || null });
+      scheduleCloudSync();
     } catch (error: any) {
       set({ error: error.message });
     }
@@ -158,6 +163,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       await userRepository.updateStreak();
       const profile = (await userRepository.getProfile()) as PlayerProfile | undefined;
       set({ profile: profile || null });
+      scheduleCloudSync();
     } catch (error: any) {
       set({ error: error.message });
     }
@@ -177,3 +183,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     await get().loadProfile();
   },
 }));
+
+function scheduleCloudSync() {
+  import('../services/cloudSyncService')
+    .then(({ cloudSyncService }) => {
+      cloudSyncService.triggerAutoSync().catch(() => {});
+    })
+    .catch(() => {});
+}
