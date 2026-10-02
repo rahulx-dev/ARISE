@@ -688,7 +688,7 @@ export default function OnboardingScreen() {
                   <User size={18} color={nameError ? colors.danger : isInputFocused ? colors.primary : colors.textMuted} />
                   <TextInput
                     style={[styles.cleanTextInputField, { color: colors.textPrimary }]}
-                    placeholder="Arjun"
+                    placeholder="e.g. ShadowMonarch"
                     placeholderTextColor={colors.textMuted}
                     value={userName}
                     onFocus={() => setIsInputFocused(true)}

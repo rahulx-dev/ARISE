@@ -104,7 +104,7 @@ export default function WarriorProfileTab() {
   }, [loadProfile]);
 
   const level = profile?.level || 12;
-  const displayName = profile?.displayName || 'Arjun';
+  const displayName = profile?.displayName || 'Hunter';
   const currentRank = getRankForLevel(level);
   const avatarIcon = profile?.avatarIcon || 'pfp_01';
 

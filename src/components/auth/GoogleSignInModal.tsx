@@ -121,8 +121,8 @@ export function GoogleSignInModal({ visible, onClose, onSuccess }: GoogleSignInM
         ]
       : [
           {
-            displayName: 'Hunter Arjun',
-            email: 'arjun.hunter@gmail.com',
+            displayName: 'Shadow Monarch',
+            email: 'hunter.arise@gmail.com',
             isCurrent: false,
           },
         ]),

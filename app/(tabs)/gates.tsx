@@ -405,7 +405,7 @@ export default function DungeonScreen() {
   const loadProfile = usePlayerStore((s) => s.loadProfile);
 
   const currentRank = getRankForLevel(profile?.level || 1);
-  const displayName = profile?.displayName || 'Arjun';
+  const displayName = profile?.displayName || 'Hunter';
   const avatarIcon = profile?.avatarIcon || 'pfp_01';
 
   // Sub-tabs: ONLY 'gates' | 'leaderboard'
