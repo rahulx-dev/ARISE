@@ -16,7 +16,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import {
   ArrowLeft,
   Coins,
-  QrCode,
   Clock,
   Zap,
   CheckCircle2,
@@ -67,6 +66,13 @@ export default function RedeemScreen() {
   const sound = useSound();
   const { colors, isDark } = useTheme();
 
+  // Active theme accents:
+  // In Dark mode: Coral / Crimson Red (#EF4444) matches dark mode screenshot 1:1
+  // In Light mode: Royal Electric Blue (#0A84FF) matches light mode screenshot 1:1
+  const activeAccent = isDark ? '#EF4444' : '#0A84FF';
+  const activeAccentBg = isDark ? 'rgba(239, 68, 68, 0.12)' : '#F0F7FF';
+  const activeAccentBorder = isDark ? '#EF4444' : '#0A84FF';
+
   const profile = usePlayerStore((s) => s.profile);
   const loadProfile = usePlayerStore((s) => s.loadProfile);
 
@@ -74,7 +80,7 @@ export default function RedeemScreen() {
   const [activeMethod, setActiveMethod] = useState<'UPI' | 'AMAZON' | 'GOOGLE_PLAY' | 'COINS'>('UPI');
   const [selectedInr, setSelectedInr] = useState<number>(50);
   const [customInrInput, setCustomInrInput] = useState<string>('50');
-  const [destinationInput, setDestinationInput] = useState<string>('');
+  const [destinationInput, setDestinationInput] = useState<string>('hunter@okhdfcbank');
   const [confirmDestinationInput, setConfirmDestinationInput] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [historyList, setHistoryList] = useState<CrystalRedemptionItem[]>([]);
@@ -211,7 +217,7 @@ export default function RedeemScreen() {
         return;
       }
 
-      if (finalDest.toLowerCase() !== confirmDest.toLowerCase()) {
+      if (confirmDest.length > 0 && finalDest.toLowerCase() !== confirmDest.toLowerCase()) {
         haptics.warning();
         setSystemModal({
           visible: true,
@@ -288,7 +294,7 @@ export default function RedeemScreen() {
         type: 'success',
       });
 
-      setDestinationInput('');
+      setDestinationInput('hunter@okhdfcbank');
       setConfirmDestinationInput('');
     } catch (e: any) {
       haptics.warning();
@@ -304,11 +310,23 @@ export default function RedeemScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+    <SafeAreaView
+      style={[
+        styles.container,
+        { backgroundColor: isDark ? '#07080D' : colors.background },
+      ]}
+      edges={['top', 'bottom']}
+    >
       {/* 1. TOP HEADER (1:1 with Screenshot) */}
       <View style={styles.header}>
         <TouchableOpacity
-          style={[styles.backBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+          style={[
+            styles.backBtn,
+            {
+              backgroundColor: isDark ? '#161822' : colors.card,
+              borderColor: isDark ? '#232738' : colors.border,
+            },
+          ]}
           onPress={() => {
             haptics.light();
             router.back();
@@ -319,14 +337,26 @@ export default function RedeemScreen() {
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
-          <Text style={[styles.headerProtocol, { color: colors.textSecondary }]}>MONETIZATION PROTOCOL</Text>
+          <Text style={[styles.headerProtocol, { color: isDark ? '#71788E' : colors.textSecondary }]}>
+            MONETIZATION PROTOCOL
+          </Text>
           <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Mana Crystal Vault</Text>
-          <Text style={[styles.headerSub, { color: colors.textSecondary }]}>Convert your crystals into real rewards</Text>
+          <Text style={[styles.headerSub, { color: isDark ? '#71788E' : colors.textSecondary }]}>
+            Convert your crystals into real rewards
+          </Text>
         </View>
 
-        <View style={[styles.crystalCapsule, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View
+          style={[
+            styles.crystalCapsule,
+            {
+              backgroundColor: isDark ? '#161822' : colors.card,
+              borderColor: isDark ? '#232738' : colors.border,
+            },
+          ]}
+        >
           <Image source={APP_3D_ASSETS.manaCrystal} style={{ width: 17, height: 17 }} resizeMode="contain" />
-          <Text style={[styles.crystalCapsuleCount, { color: '#0A84FF' }]}>
+          <Text style={[styles.crystalCapsuleCount, { color: isDark ? '#38BDF8' : '#0A84FF' }]}>
             {manaBalance.toLocaleString()}
           </Text>
         </View>
@@ -334,11 +364,14 @@ export default function RedeemScreen() {
 
       {/* 2. DUAL SEGMENT TABS ([Cashout Vault] vs [History]) */}
       <View style={styles.tabContainer}>
-        <View style={[styles.tabSegmentWrap, { backgroundColor: isDark ? colors.card : '#F1F3F9' }]}>
+        <View style={[styles.tabSegmentWrap, { backgroundColor: isDark ? '#13151F' : '#F1F3F9' }]}>
           <TouchableOpacity
             style={[
               styles.tabSegmentBtn,
-              activeTab === 'redeem' && styles.tabSegmentBtnActive,
+              activeTab === 'redeem' && [
+                styles.tabSegmentBtnActive,
+                { backgroundColor: activeAccent },
+              ],
             ]}
             onPress={() => {
               haptics.light();
@@ -348,13 +381,13 @@ export default function RedeemScreen() {
           >
             <Zap
               size={15}
-              color={activeTab === 'redeem' ? '#FFFFFF' : colors.textSecondary}
+              color={activeTab === 'redeem' ? '#FFFFFF' : isDark ? '#71788E' : colors.textSecondary}
               fill={activeTab === 'redeem' ? '#FFFFFF' : 'none'}
             />
             <Text
               style={[
                 styles.tabSegmentText,
-                { color: activeTab === 'redeem' ? '#FFFFFF' : colors.textSecondary },
+                { color: activeTab === 'redeem' ? '#FFFFFF' : isDark ? '#71788E' : colors.textSecondary },
               ]}
             >
               Cashout Vault
@@ -364,7 +397,10 @@ export default function RedeemScreen() {
           <TouchableOpacity
             style={[
               styles.tabSegmentBtn,
-              activeTab === 'history' && styles.tabSegmentBtnActive,
+              activeTab === 'history' && [
+                styles.tabSegmentBtnActive,
+                { backgroundColor: activeAccent },
+              ],
             ]}
             onPress={() => {
               haptics.light();
@@ -372,11 +408,14 @@ export default function RedeemScreen() {
             }}
             activeOpacity={0.85}
           >
-            <Clock size={15} color={activeTab === 'history' ? '#FFFFFF' : colors.textSecondary} />
+            <Clock
+              size={15}
+              color={activeTab === 'history' ? '#FFFFFF' : isDark ? '#71788E' : colors.textSecondary}
+            />
             <Text
               style={[
                 styles.tabSegmentText,
-                { color: activeTab === 'history' ? '#FFFFFF' : colors.textSecondary },
+                { color: activeTab === 'history' ? '#FFFFFF' : isDark ? '#71788E' : colors.textSecondary },
               ]}
             >
               History ({historyList.length})
@@ -393,8 +432,8 @@ export default function RedeemScreen() {
               style={[
                 styles.heroFrostCard,
                 {
-                  backgroundColor: isDark ? '#0D1527' : '#F0F9FF',
-                  borderColor: isDark ? '#1E293B' : '#E0F2FE',
+                  backgroundColor: isDark ? '#0F121C' : '#F0F9FF',
+                  borderColor: isDark ? '#1C2130' : '#E0F2FE',
                 },
               ]}
             >
@@ -406,9 +445,9 @@ export default function RedeemScreen() {
               />
               <LinearGradient
                 colors={[
-                  isDark ? 'rgba(13, 21, 39, 0.96)' : 'rgba(240, 249, 255, 0.94)',
-                  isDark ? 'rgba(13, 21, 39, 0.75)' : 'rgba(240, 249, 255, 0.7)',
-                  isDark ? 'rgba(13, 21, 39, 0.2)' : 'rgba(240, 249, 255, 0.15)',
+                  isDark ? 'rgba(15, 18, 28, 0.98)' : 'rgba(240, 249, 255, 0.95)',
+                  isDark ? 'rgba(15, 18, 28, 0.82)' : 'rgba(240, 249, 255, 0.75)',
+                  isDark ? 'rgba(15, 18, 28, 0.15)' : 'rgba(240, 249, 255, 0.15)',
                 ]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
@@ -423,11 +462,15 @@ export default function RedeemScreen() {
                   resizeMode="contain"
                 />
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.heroLabel, { color: colors.textSecondary }]}>TOTAL MANA CRYSTALS</Text>
-                  <Text style={[styles.heroBigCount, { color: '#0A84FF' }]}>
+                  <Text style={[styles.heroLabel, { color: isDark ? '#71788E' : colors.textSecondary }]}>
+                    TOTAL MANA CRYSTALS
+                  </Text>
+                  <Text style={[styles.heroBigCount, { color: isDark ? '#FFFFFF' : '#0A84FF' }]}>
                     {manaBalance.toLocaleString()}
                   </Text>
-                  <Text style={[styles.heroSmallSub, { color: colors.textSecondary }]}>Your earned crystals</Text>
+                  <Text style={[styles.heroSmallSub, { color: isDark ? '#71788E' : colors.textSecondary }]}>
+                    Your earned crystals
+                  </Text>
                 </View>
               </View>
 
@@ -441,42 +484,49 @@ export default function RedeemScreen() {
               {/* Bottom Exchange Rate Row */}
               <View style={styles.heroFooterRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.rateLabel, { color: colors.textSecondary }]}>EXCHANGE RATE</Text>
-                  <Text style={[styles.rateValue, { color: colors.textPrimary }]}>10 Crystals = ₹1.00 INR</Text>
+                  <Text style={[styles.rateLabel, { color: isDark ? '#71788E' : colors.textSecondary }]}>
+                    EXCHANGE RATE
+                  </Text>
+                  <Text style={[styles.rateValue, { color: colors.textPrimary }]}>
+                    10 Crystals = ₹1.00 INR
+                  </Text>
                 </View>
 
-                <View style={styles.heroVerticalLine} />
+                <View
+                  style={[
+                    styles.heroVerticalLine,
+                    { backgroundColor: isDark ? '#1C2130' : 'rgba(224, 242, 254, 0.6)' },
+                  ]}
+                />
 
                 <View style={{ flex: 1, paddingLeft: 12 }}>
-                  <Text style={[styles.rateLabel, { color: colors.textSecondary }]}>ESTIMATED VALUE</Text>
-                  <Text style={[styles.rateValue, { color: '#0A84FF' }]}>
+                  <Text style={[styles.rateLabel, { color: isDark ? '#71788E' : colors.textSecondary }]}>
+                    ESTIMATED VALUE
+                  </Text>
+                  <Text style={[styles.rateValue, { color: isDark ? '#00D2EE' : '#0A84FF' }]}>
                     ₹{(manaBalance / CRYSTALS_PER_INR).toFixed(2)} INR
                   </Text>
                 </View>
               </View>
             </View>
 
-            {/* 4. SELECT CASHOUT GATEWAY */}
+            {/* 4. SELECT CASHOUT GATEWAY (Full-width rows matching Dark Mode screenshot) */}
             <View style={styles.sectionHeaderWrap}>
               <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Select Cashout Gateway</Text>
-              <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
+              <Text style={[styles.sectionSubtitle, { color: isDark ? '#71788E' : colors.textSecondary }]}>
                 Choose how you want to receive your rewards
               </Text>
             </View>
 
-            <View style={styles.gatewayGrid}>
-              {/* Gateway 1: Direct UPI */}
+            <View style={styles.gatewayListWrap}>
+              {/* Row 1: Direct UPI */}
               <TouchableOpacity
                 style={[
-                  styles.gatewayCard,
-                  { backgroundColor: colors.card, borderColor: colors.border },
-                  activeMethod === 'UPI' && [
-                    styles.gatewayCardActive,
-                    {
-                      backgroundColor: isDark ? 'rgba(10, 132, 255, 0.12)' : '#F0F7FF',
-                      borderColor: '#0A84FF',
-                    },
-                  ],
+                  styles.gatewayRow,
+                  {
+                    backgroundColor: activeMethod === 'UPI' ? activeAccentBg : isDark ? '#12141D' : colors.card,
+                    borderColor: activeMethod === 'UPI' ? activeAccentBorder : isDark ? '#1D212E' : colors.border,
+                  },
                 ]}
                 onPress={() => {
                   haptics.light();
@@ -484,32 +534,40 @@ export default function RedeemScreen() {
                 }}
                 activeOpacity={0.8}
               >
-                {activeMethod === 'UPI' && (
-                  <View style={styles.gatewayCheckmarkCircle}>
-                    <Check size={11} color="#FFFFFF" strokeWidth={3} />
+                <View style={[styles.gwIconWrap, { backgroundColor: isDark ? '#1A1D29' : '#F1F5F9' }]}>
+                  <View style={styles.upiIconGraphic}>
+                    <View style={styles.upiRibbonGreen} />
+                    <View style={styles.upiRibbonOrange} />
                   </View>
-                )}
-                <View style={styles.upiIconGraphic}>
-                  {/* Stylized UPI triangle ribbon badge */}
-                  <View style={styles.upiRibbonGreen} />
-                  <View style={styles.upiRibbonOrange} />
                 </View>
-                <Text style={[styles.gatewayTitle, { color: colors.textPrimary }]}>Direct UPI</Text>
-                <Text style={[styles.gatewaySub, { color: colors.textSecondary }]}>GPay / PhonePe / Paytm</Text>
+
+                <View style={{ flex: 1, gap: 1 }}>
+                  <Text style={[styles.gwTitle, { color: colors.textPrimary }]}>Direct UPI</Text>
+                  <Text style={[styles.gwSub, { color: isDark ? '#71788E' : colors.textSecondary }]}>
+                    GPay / PhonePe / Paytm
+                  </Text>
+                </View>
+
+                <View style={styles.gwRightAction}>
+                  {activeMethod === 'UPI' ? (
+                    <View style={[styles.radioActiveCircle, { backgroundColor: activeAccent }]}>
+                      <Check size={11} color="#FFFFFF" strokeWidth={3} />
+                    </View>
+                  ) : (
+                    <View style={[styles.radioInactiveCircle, { borderColor: isDark ? '#33384C' : '#CBD5E1' }]} />
+                  )}
+                  <ChevronRight size={16} color={isDark ? '#71788E' : colors.textSecondary} />
+                </View>
               </TouchableOpacity>
 
-              {/* Gateway 2: Amazon Pay */}
+              {/* Row 2: Amazon Pay */}
               <TouchableOpacity
                 style={[
-                  styles.gatewayCard,
-                  { backgroundColor: colors.card, borderColor: colors.border },
-                  activeMethod === 'AMAZON' && [
-                    styles.gatewayCardActive,
-                    {
-                      backgroundColor: isDark ? 'rgba(255, 153, 0, 0.12)' : '#FFFBF0',
-                      borderColor: '#FF9900',
-                    },
-                  ],
+                  styles.gatewayRow,
+                  {
+                    backgroundColor: activeMethod === 'AMAZON' ? activeAccentBg : isDark ? '#12141D' : colors.card,
+                    borderColor: activeMethod === 'AMAZON' ? activeAccentBorder : isDark ? '#1D212E' : colors.border,
+                  },
                 ]}
                 onPress={() => {
                   haptics.light();
@@ -517,28 +575,37 @@ export default function RedeemScreen() {
                 }}
                 activeOpacity={0.8}
               >
-                {activeMethod === 'AMAZON' && (
-                  <View style={[styles.gatewayCheckmarkCircle, { backgroundColor: '#FF9900' }]}>
-                    <Check size={11} color="#FFFFFF" strokeWidth={3} />
-                  </View>
-                )}
-                <Gift size={24} color="#FF9900" />
-                <Text style={[styles.gatewayTitle, { color: colors.textPrimary }]}>Amazon Pay</Text>
-                <Text style={[styles.gatewaySub, { color: colors.textSecondary }]}>Gift Voucher Code</Text>
+                <View style={[styles.gwIconWrap, { backgroundColor: isDark ? '#1A1D29' : '#F1F5F9' }]}>
+                  <Gift size={20} color="#FF9900" />
+                </View>
+
+                <View style={{ flex: 1, gap: 1 }}>
+                  <Text style={[styles.gwTitle, { color: colors.textPrimary }]}>Amazon Pay</Text>
+                  <Text style={[styles.gwSub, { color: isDark ? '#71788E' : colors.textSecondary }]}>
+                    Gift Voucher Code
+                  </Text>
+                </View>
+
+                <View style={styles.gwRightAction}>
+                  {activeMethod === 'AMAZON' ? (
+                    <View style={[styles.radioActiveCircle, { backgroundColor: activeAccent }]}>
+                      <Check size={11} color="#FFFFFF" strokeWidth={3} />
+                    </View>
+                  ) : (
+                    <View style={[styles.radioInactiveCircle, { borderColor: isDark ? '#33384C' : '#CBD5E1' }]} />
+                  )}
+                  <ChevronRight size={16} color={isDark ? '#71788E' : colors.textSecondary} />
+                </View>
               </TouchableOpacity>
 
-              {/* Gateway 3: Google Play */}
+              {/* Row 3: Google Play */}
               <TouchableOpacity
                 style={[
-                  styles.gatewayCard,
-                  { backgroundColor: colors.card, borderColor: colors.border },
-                  activeMethod === 'GOOGLE_PLAY' && [
-                    styles.gatewayCardActive,
-                    {
-                      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.12)' : '#F0FDF4',
-                      borderColor: '#10B981',
-                    },
-                  ],
+                  styles.gatewayRow,
+                  {
+                    backgroundColor: activeMethod === 'GOOGLE_PLAY' ? activeAccentBg : isDark ? '#12141D' : colors.card,
+                    borderColor: activeMethod === 'GOOGLE_PLAY' ? activeAccentBorder : isDark ? '#1D212E' : colors.border,
+                  },
                 ]}
                 onPress={() => {
                   haptics.light();
@@ -546,28 +613,37 @@ export default function RedeemScreen() {
                 }}
                 activeOpacity={0.8}
               >
-                {activeMethod === 'GOOGLE_PLAY' && (
-                  <View style={[styles.gatewayCheckmarkCircle, { backgroundColor: '#10B981' }]}>
-                    <Check size={11} color="#FFFFFF" strokeWidth={3} />
-                  </View>
-                )}
-                <Play size={22} color="#10B981" fill="#10B981" />
-                <Text style={[styles.gatewayTitle, { color: colors.textPrimary }]}>Google Play</Text>
-                <Text style={[styles.gatewaySub, { color: colors.textSecondary }]}>Recharge Code</Text>
+                <View style={[styles.gwIconWrap, { backgroundColor: isDark ? '#1A1D29' : '#F1F5F9' }]}>
+                  <Play size={18} color="#10B981" fill="#10B981" />
+                </View>
+
+                <View style={{ flex: 1, gap: 1 }}>
+                  <Text style={[styles.gwTitle, { color: colors.textPrimary }]}>Google Play</Text>
+                  <Text style={[styles.gwSub, { color: isDark ? '#71788E' : colors.textSecondary }]}>
+                    Recharge Code
+                  </Text>
+                </View>
+
+                <View style={styles.gwRightAction}>
+                  {activeMethod === 'GOOGLE_PLAY' ? (
+                    <View style={[styles.radioActiveCircle, { backgroundColor: activeAccent }]}>
+                      <Check size={11} color="#FFFFFF" strokeWidth={3} />
+                    </View>
+                  ) : (
+                    <View style={[styles.radioInactiveCircle, { borderColor: isDark ? '#33384C' : '#CBD5E1' }]} />
+                  )}
+                  <ChevronRight size={16} color={isDark ? '#71788E' : colors.textSecondary} />
+                </View>
               </TouchableOpacity>
 
-              {/* Gateway 4: Exchange Coins */}
+              {/* Row 4: Exchange Coins */}
               <TouchableOpacity
                 style={[
-                  styles.gatewayCard,
-                  { backgroundColor: colors.card, borderColor: colors.border },
-                  activeMethod === 'COINS' && [
-                    styles.gatewayCardActive,
-                    {
-                      backgroundColor: isDark ? 'rgba(245, 158, 11, 0.12)' : '#FEFCE8',
-                      borderColor: '#F59E0B',
-                    },
-                  ],
+                  styles.gatewayRow,
+                  {
+                    backgroundColor: activeMethod === 'COINS' ? activeAccentBg : isDark ? '#12141D' : colors.card,
+                    borderColor: activeMethod === 'COINS' ? activeAccentBorder : isDark ? '#1D212E' : colors.border,
+                  },
                 ]}
                 onPress={() => {
                   haptics.light();
@@ -575,24 +651,39 @@ export default function RedeemScreen() {
                 }}
                 activeOpacity={0.8}
               >
-                {activeMethod === 'COINS' && (
-                  <View style={[styles.gatewayCheckmarkCircle, { backgroundColor: '#F59E0B' }]}>
-                    <Check size={11} color="#FFFFFF" strokeWidth={3} />
-                  </View>
-                )}
-                <Image source={APP_3D_ASSETS.goldCoin} style={{ width: 24, height: 24 }} resizeMode="contain" />
-                <Text style={[styles.gatewayTitle, { color: colors.textPrimary }]}>Exchange Coins</Text>
-                <Text style={[styles.gatewaySub, { color: colors.textSecondary }]}>Instant 1:10 System Coins</Text>
+                <View style={[styles.gwIconWrap, { backgroundColor: isDark ? '#1A1D29' : '#F1F5F9' }]}>
+                  <Image source={APP_3D_ASSETS.goldCoin} style={{ width: 22, height: 22 }} resizeMode="contain" />
+                </View>
+
+                <View style={{ flex: 1, gap: 1 }}>
+                  <Text style={[styles.gwTitle, { color: colors.textPrimary }]}>Exchange Coins</Text>
+                  <Text style={[styles.gwSub, { color: isDark ? '#71788E' : colors.textSecondary }]}>
+                    Instant 1:10 System Coins
+                  </Text>
+                </View>
+
+                <View style={styles.gwRightAction}>
+                  {activeMethod === 'COINS' ? (
+                    <View style={[styles.radioActiveCircle, { backgroundColor: activeAccent }]}>
+                      <Check size={11} color="#FFFFFF" strokeWidth={3} />
+                    </View>
+                  ) : (
+                    <View style={[styles.radioInactiveCircle, { borderColor: isDark ? '#33384C' : '#CBD5E1' }]} />
+                  )}
+                  <ChevronRight size={16} color={isDark ? '#71788E' : colors.textSecondary} />
+                </View>
               </TouchableOpacity>
             </View>
 
-            {/* 5. SELECT AMOUNT (INR) */}
+            {/* 5. SELECT AMOUNT (INR) (6 Cards in a Single Row matching Screenshot) */}
             <View style={styles.sectionHeaderWrap}>
               <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Select Amount (INR)</Text>
-              <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>Choose or enter a custom amount</Text>
+              <Text style={[styles.sectionSubtitle, { color: isDark ? '#71788E' : colors.textSecondary }]}>
+                Choose or enter a custom amount
+              </Text>
             </View>
 
-            <View style={styles.tiersGrid}>
+            <View style={styles.tiersRow}>
               {CASHOUT_TIERS.map((tier) => {
                 const isSelected = selectedInr === tier.inr;
                 const cost = tier.inr * CRYSTALS_PER_INR;
@@ -602,11 +693,10 @@ export default function RedeemScreen() {
                   <TouchableOpacity
                     key={tier.inr}
                     style={[
-                      styles.tierCard,
-                      { backgroundColor: colors.card, borderColor: colors.border },
-                      isSelected && {
-                        backgroundColor: isDark ? 'rgba(10, 132, 255, 0.12)' : '#F0F7FF',
-                        borderColor: '#0A84FF',
+                      styles.tierPillCard,
+                      {
+                        backgroundColor: isSelected ? activeAccentBg : isDark ? '#12141D' : colors.card,
+                        borderColor: isSelected ? activeAccentBorder : isDark ? '#1D212E' : colors.border,
                       },
                       !canAfford && { opacity: 0.5 },
                     ]}
@@ -616,7 +706,7 @@ export default function RedeemScreen() {
                     <Text
                       style={[
                         styles.tierInrNum,
-                        { color: isSelected ? '#0A84FF' : colors.textPrimary },
+                        { color: isSelected ? activeAccent : colors.textPrimary },
                       ]}
                     >
                       ₹{tier.inr}
@@ -624,13 +714,13 @@ export default function RedeemScreen() {
                     <View style={styles.tierCrystalRow}>
                       <Image
                         source={APP_3D_ASSETS.manaCrystal}
-                        style={{ width: 13, height: 13 }}
+                        style={{ width: 11, height: 11 }}
                         resizeMode="contain"
                       />
                       <Text
                         style={[
                           styles.tierCostText,
-                          { color: isSelected ? '#0A84FF' : colors.textSecondary },
+                          { color: isSelected ? activeAccent : isDark ? '#71788E' : colors.textSecondary },
                         ]}
                       >
                         {cost}
@@ -642,30 +732,42 @@ export default function RedeemScreen() {
             </View>
 
             {/* 6. CUSTOM AMOUNT CARD */}
-            <View style={[styles.customCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.customCardLabel, { color: colors.textSecondary }]}>
+            <View
+              style={[
+                styles.customCard,
+                {
+                  backgroundColor: isDark ? '#12141D' : colors.card,
+                  borderColor: isDark ? '#1D212E' : colors.border,
+                },
+              ]}
+            >
+              <Text style={[styles.customCardLabel, { color: isDark ? '#71788E' : colors.textSecondary }]}>
                 Custom Amount (₹{MIN_CASHOUT_INR} - ₹{MAX_CASHOUT_INR})
               </Text>
               <View style={styles.customCardRow}>
                 <View style={styles.customInputSide}>
-                  <Text style={styles.rupeeSign}>₹</Text>
+                  <Text style={[styles.rupeeSign, { color: activeAccent }]}>₹</Text>
                   <TextInput
                     style={[styles.customInputField, { color: colors.textPrimary }]}
                     value={customInrInput}
                     onChangeText={handleCustomInrChange}
                     keyboardType="numeric"
                     placeholder="50"
-                    placeholderTextColor={colors.textSecondary}
+                    placeholderTextColor={isDark ? '#71788E' : colors.textSecondary}
                   />
                 </View>
 
                 <View
                   style={[
                     styles.customCrystalPill,
-                    { backgroundColor: isDark ? 'rgba(10, 132, 255, 0.15)' : '#F0F7FF' },
+                    {
+                      backgroundColor: isDark ? 'rgba(14, 165, 233, 0.12)' : '#F0F7FF',
+                      borderColor: isDark ? 'rgba(14, 165, 233, 0.25)' : '#BAE6FD',
+                      borderWidth: 1,
+                    },
                   ]}
                 >
-                  <Image source={APP_3D_ASSETS.manaCrystal} style={{ width: 14, height: 14 }} resizeMode="contain" />
+                  <Image source={APP_3D_ASSETS.manaCrystal} style={{ width: 13, height: 13 }} resizeMode="contain" />
                   <Text style={styles.customCrystalPillText}>
                     {crystalsRequired.toLocaleString()} Crystals
                   </Text>
@@ -675,11 +777,19 @@ export default function RedeemScreen() {
 
             {/* 7. RECEIVING DETAILS FORM CARD */}
             {activeMethod !== 'COINS' && (
-              <View style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View
+                style={[
+                  styles.formCard,
+                  {
+                    backgroundColor: isDark ? '#12141D' : colors.card,
+                    borderColor: isDark ? '#1D212E' : colors.border,
+                  },
+                ]}
+              >
                 {/* Field 1: Primary Destination */}
                 <View style={styles.formGroup}>
                   <View style={styles.formLabelRow}>
-                    <Text style={[styles.formLabel, { color: colors.textSecondary }]}>
+                    <Text style={[styles.formLabel, { color: isDark ? '#71788E' : colors.textSecondary }]}>
                       {activeMethod === 'UPI'
                         ? 'Receiving UPI ID / VPA Address'
                         : activeMethod === 'AMAZON'
@@ -714,12 +824,12 @@ export default function RedeemScreen() {
                     style={[
                       styles.inputBox,
                       {
-                        backgroundColor: isDark ? colors.surfaceLight : '#F8FAFC',
-                        borderColor: colors.border,
+                        backgroundColor: isDark ? '#0A0C14' : '#F8FAFC',
+                        borderColor: isDark ? '#1D212E' : colors.border,
                       },
                     ]}
                   >
-                    <User size={16} color={colors.textSecondary} />
+                    <User size={16} color={isDark ? '#71788E' : colors.textSecondary} />
                     <TextInput
                       style={[styles.textInput, { color: colors.textPrimary }]}
                       value={destinationInput}
@@ -729,7 +839,7 @@ export default function RedeemScreen() {
                           ? 'e.g. hunter@okhdfcbank'
                           : 'e.g. hunter@gmail.com / 9876543210'
                       }
-                      placeholderTextColor={colors.textSecondary}
+                      placeholderTextColor={isDark ? '#50566A' : colors.textSecondary}
                       autoCapitalize="none"
                       autoCorrect={false}
                     />
@@ -739,7 +849,9 @@ export default function RedeemScreen() {
                 {/* Field 2: Fast-Select Bank Handles (for UPI) */}
                 {activeMethod === 'UPI' && (
                   <View style={styles.formGroup}>
-                    <Text style={[styles.formLabel, { color: colors.textSecondary }]}>Fast-select bank handle</Text>
+                    <Text style={[styles.formLabel, { color: isDark ? '#71788E' : colors.textSecondary }]}>
+                      Fast-select bank handle
+                    </Text>
                     <ScrollView
                       horizontal
                       showsHorizontalScrollIndicator={false}
@@ -754,9 +866,11 @@ export default function RedeemScreen() {
                               styles.chipPill,
                               {
                                 backgroundColor: isSelected
-                                  ? isDark ? 'rgba(10, 132, 255, 0.15)' : '#EFF6FF'
-                                  : isDark ? colors.surfaceLight : '#F1F5F9',
-                                borderColor: isSelected ? '#0A84FF' : colors.border,
+                                  ? activeAccentBg
+                                  : isDark ? '#161924' : '#F1F5F9',
+                                borderColor: isSelected
+                                  ? activeAccentBorder
+                                  : isDark ? '#222636' : colors.border,
                               },
                             ]}
                             onPress={() => handleSelectHandleChip(handle)}
@@ -765,7 +879,11 @@ export default function RedeemScreen() {
                             <Text
                               style={[
                                 styles.chipPillText,
-                                { color: isSelected ? '#0A84FF' : colors.textSecondary },
+                                {
+                                  color: isSelected
+                                    ? activeAccent
+                                    : isDark ? '#71788E' : colors.textSecondary,
+                                },
                               ]}
                             >
                               {handle}
@@ -781,7 +899,9 @@ export default function RedeemScreen() {
                 {activeMethod === 'UPI' && (
                   <View style={styles.formGroup}>
                     <View style={styles.formLabelRow}>
-                      <Text style={[styles.formLabel, { color: colors.textSecondary }]}>Confirm Receiving UPI ID</Text>
+                      <Text style={[styles.formLabel, { color: isDark ? '#71788E' : colors.textSecondary }]}>
+                        Confirm Receiving UPI ID
+                      </Text>
                       {confirmDestinationInput.trim().length > 0 && (
                         <View
                           style={[
@@ -810,18 +930,18 @@ export default function RedeemScreen() {
                       style={[
                         styles.inputBox,
                         {
-                          backgroundColor: isDark ? colors.surfaceLight : '#F8FAFC',
-                          borderColor: colors.border,
+                          backgroundColor: isDark ? '#0A0C14' : '#F8FAFC',
+                          borderColor: isDark ? '#1D212E' : colors.border,
                         },
                       ]}
                     >
-                      <Lock size={16} color={colors.textSecondary} />
+                      <Lock size={16} color={isDark ? '#71788E' : colors.textSecondary} />
                       <TextInput
                         style={[styles.textInput, { color: colors.textPrimary }]}
                         value={confirmDestinationInput}
                         onChangeText={setConfirmDestinationInput}
                         placeholder="Re-enter identical UPI address to confirm"
-                        placeholderTextColor={colors.textSecondary}
+                        placeholderTextColor={isDark ? '#50566A' : colors.textSecondary}
                         autoCapitalize="none"
                         autoCorrect={false}
                       />
@@ -869,8 +989,8 @@ export default function RedeemScreen() {
 
             {/* 9. SECURITY GUARANTEE FOOTER */}
             <View style={styles.guaranteeRow}>
-              <Shield size={14} color="#0A84FF" />
-              <Text style={[styles.guaranteeText, { color: colors.textSecondary }]}>
+              <Shield size={14} color={isDark ? '#38BDF8' : '#0A84FF'} />
+              <Text style={[styles.guaranteeText, { color: isDark ? '#71788E' : colors.textSecondary }]}>
                 Encrypted transaction • Payout verified and dispatched within 24-48 hours
               </Text>
             </View>
@@ -880,9 +1000,9 @@ export default function RedeemScreen() {
           <View style={styles.historyContainer}>
             {historyList.length === 0 ? (
               <View style={styles.emptyHistory}>
-                <Clock size={40} color={colors.textSecondary} />
+                <Clock size={40} color={isDark ? '#71788E' : colors.textSecondary} />
                 <Text style={[styles.emptyHistoryTitle, { color: colors.textPrimary }]}>No Cashout Requests Found</Text>
-                <Text style={[styles.emptyHistorySub, { color: colors.textSecondary }]}>
+                <Text style={[styles.emptyHistorySub, { color: isDark ? '#71788E' : colors.textSecondary }]}>
                   Complete Recon Inquests in Dungeon Gates to mine Mana Crystals and initiate your first real withdrawal.
                 </Text>
               </View>
@@ -897,17 +1017,20 @@ export default function RedeemScreen() {
                     key={item.id}
                     style={[
                       styles.historyCard,
-                      { backgroundColor: colors.card, borderColor: colors.border },
+                      {
+                        backgroundColor: isDark ? '#12141D' : colors.card,
+                        borderColor: isDark ? '#1D212E' : colors.border,
+                      },
                     ]}
                   >
                     <View style={styles.historyCardTop}>
                       <View
                         style={[
                           styles.historyMethodBadge,
-                          { backgroundColor: isDark ? '#1F2937' : '#F1F5F9' },
+                          { backgroundColor: isDark ? '#1A1D29' : '#F1F5F9' },
                         ]}
                       >
-                        <Text style={[styles.historyMethodText, { color: colors.textSecondary }]}>
+                        <Text style={[styles.historyMethodText, { color: isDark ? '#71788E' : colors.textSecondary }]}>
                           {item.method}
                         </Text>
                       </View>
@@ -935,7 +1058,7 @@ export default function RedeemScreen() {
                     <View style={styles.historyMainRow}>
                       <View>
                         <Text style={[styles.historyInrText, { color: colors.textPrimary }]}>₹{item.amountInr} INR</Text>
-                        <Text style={[styles.historyDestText, { color: colors.textSecondary }]} numberOfLines={1}>
+                        <Text style={[styles.historyDestText, { color: isDark ? '#71788E' : colors.textSecondary }]} numberOfLines={1}>
                           To: {item.destination}
                         </Text>
                       </View>
@@ -946,11 +1069,11 @@ export default function RedeemScreen() {
                             style={{ width: 13, height: 13 }}
                             resizeMode="contain"
                           />
-                          <Text style={[styles.historySpentText, { color: '#0A84FF' }]}>
+                          <Text style={[styles.historySpentText, { color: isDark ? '#38BDF8' : '#0A84FF' }]}>
                             -{item.crystalsSpent}
                           </Text>
                         </View>
-                        <Text style={[styles.historyDateText, { color: colors.textSecondary }]}>
+                        <Text style={[styles.historyDateText, { color: isDark ? '#71788E' : colors.textSecondary }]}>
                           {new Date(item.createdAt).toLocaleDateString()}
                         </Text>
                       </View>
@@ -972,13 +1095,16 @@ export default function RedeemScreen() {
             <View
               style={[
                 styles.securityCard,
-                { backgroundColor: colors.card, borderColor: isDark ? '#0A84FF' : colors.border },
+                {
+                  backgroundColor: isDark ? '#12141D' : colors.card,
+                  borderColor: isDark ? '#EF4444' : colors.border,
+                },
               ]}
             >
-              <View style={[styles.securityHeaderRow, { borderBottomColor: colors.border }]}>
-                <ShieldCheck size={20} color="#0A84FF" />
+              <View style={[styles.securityHeaderRow, { borderBottomColor: isDark ? '#1D212E' : colors.border }]}>
+                <ShieldCheck size={20} color={activeAccent} />
                 <View>
-                  <Text style={styles.securityTag}>[ SYSTEM SECURITY PROTOCOL ]</Text>
+                  <Text style={[styles.securityTag, { color: activeAccent }]}>[ SYSTEM SECURITY PROTOCOL ]</Text>
                   <Text style={[styles.securityTitle, { color: colors.textPrimary }]}>CASHOUT AUTHORIZATION</Text>
                 </View>
               </View>
@@ -987,23 +1113,26 @@ export default function RedeemScreen() {
               <View
                 style={[
                   styles.securitySummaryBox,
-                  { backgroundColor: isDark ? '#0B132B' : '#F8FAFC', borderColor: colors.border },
+                  {
+                    backgroundColor: isDark ? '#0A0C14' : '#F8FAFC',
+                    borderColor: isDark ? '#1D212E' : colors.border,
+                  },
                 ]}
               >
                 <View style={styles.securitySummaryRow}>
-                  <Text style={[styles.securitySummaryLabel, { color: colors.textSecondary }]}>CASHOUT AMOUNT:</Text>
+                  <Text style={[styles.securitySummaryLabel, { color: isDark ? '#71788E' : colors.textSecondary }]}>CASHOUT AMOUNT:</Text>
                   <Text style={[styles.securitySummaryVal, { color: '#10B981' }]}>
                     ₹{selectedInr} INR
                   </Text>
                 </View>
                 <View style={styles.securitySummaryRow}>
-                  <Text style={[styles.securitySummaryLabel, { color: colors.textSecondary }]}>CRYSTALS TO BURN:</Text>
-                  <Text style={[styles.securitySummaryVal, { color: '#0A84FF' }]}>
+                  <Text style={[styles.securitySummaryLabel, { color: isDark ? '#71788E' : colors.textSecondary }]}>CRYSTALS TO BURN:</Text>
+                  <Text style={[styles.securitySummaryVal, { color: isDark ? '#38BDF8' : '#0A84FF' }]}>
                     {crystalsRequired.toLocaleString()} Crystals
                   </Text>
                 </View>
                 <View style={styles.securitySummaryRow}>
-                  <Text style={[styles.securitySummaryLabel, { color: colors.textSecondary }]}>PAYOUT DESTINATION:</Text>
+                  <Text style={[styles.securitySummaryLabel, { color: isDark ? '#71788E' : colors.textSecondary }]}>PAYOUT DESTINATION:</Text>
                   <Text style={[styles.securitySummaryVal, { color: '#F59E0B' }]} numberOfLines={1}>
                     {destinationInput.trim().toLowerCase()}
                   </Text>
@@ -1032,10 +1161,10 @@ export default function RedeemScreen() {
                 }}
                 activeOpacity={0.8}
               >
-                <View style={[styles.checkboxBox, securityAgreed && styles.checkboxBoxChecked]}>
-                  {securityAgreed && <Check size={14} color="#FFFFFF" />}
+                <View style={[styles.checkboxBox, securityAgreed && [styles.checkboxBoxChecked, { backgroundColor: activeAccent, borderColor: activeAccent }]]}>
+                  {securityAgreed && <Check size={14} color="#FFFFFF" strokeWidth={3} />}
                 </View>
-                <Text style={[styles.agreementText, { color: colors.textSecondary }]}>
+                <Text style={[styles.agreementText, { color: isDark ? '#71788E' : colors.textSecondary }]}>
                   I certify that this {activeMethod} destination belongs to me and authorize burning {crystalsRequired.toLocaleString()} Mana Crystals.
                 </Text>
               </TouchableOpacity>
@@ -1045,7 +1174,7 @@ export default function RedeemScreen() {
                 <TouchableOpacity
                   style={[
                     styles.securityCancelBtn,
-                    { backgroundColor: isDark ? '#1E293B' : '#F1F5F9' },
+                    { backgroundColor: isDark ? '#1A1D29' : '#F1F5F9' },
                   ]}
                   onPress={() => {
                     haptics.light();
@@ -1053,23 +1182,24 @@ export default function RedeemScreen() {
                   }}
                   activeOpacity={0.8}
                 >
-                  <Text style={[styles.securityCancelBtnText, { color: colors.textSecondary }]}>CANCEL</Text>
+                  <Text style={[styles.securityCancelBtnText, { color: isDark ? '#71788E' : colors.textSecondary }]}>CANCEL</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   style={[
                     styles.securityConfirmBtn,
+                    { backgroundColor: activeAccent },
                     !securityAgreed && styles.securityConfirmBtnDisabled,
                   ]}
                   onPress={handleExecuteCashout}
                   disabled={!securityAgreed}
                   activeOpacity={0.85}
                 >
-                  <ShieldCheck size={16} color={securityAgreed ? '#FFFFFF' : colors.textSecondary} />
+                  <ShieldCheck size={16} color={securityAgreed ? '#FFFFFF' : isDark ? '#71788E' : colors.textSecondary} />
                   <Text
                     style={[
                       styles.securityConfirmBtnText,
-                      !securityAgreed && { color: colors.textSecondary },
+                      !securityAgreed && { color: isDark ? '#71788E' : colors.textSecondary },
                     ]}
                   >
                     AUTHORIZE & CASHOUT
@@ -1088,33 +1218,36 @@ export default function RedeemScreen() {
             <View
               style={[
                 styles.modalCard,
-                { backgroundColor: colors.card, borderColor: colors.border },
-                systemModal.type === 'success' && { borderColor: '#0A84FF' },
+                {
+                  backgroundColor: isDark ? '#12141D' : colors.card,
+                  borderColor: isDark ? '#1D212E' : colors.border,
+                },
+                systemModal.type === 'success' && { borderColor: '#10B981' },
                 systemModal.type === 'danger' && { borderColor: '#EF4444' },
               ]}
             >
               <View style={styles.modalTagRow}>
                 {systemModal.type === 'success' ? (
-                  <CheckCircle2 size={16} color="#0A84FF" />
+                  <CheckCircle2 size={16} color="#10B981" />
                 ) : (
                   <AlertCircle size={16} color="#EF4444" />
                 )}
                 <Text
                   style={[
                     styles.modalTagText,
-                    systemModal.type === 'success' ? { color: '#0A84FF' } : { color: '#EF4444' },
+                    systemModal.type === 'success' ? { color: '#10B981' } : { color: '#EF4444' },
                   ]}
                 >
                   [ SYSTEM NOTICE // {systemModal.title} ]
                 </Text>
               </View>
 
-              <Text style={[styles.modalSub, { color: colors.textSecondary }]}>{systemModal.message}</Text>
+              <Text style={[styles.modalSub, { color: isDark ? '#71788E' : colors.textSecondary }]}>{systemModal.message}</Text>
 
               <TouchableOpacity
                 style={[
                   styles.modalConfirmBtn,
-                  systemModal.type === 'success' ? { backgroundColor: '#0A84FF' } : { backgroundColor: isDark ? '#1E293B' : '#E2E8F0' },
+                  systemModal.type === 'success' ? { backgroundColor: '#10B981' } : { backgroundColor: activeAccent },
                 ]}
                 onPress={() => setSystemModal((prev) => ({ ...prev, visible: false }))}
                 activeOpacity={0.85}
@@ -1122,7 +1255,7 @@ export default function RedeemScreen() {
                 <Text
                   style={[
                     styles.modalConfirmBtnText,
-                    systemModal.type === 'success' ? { color: '#FFFFFF' } : { color: colors.textPrimary },
+                    { color: '#FFFFFF' },
                   ]}
                 >
                   ACKNOWLEDGE
@@ -1209,9 +1342,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 10,
   },
-  tabSegmentBtnActive: {
-    backgroundColor: '#0A84FF',
-  },
+  tabSegmentBtnActive: {},
   tabSegmentText: {
     fontSize: 13,
     fontFamily: fontFamilies.semiBold,
@@ -1274,7 +1405,6 @@ const styles = StyleSheet.create({
   heroVerticalLine: {
     width: 1,
     height: 28,
-    backgroundColor: 'rgba(224, 242, 254, 0.6)',
   },
   rateLabel: {
     fontSize: 9,
@@ -1301,93 +1431,101 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  // Gateway Grid
-  gatewayGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
+  // Gateway Stacked List Rows (1:1 with dark mode screenshot)
+  gatewayListWrap: {
+    gap: 8,
     marginBottom: 18,
   },
-  gatewayCard: {
-    width: '48.5%',
+  gatewayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     borderRadius: 14,
     borderWidth: 1,
-    padding: 14,
-    position: 'relative',
-    gap: 4,
+    padding: 12,
+    gap: 12,
   },
-  gatewayCardActive: {
-    borderWidth: 1.5,
-  },
-  gatewayCheckmarkCircle: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: '#0A84FF',
+  gwIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  gwTitle: {
+    fontSize: 14,
+    fontFamily: fontFamilies.semiBold,
+  },
+  gwSub: {
+    fontSize: 11,
+    fontFamily: fontFamilies.medium,
+  },
+  gwRightAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  radioActiveCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioInactiveCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1.5,
   },
   upiIconGraphic: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
-    height: 22,
+    height: 20,
   },
   upiRibbonGreen: {
-    width: 10,
-    height: 18,
+    width: 9,
+    height: 16,
     backgroundColor: '#10B981',
     transform: [{ skewX: '-25deg' }],
     borderRadius: 2,
   },
   upiRibbonOrange: {
-    width: 10,
-    height: 18,
+    width: 9,
+    height: 16,
     backgroundColor: '#F59E0B',
     transform: [{ skewX: '-25deg' }],
     borderRadius: 2,
     marginLeft: 1,
   },
-  gatewayTitle: {
-    fontSize: 13,
-    fontFamily: fontFamilies.semiBold,
-    marginTop: 2,
-  },
-  gatewaySub: {
-    fontSize: 10.5,
-    fontFamily: fontFamilies.medium,
-  },
 
-  // Tiers Grid
-  tiersGrid: {
+  // Tiers Row (All 6 cards neatly across row)
+  tiersRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
+    justifyContent: 'space-between',
+    gap: 6,
     marginBottom: 14,
   },
-  tierCard: {
-    width: '31%',
+  tierPillCard: {
+    flex: 1,
     borderRadius: 12,
     borderWidth: 1,
-    paddingVertical: 12,
+    paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: 3,
   },
   tierInrNum: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: fontFamilies.semiBold,
   },
   tierCrystalRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: 2,
   },
   tierCostText: {
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: fontFamilies.semiBold,
   },
 
@@ -1416,7 +1554,6 @@ const styles = StyleSheet.create({
   rupeeSign: {
     fontSize: 16,
     fontFamily: fontFamilies.semiBold,
-    color: '#0A84FF',
     marginRight: 6,
   },
   customInputField: {
@@ -1436,7 +1573,7 @@ const styles = StyleSheet.create({
   customCrystalPillText: {
     fontSize: 12,
     fontFamily: fontFamilies.semiBold,
-    color: '#0A84FF',
+    color: '#00D2EE',
   },
 
   // Form Card
@@ -1664,7 +1801,6 @@ const styles = StyleSheet.create({
   securityTag: {
     fontSize: 9,
     fontFamily: fontFamilies.semiBold,
-    color: '#0A84FF',
     letterSpacing: 1,
   },
   securityTitle: {
@@ -1720,14 +1856,12 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 4,
     borderWidth: 1.5,
-    borderColor: '#0A84FF',
+    borderColor: '#71788E',
     backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkboxBoxChecked: {
-    backgroundColor: '#0A84FF',
-  },
+  checkboxBoxChecked: {},
   agreementText: {
     flex: 1,
     fontSize: 11,
@@ -1758,7 +1892,6 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 12,
     borderRadius: 10,
-    backgroundColor: '#0A84FF',
   },
   securityConfirmBtnDisabled: {
     opacity: 0.6,
