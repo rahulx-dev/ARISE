@@ -4,10 +4,20 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Pressable,
   ScrollView,
   ActivityIndicator,
   Image,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  withSequence,
+  cancelAnimation,
+  Easing,
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle, Path, Defs, RadialGradient, Stop, Line } from 'react-native-svg';
 import {
@@ -43,6 +53,9 @@ import { ManaCrystalIcon } from '../../src/components/ui/ManaCrystalIcon';
 import { getRankForLevel } from '../../src/constants/ranks';
 import { gateSpawnService, SpawnedDungeonGate } from '../../src/services/gateSpawnService';
 import { supabase, isSupabaseConfigured, getCloudUserId } from '../../src/services/supabaseClient';
+import { AnimatedNumber } from '../../src/components/motion/AnimatedNumber';
+import { useScalePress, useShake } from '../../src/hooks/useMotion';
+import { motion } from '../../src/theme/motion';
 
 const DUNGEON_IMAGES: Record<string, any> = {
   E: require('../../assets/dungeons/dungeon_e_goblin.jpg'),
@@ -88,10 +101,74 @@ const getRankTagStyles = (rankCode: string, isDark: boolean): { bg: string; bord
   }
 };
 
-function HunterRadarGraphic({ isDark }: { isDark: boolean }) {
+function HunterRadarGraphic({
+  isDark,
+  isScanning,
+  isScreenFocused,
+}: {
+  isDark: boolean;
+  isScanning: boolean;
+  isScreenFocused: boolean;
+}) {
   const ringStroke = isDark ? '#292D33' : '#E4E6EA';
   const crosshairStroke = isDark ? '#1F2228' : '#F0F1F4';
   const blipFill = isDark ? '#68707D' : '#9298A3';
+
+  const sweepRotation = useSharedValue(0);
+  const anomalyPulse = useSharedValue(1);
+
+  useEffect(() => {
+    if (isScreenFocused) {
+      if (isScanning) {
+        // Fast controlled radar sweep (1.2s per 360 deg)
+        sweepRotation.value = withRepeat(
+          withTiming(360, { duration: 1200, easing: Easing.linear }),
+          -1,
+          false
+        );
+        anomalyPulse.value = withRepeat(
+          withSequence(
+            withTiming(1.3, { duration: 600 }),
+            withTiming(0.9, { duration: 600 })
+          ),
+          -1,
+          true
+        );
+      } else {
+        // Idle: very subtle, slow gentle rotation (9s per 360 deg)
+        sweepRotation.value = withRepeat(
+          withTiming(360, { duration: 9000, easing: Easing.linear }),
+          -1,
+          false
+        );
+        anomalyPulse.value = withRepeat(
+          withSequence(
+            withTiming(1.15, { duration: 1800 }),
+            withTiming(1.0, { duration: 1800 })
+          ),
+          -1,
+          true
+        );
+      }
+    } else {
+      // Screen not focused - pause immediately to conserve resources
+      cancelAnimation(sweepRotation);
+      cancelAnimation(anomalyPulse);
+    }
+
+    return () => {
+      cancelAnimation(sweepRotation);
+      cancelAnimation(anomalyPulse);
+    };
+  }, [isScreenFocused, isScanning, sweepRotation, anomalyPulse]);
+
+  const animatedSweepStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${sweepRotation.value}deg` }],
+  }));
+
+  const animatedAnomalyStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: anomalyPulse.value }],
+  }));
 
   return (
     <View style={styles.radarGraphicWrap}>
@@ -113,21 +190,208 @@ function HunterRadarGraphic({ isDark }: { isDark: boolean }) {
         <Line x1="55" y1="5" x2="55" y2="105" stroke={crosshairStroke} strokeWidth="1" />
         <Line x1="5" y1="55" x2="105" y2="55" stroke={crosshairStroke} strokeWidth="1" />
 
-        {/* Red Radar Sweep Sector Cone (Top-Right Sector) */}
-        <Path d="M 55 55 L 90 20 A 50 50 0 0 0 55 5 Z" fill="url(#radarSweepGrad)" />
-
         {/* Blip dots */}
         <Circle cx="76" cy="22" r="2.2" fill={blipFill} />
         <Circle cx="26" cy="38" r="1.8" fill={blipFill} />
         <Circle cx="98" cy="66" r="2" fill={blipFill} />
         <Circle cx="84" cy="88" r="2.2" fill={blipFill} />
         <Circle cx="36" cy="82" r="2" fill={blipFill} />
-
-        {/* Center Red Anomaly Dot */}
-        <Circle cx="55" cy="55" r="8" fill="rgba(239, 68, 68, 0.22)" />
-        <Circle cx="55" cy="55" r="4" fill="#EF4444" />
       </Svg>
+
+      {/* Rotating sweep cone layer */}
+      <Animated.View
+        style={[
+          {
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: 110,
+            height: 110,
+            justifyContent: 'center',
+            alignItems: 'center',
+          },
+          animatedSweepStyle,
+        ]}
+        pointerEvents="none"
+      >
+        <Svg width={110} height={110} viewBox="0 0 110 110">
+          <Defs>
+            <RadialGradient id="radarSweepCone" cx="50%" cy="50%" rx="50%" ry="50%" fx="50%" fy="50%">
+              <Stop offset="0%" stopColor="#EF4444" stopOpacity="0.32" />
+              <Stop offset="75%" stopColor="#EF4444" stopOpacity="0.10" />
+              <Stop offset="100%" stopColor="#EF4444" stopOpacity="0.0" />
+            </RadialGradient>
+          </Defs>
+          <Path d="M 55 55 L 90 20 A 50 50 0 0 0 55 5 Z" fill="url(#radarSweepCone)" />
+        </Svg>
+      </Animated.View>
+
+      {/* Center Red Anomaly Dot */}
+      <Animated.View
+        style={[
+          {
+            position: 'absolute',
+            top: 47,
+            left: 47,
+            width: 16,
+            height: 16,
+            justifyContent: 'center',
+            alignItems: 'center',
+          },
+          animatedAnomalyStyle,
+        ]}
+        pointerEvents="none"
+      >
+        <Svg width={16} height={16} viewBox="0 0 16 16">
+          <Circle cx="8" cy="8" r="7" fill="rgba(239, 68, 68, 0.22)" />
+          <Circle cx="8" cy="8" r="3.5" fill="#EF4444" />
+        </Svg>
+      </Animated.View>
     </View>
+  );
+}
+
+function GateCardItem({
+  gateItem,
+  userLevel,
+  isDark,
+  colors,
+  onPress,
+  getRemainingTime,
+}: {
+  gateItem: SpawnedDungeonGate;
+  userLevel: number;
+  isDark: boolean;
+  colors: any;
+  onPress: (gate: SpawnedDungeonGate) => void;
+  getRemainingTime: (expiresAt: number) => string;
+}) {
+  const isGateLocked = userLevel < gateItem.requiredLevel;
+  const rankStyle = getRankTagStyles(gateItem.rankCode, isDark);
+  const totalCrystalBounty = gateItem.missions.reduce((acc, m) => acc + m.hunterCrystals, 0);
+  const completedMissions = gateItem.missions.filter((m) => m.isCompleted).length;
+  const isCompleted = gateItem.isCleared || (gateItem.missions.length > 0 && completedMissions === gateItem.missions.length);
+  const gateThumb = DUNGEON_IMAGES[gateItem.rankCode] || DUNGEON_IMAGES.E;
+
+  const { triggerShake, animatedStyle: shakeStyle } = useShake(5);
+  const { handlePressIn, handlePressOut, animatedStyle: scaleStyle } = useScalePress(0.985);
+
+  const handleCardPress = () => {
+    if (isGateLocked) {
+      triggerShake();
+      return;
+    }
+    onPress(gateItem);
+  };
+
+  return (
+    <Animated.View style={[shakeStyle, scaleStyle]}>
+      <Pressable
+        style={[
+          styles.dungeonGateCard,
+          {
+            backgroundColor: isDark ? '#111319' : colors.card,
+            borderColor: isCompleted
+              ? colors.success
+              : isDark
+              ? '#1E212C'
+              : colors.border,
+          },
+        ]}
+        onPress={handleCardPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+      >
+        {/* Gate Card Top: Thumbnail + (Rank Tag & Title & Threat) + Countdown Timer */}
+        <View style={styles.gateCardTopRow}>
+          <Image source={gateThumb} style={styles.gateThumbnail} resizeMode="cover" />
+
+          <View style={styles.gateCardMidCol}>
+            <View style={[styles.gateRankPill, { backgroundColor: rankStyle.bg, borderColor: rankStyle.border, borderWidth: 1 }]}>
+              <Text style={[styles.gateRankPillText, { color: rankStyle.text }]}>
+                {gateItem.rankCode}-RANK
+              </Text>
+            </View>
+            <Text style={[styles.gateCardTitle, { color: colors.textPrimary }]} numberOfLines={1}>
+              {gateItem.title}
+            </Text>
+            <Text style={[styles.gateCardThreat, { color: colors.textSecondary }]} numberOfLines={1}>
+              {gateItem.threatName}
+            </Text>
+          </View>
+
+          <View style={[styles.countdownPill, { backgroundColor: isDark ? '#161822' : colors.surfaceLight }]}>
+            <Clock size={11} color={isDark ? '#8E8E93' : colors.textSecondary} />
+            <Text style={[styles.countdownText, { color: isDark ? '#D1D5DB' : colors.textSecondary }]}>
+              {getRemainingTime(gateItem.expiresAt)}
+            </Text>
+          </View>
+        </View>
+
+        {/* Middle Stats Strip: Crystals & Inquests (Clean floating row) */}
+        <View style={styles.bountyStatsRow}>
+          <View style={styles.bountySubRow}>
+            <ManaCrystalIcon size={14} />
+            <Text style={[styles.bountyCrystalsVal, { color: isDark ? '#38BDF8' : '#0284C7' }]}>
+              {totalCrystalBounty} Crystals
+            </Text>
+          </View>
+
+          <View style={[styles.bountyDivider, { backgroundColor: isDark ? '#222634' : colors.border }]} />
+
+          <View style={styles.bountySubRow}>
+            <FileText size={12} color={colors.textSecondary} />
+            <Text style={[styles.inquestCountVal, { color: colors.textSecondary }]}>
+              {completedMissions}/{gateItem.missions.length} Inquests
+            </Text>
+          </View>
+        </View>
+
+        {/* Footer: Required Level / Locked Badge & Action Button */}
+        <View style={styles.gateCardFooterRow}>
+          {isGateLocked ? (
+            <View style={[styles.gateLockTag, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.12)' : '#FEF2F2', borderColor: isDark ? 'rgba(239, 68, 68, 0.25)' : '#FECACA', borderWidth: 1 }]}>
+              <Lock size={12} color="#EF4444" />
+              <Text style={[styles.gateLockTagText, { color: '#EF4444' }]}>Requires LVL {gateItem.requiredLevel}</Text>
+            </View>
+          ) : (
+            <View style={[styles.gateLevelTag, { backgroundColor: isDark ? '#1C1F2B' : colors.surfaceLight }]}>
+              <Text style={[styles.gateLevelTagText, { color: isDark ? '#9CA3AF' : colors.textSecondary }]}>
+                Level {gateItem.requiredLevel}+
+              </Text>
+            </View>
+          )}
+
+          <View
+            style={[
+              styles.gateActionBtn,
+              isCompleted
+                ? styles.gateActionBtnCleared
+                : isGateLocked
+                ? (isDark ? styles.gateActionBtnLockedDark : styles.gateActionBtnLockedLight)
+                : styles.gateActionBtnEnterRed,
+            ]}
+          >
+            {isCompleted ? (
+              <>
+                <CheckCircle2 size={13} color="#FFFFFF" />
+                <Text style={styles.gateActionBtnText}>Cleared</Text>
+              </>
+            ) : isGateLocked ? (
+              <>
+                <Lock size={13} color={isDark ? '#8E8E93' : colors.textMuted} />
+                <Text style={[styles.gateActionBtnText, { color: isDark ? '#8E8E93' : colors.textMuted }]}>Locked</Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.gateActionBtnText}>Enter Gate</Text>
+                <ChevronRight size={13} color="#FFFFFF" />
+              </>
+            )}
+          </View>
+        </View>
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -157,6 +421,7 @@ export default function DungeonScreen() {
   const [leaderboard, setLeaderboard] = useState<CrystalLeaderboardHunter[]>([]);
   const [spawnedGates, setSpawnedGates] = useState<SpawnedDungeonGate[]>([]);
   const [isScanning, setIsScanning] = useState<boolean>(false);
+  const [isScreenFocused, setIsScreenFocused] = useState<boolean>(true);
   const [currentTime, setCurrentTime] = useState<number>(Date.now());
 
   // In-App Survey Modal State
@@ -214,8 +479,12 @@ export default function DungeonScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      setIsScreenFocused(true);
       loadProfile();
       refreshData();
+      return () => {
+        setIsScreenFocused(false);
+      };
     }, [loadProfile, refreshData])
   );
 
@@ -383,9 +652,10 @@ export default function DungeonScreen() {
             activeOpacity={0.8}
           >
             <ManaCrystalIcon size={16} />
-            <Text style={[styles.crystalCountText, { color: colors.textPrimary }]}>
-              {manaCrystals.toLocaleString()}
-            </Text>
+            <AnimatedNumber
+              value={manaCrystals}
+              style={[styles.crystalCountText, { color: colors.textPrimary }]}
+            />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -540,7 +810,11 @@ export default function DungeonScreen() {
               </TouchableOpacity>
             </View>
 
-            <HunterRadarGraphic isDark={isDark} />
+            <HunterRadarGraphic
+              isDark={isDark}
+              isScanning={isScanning}
+              isScreenFocused={isScreenFocused}
+            />
           </View>
 
           {/* Section Header: Title + Count + Sort Pill */}
@@ -569,125 +843,18 @@ export default function DungeonScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Spawned Dungeon Gate Cards */}
-          {spawnedGates.map((gateItem) => {
-            const isGateLocked = userLevel < gateItem.requiredLevel;
-            const rankStyle = getRankTagStyles(gateItem.rankCode, isDark);
-            const totalCrystalBounty = gateItem.missions.reduce((acc, m) => acc + m.hunterCrystals, 0);
-            const completedMissions = gateItem.missions.filter((m) => m.isCompleted).length;
-            const isCompleted = gateItem.isCleared || (gateItem.missions.length > 0 && completedMissions === gateItem.missions.length);
-            const gateThumb = DUNGEON_IMAGES[gateItem.rankCode] || DUNGEON_IMAGES.E;
-
-            return (
-              <TouchableOpacity
-                key={gateItem.id}
-                style={[
-                  styles.dungeonGateCard,
-                  {
-                    backgroundColor: isDark ? '#111319' : colors.card,
-                    borderColor: isCompleted
-                      ? colors.success
-                      : isDark
-                      ? '#1E212C'
-                      : colors.border,
-                  },
-                ]}
-                onPress={() => handleOpenGatePage(gateItem)}
-                activeOpacity={0.88}
-              >
-                {/* Gate Card Top: Thumbnail + (Rank Tag & Title & Threat) + Countdown Timer */}
-                <View style={styles.gateCardTopRow}>
-                  <Image source={gateThumb} style={styles.gateThumbnail} resizeMode="cover" />
-
-                  <View style={styles.gateCardMidCol}>
-                    <View style={[styles.gateRankPill, { backgroundColor: rankStyle.bg, borderColor: rankStyle.border, borderWidth: 1 }]}>
-                      <Text style={[styles.gateRankPillText, { color: rankStyle.text }]}>
-                        {gateItem.rankCode}-RANK
-                      </Text>
-                    </View>
-                    <Text style={[styles.gateCardTitle, { color: colors.textPrimary }]} numberOfLines={1}>
-                      {gateItem.title}
-                    </Text>
-                    <Text style={[styles.gateCardThreat, { color: colors.textSecondary }]} numberOfLines={1}>
-                      {gateItem.threatName}
-                    </Text>
-                  </View>
-
-                  <View style={[styles.countdownPill, { backgroundColor: isDark ? '#161822' : colors.surfaceLight }]}>
-                    <Clock size={11} color={isDark ? '#8E8E93' : colors.textSecondary} />
-                    <Text style={[styles.countdownText, { color: isDark ? '#D1D5DB' : colors.textSecondary }]}>
-                      {getRemainingTime(gateItem.expiresAt)}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Middle Stats Strip: Crystals & Inquests (Clean floating row) */}
-                <View style={styles.bountyStatsRow}>
-                  <View style={styles.bountySubRow}>
-                    <ManaCrystalIcon size={14} />
-                    <Text style={[styles.bountyCrystalsVal, { color: isDark ? '#38BDF8' : '#0284C7' }]}>
-                      {totalCrystalBounty} Crystals
-                    </Text>
-                  </View>
-
-                  <View style={[styles.bountyDivider, { backgroundColor: isDark ? '#222634' : colors.border }]} />
-
-                  <View style={styles.bountySubRow}>
-                    <FileText size={12} color={colors.textSecondary} />
-                    <Text style={[styles.inquestCountVal, { color: colors.textSecondary }]}>
-                      {completedMissions}/{gateItem.missions.length} Inquests
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Footer: Required Level / Locked Badge & Action Button */}
-                <View style={styles.gateCardFooterRow}>
-                  {isGateLocked ? (
-                    <View style={[styles.gateLockTag, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.12)' : '#FEF2F2', borderColor: isDark ? 'rgba(239, 68, 68, 0.25)' : '#FECACA', borderWidth: 1 }]}>
-                      <Lock size={12} color="#EF4444" />
-                      <Text style={[styles.gateLockTagText, { color: '#EF4444' }]}>Requires LVL {gateItem.requiredLevel}</Text>
-                    </View>
-                  ) : (
-                    <View style={[styles.gateLevelTag, { backgroundColor: isDark ? '#1C1F2B' : colors.surfaceLight }]}>
-                      <Text style={[styles.gateLevelTagText, { color: isDark ? '#9CA3AF' : colors.textSecondary }]}>
-                        Level {gateItem.requiredLevel}+
-                      </Text>
-                    </View>
-                  )}
-
-                  <TouchableOpacity
-                    style={[
-                      styles.gateActionBtn,
-                      isCompleted
-                        ? styles.gateActionBtnCleared
-                        : isGateLocked
-                        ? (isDark ? styles.gateActionBtnLockedDark : styles.gateActionBtnLockedLight)
-                        : styles.gateActionBtnEnterRed,
-                    ]}
-                    onPress={() => handleOpenGatePage(gateItem)}
-                    activeOpacity={0.85}
-                  >
-                    {isCompleted ? (
-                      <>
-                        <CheckCircle2 size={13} color="#FFFFFF" />
-                        <Text style={styles.gateActionBtnText}>Cleared</Text>
-                      </>
-                    ) : isGateLocked ? (
-                      <>
-                        <Lock size={13} color={isDark ? '#8E8E93' : colors.textMuted} />
-                        <Text style={[styles.gateActionBtnText, { color: isDark ? '#8E8E93' : colors.textMuted }]}>Locked</Text>
-                      </>
-                    ) : (
-                      <>
-                        <Text style={styles.gateActionBtnText}>Enter Gate</Text>
-                        <ChevronRight size={13} color="#FFFFFF" />
-                      </>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
+          {/* Spawned Dungeon Gate Cards with Apple-grade micro-interactions */}
+          {spawnedGates.map((gateItem) => (
+            <GateCardItem
+              key={gateItem.id}
+              gateItem={gateItem}
+              userLevel={userLevel}
+              isDark={isDark}
+              colors={colors}
+              onPress={handleOpenGatePage}
+              getRemainingTime={getRemainingTime}
+            />
+          ))}
 
           <View style={{ height: 20 }} />
         </ScrollView>

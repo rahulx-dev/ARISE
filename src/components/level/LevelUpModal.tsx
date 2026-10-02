@@ -13,6 +13,7 @@ import Animated, {
   withRepeat,
   withTiming,
   withSequence,
+  cancelAnimation,
   Easing,
   interpolate,
 } from 'react-native-reanimated';
@@ -27,6 +28,7 @@ import { usePlayerStore } from '../../stores/usePlayerStore';
 import { useHaptics } from '../../hooks/useHaptics';
 import { useSound } from '../../hooks/useSound';
 import { SoloLevelingWindow } from '../ui/SoloLevelingWindow';
+import { motion } from '../../theme/motion';
 
 const { width } = Dimensions.get('window');
 
@@ -47,6 +49,8 @@ export function LevelUpModal() {
   const [displayedLevel, setDisplayedLevel] = useState(1);
 
   useEffect(() => {
+    let timer: any = null;
+
     if (levelUpData) {
       setDisplayedLevel(levelUpData.oldLevel);
 
@@ -57,35 +61,34 @@ export function LevelUpModal() {
         haptics.success();
       }, 350);
 
-      // Card entrance with bounce
+      // Card entrance with subtle, controlled scale
       cardScale.value = withSequence(
-        withTiming(1.08, { duration: 320, easing: Easing.out(Easing.back(1.5)) }),
-        withTiming(1.0, { duration: 150 })
+        withTiming(1.04, { duration: motion.timing.modal, easing: Easing.out(Easing.quad) }),
+        withTiming(1.0, { duration: motion.timing.quick })
       );
-      cardOpacity.value = withTiming(1, { duration: 250 });
+      cardOpacity.value = withTiming(1, { duration: motion.timing.screen });
 
-      // Screen impact shake
+      // Screen impact shake: refined low-amplitude settle (5px)
       shakeOffset.value = withSequence(
-        withTiming(10, { duration: 50 }),
-        withTiming(-10, { duration: 50 }),
-        withTiming(6, { duration: 50 }),
-        withTiming(-6, { duration: 50 }),
-        withTiming(2, { duration: 50 }),
-        withTiming(0, { duration: 50 })
+        withTiming(5, { duration: 40 }),
+        withTiming(-5, { duration: 40 }),
+        withTiming(3, { duration: 40 }),
+        withTiming(-3, { duration: 40 }),
+        withTiming(0, { duration: 40 })
       );
 
-      // Continuous 360 rotation of aura rays
+      // Controlled 360 rotation of aura rays
       rayRotation.value = withRepeat(
-        withTiming(360, { duration: 8000, easing: Easing.linear }),
+        withTiming(360, { duration: 10000, easing: Easing.linear }),
         -1,
         false
       );
 
-      // Glowing aura pulse
+      // Ambient aura pulse
       glowPulse.value = withRepeat(
         withSequence(
-          withTiming(0.85, { duration: 900, easing: Easing.inOut(Easing.ease) }),
-          withTiming(0.25, { duration: 900, easing: Easing.inOut(Easing.ease) })
+          withTiming(0.7, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
+          withTiming(0.25, { duration: 1200, easing: Easing.inOut(Easing.ease) })
         ),
         -1,
         true
@@ -93,24 +96,38 @@ export function LevelUpModal() {
 
       // Rank Breakthrough banner entrance
       bannerScale.value = withSequence(
-        withTiming(0, { duration: 200 }),
-        withTiming(1.15, { duration: 300, easing: Easing.out(Easing.back(2)) }),
-        withTiming(1.0, { duration: 150 })
+        withTiming(0, { duration: 150 }),
+        withTiming(1.08, { duration: 250, easing: Easing.out(Easing.quad) }),
+        withTiming(1.0, { duration: motion.timing.quick })
       );
 
       // Roll up level number smoothly
-      const timer = setTimeout(() => {
+      timer = setTimeout(() => {
         setDisplayedLevel(levelUpData.newLevel);
         haptics.light();
       }, 450);
-
-      return () => clearTimeout(timer);
     } else {
+      cancelAnimation(rayRotation);
+      cancelAnimation(glowPulse);
+      cancelAnimation(cardScale);
+      cancelAnimation(cardOpacity);
+      cancelAnimation(shakeOffset);
+      cancelAnimation(bannerScale);
       cardScale.value = 0.4;
       cardOpacity.value = 0;
       shakeOffset.value = 0;
       bannerScale.value = 0;
     }
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      cancelAnimation(rayRotation);
+      cancelAnimation(glowPulse);
+      cancelAnimation(cardScale);
+      cancelAnimation(cardOpacity);
+      cancelAnimation(shakeOffset);
+      cancelAnimation(bannerScale);
+    };
   }, [levelUpData]);
 
   // Animated styles - MUST be called unconditionally at top-level
@@ -128,7 +145,7 @@ export function LevelUpModal() {
 
   const animatedGlowStyle = useAnimatedStyle(() => ({
     opacity: glowPulse.value,
-    transform: [{ scale: interpolate(glowPulse.value, [0.25, 0.85], [0.95, 1.15]) }],
+    transform: [{ scale: interpolate(glowPulse.value, [0.25, 0.7], [0.96, 1.08]) }],
   }));
 
   const animatedBannerStyle = useAnimatedStyle(() => ({
@@ -136,13 +153,15 @@ export function LevelUpModal() {
   }));
 
   const handleClaim = () => {
+    cancelAnimation(rayRotation);
+    cancelAnimation(glowPulse);
     haptics.heavy();
     sound.play('coin_earn');
-    cardScale.value = withTiming(0.8, { duration: 200 });
-    cardOpacity.value = withTiming(0, { duration: 200 });
+    cardScale.value = withTiming(0.85, { duration: motion.timing.quick });
+    cardOpacity.value = withTiming(0, { duration: motion.timing.quick });
     setTimeout(() => {
       dismissLevelUp();
-    }, 220);
+    }, motion.timing.quick + 20);
   };
 
   if (!levelUpData) return null;

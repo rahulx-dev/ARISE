@@ -41,6 +41,7 @@ import { ManaCrystalIcon } from '../../src/components/ui/ManaCrystalIcon';
 import { PlayerAvatar } from '../../src/components/ui/PlayerAvatar';
 import { ALL_AVATARS } from '../../src/constants/avatars';
 import { AVATAR_ICONS } from '../../src/components/profile/AvatarPicker';
+import { AnimatedNumber } from '../../src/components/motion/AnimatedNumber';
 
 interface BoostItem {
   id: string;
@@ -382,9 +383,10 @@ export default function ShopScreen() {
             ]}
           >
             <Coins size={15} color="#F59E0B" />
-            <Text style={[styles.currencyBadgeText, { color: isDark ? '#F59E0B' : '#92400E' }]}>
-              {currentCoins.toLocaleString()}
-            </Text>
+            <AnimatedNumber
+              value={currentCoins}
+              style={[styles.currencyBadgeText, { color: isDark ? '#F59E0B' : '#92400E' }]}
+            />
           </View>
           <TouchableOpacity
             style={[
@@ -401,9 +403,10 @@ export default function ShopScreen() {
             activeOpacity={0.8}
           >
             <ManaCrystalIcon size={15} color="#00D2EE" secondaryColor="#0284C7" />
-            <Text style={[styles.currencyBadgeText, { color: isDark ? '#00D2EE' : '#0284C7' }]}>
-              {manaCrystals.toLocaleString()}
-            </Text>
+            <AnimatedNumber
+              value={manaCrystals}
+              style={[styles.currencyBadgeText, { color: isDark ? '#00D2EE' : '#0284C7' }]}
+            />
           </TouchableOpacity>
         </View>
       </View>

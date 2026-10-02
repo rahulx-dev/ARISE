@@ -1,26 +1,25 @@
-import { FadeIn, FadeOut, SlideInUp, SlideOutDown, ZoomIn, ZoomOut, BounceIn, withSpring, SlideInDown, SlideOutUp } from 'react-native-reanimated';
+import { FadeIn, FadeOut, ZoomIn, ZoomOut, withSpring, SlideInDown, SlideOutDown } from 'react-native-reanimated';
+import { motion } from './motion';
+
+export * from './motion';
 
 export const timing = {
-  fast: 200,
-  normal: 300,
-  slow: 500,
+  fast: motion.timing.quick,
+  normal: motion.timing.screen,
+  slow: 450,
 } as const;
 
-export const springConfig = {
-  damping: 15,
-  stiffness: 150,
-} as const;
+export const springConfig = motion.spring.natural;
 
 export const animations = {
-  fadeIn: FadeIn.duration(timing.normal),
-  fadeOut: FadeOut.duration(timing.normal),
-  slideUp: SlideInDown.duration(timing.normal),
-  slideDown: SlideOutDown.duration(timing.normal),
-  scaleIn: ZoomIn.duration(timing.normal),
-  bounceIn: BounceIn.duration(timing.normal),
+  fadeIn: FadeIn.duration(motion.timing.screen),
+  fadeOut: FadeOut.duration(motion.timing.quick),
+  slideUp: SlideInDown.duration(motion.timing.screen),
+  slideDown: SlideOutDown.duration(motion.timing.quick),
+  scaleIn: ZoomIn.duration(motion.timing.quick),
 } as const;
 
 export const withPremiumSpring = (toValue: number | string) => {
   'worklet';
-  return withSpring(toValue as number, springConfig);
+  return withSpring(toValue as number, motion.spring.snappy);
 };

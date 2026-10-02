@@ -40,6 +40,7 @@ import { useSound } from '../../src/hooks/useSound';
 import { useTheme } from '../../src/hooks/useTheme';
 import { fontFamilies } from '../../src/theme/typography';
 import { APP_3D_ASSETS } from '../../src/constants/assets';
+import { AnimatedNumber } from '../../src/components/motion/AnimatedNumber';
 
 const CRYSTALS_PER_INR = 10; // 10 Mana Crystals = ₹1.00 INR
 const MIN_CASHOUT_INR = 25;
@@ -353,9 +354,10 @@ export default function RedeemScreen() {
           ]}
         >
           <Image source={APP_3D_ASSETS.manaCrystal} style={{ width: 17, height: 17 }} resizeMode="contain" />
-          <Text style={[styles.crystalCapsuleCount, { color: isDark ? '#38BDF8' : '#0A84FF' }]}>
-            {manaBalance.toLocaleString()}
-          </Text>
+          <AnimatedNumber
+            value={manaBalance}
+            style={[styles.crystalCapsuleCount, { color: isDark ? '#38BDF8' : '#0A84FF' }]}
+          />
         </View>
       </View>
 

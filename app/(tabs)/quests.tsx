@@ -7,8 +7,18 @@ import {
   StyleSheet,
   Image,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSequence,
+  withTiming,
+  withSpring,
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
+import { useProgressSpring } from '../../src/hooks/useMotion';
+import { motion } from '../../src/theme/motion';
+import { AnimatedPressable } from '../../src/components/motion/AnimatedPressable';
 import {
   Barbell,
   Brain,
@@ -70,6 +80,128 @@ const resolveExerciseType = (q: QuestData): ExerciseType | null => {
   if (titleLower.includes('push')) return 'PUSHUP';
   return null;
 };
+
+function QuestCardRow({
+  q,
+  isDone,
+  isCameraTracked,
+  isFocus,
+  rank,
+  buttonLabel,
+  colors,
+  isDark,
+  onAction,
+  getCategoryIcon,
+}: {
+  q: QuestData;
+  isDone: boolean;
+  isCameraTracked: boolean;
+  isFocus: boolean;
+  rank: RankConfig;
+  buttonLabel: string;
+  colors: any;
+  isDark: boolean;
+  onAction: () => void;
+  getCategoryIcon: (q: QuestData, isCamera: boolean, isFocus: boolean) => React.ReactNode;
+}) {
+  const checkmarkScale = useSharedValue(isDone ? 1 : 0.6);
+
+  useEffect(() => {
+    if (isDone) {
+      checkmarkScale.value = withSequence(
+        withTiming(motion.scale.popCheckmark, { duration: motion.timing.quick }),
+        withSpring(1, motion.spring.pop)
+      );
+    }
+  }, [isDone, checkmarkScale]);
+
+  const animatedCheckmarkStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: checkmarkScale.value }],
+  }));
+
+  return (
+    <View
+      style={[
+        styles.horizontalQuestCard,
+        { backgroundColor: colors.card, borderColor: colors.border },
+        isDone && { opacity: 0.72 },
+      ]}
+    >
+      {/* Left: Category Icon Thumbnail */}
+      <View
+        style={[
+          styles.questThumbBox,
+          {
+            backgroundColor: isDark
+              ? '#1C1618'
+              : isCameraTracked
+              ? '#FFF1F2'
+              : isFocus
+              ? '#EFF6FF'
+              : '#FEF3C7',
+          },
+        ]}
+      >
+        {getCategoryIcon(q, isCameraTracked, isFocus)}
+      </View>
+
+      {/* Middle: Title, Subtitle, Rewards */}
+      <View style={styles.questMiddleCol}>
+        <Text style={[styles.questRowTitle, { color: colors.textPrimary }]} numberOfLines={1}>
+          {q.title}
+        </Text>
+        <Text style={[styles.questRowDesc, { color: colors.textSecondary }]} numberOfLines={1}>
+          {q.description || (isCameraTracked ? `Target: ${q.target || 20} reps` : 'Daily protocol')}
+        </Text>
+        <View style={styles.rewardBadgesRow}>
+          <View style={[styles.bountyMiniPill, { backgroundColor: isDark ? '#1A1C28' : '#F3F4F6' }]}>
+            <Image source={APP_3D_ASSETS.goldCoin} style={{ width: 12, height: 12 }} />
+            <Text style={styles.bountyMiniCoinText}>+{q.rewardCoins || 18}</Text>
+          </View>
+          <View style={[styles.bountyMiniPill, { backgroundColor: isDark ? '#1A1C28' : '#F3F4F6' }]}>
+            <Text style={[styles.bountyMiniXPText, { color: colors.textSecondary }]}>
+              +{q.rewardXP || 50} XP
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Right: Rank Tag & Action Button */}
+      <View style={styles.questRightCol}>
+        <View style={[styles.rankBadgeMini, { backgroundColor: rank.bg }]}>
+          <Text style={[styles.rankBadgeMiniText, { color: rank.color }]}>{rank.label}</Text>
+        </View>
+
+        {isDone ? (
+          <Animated.View
+            style={[
+              styles.completedPillMini,
+              {
+                backgroundColor: isDark ? '#06281A' : '#ECFDF5',
+                borderColor: isDark ? '#0D4A32' : '#A7F3D0',
+              },
+              animatedCheckmarkStyle,
+            ]}
+          >
+            <Check size={12} color="#10B981" weight="bold" />
+            <Text style={styles.completedPillMiniText}>DONE</Text>
+          </Animated.View>
+        ) : (
+          <AnimatedPressable
+            style={[
+              styles.startQuestPillBtn,
+              !isCameraTracked && !isFocus && styles.manualClaimBtn,
+            ]}
+            onPress={onAction}
+            scaleTo={motion.scale.pressedChip}
+          >
+            <Text style={styles.startQuestPillBtnText}>{buttonLabel}</Text>
+          </AnimatedPressable>
+        )}
+      </View>
+    </View>
+  );
+}
 
 export default function QuestsScreen() {
   const { colors, isDark } = useTheme();
@@ -147,6 +279,8 @@ export default function QuestsScreen() {
 
   const totalDailyCount = (dailyQuests || []).length;
   const completedDailyCount = (dailyQuests || []).filter((q) => Boolean(q.completed)).length;
+  const dailyProgressRatio = totalDailyCount > 0 ? completedDailyCount / totalDailyCount : 0;
+  const { animatedStyle: progressAnimatedStyle } = useProgressSpring(dailyProgressRatio);
 
   const handleManualComplete = async (q: QuestData) => {
     haptics.success();
@@ -243,14 +377,7 @@ export default function QuestsScreen() {
             </View>
           </View>
           <View style={[styles.progressTrack, { backgroundColor: isDark ? '#1D202C' : '#E5E7EB' }]}>
-            <View
-              style={[
-                styles.progressFill,
-                {
-                  width: `${totalDailyCount > 0 ? Math.min(100, Math.round((completedDailyCount / totalDailyCount) * 100)) : 0}%`,
-                },
-              ]}
-            />
+            <Animated.View style={[styles.progressFill, progressAnimatedStyle]} />
           </View>
         </View>
 
@@ -336,86 +463,19 @@ export default function QuestsScreen() {
               }
 
               return (
-                <View
+                <QuestCardRow
                   key={q.id}
-                  style={[
-                    styles.horizontalQuestCard,
-                    { backgroundColor: colors.card, borderColor: colors.border },
-                    isDone && { opacity: 0.65 },
-                  ]}
-                >
-                  {/* Left: Category Icon Thumbnail */}
-                  <View
-                    style={[
-                      styles.questThumbBox,
-                      {
-                        backgroundColor: isDark
-                          ? '#1C1618'
-                          : isCameraTracked
-                          ? '#FFF1F2'
-                          : isFocus
-                          ? '#EFF6FF'
-                          : '#FEF3C7',
-                      },
-                    ]}
-                  >
-                    {getCategoryIcon(q, isCameraTracked, isFocus)}
-                  </View>
-
-                  {/* Middle: Title, Subtitle, Rewards */}
-                  <View style={styles.questMiddleCol}>
-                    <Text style={[styles.questRowTitle, { color: colors.textPrimary }]} numberOfLines={1}>
-                      {q.title}
-                    </Text>
-                    <Text style={[styles.questRowDesc, { color: colors.textSecondary }]} numberOfLines={1}>
-                      {q.description || (isCameraTracked ? `Target: ${q.target || 20} reps` : 'Daily protocol')}
-                    </Text>
-                    <View style={styles.rewardBadgesRow}>
-                      <View style={[styles.bountyMiniPill, { backgroundColor: isDark ? '#1A1C28' : '#F3F4F6' }]}>
-                        <Image source={APP_3D_ASSETS.goldCoin} style={{ width: 12, height: 12 }} />
-                        <Text style={styles.bountyMiniCoinText}>+{q.rewardCoins || 18}</Text>
-                      </View>
-                      <View style={[styles.bountyMiniPill, { backgroundColor: isDark ? '#1A1C28' : '#F3F4F6' }]}>
-                        <Text style={[styles.bountyMiniXPText, { color: colors.textSecondary }]}>
-                          +{q.rewardXP || 50} XP
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-
-                  {/* Right: Rank Tag & Action Button */}
-                  <View style={styles.questRightCol}>
-                    <View style={[styles.rankBadgeMini, { backgroundColor: rank.bg }]}>
-                      <Text style={[styles.rankBadgeMiniText, { color: rank.color }]}>{rank.label}</Text>
-                    </View>
-
-                    {isDone ? (
-                      <View
-                        style={[
-                          styles.completedPillMini,
-                          {
-                            backgroundColor: isDark ? '#06281A' : '#ECFDF5',
-                            borderColor: isDark ? '#0D4A32' : '#A7F3D0',
-                          },
-                        ]}
-                      >
-                        <Check size={12} color="#10B981" weight="bold" />
-                        <Text style={styles.completedPillMiniText}>DONE</Text>
-                      </View>
-                    ) : (
-                      <TouchableOpacity
-                        style={[
-                          styles.startQuestPillBtn,
-                          !isCameraTracked && !isFocus && styles.manualClaimBtn,
-                        ]}
-                        onPress={() => handleQuestAction(q)}
-                        activeOpacity={0.85}
-                      >
-                        <Text style={styles.startQuestPillBtnText}>{buttonLabel}</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </View>
+                  q={q}
+                  isDone={isDone}
+                  isCameraTracked={isCameraTracked}
+                  isFocus={isFocus}
+                  rank={rank}
+                  buttonLabel={buttonLabel}
+                  colors={colors}
+                  isDark={isDark}
+                  onAction={() => handleQuestAction(q)}
+                  getCategoryIcon={getCategoryIcon}
+                />
               );
             })
           )}

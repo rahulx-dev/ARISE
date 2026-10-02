@@ -1,16 +1,18 @@
-import React, { ReactNode, useRef } from 'react';
+import React, { ReactNode } from 'react';
 import {
-  TouchableOpacity,
+  Pressable,
   Text,
   StyleSheet,
   ActivityIndicator,
   ViewStyle,
   TextStyle,
   StyleProp,
-  Animated,
 } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useHaptics } from '../../hooks/useHaptics';
 import { useTheme } from '../../hooks/useTheme';
+import { useScalePress } from '../../hooks/useMotion';
+import { motion } from '../../theme/motion';
 
 interface GlassButtonProps {
   title: string;
@@ -25,7 +27,7 @@ interface GlassButtonProps {
 }
 
 /**
- * Ultra-Premium Solid Action Button with Spring Scale Feedback
+ * Ultra-Premium Solid Action Button with Reanimated UI-thread Spring Scale Feedback
  */
 export const GlassButton = React.memo(function GlassButton({
   title,
@@ -40,25 +42,7 @@ export const GlassButton = React.memo(function GlassButton({
 }: GlassButtonProps) {
   const { colors, isDark } = useTheme();
   const haptics = useHaptics();
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-
-  const handlePressIn = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 0.97,
-      useNativeDriver: true,
-      speed: 40,
-      bounciness: 4,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-      speed: 40,
-      bounciness: 6,
-    }).start();
-  };
+  const { handlePressIn, handlePressOut, animatedStyle } = useScalePress(motion.scale.pressedButton);
 
   const handlePress = () => {
     if (disabled || loading) return;
@@ -173,13 +157,12 @@ export const GlassButton = React.memo(function GlassButton({
   const sStyles = getSizeStyles();
 
   return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-      <TouchableOpacity
+    <Animated.View style={animatedStyle}>
+      <Pressable
         onPress={handlePress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         disabled={disabled || loading}
-        activeOpacity={0.85}
         style={[
           styles.buttonBase,
           vStyles.btn,
@@ -198,7 +181,7 @@ export const GlassButton = React.memo(function GlassButton({
             </Text>
           </>
         )}
-      </TouchableOpacity>
+      </Pressable>
     </Animated.View>
   );
 });
