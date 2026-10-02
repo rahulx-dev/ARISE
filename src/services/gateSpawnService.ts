@@ -627,7 +627,7 @@ const GATE_TEMPLATES: Record<
 > = {
   E: [
     {
-      title: "Lesser Goblin Caverns",
+      title: "Lesser Goblin Cave",
       threatName: "Goblin Scout Vanguard",
       lore: "Low-tier dimensional rift detected in outer city perimeter. Fast reconnaissance tasks weaken goblin vanguard clusters.",
     },
@@ -651,14 +651,14 @@ const GATE_TEMPLATES: Record<
   ],
   C: [
     {
-      title: "Hobgoblin Shaman Crypt",
-      threatName: "High Shaman Kargath",
-      lore: "High-density mana field fortified by dark totems. Consumer habits analysis dispels the mystical barriers.",
-    },
-    {
       title: "Frozen Frost Elf Outpost",
       threatName: "Glacial Ranger Commander",
       lore: "Sub-zero temperatures freeze physical weapons. Strategic media data unfreezes the dungeon core.",
+    },
+    {
+      title: "Hobgoblin Shaman Crypt",
+      threatName: "High Shaman Kargath",
+      lore: "High-density mana field fortified by dark totems. Consumer habits analysis dispels the mystical barriers.",
     },
   ],
   B: [
@@ -822,8 +822,8 @@ class GateSpawnService {
     for (const rank of ranks) {
       const cfg = RANK_CONFIG[rank];
       const templates = GATE_TEMPLATES[rank];
-      const template = templates[Math.floor(Math.random() * templates.length)];
-      const missions = getSurveysForRank(rank);
+      const template = templates[0] || templates[Math.floor(Math.random() * templates.length)];
+      const missions = getSurveysForRank(rank).slice(0, 2);
 
       if (missions.length === 0) continue;
 
