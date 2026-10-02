@@ -20,8 +20,10 @@ if (!AppBlocker) {
     stopMonitoring: () => {},
     setRestrictedPackages: (_restrictedPackages: string[]) => {},
     getInstalledApps: async () => [],
-    temporaryUnlock: (_durationMs: number) => true,
-    unlockUntil: (_epochMs: number) => true,
+     // A missing Android module must never look like a successful pass.  The UI
+     // can then keep the lock in place and surface the native setup problem.
+     temporaryUnlock: (_durationMs: number) => false,
+     unlockUntil: (_epochMs: number) => false,
     isCurrentlyUnlocked: () => false,
   };
 }
@@ -105,7 +107,7 @@ export function temporaryUnlock(durationMs: number): boolean {
       return false;
     }
   }
-  return true;
+  return false;
 }
 
 export function unlockUntil(epochMs: number): boolean {
@@ -116,7 +118,7 @@ export function unlockUntil(epochMs: number): boolean {
       return false;
     }
   }
-  return true;
+  return false;
 }
 
 export function isCurrentlyUnlocked(): boolean {

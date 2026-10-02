@@ -26,6 +26,7 @@ import { useHaptics } from "../../hooks/useHaptics";
 import { useSettingsStore } from "../../stores/useSettingsStore";
 import { setIsOnboardingCompletedSync } from "../../services/appStateService";
 import { useTheme } from "../../hooks/useTheme";
+import { fontFamilies } from "../../theme/typography";
 
 interface PermissionsGateModalProps {
   onAllGranted: () => void;
@@ -492,24 +493,28 @@ const styles = StyleSheet.create({
     borderRadius: 18,
   },
   brandText: {
+    fontFamily: fontFamilies.semiBold,
     fontSize: 13,
-    fontWeight: "900",
+    fontWeight: "600",
     letterSpacing: 6,
     marginTop: 10,
   },
   mainTitle: {
-    fontSize: 24,
-    fontWeight: "900",
-    letterSpacing: -0.5,
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 22,
+    fontWeight: "600",
+    letterSpacing: -0.4,
     marginTop: 16,
     textAlign: "center",
   },
   mainSubtitle: {
+    fontFamily: fontFamilies.regular,
     fontSize: 13,
     textAlign: "center",
     marginTop: 6,
     lineHeight: 18,
     paddingHorizontal: 16,
+    fontWeight: "400",
   },
   cardList: {
     gap: 12,
@@ -539,12 +544,15 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   permTitle: {
-    fontSize: 15,
-    fontWeight: "800",
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 14.5,
+    fontWeight: "600",
   },
   permSubtitle: {
+    fontFamily: fontFamilies.regular,
     fontSize: 12,
     lineHeight: 16,
+    fontWeight: "400",
   },
   rightAction: {
     flexDirection: "row",
@@ -560,8 +568,9 @@ const styles = StyleSheet.create({
     borderRadius: 100,
   },
   activeText: {
-    fontSize: 12,
-    fontWeight: "700",
+    fontFamily: fontFamilies.medium,
+    fontSize: 11.5,
+    fontWeight: "500",
     color: "#059669",
   },
   allowBtn: {
@@ -571,8 +580,9 @@ const styles = StyleSheet.create({
     borderRadius: 100,
   },
   allowBtnText: {
-    fontSize: 12,
-    fontWeight: "800",
+    fontFamily: fontFamilies.medium,
+    fontSize: 11.5,
+    fontWeight: "500",
     color: "#FFFFFF",
   },
   footerSection: {
@@ -595,10 +605,11 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   continueBtnText: {
-    fontSize: 16,
-    fontWeight: "800",
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 15,
+    fontWeight: "600",
     color: "#FFFFFF",
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
   },
   privacyRow: {
     flexDirection: "row",
@@ -608,9 +619,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   privacyText: {
+    fontFamily: fontFamilies.regular,
     fontSize: 11,
     lineHeight: 15,
     textAlign: "center",
     flex: 1,
+    fontWeight: "400",
   },
 });

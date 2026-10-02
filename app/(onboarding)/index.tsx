@@ -61,6 +61,7 @@ import { useLanguageStore } from '../../src/services/i18n';
 import { Globe } from 'phosphor-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
+import { fontFamilies } from '../../src/theme/typography';
 
 const APP_CATEGORIES = ['ALL', 'SOCIAL', 'GAMES', 'STREAMING'] as const;
 
@@ -730,8 +731,9 @@ export default function OnboardingScreen() {
                 </View>
                 <Text
                   style={{
+                    fontFamily: fontFamilies.semiBold,
                     fontSize: 13,
-                    fontWeight: '900',
+                    fontWeight: '600',
                     letterSpacing: 6,
                     marginTop: 10,
                     color: colors.textPrimary,
@@ -742,9 +744,10 @@ export default function OnboardingScreen() {
 
                 <Text
                   style={{
-                    fontSize: 24,
-                    fontWeight: '900',
-                    letterSpacing: -0.5,
+                    fontFamily: fontFamilies.semiBold,
+                    fontSize: 22,
+                    fontWeight: '600',
+                    letterSpacing: -0.3,
                     marginTop: 16,
                     textAlign: 'center',
                     color: colors.textPrimary,
@@ -800,10 +803,10 @@ export default function OnboardingScreen() {
                     <BarChart2 size={22} color="#EF4444" strokeWidth={2.4} />
                   </View>
                   <View style={{ flex: 1, gap: 2 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '800', color: colors.textPrimary }}>
+                    <Text style={{ fontFamily: fontFamilies.semiBold, fontSize: 14.5, fontWeight: '600', color: colors.textPrimary }}>
                       App Usage Access
                     </Text>
-                    <Text style={{ fontSize: 12, color: colors.textSecondary, lineHeight: 16 }}>
+                    <Text style={{ fontFamily: fontFamilies.regular, fontSize: 12, color: colors.textSecondary, lineHeight: 16 }}>
                       Monitor distraction app screen time and usage.
                     </Text>
                   </View>
@@ -821,7 +824,7 @@ export default function OnboardingScreen() {
                         }}
                       >
                         <CheckCircle2 size={13} color="#059669" fill="#059669" />
-                        <Text style={{ fontSize: 12, fontWeight: '700', color: '#059669' }}>Active</Text>
+                        <Text style={{ fontFamily: fontFamilies.medium, fontSize: 12, fontWeight: '500', color: '#059669' }}>Active</Text>
                       </View>
                     ) : (
                       <TouchableOpacity
@@ -834,7 +837,7 @@ export default function OnboardingScreen() {
                         onPress={handleGrantUsage}
                         activeOpacity={0.8}
                       >
-                        <Text style={{ fontSize: 12, fontWeight: '800', color: '#FFFFFF' }}>Allow</Text>
+                        <Text style={{ fontFamily: fontFamilies.medium, fontSize: 12, fontWeight: '500', color: '#FFFFFF' }}>Allow</Text>
                       </TouchableOpacity>
                     )}
                     <ChevronRight size={16} color={colors.textMuted} />
@@ -874,10 +877,10 @@ export default function OnboardingScreen() {
                     <Layers size={22} color="#0284C7" strokeWidth={2.4} />
                   </View>
                   <View style={{ flex: 1, gap: 2 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '800', color: colors.textPrimary }}>
+                    <Text style={{ fontFamily: fontFamilies.semiBold, fontSize: 14.5, fontWeight: '600', color: colors.textPrimary }}>
                       Display Over Other Apps
                     </Text>
-                    <Text style={{ fontSize: 12, color: colors.textSecondary, lineHeight: 16 }}>
+                    <Text style={{ fontFamily: fontFamilies.regular, fontSize: 12, color: colors.textSecondary, lineHeight: 16 }}>
                       Show the lock screen when your limit is reached.
                     </Text>
                   </View>
@@ -895,7 +898,7 @@ export default function OnboardingScreen() {
                         }}
                       >
                         <CheckCircle2 size={13} color="#059669" fill="#059669" />
-                        <Text style={{ fontSize: 12, fontWeight: '700', color: '#059669' }}>Active</Text>
+                        <Text style={{ fontFamily: fontFamilies.medium, fontSize: 12, fontWeight: '500', color: '#059669' }}>Active</Text>
                       </View>
                     ) : (
                       <TouchableOpacity
@@ -908,7 +911,7 @@ export default function OnboardingScreen() {
                         onPress={handleGrantOverlay}
                         activeOpacity={0.8}
                       >
-                        <Text style={{ fontSize: 12, fontWeight: '800', color: '#FFFFFF' }}>Allow</Text>
+                        <Text style={{ fontFamily: fontFamilies.medium, fontSize: 12, fontWeight: '500', color: '#FFFFFF' }}>Allow</Text>
                       </TouchableOpacity>
                     )}
                     <ChevronRight size={16} color={colors.textMuted} />
@@ -948,10 +951,10 @@ export default function OnboardingScreen() {
                     <BatteryCharging size={22} color="#16A34A" strokeWidth={2.4} />
                   </View>
                   <View style={{ flex: 1, gap: 2 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '800', color: colors.textPrimary }}>
+                    <Text style={{ fontFamily: fontFamilies.semiBold, fontSize: 14.5, fontWeight: '600', color: colors.textPrimary }}>
                       Background Activity
                     </Text>
-                    <Text style={{ fontSize: 12, color: colors.textSecondary, lineHeight: 16 }}>
+                    <Text style={{ fontFamily: fontFamilies.regular, fontSize: 12, color: colors.textSecondary, lineHeight: 16 }}>
                       Keep blocking active in background to ensure consistency.
                     </Text>
                   </View>
@@ -969,7 +972,7 @@ export default function OnboardingScreen() {
                         }}
                       >
                         <CheckCircle2 size={13} color="#059669" fill="#059669" />
-                        <Text style={{ fontSize: 12, fontWeight: '700', color: '#059669' }}>Active</Text>
+                        <Text style={{ fontFamily: fontFamilies.medium, fontSize: 12, fontWeight: '500', color: '#059669' }}>Active</Text>
                       </View>
                     ) : (
                       <TouchableOpacity
@@ -982,7 +985,7 @@ export default function OnboardingScreen() {
                         onPress={handleGrantBattery}
                         activeOpacity={0.8}
                       >
-                        <Text style={{ fontSize: 12, fontWeight: '800', color: '#FFFFFF' }}>Allow</Text>
+                        <Text style={{ fontFamily: fontFamilies.medium, fontSize: 12, fontWeight: '500', color: '#FFFFFF' }}>Allow</Text>
                       </TouchableOpacity>
                     )}
                     <ChevronRight size={16} color={colors.textMuted} />
@@ -1022,10 +1025,10 @@ export default function OnboardingScreen() {
                     <CameraIcon size={22} color="#8B5CF6" strokeWidth={2.4} />
                   </View>
                   <View style={{ flex: 1, gap: 2 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '800', color: colors.textPrimary }}>
+                    <Text style={{ fontFamily: fontFamilies.semiBold, fontSize: 14.5, fontWeight: '600', color: colors.textPrimary }}>
                       Camera
                     </Text>
-                    <Text style={{ fontSize: 12, color: colors.textSecondary, lineHeight: 16 }}>
+                    <Text style={{ fontFamily: fontFamilies.regular, fontSize: 12, color: colors.textSecondary, lineHeight: 16 }}>
                       Required for AI exercise tracking and form analysis.
                     </Text>
                   </View>
@@ -1043,7 +1046,7 @@ export default function OnboardingScreen() {
                         }}
                       >
                         <CheckCircle2 size={13} color="#059669" fill="#059669" />
-                        <Text style={{ fontSize: 12, fontWeight: '700', color: '#059669' }}>Active</Text>
+                        <Text style={{ fontFamily: fontFamilies.medium, fontSize: 12, fontWeight: '500', color: '#059669' }}>Active</Text>
                       </View>
                     ) : (
                       <TouchableOpacity
@@ -1056,7 +1059,7 @@ export default function OnboardingScreen() {
                         onPress={handleGrantCamera}
                         activeOpacity={0.8}
                       >
-                        <Text style={{ fontSize: 12, fontWeight: '800', color: '#FFFFFF' }}>Allow</Text>
+                        <Text style={{ fontFamily: fontFamilies.medium, fontSize: 12, fontWeight: '500', color: '#FFFFFF' }}>Allow</Text>
                       </TouchableOpacity>
                     )}
                     <ChevronRight size={16} color={colors.textMuted} />
@@ -1224,7 +1227,7 @@ export default function OnboardingScreen() {
                               )}
                             </View>
                             <View style={{ flex: 1 }}>
-                              <Text style={[styles.miniAppName, { color: colors.textPrimary }, isSelected && { fontWeight: '800' }]}>
+                              <Text style={[styles.miniAppName, { color: colors.textPrimary }, isSelected && { fontFamily: fontFamilies.semiBold, fontWeight: '600' }]}>
                                 {app.appName}
                               </Text>
                               <Text style={[styles.miniAppPkg, { color: colors.textMuted }]} numberOfLines={1}>
@@ -1316,13 +1319,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   langPickerText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    fontWeight: '500',
+    letterSpacing: 0.2,
   },
   skipText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '500',
   },
   iconBtn: {
     width: 36,
@@ -1333,9 +1338,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerStageText: {
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 0.8,
+    fontFamily: fontFamilies.medium,
+    fontSize: 11.5,
+    fontWeight: '500',
+    letterSpacing: 0.5,
   },
   stepDotsRow: {
     flexDirection: 'row',
@@ -1356,16 +1362,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   heroTitle: {
-    fontSize: 26,
-    fontWeight: '900',
-    letterSpacing: -0.5,
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 22,
+    fontWeight: '600',
+    letterSpacing: -0.4,
     textAlign: 'center',
   },
   heroSubtitle: {
-    fontSize: 13.5,
+    fontFamily: fontFamilies.regular,
+    fontSize: 13,
     textAlign: 'center',
     lineHeight: 19,
     paddingHorizontal: 16,
+    fontWeight: '400',
   },
   avatarCenterWrap: {
     alignItems: 'center',
@@ -1416,13 +1425,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   googleGText: {
+    fontFamily: fontFamilies.semiBold,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
   },
   googleSignInText: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontFamily: fontFamilies.medium,
+    fontSize: 13.5,
+    fontWeight: '500',
   },
   dividerRow: {
     flexDirection: 'row',
@@ -1436,17 +1447,19 @@ const styles = StyleSheet.create({
     height: 1,
   },
   dividerText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   inputGroupBlock: {
     width: '100%',
     gap: 6,
   },
   cleanInputLabel: {
+    fontFamily: fontFamilies.medium,
     fontSize: 11.5,
-    fontWeight: '800',
-    letterSpacing: 0.4,
+    fontWeight: '500',
+    letterSpacing: 0.2,
   },
   cleanTextInputBox: {
     flexDirection: 'row',
@@ -1458,17 +1471,19 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   cleanTextInputField: {
+    fontFamily: fontFamilies.medium,
     flex: 1,
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 14.5,
+    fontWeight: '500',
     padding: 0,
   },
   diceBtnWrap: {
     padding: 4,
   },
   cleanErrorText: {
+    fontFamily: fontFamilies.regular,
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '400',
     marginTop: 2,
   },
   avatarSectionBlock: {
@@ -1507,9 +1522,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   permStatusHeaderText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.4,
+    fontWeight: '500',
+    letterSpacing: 0.2,
   },
   permCard: {
     padding: 14,
@@ -1533,12 +1549,15 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   permCardTitle: {
+    fontFamily: fontFamilies.semiBold,
     fontSize: 13.5,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   permCardDesc: {
+    fontFamily: fontFamilies.regular,
     fontSize: 11,
     lineHeight: 15,
+    fontWeight: '400',
   },
   permActionBtn: {
     paddingHorizontal: 14,
@@ -1546,15 +1565,18 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   permActionBtnText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 11.5,
-    fontWeight: '800',
+    fontWeight: '500',
     color: '#FFFFFF',
-    letterSpacing: 0.4,
+    letterSpacing: 0.2,
   },
   privacyNoteText: {
+    fontFamily: fontFamilies.regular,
     fontSize: 11.5,
     textAlign: 'center',
     marginTop: 4,
+    fontWeight: '400',
   },
   // Step 3 Styles
   goalSectionBlock: {
@@ -1567,8 +1589,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   appCountText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '500',
   },
   timePillsRow: {
     flexDirection: 'row',
@@ -1582,8 +1605,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   timePillText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '500',
   },
   customTimeInputBox: {
     flexDirection: 'row',
@@ -1595,13 +1619,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   customTimeLabel: {
+    fontFamily: fontFamilies.medium,
     fontSize: 11.5,
-    fontWeight: '700',
+    fontWeight: '500',
   },
   customTimeTextInput: {
+    fontFamily: fontFamilies.semiBold,
     width: 60,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '600',
     textAlign: 'center',
     borderRadius: 6,
     paddingVertical: 4,
@@ -1617,9 +1643,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   quickSelectBtnText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.4,
+    fontWeight: '500',
+    letterSpacing: 0.2,
   },
   searchBarBox: {
     flexDirection: 'row',
@@ -1631,9 +1658,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   searchBarInput: {
+    fontFamily: fontFamilies.regular,
     flex: 1,
     fontSize: 12.5,
-    fontWeight: '600',
+    fontWeight: '400',
     padding: 0,
   },
   appsLoadingBox: {
@@ -1642,7 +1670,9 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   appsLoadingText: {
+    fontFamily: fontFamilies.regular,
     fontSize: 11.5,
+    fontWeight: '400',
   },
   noAppsBox: {
     paddingVertical: 20,
@@ -1650,7 +1680,9 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   noAppsText: {
+    fontFamily: fontFamilies.regular,
     fontSize: 11.5,
+    fontWeight: '400',
   },
   miniAppCard: {
     flexDirection: 'row',
@@ -1668,11 +1700,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   miniAppName: {
+    fontFamily: fontFamilies.semiBold,
     fontSize: 12.5,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   miniAppPkg: {
+    fontFamily: fontFamilies.regular,
     fontSize: 10,
+    fontWeight: '400',
   },
   lockIndicator: {
     width: 24,
@@ -1698,14 +1733,17 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   primaryCtaText: {
+    fontFamily: fontFamilies.semiBold,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
   },
   footerMottoText: {
+    fontFamily: fontFamilies.regular,
     fontSize: 10.5,
     textAlign: 'center',
     fontStyle: 'italic',
+    fontWeight: '400',
   },
 });

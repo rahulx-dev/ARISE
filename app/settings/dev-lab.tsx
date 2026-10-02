@@ -41,6 +41,7 @@ import { eq } from 'drizzle-orm';
 import { showTestOverlay, temporaryUnlock } from '../../modules/app-blocker';
 import { adMobService } from '../../src/services/adMobService';
 import { redGateService } from '../../src/services/redGateService';
+import { fontFamilies } from '../../src/theme/typography';
 
 export default function DevLabScreen() {
   const { colors, isDark } = useTheme();
@@ -315,7 +316,7 @@ export default function DevLabScreen() {
               style={[styles.actionPillBtn, { backgroundColor: 'rgba(10, 132, 255, 0.15)', borderColor: colors.primary }]}
               onPress={handleInstantLevelUp}
             >
-              <Text style={[styles.actionPillBtnText, { color: colors.primary, fontWeight: '900' }]}>
+              <Text style={[styles.actionPillBtnText, { color: colors.primary, fontWeight: '600' }]}>
                 +1 Level (Real XP)
               </Text>
             </TouchableOpacity>
@@ -373,7 +374,7 @@ export default function DevLabScreen() {
               style={[styles.actionPillBtn, { backgroundColor: 'rgba(245, 158, 11, 0.15)', borderColor: '#F59E0B' }]}
               onPress={() => addCoinsValue(2000)}
             >
-              <Text style={[styles.actionPillBtnText, { color: '#F59E0B', fontWeight: '900' }]}>
+              <Text style={[styles.actionPillBtnText, { color: '#F59E0B', fontWeight: '600' }]}>
                 +2,000 Coins (Shop Gear)
               </Text>
             </TouchableOpacity>
@@ -622,14 +623,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
+    fontFamily: fontFamilies.semiBold,
     fontSize: 14,
-    fontWeight: '900',
-    letterSpacing: 0.5,
+    fontWeight: '600',
+    letterSpacing: -0.2,
   },
   headerSub: {
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 0.8,
+    fontFamily: fontFamilies.medium,
+    fontSize: 9.5,
+    fontWeight: '500',
+    letterSpacing: 0.5,
     marginTop: 1,
   },
   scrollContent: {
@@ -648,8 +651,9 @@ const styles = StyleSheet.create({
     borderColor: '#10B981',
   },
   toastText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '500',
     color: '#10B981',
   },
   liveStatsCard: {
@@ -658,9 +662,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   cardTag: {
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1,
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 9.5,
+    fontWeight: '600',
+    letterSpacing: 0.8,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -671,13 +676,15 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   statColLabel: {
-    fontSize: 8,
-    fontWeight: '800',
+    fontFamily: fontFamilies.medium,
+    fontSize: 8.5,
+    fontWeight: '500',
     color: '#8E8E93',
   },
   statColVal: {
-    fontSize: 16,
-    fontWeight: '900',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 15,
+    fontWeight: '600',
   },
   sectionWrap: {
     gap: 8,
@@ -693,11 +700,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   sectionTitle: {
-    fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 0.3,
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 12.5,
+    fontWeight: '600',
+    letterSpacing: 0.1,
   },
   sectionHint: {
+    fontFamily: fontFamilies.regular,
     fontSize: 11,
     lineHeight: 16,
   },
@@ -716,8 +725,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   actionPillBtnText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '500',
     color: '#FFFFFF',
   },
   bigNavBtn: {
@@ -730,9 +740,10 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   bigNavBtnText: {
-    fontSize: 11,
-    fontWeight: '900',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 12,
+    fontWeight: '600',
     color: '#FFFFFF',
-    letterSpacing: 0.5,
+    letterSpacing: 0.2,
   },
 });

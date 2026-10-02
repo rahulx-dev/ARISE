@@ -26,6 +26,14 @@ class BlockOverlayService : Service() {
     companion object {
         @Volatile
         var isOverlayShowing: Boolean = false
+
+        @Volatile
+        var currentOverlayPackageName: String? = null
+
+        fun isShowingFor(packageName: String): Boolean {
+            val normalized = packageName.trim().lowercase(Locale.ROOT)
+            return isOverlayShowing && currentOverlayPackageName == normalized
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -36,19 +44,34 @@ class BlockOverlayService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // START_STICKY may restart a service with a null intent.  A lock overlay
+        // without a fresh package scope is never safe to restore.
         val pkg = intent?.getStringExtra("PACKAGE_NAME")
-        if (pkg != null) {
-            currentPackageName = pkg
+            ?.trim()
+            ?.lowercase(Locale.ROOT)
+            ?.takeIf { it.isNotEmpty() && it != "null" }
+        if (pkg == null) {
+            removeExistingOverlay()
+            stopSelf(startId)
+            return START_NOT_STICKY
         }
+
+        val packageChanged = currentPackageName != pkg
+        if (packageChanged) {
+            removeExistingOverlay()
+        }
+        currentPackageName = pkg
 
         if (overlayView != null && overlayView?.isAttachedToWindow == true) {
             overlayView?.visibility = View.VISIBLE
             overlayView?.bringToFront()
         } else {
-            removeExistingOverlay()
+            removeExistingOverlay(clearPackage = false)
             showOverlay()
         }
-        return START_STICKY
+        // The monitor service is responsible for re-presenting after a process
+        // restart.  Do not let Android recreate an unscoped overlay on its own.
+        return START_NOT_STICKY
     }
 
     private fun isEmergencyBailoutAvailable(): Boolean {
@@ -65,13 +88,11 @@ class BlockOverlayService : Service() {
     private fun claimEmergencyBailout() {
         try {
             val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-            getSharedPreferences("arise_blocker_prefs", Context.MODE_PRIVATE)
-                .edit()
-                .putString("last_emergency_bailout_date", today)
-                .apply()
-
             val unlockUntil = System.currentTimeMillis() + (5 * 60 * 1000L)
-            AppMonitorService.setUnlockUntil(this, unlockUntil)
+            if (!AppMonitorService.setUnlockUntil(this, unlockUntil)) {
+                Toast.makeText(this, "Unable to activate the emergency pass.", Toast.LENGTH_LONG).show()
+                return
+            }
 
             try {
                 val serviceIntent = Intent(this, AppMonitorService::class.java).apply {
@@ -82,7 +103,16 @@ class BlockOverlayService : Service() {
                 } else {
                     startService(serviceIntent)
                 }
-            } catch (_: Exception) {}
+                getSharedPreferences("arise_blocker_prefs", Context.MODE_PRIVATE)
+                    .edit()
+                    .putString("last_emergency_bailout_date", today)
+                    .commit()
+            } catch (e: Exception) {
+                AppMonitorService.setUnlockUntil(this, 0L)
+                Log.e(TAG, "Unable to start monitor for emergency pass", e)
+                Toast.makeText(this, "Unable to activate the emergency pass.", Toast.LENGTH_LONG).show()
+                return
+            }
 
             Toast.makeText(this, "Emergency 5-Minute Pass Activated! Stay disciplined.", Toast.LENGTH_LONG).show()
         } catch (_: Exception) {}
@@ -151,7 +181,20 @@ class BlockOverlayService : Service() {
     }
 
     private fun showOverlay() {
+        val scopedPackage = currentPackageName
+            ?.trim()
+            ?.lowercase(Locale.ROOT)
+            ?.takeIf { it.isNotEmpty() && it != "null" }
+        if (scopedPackage == null) {
+            Log.w(TAG, "Refusing to show an unscoped lock overlay")
+            removeExistingOverlay()
+            stopSelf()
+            return
+        }
+        currentPackageName = scopedPackage
+
         if (System.currentTimeMillis() < AppMonitorService.getUnlockUntil(this)) {
+            removeExistingOverlay()
             stopSelf()
             return
         }
@@ -200,6 +243,7 @@ class BlockOverlayService : Service() {
             windowManager?.addView(view, params)
             overlayView = view
             isOverlayShowing = true
+            currentOverlayPackageName = currentPackageName
             Log.d(TAG, "Overlay successfully attached for $currentPackageName")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to attach WindowManager overlay, falling back to LockScreenActivity", e)
@@ -217,7 +261,7 @@ class BlockOverlayService : Service() {
         }
     }
 
-    private fun removeExistingOverlay() {
+    private fun removeExistingOverlay(clearPackage: Boolean = true) {
         overlayView?.let { view ->
             try {
                 if (view.isAttachedToWindow) {
@@ -229,6 +273,8 @@ class BlockOverlayService : Service() {
             overlayView = null
         }
         isOverlayShowing = false
+        currentOverlayPackageName = null
+        if (clearPackage) currentPackageName = null
     }
 
     override fun onDestroy() {

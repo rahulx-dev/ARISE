@@ -37,6 +37,7 @@ import { AVATAR_IMAGES, AVATAR_ICONS } from '../../src/components/profile/Avatar
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTheme } from '../../src/hooks/useTheme';
 import { ThemeMode } from '../../src/theme/themeEngine';
+import { fontFamilies } from '../../src/theme/typography';
 import { appBlockerService } from '../../src/native';
 import { db } from '../../src/database/client';
 import { appRestriction } from '../../src/database/schema';
@@ -319,7 +320,7 @@ export default function ProfileEditScreen() {
                       style={[
                         styles.optionPillText,
                         { color: colors.textSecondary },
-                        workoutGoal === item.id && { color: '#FFFFFF', fontWeight: '900' },
+                        workoutGoal === item.id && { color: '#FFFFFF', fontFamily: fontFamilies.semiBold, fontWeight: '600' },
                       ]}
                     >
                       {item.label}
@@ -349,7 +350,7 @@ export default function ProfileEditScreen() {
                       style={[
                         styles.optionPillText,
                         { color: colors.textSecondary },
-                        dailyFocusGoal === mins && { color: '#FFFFFF', fontWeight: '900' },
+                        dailyFocusGoal === mins && { color: '#FFFFFF', fontFamily: fontFamilies.semiBold, fontWeight: '600' },
                       ]}
                     >
                       {mins}m
@@ -396,9 +397,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
+    fontFamily: fontFamilies.semiBold,
     fontSize: 13,
-    fontWeight: '900',
-    letterSpacing: 1.2,
+    fontWeight: '600',
+    letterSpacing: 0.8,
   },
   saveHeaderBtn: {
     paddingHorizontal: 14,
@@ -406,10 +408,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   saveHeaderText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '500',
     color: '#FFFFFF',
-    letterSpacing: 1,
+    letterSpacing: 0.5,
   },
   scrollContent: {
     padding: 20,
@@ -447,12 +450,15 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   avatarSectionTitle: {
-    fontSize: 15,
-    fontWeight: '900',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 14.5,
+    fontWeight: '600',
   },
   avatarSectionSub: {
+    fontFamily: fontFamilies.regular,
     fontSize: 11,
     lineHeight: 15,
+    fontWeight: '400',
   },
   avatarButtonsRow: {
     flexDirection: 'row',
@@ -469,8 +475,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   smallActionBtnText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '500',
   },
   avatarTabsHeader: {
     flexDirection: 'row',
@@ -489,8 +496,9 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   tabPillText: {
-    fontSize: 9,
-    fontWeight: '800',
+    fontFamily: fontFamilies.medium,
+    fontSize: 9.5,
+    fontWeight: '500',
     color: '#8E8E93',
   },
   avatarScroll: {
@@ -529,24 +537,27 @@ const styles = StyleSheet.create({
     borderRadius: 18,
   },
   sectionTitle: {
+    fontFamily: fontFamilies.semiBold,
     fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 1.2,
+    fontWeight: '600',
+    letterSpacing: 0.8,
   },
   inputGroup: {
     gap: 6,
   },
   inputLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1,
+    fontFamily: fontFamilies.medium,
+    fontSize: 10.5,
+    fontWeight: '500',
+    letterSpacing: 0.5,
   },
   inputBox: {
+    fontFamily: fontFamilies.medium,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 13.5,
+    fontWeight: '500',
     borderWidth: 1,
   },
   bioInputBox: {
@@ -565,8 +576,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   optionPillText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '500',
   },
   themeSelectorRow: {
     flexDirection: 'row',
@@ -581,8 +593,9 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   themeCardText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '500',
   },
   settingRowDivider: {
     height: 1,
@@ -598,11 +611,14 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   settingMainText: {
+    fontFamily: fontFamilies.semiBold,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   settingSubText: {
+    fontFamily: fontFamilies.regular,
     fontSize: 11,
+    fontWeight: '400',
   },
   toggleBadge: {
     paddingHorizontal: 12,
@@ -610,7 +626,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   toggleBadgeText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '500',
   },
 });

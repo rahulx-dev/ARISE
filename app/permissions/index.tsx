@@ -29,6 +29,7 @@ import { ARISEModal } from '../../src/components/ui/ARISEModal';
 import { appBlockerService } from '../../src/native';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTheme } from '../../src/hooks/useTheme';
+import { fontFamilies } from '../../src/theme/typography';
 
 interface PendingPerm {
   id: 'usage' | 'overlay' | 'battery' | 'camera' | 'notif';
@@ -421,8 +422,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '800',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 17,
+    fontWeight: '600',
     letterSpacing: -0.3,
   },
   backBtn: {
@@ -449,16 +451,20 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   overviewTitle: {
-    fontSize: 16,
-    fontWeight: '800',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 15.5,
+    fontWeight: '600',
   },
   overviewSubtitle: {
+    fontFamily: fontFamilies.regular,
     fontSize: 11,
-    fontWeight: '500',
+    fontWeight: '400',
   },
   overviewDesc: {
+    fontFamily: fontFamilies.regular,
     fontSize: 12,
     lineHeight: 18,
+    fontWeight: '400',
   },
   permList: {
     gap: 12,
@@ -489,8 +495,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   permTitle: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 13.5,
+    fontWeight: '600',
     flex: 1,
     marginRight: 8,
   },
@@ -500,13 +507,16 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   statusBadgeText: {
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 0.5,
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 9.5,
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
   permDesc: {
+    fontFamily: fontFamilies.regular,
     fontSize: 11,
     lineHeight: 16,
+    fontWeight: '400',
   },
   grantBtn: {
     flexDirection: 'row',
@@ -517,10 +527,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   grantBtnText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '500',
     color: '#000000',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   modalActionBtn: {
     paddingVertical: 14,
@@ -530,8 +541,9 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   modalActionBtnText: {
-    fontSize: 14,
-    fontWeight: '800',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 13.5,
+    fontWeight: '600',
     color: '#000000',
   },
 });

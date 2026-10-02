@@ -33,6 +33,7 @@ import { useHaptics } from "../../src/hooks/useHaptics";
 import { useTheme } from "../../src/hooks/useTheme";
 import { showIOSAlert } from "../../src/components/ios/IOSAlertModal";
 import { useSettingsStore } from "../../src/stores/useSettingsStore";
+import { fontFamilies } from "../../src/theme/typography";
 
 interface AppItem {
   packageName: string;
@@ -395,7 +396,8 @@ export default function LockedAppsScreen() {
                           : isDark
                           ? "#FFFFFF"
                           : "#0F172A",
-                        fontWeight: isSelected ? "800" : "600",
+                        fontFamily: isSelected ? fontFamilies.semiBold : fontFamilies.medium,
+                        fontWeight: isSelected ? "600" : "500",
                       },
                     ]}
                   >
@@ -445,7 +447,8 @@ export default function LockedAppsScreen() {
                           : isDark
                           ? "#FFFFFF"
                           : "#0F172A",
-                        fontWeight: isSelected ? "800" : "600",
+                        fontFamily: isSelected ? fontFamilies.semiBold : fontFamilies.medium,
+                        fontWeight: isSelected ? "600" : "500",
                       },
                     ]}
                   >
@@ -485,7 +488,8 @@ export default function LockedAppsScreen() {
                       : isDark
                       ? "#FFFFFF"
                       : "#0F172A",
-                    fontWeight: isCustomSelected ? "800" : "600",
+                    fontFamily: isCustomSelected ? fontFamilies.semiBold : fontFamilies.medium,
+                    fontWeight: isCustomSelected ? "600" : "500",
                   },
                 ]}
               >
@@ -844,25 +848,28 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: "900",
-    letterSpacing: 0.2,
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 17,
+    fontWeight: "600",
+    letterSpacing: -0.2,
   },
   headerSubtitle: {
+    fontFamily: fontFamilies.regular,
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: "400",
   },
   lockedBadgePill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 5,
     borderRadius: 12,
   },
   lockedBadgeText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 12,
-    fontWeight: "800",
+    fontWeight: "500",
     color: "#EF4444",
   },
 
@@ -884,10 +891,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   permTitle: {
+    fontFamily: fontFamilies.semiBold,
     fontSize: 14.5,
-    fontWeight: "900",
+    fontWeight: "600",
   },
   permDesc: {
+    fontFamily: fontFamilies.regular,
     fontSize: 11.5,
     lineHeight: 15,
   },
@@ -901,8 +910,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   permGrantBtnText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 12,
-    fontWeight: "800",
+    fontWeight: "500",
     color: "#FFFFFF",
   },
 
@@ -931,10 +941,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   allowanceTitle: {
+    fontFamily: fontFamilies.semiBold,
     fontSize: 15,
-    fontWeight: "900",
+    fontWeight: "600",
   },
   allowanceSubtitle: {
+    fontFamily: fontFamilies.regular,
     fontSize: 12,
     marginTop: 1,
   },
@@ -945,8 +957,8 @@ const styles = StyleSheet.create({
   },
   allowancePill: {
     flex: 1,
-    height: 48,
-    borderRadius: 14,
+    height: 44,
+    borderRadius: 12,
     borderWidth: 1.5,
     alignItems: "center",
     justifyContent: "center",
@@ -954,15 +966,17 @@ const styles = StyleSheet.create({
   },
   allowancePillWide: {
     flex: 1,
-    height: 46,
-    borderRadius: 14,
+    height: 44,
+    borderRadius: 12,
     borderWidth: 1.5,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 6,
   },
   allowancePillText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 12,
+    fontWeight: "500",
     textAlign: "center",
   },
 
@@ -971,15 +985,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    height: 46,
-    borderRadius: 14,
+    height: 44,
+    borderRadius: 12,
     borderWidth: 1,
     paddingHorizontal: 14,
   },
   searchInput: {
     flex: 1,
+    fontFamily: fontFamilies.regular,
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "400",
   },
 
   // 5. Section Header
@@ -991,17 +1006,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   listSectionTitle: {
-    fontSize: 15.5,
-    fontWeight: "900",
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 15,
+    fontWeight: "600",
   },
   listSectionSub: {
+    fontFamily: fontFamilies.medium,
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: "500",
   },
 
   // 6. Apps List Card
   appsListCard: {
-    borderRadius: 20,
+    borderRadius: 18,
     borderWidth: 1,
     overflow: "hidden",
     shadowColor: "#000000",
@@ -1014,56 +1031,60 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 13,
     gap: 14,
   },
   appIconImg: {
-    width: 44,
-    height: 44,
+    width: 42,
+    height: 42,
     borderRadius: 12,
   },
   appIconPlaceholder: {
-    width: 44,
-    height: 44,
+    width: 42,
+    height: 42,
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
   },
   appIconInitial: {
-    fontSize: 18,
-    fontWeight: "900",
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 16,
+    fontWeight: "600",
   },
   appMetaCol: {
     flex: 1,
     gap: 2,
   },
   appNameText: {
-    fontSize: 15,
-    fontWeight: "800",
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 14.5,
+    fontWeight: "600",
   },
   appPackageText: {
-    fontSize: 12,
-    fontWeight: "500",
+    fontFamily: fontFamilies.regular,
+    fontSize: 11.5,
+    fontWeight: "400",
   },
   lockStatusPill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
   },
   lockStatusPillLocked: {
     backgroundColor: "#EF4444",
   },
   lockStatusText: {
-    fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 0.3,
+    fontFamily: fontFamilies.medium,
+    fontSize: 11.5,
+    fontWeight: "500",
+    letterSpacing: 0.1,
   },
   appRowDivider: {
     height: 1,
-    marginLeft: 74,
+    marginLeft: 72,
   },
 
   // Loading & Empty States
@@ -1073,21 +1094,24 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   loadingText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 13,
-    fontWeight: "600",
+    fontWeight: "500",
   },
   emptyStateCard: {
-    borderRadius: 20,
+    borderRadius: 18,
     borderWidth: 1,
     padding: 30,
     alignItems: "center",
     gap: 10,
   },
   emptyStateTitle: {
-    fontSize: 16,
-    fontWeight: "800",
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 15.5,
+    fontWeight: "600",
   },
   emptyStateDesc: {
+    fontFamily: fontFamilies.regular,
     fontSize: 12,
     textAlign: "center",
     lineHeight: 17,
@@ -1104,7 +1128,7 @@ const styles = StyleSheet.create({
   customModalCard: {
     width: "100%",
     maxWidth: 360,
-    borderRadius: 24,
+    borderRadius: 20,
     borderWidth: 1,
     padding: 20,
     gap: 14,
@@ -1120,20 +1144,23 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   customModalTitle: {
+    fontFamily: fontFamilies.semiBold,
     fontSize: 16,
-    fontWeight: "900",
+    fontWeight: "600",
   },
   customModalDesc: {
+    fontFamily: fontFamilies.regular,
     fontSize: 12.5,
     lineHeight: 17,
   },
   customInput: {
-    height: 48,
+    height: 46,
     borderRadius: 12,
     borderWidth: 1,
     paddingHorizontal: 14,
-    fontSize: 16,
-    fontWeight: "700",
+    fontFamily: fontFamilies.medium,
+    fontSize: 15,
+    fontWeight: "500",
   },
   customModalActions: {
     flexDirection: "row",
@@ -1142,26 +1169,28 @@ const styles = StyleSheet.create({
   },
   customCancelBtn: {
     flex: 1,
-    height: 44,
+    height: 42,
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
   },
   customCancelBtnText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 13,
-    fontWeight: "800",
+    fontWeight: "500",
   },
   customSaveBtn: {
     flex: 1,
-    height: 44,
+    height: 42,
     borderRadius: 12,
     backgroundColor: "#EF4444",
     alignItems: "center",
     justifyContent: "center",
   },
   customSaveBtnText: {
+    fontFamily: fontFamilies.semiBold,
     fontSize: 13,
-    fontWeight: "800",
+    fontWeight: "600",
     color: "#FFFFFF",
   },
 });

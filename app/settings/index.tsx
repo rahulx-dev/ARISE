@@ -43,6 +43,7 @@ import { useLanguageStore, SUPPORTED_LANGUAGES } from '../../src/services/i18n';
 import { backupService } from '../../src/services/backupService';
 import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
 import { ThemeMode } from '../../src/theme/themeEngine';
+import { fontFamilies } from '../../src/theme/typography';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -513,8 +514,8 @@ export default function SettingsScreen() {
             <Text style={[styles.resetWarningText, { color: colors.textSecondary }]}>
               This will permanently wipe all Coins, XP, Level progress, workout logs, and photos, returning ARISE to the first-launch setup.
             </Text>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textSecondary, marginTop: 10 }}>
-              Type <Text style={{ color: '#E53935', fontWeight: '900' }}>ARISE</Text> to confirm:
+            <Text style={{ fontFamily: fontFamilies.regular, fontSize: 13, fontWeight: '400', color: colors.textSecondary, marginTop: 10 }}>
+              Type <Text style={{ color: '#E53935', fontFamily: fontFamilies.semiBold, fontWeight: '600' }}>ARISE</Text> to confirm:
             </Text>
             <TextInput
               style={[styles.resetInput, { backgroundColor: isDark ? '#12131A' : '#F9FAFB', borderColor: colors.border, color: colors.textPrimary }]}
@@ -595,9 +596,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '900',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 18,
+    fontWeight: '600',
     color: '#111827',
+    letterSpacing: -0.3,
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -609,10 +612,11 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   sectionHeading: {
+    fontFamily: fontFamilies.medium,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '500',
     color: '#6B7280',
-    letterSpacing: 1,
+    letterSpacing: 0.8,
     paddingHorizontal: 4,
   },
   cardGroup: {
@@ -646,14 +650,16 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   menuTitle: {
+    fontFamily: fontFamilies.semiBold,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#111827',
   },
   menuDesc: {
+    fontFamily: fontFamilies.regular,
     fontSize: 11.5,
     color: '#6B7280',
-    fontWeight: '500',
+    fontWeight: '400',
   },
   pillBadge: {
     flexDirection: 'row',
@@ -661,8 +667,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   pillBadgeText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '500',
     color: '#6B7280',
   },
   divider: {
@@ -692,8 +699,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '900',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 17,
+    fontWeight: '600',
     color: '#111827',
   },
   optionCard: {
@@ -710,14 +718,17 @@ const styles = StyleSheet.create({
     borderColor: '#FECACA',
   },
   optionTitle: {
-    fontSize: 14,
-    fontWeight: '800',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 13.5,
+    fontWeight: '600',
     color: '#111827',
   },
   optionDesc: {
+    fontFamily: fontFamilies.regular,
     fontSize: 11,
     color: '#6B7280',
     marginTop: 2,
+    fontWeight: '400',
   },
   privacyBox: {
     backgroundColor: '#F0F9FF',
@@ -728,14 +739,17 @@ const styles = StyleSheet.create({
     borderColor: '#BAE6FD',
   },
   privacyHeading: {
+    fontFamily: fontFamilies.semiBold,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#0284C7',
   },
   privacyBody: {
+    fontFamily: fontFamilies.regular,
     fontSize: 12,
     lineHeight: 18,
     color: '#334155',
+    fontWeight: '400',
   },
   modalPrimaryBtn: {
     backgroundColor: '#E53935',
@@ -745,25 +759,29 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   modalPrimaryBtnText: {
+    fontFamily: fontFamilies.medium,
     color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    fontWeight: '500',
+    letterSpacing: 0.3,
   },
   resetWarningText: {
-    fontSize: 13,
+    fontFamily: fontFamilies.regular,
+    fontSize: 12.5,
     lineHeight: 18,
     color: '#4B5563',
+    fontWeight: '400',
   },
   resetInput: {
+    fontFamily: fontFamilies.medium,
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
     borderColor: '#E5E7EB',
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 14,
+    fontWeight: '500',
     color: '#111827',
     marginTop: 4,
   },

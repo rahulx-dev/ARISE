@@ -208,65 +208,81 @@ class AppBlockerModule : Module() {
 
         Function("setAppBudget") { packageName: String?, budgetMinutes: Double ->
             val context = appContext.reactContext ?: appContext.currentActivity
+            if (context == null) {
+                Log.e(TAG, "setAppBudget rejected: native context unavailable")
+                return@Function Unit
+            }
             AppMonitorService.setBudget(context, packageName, budgetMinutes)
-            if (context != null) {
-                val intent = Intent(context, AppMonitorService::class.java).apply {
-                    putExtra("UPDATED_BUDGET_MINUTES", budgetMinutes)
-                    if (packageName != null) putExtra("UPDATED_PACKAGE_NAME", packageName)
+            val intent = Intent(context, AppMonitorService::class.java).apply {
+                putExtra("UPDATED_BUDGET_MINUTES", budgetMinutes)
+                if (packageName != null) putExtra("UPDATED_PACKAGE_NAME", packageName)
+            }
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    context.startService(intent)
                 }
-                try {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        context.startForegroundService(intent)
-                    } else {
-                        context.startService(intent)
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error sending budget update to service", e)
-                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error sending budget update to service", e)
             }
             Log.d(TAG, "setAppBudget: $packageName -> $budgetMinutes min")
             Unit
         }
 
         Function("temporaryUnlock") { durationMs: Double ->
+            if (!durationMs.isFinite() || durationMs <= 0.0) {
+                Log.w(TAG, "temporaryUnlock rejected invalid duration: $durationMs")
+                return@Function false
+            }
             val epochTarget = System.currentTimeMillis() + durationMs.toLong()
             val context = appContext.reactContext ?: appContext.currentActivity
-            AppMonitorService.setUnlockUntil(context, epochTarget)
-            if (context != null) {
-                val intent = Intent(context, AppMonitorService::class.java).apply {
-                    putExtra("UNLOCKED_UNTIL_EPOCH", epochTarget)
+            if (context == null || !AppMonitorService.setUnlockUntil(context, epochTarget)) {
+                Log.e(TAG, "temporaryUnlock rejected: native context/persistence unavailable")
+                return@Function false
+            }
+            val intent = Intent(context, AppMonitorService::class.java).apply {
+                putExtra("UNLOCKED_UNTIL_EPOCH", epochTarget)
+            }
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    context.startService(intent)
                 }
-                try {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        context.startForegroundService(intent)
-                    } else {
-                        context.startService(intent)
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error sending unlock to service", e)
-                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error sending unlock to service", e)
+                AppMonitorService.setUnlockUntil(context, 0L)
+                return@Function false
             }
             Log.d(TAG, "temporaryUnlock for $durationMs ms, target epoch: $epochTarget")
             true
         }
 
         Function("unlockUntil") { epochMs: Double ->
+            if (!epochMs.isFinite()) {
+                Log.w(TAG, "unlockUntil rejected invalid epoch: $epochMs")
+                return@Function false
+            }
             val epochTarget = epochMs.toLong()
             val context = appContext.reactContext ?: appContext.currentActivity
-            AppMonitorService.setUnlockUntil(context, epochTarget)
-            if (context != null) {
-                val intent = Intent(context, AppMonitorService::class.java).apply {
-                    putExtra("UNLOCKED_UNTIL_EPOCH", epochTarget)
+            if (context == null || !AppMonitorService.setUnlockUntil(context, epochTarget)) {
+                Log.e(TAG, "unlockUntil rejected: native context/persistence unavailable")
+                return@Function false
+            }
+            val intent = Intent(context, AppMonitorService::class.java).apply {
+                putExtra("UNLOCKED_UNTIL_EPOCH", epochTarget)
+            }
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    context.startService(intent)
                 }
-                try {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        context.startForegroundService(intent)
-                    } else {
-                        context.startService(intent)
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error sending unlock to service", e)
-                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error sending unlock to service", e)
+                AppMonitorService.setUnlockUntil(context, 0L)
+                return@Function false
             }
             Log.d(TAG, "unlockUntil epoch: $epochTarget")
             true
@@ -282,15 +298,25 @@ class AppBlockerModule : Module() {
 
         Function("showTestOverlay") { targetPackage: String? ->
             val context = appContext.reactContext ?: appContext.currentActivity
-            if (context != null) {
-                val overlayIntent = Intent(context, BlockOverlayService::class.java).apply {
-                    putExtra("PACKAGE_NAME", targetPackage ?: "com.instagram.android")
-                    putExtra("BUDGET_MS", 0L)
-                    putExtra("USED_MS", 35 * 60 * 1000L)
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                }
+            if (context == null) return@Function false
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
+                Log.w(TAG, "showTestOverlay rejected: overlay permission unavailable")
+                return@Function false
+            }
+            val packageName = targetPackage?.trim()?.takeIf { it.isNotEmpty() && it != "null" }
+                ?: return@Function false
+            val overlayIntent = Intent(context, BlockOverlayService::class.java).apply {
+                putExtra("PACKAGE_NAME", packageName)
+                putExtra("BUDGET_MS", 0L)
+                putExtra("USED_MS", 35 * 60 * 1000L)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            try {
                 context.startService(overlayIntent)
-                Log.d(TAG, "showTestOverlay launched for ${targetPackage ?: "com.instagram.android"}")
+                Log.d(TAG, "showTestOverlay launched for $packageName")
+            } catch (e: Exception) {
+                Log.e(TAG, "showTestOverlay failed", e)
+                return@Function false
             }
             true
         }

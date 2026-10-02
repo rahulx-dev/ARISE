@@ -20,6 +20,21 @@ class LockScreenActivity : Activity() {
     companion object {
         @Volatile
         var isActivityShowing: Boolean = false
+
+        @Volatile
+        private var activeInstance: LockScreenActivity? = null
+
+        fun isShowingFor(packageName: String): Boolean {
+            val normalized = packageName.trim().lowercase(Locale.ROOT)
+            return isActivityShowing && activeInstance?.currentPackageName == normalized
+        }
+
+        fun finishIfShowing() {
+            val instance = activeInstance ?: return
+            instance.runOnUiThread {
+                if (!instance.isFinishing) instance.finish()
+            }
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -41,7 +56,13 @@ class LockScreenActivity : Activity() {
             or View.SYSTEM_UI_FLAG_FULLSCREEN
         )
 
-        currentPackageName = intent?.getStringExtra("PACKAGE_NAME")
+        currentPackageName = normalizePackage(intent?.getStringExtra("PACKAGE_NAME"))
+        if (currentPackageName == null) {
+            // A sticky/recreated activity without an explicit package is never a
+            // valid lock presentation.  Do not render an unscoped lock screen.
+            finish()
+            return
+        }
 
         val lockView = LockScreenViewFactory.buildLockView(
             context = this,
@@ -55,6 +76,34 @@ class LockScreenActivity : Activity() {
         )
 
         setContentView(lockView)
+        activeInstance = this
+        isActivityShowing = true
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+
+        val nextPackage = normalizePackage(intent?.getStringExtra("PACKAGE_NAME"))
+        if (nextPackage == null) {
+            finish()
+            return
+        }
+
+        if (nextPackage != currentPackageName) {
+            currentPackageName = nextPackage
+            val lockView = LockScreenViewFactory.buildLockView(
+                context = this,
+                packageName = currentPackageName,
+                isEmergencyAvailable = isEmergencyBailoutAvailable(),
+                onExitHome = { exitToHomeScreen() },
+                onLaunchPushups = { launchWorkoutUnlock() },
+                onWatchAd = { claimAdPass() },
+                onEmergencyPass = { claimEmergencyBailout() },
+                onShop = { launchShopUnlock() }
+            )
+            setContentView(lockView)
+        }
         isActivityShowing = true
     }
 
@@ -74,6 +123,7 @@ class LockScreenActivity : Activity() {
     override fun onDestroy() {
         super.onDestroy()
         isActivityShowing = false
+        if (activeInstance === this) activeInstance = null
     }
 
     override fun onBackPressed() {
@@ -94,13 +144,12 @@ class LockScreenActivity : Activity() {
     private fun claimEmergencyBailout() {
         try {
             val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-            getSharedPreferences("arise_blocker_prefs", Context.MODE_PRIVATE)
-                .edit()
-                .putString("last_emergency_bailout_date", today)
-                .apply()
-
             val unlockUntil = System.currentTimeMillis() + (5 * 60 * 1000L)
-            AppMonitorService.setUnlockUntil(this, unlockUntil)
+            val persisted = AppMonitorService.setUnlockUntil(this, unlockUntil)
+            if (!persisted) {
+                Toast.makeText(this, "Unable to activate the emergency pass.", Toast.LENGTH_LONG).show()
+                return
+            }
 
             try {
                 val serviceIntent = Intent(this, AppMonitorService::class.java).apply {
@@ -111,7 +160,15 @@ class LockScreenActivity : Activity() {
                 } else {
                     startService(serviceIntent)
                 }
-            } catch (_: Exception) {}
+                getSharedPreferences("arise_blocker_prefs", Context.MODE_PRIVATE)
+                    .edit()
+                    .putString("last_emergency_bailout_date", today)
+                    .commit()
+            } catch (_: Exception) {
+                AppMonitorService.setUnlockUntil(this, 0L)
+                Toast.makeText(this, "Unable to activate the emergency pass.", Toast.LENGTH_LONG).show()
+                return
+            }
 
             Toast.makeText(this, "Emergency 5-Minute Pass Activated! Stay disciplined.", Toast.LENGTH_LONG).show()
         } catch (_: Exception) {}
@@ -172,5 +229,10 @@ class LockScreenActivity : Activity() {
             startActivity(startMain)
         } catch (_: Exception) {}
         finish()
+    }
+
+    private fun normalizePackage(packageName: String?): String? {
+        val normalized = packageName?.trim()?.lowercase(Locale.ROOT)
+        return normalized?.takeIf { it.isNotEmpty() && it != "null" }
     }
 }

@@ -35,7 +35,7 @@ export class NativeAppBlockerDriver implements IAppBlockerDriver {
   }
 
   async hasBatteryOptimizationExemption(): Promise<boolean> {
-    if (Platform.OS !== 'android' || !NativeAppBlocker) return true;
+    if (Platform.OS !== 'android' || !NativeAppBlocker?.hasBatteryOptimizationExemption) return false;
     try {
       const result = await NativeAppBlocker.hasBatteryOptimizationExemption();
       console.log('[NativeAppBlocker] hasBatteryOptimizationExemption:', result);
@@ -48,50 +48,78 @@ export class NativeAppBlockerDriver implements IAppBlockerDriver {
 
   requestUsagePermission(): void {
     if (Platform.OS === 'android' && NativeAppBlocker) {
-      console.log('[NativeAppBlocker] Calling native requestUsagePermission');
-      NativeAppBlocker.requestUsagePermission();
+      try {
+        console.log('[NativeAppBlocker] Calling native requestUsagePermission');
+        NativeAppBlocker.requestUsagePermission();
+      } catch (e) {
+        console.warn('[NativeAppBlocker] requestUsagePermission error:', e);
+      }
     }
   }
 
   requestOverlayPermission(): void {
     if (Platform.OS === 'android' && NativeAppBlocker) {
-      console.log('[NativeAppBlocker] Calling native requestOverlayPermission');
-      NativeAppBlocker.requestOverlayPermission();
+      try {
+        console.log('[NativeAppBlocker] Calling native requestOverlayPermission');
+        NativeAppBlocker.requestOverlayPermission();
+      } catch (e) {
+        console.warn('[NativeAppBlocker] requestOverlayPermission error:', e);
+      }
     }
   }
 
   requestBatteryOptimizationExemption(): void {
     if (Platform.OS === 'android' && NativeAppBlocker) {
-      console.log('[NativeAppBlocker] Calling native requestBatteryOptimizationExemption');
-      NativeAppBlocker.requestBatteryOptimizationExemption();
+      try {
+        console.log('[NativeAppBlocker] Calling native requestBatteryOptimizationExemption');
+        NativeAppBlocker.requestBatteryOptimizationExemption();
+      } catch (e) {
+        console.warn('[NativeAppBlocker] requestBatteryOptimizationExemption error:', e);
+      }
     }
   }
 
   startMonitoring(restrictedPackages: string[]): void {
     if (Platform.OS === 'android' && NativeAppBlocker) {
-      console.log('[NativeAppBlocker] startMonitoring with packages:', restrictedPackages);
-      NativeAppBlocker.startMonitoring(restrictedPackages);
+      try {
+        console.log('[NativeAppBlocker] startMonitoring with packages:', restrictedPackages);
+        NativeAppBlocker.startMonitoring(restrictedPackages);
+      } catch (e) {
+        console.warn('[NativeAppBlocker] startMonitoring error:', e);
+      }
     }
   }
 
   stopMonitoring(): void {
     if (Platform.OS === 'android' && NativeAppBlocker) {
-      console.log('[NativeAppBlocker] stopMonitoring');
-      NativeAppBlocker.stopMonitoring();
+      try {
+        console.log('[NativeAppBlocker] stopMonitoring');
+        NativeAppBlocker.stopMonitoring();
+      } catch (e) {
+        console.warn('[NativeAppBlocker] stopMonitoring error:', e);
+      }
     }
   }
 
   setRestrictedPackages(restrictedPackages: string[]): void {
     if (Platform.OS === 'android' && NativeAppBlocker) {
-      console.log('[NativeAppBlocker] setRestrictedPackages:', restrictedPackages);
-      NativeAppBlocker.setRestrictedPackages(restrictedPackages);
+      try {
+        console.log('[NativeAppBlocker] setRestrictedPackages:', restrictedPackages);
+        NativeAppBlocker.setRestrictedPackages(restrictedPackages);
+      } catch (e) {
+        console.warn('[NativeAppBlocker] setRestrictedPackages error:', e);
+      }
     }
   }
 
   setAppBudget(packageName: string | null, budgetMinutes: number): void {
     if (Platform.OS === 'android' && NativeAppBlocker?.setAppBudget) {
-      console.log('[NativeAppBlocker] setAppBudget:', packageName, budgetMinutes);
-      NativeAppBlocker.setAppBudget(packageName, budgetMinutes);
+      try {
+        console.log('[NativeAppBlocker] setAppBudget:', packageName, budgetMinutes);
+        NativeAppBlocker.setAppBudget(packageName, budgetMinutes);
+      } catch (e) {
+        console.warn('[NativeAppBlocker] setAppBudget error:', e);
+      }
     }
   }
 
@@ -127,7 +155,8 @@ export class NativeAppBlockerDriver implements IAppBlockerDriver {
         return false;
       }
     }
-    return true;
+    // No native implementation means no enforceable unlock.
+    return false;
   }
 
   unlockUntil(epochMs: number): boolean {
@@ -139,7 +168,8 @@ export class NativeAppBlockerDriver implements IAppBlockerDriver {
         return false;
       }
     }
-    return true;
+    // No native implementation means no enforceable unlock.
+    return false;
   }
 
   isCurrentlyUnlocked(): boolean {
