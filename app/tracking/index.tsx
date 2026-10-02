@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '600',
     color: colors.textPrimary,
   },
   dateSelectorRow: {
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
   },
   cardBigNum: {
     fontSize: 28,
-    fontWeight: '900',
+    fontWeight: '600',
     color: colors.textPrimary,
   },
   cardSubText: {

@@ -98,14 +98,14 @@ const styles = StyleSheet.create({
   },
   timeStartText: {
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '600',
     color: colors.textPrimary,
     fontVariant: ['tabular-nums'],
     letterSpacing: -0.5,
   },
   timeEndText: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
     color: colors.textSecondary,
     fontVariant: ['tabular-nums'],
   },

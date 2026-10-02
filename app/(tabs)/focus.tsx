@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
   },
   screenTitle: {
     fontSize: 26,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#111827',
   },
   shieldActiveBadge: {
@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
   },
   shieldActiveText: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#10B981',
   },
   categoryRow: {
@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
   },
   categoryChipText: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#6B7280',
   },
   categoryChipTextActive: {
@@ -288,13 +288,13 @@ const styles = StyleSheet.create({
   },
   timerDigitsText: {
     fontSize: 44,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#111827',
     letterSpacing: -1,
   },
   timerCategoryLabel: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#E53935',
     letterSpacing: 1.2,
   },
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
   },
   sectionHeaderLabel: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#6B7280',
     letterSpacing: 0.6,
   },
@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
   },
   soundBtnText: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#6B7280',
   },
   soundBtnTextActive: {
@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
   },
   startFocusBtnText: {
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.4,
   },

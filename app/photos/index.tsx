@@ -363,7 +363,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 1.2,
   },
   headerSubtitle: {
@@ -394,7 +394,7 @@ const styles = StyleSheet.create({
   },
   todayTitle: {
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   todaySub: {
     fontSize: 11.5,
@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
   },
   todaySuccessText: {
     fontSize: 9.5,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.8,
   },
@@ -445,7 +445,7 @@ const styles = StyleSheet.create({
   },
   primaryActionBtnText: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.4,
   },
@@ -461,7 +461,7 @@ const styles = StyleSheet.create({
   },
   secondaryActionBtnText: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: 0.4,
   },
   comparisonCard: {
@@ -476,7 +476,7 @@ const styles = StyleSheet.create({
   },
   comparisonTitle: {
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 1,
   },
   tagBadge: {
@@ -486,7 +486,7 @@ const styles = StyleSheet.create({
   },
   tagBadgeText: {
     fontSize: 9,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 0.8,
   },
   comparisonGrid: {
@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
   },
   comparisonLabel: {
     fontSize: 9.5,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 0.8,
   },
   vsCircle: {
@@ -528,7 +528,7 @@ const styles = StyleSheet.create({
   },
   vsText: {
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   timelineHeaderRow: {
     flexDirection: 'row',
@@ -538,7 +538,7 @@ const styles = StyleSheet.create({
   },
   sectionHeading: {
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   photoCountBadge: {
     fontSize: 12,
@@ -573,7 +573,7 @@ const styles = StyleSheet.create({
   thumbnailDate: {
     fontSize: 9,
     color: '#FFFFFF',
-    fontWeight: '800',
+    fontWeight: '600',
   },
   emptyCard: {
     padding: 32,
@@ -591,7 +591,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   emptySub: {
     fontSize: 12,
@@ -610,7 +610,7 @@ const styles = StyleSheet.create({
   },
   emptyStartBtnText: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#FFFFFF',
   },
   modalOverlay: {
@@ -629,7 +629,7 @@ const styles = StyleSheet.create({
   },
   modalDate: {
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
   },
   modalCloseBtn: {
@@ -665,7 +665,7 @@ const styles = StyleSheet.create({
   },
   deleteModalBtnText: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.8,
   },

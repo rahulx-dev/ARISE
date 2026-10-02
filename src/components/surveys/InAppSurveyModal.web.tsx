@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
   },
   tagText: {
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#0284C7',
   },
   closeBtn: {
@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#111827',
   },
   desc: {
@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
   },
   openTabText: {
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#0284C7',
   },
   doneBtn: {
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
   },
   doneBtnText: {
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#FFFFFF',
   },
 });

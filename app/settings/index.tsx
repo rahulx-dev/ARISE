@@ -44,6 +44,8 @@ import { backupService } from '../../src/services/backupService';
 import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
 import { ThemeMode } from '../../src/theme/themeEngine';
 import { fontFamilies } from '../../src/theme/typography';
+import { spacing } from '../../src/theme/spacing';
+import { borderRadius } from '../../src/theme/borderRadius';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -79,6 +81,7 @@ export default function SettingsScreen() {
   });
   const [showResetModal, setShowResetModal] = useState<boolean>(false);
   const [confirmInput, setConfirmInput] = useState<string>('');
+  const [isBusy, setIsBusy] = useState(false);
 
   const currentLang = useLanguageStore((s) => s.language);
   const activeLangObj = SUPPORTED_LANGUAGES.find((l) => l.code === currentLang);
@@ -94,13 +97,22 @@ export default function SettingsScreen() {
   };
 
   const handleExportBackup = async () => {
+    if (isBusy) return;
     haptics.medium();
-    const success = await backupService.exportBackup();
-    if (success) {
-      haptics.success();
-      showIOSAlert('Backup Created', 'Your local ARISE database was exported successfully to JSON.');
-    } else {
+    setIsBusy(true);
+    try {
+      const success = await backupService.exportBackup();
+      if (success) {
+        haptics.success();
+        showIOSAlert('Backup Created', 'Your local ARISE database was exported successfully to JSON.');
+      } else {
+        showIOSAlert('Export Failed', 'Could not create offline backup file.');
+      }
+    } catch (error) {
+      console.error('Failed to export ARISE backup:', error);
       showIOSAlert('Export Failed', 'Could not create offline backup file.');
+    } finally {
+      setIsBusy(false);
     }
   };
 
@@ -110,11 +122,20 @@ export default function SettingsScreen() {
       return;
     }
 
-    await resetProfile();
-    setShowResetModal(false);
-    setConfirmInput('');
-    haptics.heavy();
-    router.replace('/(onboarding)');
+    if (isBusy) return;
+    setIsBusy(true);
+    try {
+      await resetProfile();
+      setShowResetModal(false);
+      setConfirmInput('');
+      haptics.heavy();
+      router.replace('/(onboarding)');
+    } catch (error) {
+      console.error('Failed to reset ARISE profile:', error);
+      showIOSAlert('Reset Failed', 'Your data could not be reset. Please try again.');
+    } finally {
+      setIsBusy(false);
+    }
   };
 
   const themeDisplayLabel = theme === 'light' ? 'Light' : theme === 'dark' ? 'Dark (OLED)' : 'System';
@@ -156,7 +177,6 @@ export default function SettingsScreen() {
               </View>
               <View style={styles.menuTextCol}>
                 <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>Theme Mode</Text>
-                <Text style={[styles.menuDesc, { color: colors.textSecondary }]}>Light, Dark (OLED) or System</Text>
               </View>
               <View style={styles.pillBadge}>
                 <Text style={[styles.pillBadgeText, { color: colors.textSecondary }]}>{themeDisplayLabel}</Text>
@@ -180,7 +200,6 @@ export default function SettingsScreen() {
               </View>
               <View style={styles.menuTextCol}>
                 <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>Language</Text>
-                <Text style={[styles.menuDesc, { color: colors.textSecondary }]}>App display language</Text>
               </View>
               <View style={styles.pillBadge}>
                 <Text style={[styles.pillBadgeText, { color: colors.textSecondary }]}>
@@ -203,7 +222,6 @@ export default function SettingsScreen() {
               </View>
               <View style={styles.menuTextCol}>
                 <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>Notifications</Text>
-                <Text style={[styles.menuDesc, { color: colors.textSecondary }]}>Daily workout reminders & streak alerts</Text>
               </View>
               <Switch
                 value={notificationsEnabled}
@@ -226,7 +244,6 @@ export default function SettingsScreen() {
               </View>
               <View style={styles.menuTextCol}>
                 <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>Sound Effects (SFX)</Text>
-                <Text style={[styles.menuDesc, { color: colors.textSecondary }]}>Rep counts, gate completions & UI sounds</Text>
               </View>
               <Switch
                 value={sfxEnabled}
@@ -249,7 +266,6 @@ export default function SettingsScreen() {
               </View>
               <View style={styles.menuTextCol}>
                 <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>Vibration Haptics</Text>
-                <Text style={[styles.menuDesc, { color: colors.textSecondary }]}>Tactile pulse feedback on button taps & reps</Text>
               </View>
               <Switch
                 value={hapticsEnabled}
@@ -283,7 +299,6 @@ export default function SettingsScreen() {
               </View>
               <View style={styles.menuTextCol}>
                 <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>App Blocking & Screen Time</Text>
-                <Text style={[styles.menuDesc, { color: colors.textSecondary }]}>Select restricted apps & time limits</Text>
               </View>
               <ChevronRight size={16} color="#9CA3AF" />
             </TouchableOpacity>
@@ -304,7 +319,6 @@ export default function SettingsScreen() {
               </View>
               <View style={styles.menuTextCol}>
                 <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>Permissions Hub</Text>
-                <Text style={[styles.menuDesc, { color: colors.textSecondary }]}>Usage access, overlay & camera status</Text>
               </View>
               <ChevronRight size={16} color="#9CA3AF" />
             </TouchableOpacity>
@@ -317,6 +331,7 @@ export default function SettingsScreen() {
           <View style={[styles.cardGroup, { backgroundColor: colors.card, borderColor: colors.border }]}>
             {/* Export Backup */}
             <TouchableOpacity
+              disabled={isBusy}
               style={styles.menuRow}
               activeOpacity={0.75}
               onPress={handleExportBackup}
@@ -326,7 +341,6 @@ export default function SettingsScreen() {
               </View>
               <View style={styles.menuTextCol}>
                 <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>Export Offline Backup</Text>
-                <Text style={[styles.menuDesc, { color: colors.textSecondary }]}>Export workouts, XP and streaks to JSON</Text>
               </View>
               <ChevronRight size={16} color="#9CA3AF" />
             </TouchableOpacity>
@@ -347,7 +361,6 @@ export default function SettingsScreen() {
               </View>
               <View style={styles.menuTextCol}>
                 <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>Privacy & Security</Text>
-                <Text style={[styles.menuDesc, { color: colors.textSecondary }]}>100% on-device pose estimation details</Text>
               </View>
               <ChevronRight size={16} color="#9CA3AF" />
             </TouchableOpacity>
@@ -372,7 +385,6 @@ export default function SettingsScreen() {
               </View>
               <View style={styles.menuTextCol}>
                 <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>How to Use (Video Guide)</Text>
-                <Text style={[styles.menuDesc, { color: colors.textSecondary }]}>Watch official tutorial in Hindi or English</Text>
               </View>
               <ChevronRight size={16} color="#9CA3AF" />
             </TouchableOpacity>
@@ -393,7 +405,6 @@ export default function SettingsScreen() {
               </View>
               <View style={styles.menuTextCol}>
                 <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>About ARISE</Text>
-                <Text style={[styles.menuDesc, { color: colors.textSecondary }]}>Version 1.0.0 • Monarch Edition</Text>
               </View>
               <ChevronRight size={16} color="#9CA3AF" />
             </TouchableOpacity>
@@ -417,7 +428,6 @@ export default function SettingsScreen() {
               </View>
               <View style={styles.menuTextCol}>
                 <Text style={[styles.menuTitle, { color: '#DC2626' }]}>Clean Protocol Reset</Text>
-                <Text style={[styles.menuDesc, { color: isDark ? '#F87171' : '#B91C1C' }]}>Delete all local data and restart fresh</Text>
               </View>
               <ChevronRight size={16} color="#DC2626" />
             </TouchableOpacity>
@@ -540,7 +550,7 @@ export default function SettingsScreen() {
                   { color: confirmInput.trim().toUpperCase() === 'ARISE' ? '#FFFFFF' : colors.textSecondary },
                 ]}
               >
-                PERMANENTLY RESET ALL DATA
+                {isBusy ? 'RESETTING...' : 'PERMANENTLY RESET ALL DATA'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -581,16 +591,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 12,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: '#EEEEEE',
   },
   backBtn: {
     width: 38,
     height: 38,
-    borderRadius: 19,
+    borderRadius: borderRadius.pill,
     backgroundColor: '#F3F4F6',
     alignItems: 'center',
     justifyContent: 'center',
@@ -603,13 +613,13 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    gap: 20,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+    gap: spacing.xl,
     paddingBottom: 40,
   },
   sectionWrap: {
-    gap: 8,
+    gap: spacing.sm,
   },
   sectionHeading: {
     fontFamily: fontFamilies.medium,
@@ -621,7 +631,7 @@ const styles = StyleSheet.create({
   },
   cardGroup: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 18,
+    borderRadius: borderRadius.xxl,
     borderWidth: 1,
     borderColor: '#EEEEEE',
     overflow: 'hidden',
@@ -634,14 +644,14 @@ const styles = StyleSheet.create({
   menuRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 14,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    gap: spacing.md,
   },
   iconCircle: {
     width: 38,
     height: 38,
-    borderRadius: 12,
+    borderRadius: borderRadius.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -687,9 +697,9 @@ const styles = StyleSheet.create({
   },
   modalSheet: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
-    gap: 14,
+    borderRadius: borderRadius.xxl,
+    padding: spacing.xl,
+    gap: spacing.md,
     borderWidth: 1,
     borderColor: '#EEEEEE',
   },
@@ -707,8 +717,8 @@ const styles = StyleSheet.create({
   optionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
-    borderRadius: 14,
+    padding: spacing.md,
+    borderRadius: borderRadius.lg,
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
     borderColor: '#EEEEEE',

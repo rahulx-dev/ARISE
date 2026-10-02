@@ -6,6 +6,7 @@ interface QuestState {
   dailyQuests: QuestData[];
   weeklyQuests: QuestData[];
   isLoading: boolean;
+  error: string | null;
   loadQuests: () => Promise<void>;
   completeQuest: (questId: number) => Promise<{ coins: number; xp: number }>;
   resetTodayQuests: () => Promise<void>;
@@ -16,6 +17,7 @@ export const useQuestStore = create<QuestState>((set, get) => ({
   dailyQuests: [],
   weeklyQuests: [],
   isLoading: false,
+  error: null,
 
   loadQuests: async () => {
     set({ isLoading: true });
@@ -24,9 +26,9 @@ export const useQuestStore = create<QuestState>((set, get) => ({
         questService.getDailyQuests(),
         questService.getWeeklyQuests(),
       ]);
-      set({ dailyQuests: daily, weeklyQuests: weekly, isLoading: false });
+      set({ dailyQuests: daily, weeklyQuests: weekly, isLoading: false, error: null });
     } catch (error) {
-      set({ isLoading: false });
+      set({ isLoading: false, error: error instanceof Error ? error.message : 'Unable to load quests' });
       console.error('Failed to load quests', error);
     }
   },
@@ -43,7 +45,8 @@ export const useQuestStore = create<QuestState>((set, get) => ({
       };
     } catch (error) {
       console.error('Failed to complete quest', error);
-      return { coins: 0, xp: 0 };
+      set({ error: error instanceof Error ? error.message : 'Unable to complete quest' });
+      throw error;
     }
   },
 

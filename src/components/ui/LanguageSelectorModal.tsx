@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
   },
   langLabel: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.3,
   },

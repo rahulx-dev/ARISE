@@ -463,7 +463,6 @@ export default function ShopScreen() {
             </View>
             <View>
               <Text style={[styles.freeCoinsTitle, { color: colors.textPrimary }]}>Watch Sponsor Video</Text>
-              <Text style={[styles.freeCoinsSub, { color: colors.textSecondary }]}>Earn instant coins for the shop</Text>
             </View>
           </View>
           <View
@@ -517,7 +516,6 @@ export default function ShopScreen() {
                       </Text>
                     </View>
                     <Text style={[styles.boostName, { color: colors.textPrimary }]}>{item.name}</Text>
-                    <Text style={[styles.boostDesc, { color: colors.textSecondary }]}>{item.desc}</Text>
                     <TouchableOpacity
                       style={styles.boostBuyBtn}
                       onPress={() => handleBuyBoost(item)}
@@ -632,9 +630,8 @@ export default function ShopScreen() {
                     <View style={[styles.voucherIconCircle, { backgroundColor: voucher.providerColor + '18' }]}>
                       <Gift size={22} color={voucher.providerColor} />
                     </View>
-                    <View style={{ gap: 2, flex: 1 }}>
+                    <View style={{ gap: 4, flex: 1 }}>
                       <Text style={[styles.voucherTitle, { color: colors.textPrimary }]}>{voucher.name}</Text>
-                      <Text style={[styles.voucherSub, { color: colors.textSecondary }]}>{voucher.sub}</Text>
                       <View style={styles.voucherPricePill}>
                         <ManaCrystalIcon size={13} color="#00D2EE" secondaryColor="#0284C7" />
                         <Text style={[styles.voucherPriceText, { color: isDark ? '#00D2EE' : '#0284C7' }]}>

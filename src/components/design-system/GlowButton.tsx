@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
   textBase: {
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 0.5,
   },
   smText: {

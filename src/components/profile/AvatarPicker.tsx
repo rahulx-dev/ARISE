@@ -211,7 +211,7 @@ export function AvatarPicker({
                   <Text
                     style={[
                       styles.iconLabel,
-                      isSelected && { color: selectedColor, fontWeight: '900' },
+                      isSelected && { color: selectedColor, fontWeight: '600' },
                     ]}
                     numberOfLines={1}
                   >
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '600',
     color: colors.textMuted,
     letterSpacing: 0.8,
   },
@@ -305,12 +305,12 @@ const styles = StyleSheet.create({
   },
   tabToggleText: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
     color: colors.textSecondary,
   },
   tabToggleTextActive: {
     color: '#000000',
-    fontWeight: '900',
+    fontWeight: '600',
   },
   iconsGrid: {
     flexDirection: 'row',

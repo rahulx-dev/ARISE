@@ -359,12 +359,12 @@ const styles = StyleSheet.create({
   },
   victoryTitle: {
     fontSize: 28,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: -0.5,
   },
   victorySubtitle: {
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 1.5,
   },
   completionPill: {
@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
   },
   completionPillText: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#10B981',
   },
   redGateBanner: {
@@ -403,13 +403,13 @@ const styles = StyleSheet.create({
   },
   redGateBadgeText: {
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.8,
   },
   redGateTitle: {
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
   },
   redGateDesc: {
@@ -427,7 +427,7 @@ const styles = StyleSheet.create({
   },
   cardHeaderLabel: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: 0.8,
   },
   rewardsRow: {
@@ -442,7 +442,7 @@ const styles = StyleSheet.create({
   },
   rewardNumber: {
     fontSize: 26,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#F59E0B',
   },
   rewardUnit: {
@@ -480,7 +480,7 @@ const styles = StyleSheet.create({
   },
   telemetryVal: {
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   boostBanner: {
     width: '100%',
@@ -513,7 +513,7 @@ const styles = StyleSheet.create({
   },
   boostTitle: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#000000',
     letterSpacing: 0.4,
   },
@@ -530,7 +530,7 @@ const styles = StyleSheet.create({
   },
   boostTagText: {
     fontSize: 9.5,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
   },
   shareBtn: {
@@ -545,7 +545,7 @@ const styles = StyleSheet.create({
   },
   shareBtnText: {
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   returnBtn: {
     width: '100%',
@@ -563,7 +563,7 @@ const styles = StyleSheet.create({
   },
   returnBtnText: {
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.4,
   },

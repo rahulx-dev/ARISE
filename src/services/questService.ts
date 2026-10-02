@@ -1,8 +1,6 @@
 import { db } from '../database/client';
 import { quest } from '../database/schema';
 import { eq, and, sql } from 'drizzle-orm';
-import { coinService } from './coinService';
-import { progressionService } from './progressionService';
 import { notificationService } from './notificationService';
 import { achievementService } from './achievementService';
 import { userRepository } from '../database/repositories/userRepository';
@@ -548,53 +546,55 @@ class QuestService {
         return { success: true, earnedCoins: 0, earnedXP: 0 };
       }
 
-      // Reward the full coins configured for this quest
       const finalEarnedCoins = q.rewardCoins > 0 ? q.rewardCoins : 15;
+      const statType =
+        q.category === 'FITNESS'
+          ? 'strength'
+          : q.category === 'FOCUS'
+            ? 'focus'
+            : 'discipline';
 
-      // Mark completed in SQLite
-      await db.update(quest).set({ completed: 1, rewardCoins: finalEarnedCoins }).where(eq(quest.id, questId));
-
-      // Award coins atomically
-      if (finalEarnedCoins > 0) {
-        await coinService.addCoins(finalEarnedCoins, `Quest: ${q.title}`, 'quest');
+      // Complete the quest and grant all rewards in one SQLite transaction. This
+      // also makes concurrent taps idempotent.
+      const completed = await userRepository.completeQuestAndGrantRewards(
+        questId,
+        finalEarnedCoins,
+        q.rewardXP,
+        statType
+      );
+      if (!completed) {
+        return { success: false, earnedCoins: 0, earnedXP: 0 };
       }
 
-      // Award XP atomically
-      if (q.rewardXP > 0) {
-        await progressionService.addXP(q.rewardXP);
-      }
-
-      // Update stat attribute
-      if (q.category === 'FITNESS') {
-        await progressionService.updateStat('strength', 1);
-      } else if (q.category === 'FOCUS') {
-        await progressionService.updateStat('focus', 1);
-      } else {
-        await progressionService.updateStat('discipline', 1);
-      }
-
-      // Maintain and advance player streak
       await userRepository.updateStreak();
 
       // Trigger notification
-      await notificationService.createNotification(
-        'QUEST',
-        'Quest Completed!',
-        `You completed "${q.title}". +${finalEarnedCoins} Coins, +${q.rewardXP} XP`,
-        String(questId)
-      );
+      try {
+        await notificationService.createNotification(
+          'QUEST',
+          'Quest Completed!',
+          `You completed "${q.title}". +${finalEarnedCoins} Coins, +${q.rewardXP} XP`,
+          String(questId)
+        );
+      } catch (notificationError) {
+        console.warn('Quest completed but notification creation failed:', notificationError);
+      }
 
       // Evaluate newly unlocked achievements
-      await achievementService.evaluateAchievements();
+      try {
+        await achievementService.evaluateAchievements();
+      } catch (achievementError) {
+        console.warn('Quest completed but achievement evaluation failed:', achievementError);
+      }
 
       return {
         success: true,
         earnedCoins: finalEarnedCoins,
         earnedXP: q.rewardXP,
       };
-    } catch (e) {
-      console.warn('Error completing quest:', e);
-      return { success: false, earnedCoins: 0, earnedXP: 0 };
+    } catch (error) {
+      console.error('Error completing quest:', error);
+      throw error;
     }
   }
 

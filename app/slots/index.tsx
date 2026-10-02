@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '600',
     color: colors.textPrimary,
   },
   scrollContent: {
@@ -128,12 +128,12 @@ const styles = StyleSheet.create({
   },
   slotsCardTitle: {
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '600',
     color: colors.textPrimary,
   },
   slotsCardCount: {
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '600',
     color: colors.primary,
   },
 });

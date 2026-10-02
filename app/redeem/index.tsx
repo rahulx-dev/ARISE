@@ -341,9 +341,6 @@ export default function RedeemScreen() {
             MONETIZATION PROTOCOL
           </Text>
           <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Mana Crystal Vault</Text>
-          <Text style={[styles.headerSub, { color: isDark ? '#71788E' : colors.textSecondary }]}>
-            Convert your crystals into real rewards
-          </Text>
         </View>
 
         <View
@@ -468,9 +465,6 @@ export default function RedeemScreen() {
                   <Text style={[styles.heroBigCount, { color: isDark ? '#FFFFFF' : '#0A84FF' }]}>
                     {manaBalance.toLocaleString()}
                   </Text>
-                  <Text style={[styles.heroSmallSub, { color: isDark ? '#71788E' : colors.textSecondary }]}>
-                    Your earned crystals
-                  </Text>
                 </View>
               </View>
 
@@ -510,12 +504,9 @@ export default function RedeemScreen() {
               </View>
             </View>
 
-            {/* 4. SELECT CASHOUT GATEWAY (Full-width rows matching Dark Mode screenshot) */}
+            {/* 4. SELECT CASHOUT GATEWAY */}
             <View style={styles.sectionHeaderWrap}>
               <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Select Cashout Gateway</Text>
-              <Text style={[styles.sectionSubtitle, { color: isDark ? '#71788E' : colors.textSecondary }]}>
-                Choose how you want to receive your rewards
-              </Text>
             </View>
 
             <View style={styles.gatewayListWrap}>
@@ -541,11 +532,8 @@ export default function RedeemScreen() {
                   </View>
                 </View>
 
-                <View style={{ flex: 1, gap: 1 }}>
+                <View style={{ flex: 1 }}>
                   <Text style={[styles.gwTitle, { color: colors.textPrimary }]}>Direct UPI</Text>
-                  <Text style={[styles.gwSub, { color: isDark ? '#71788E' : colors.textSecondary }]}>
-                    GPay / PhonePe / Paytm
-                  </Text>
                 </View>
 
                 <View style={styles.gwRightAction}>
@@ -579,11 +567,8 @@ export default function RedeemScreen() {
                   <Gift size={20} color="#FF9900" />
                 </View>
 
-                <View style={{ flex: 1, gap: 1 }}>
+                <View style={{ flex: 1 }}>
                   <Text style={[styles.gwTitle, { color: colors.textPrimary }]}>Amazon Pay</Text>
-                  <Text style={[styles.gwSub, { color: isDark ? '#71788E' : colors.textSecondary }]}>
-                    Gift Voucher Code
-                  </Text>
                 </View>
 
                 <View style={styles.gwRightAction}>
@@ -617,11 +602,8 @@ export default function RedeemScreen() {
                   <Play size={18} color="#10B981" fill="#10B981" />
                 </View>
 
-                <View style={{ flex: 1, gap: 1 }}>
+                <View style={{ flex: 1 }}>
                   <Text style={[styles.gwTitle, { color: colors.textPrimary }]}>Google Play</Text>
-                  <Text style={[styles.gwSub, { color: isDark ? '#71788E' : colors.textSecondary }]}>
-                    Recharge Code
-                  </Text>
                 </View>
 
                 <View style={styles.gwRightAction}>
@@ -655,11 +637,8 @@ export default function RedeemScreen() {
                   <Image source={APP_3D_ASSETS.goldCoin} style={{ width: 22, height: 22 }} resizeMode="contain" />
                 </View>
 
-                <View style={{ flex: 1, gap: 1 }}>
+                <View style={{ flex: 1 }}>
                   <Text style={[styles.gwTitle, { color: colors.textPrimary }]}>Exchange Coins</Text>
-                  <Text style={[styles.gwSub, { color: isDark ? '#71788E' : colors.textSecondary }]}>
-                    Instant 1:10 System Coins
-                  </Text>
                 </View>
 
                 <View style={styles.gwRightAction}>
@@ -675,12 +654,9 @@ export default function RedeemScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* 5. SELECT AMOUNT (INR) (6 Cards in a Single Row matching Screenshot) */}
+            {/* 5. SELECT AMOUNT (INR) */}
             <View style={styles.sectionHeaderWrap}>
               <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Select Amount (INR)</Text>
-              <Text style={[styles.sectionSubtitle, { color: isDark ? '#71788E' : colors.textSecondary }]}>
-                Choose or enter a custom amount
-              </Text>
             </View>
 
             <View style={styles.tiersRow}>
@@ -742,7 +718,7 @@ export default function RedeemScreen() {
               ]}
             >
               <Text style={[styles.customCardLabel, { color: isDark ? '#71788E' : colors.textSecondary }]}>
-                Custom Amount (₹{MIN_CASHOUT_INR} - ₹{MAX_CASHOUT_INR})
+                Custom Amount
               </Text>
               <View style={styles.customCardRow}>
                 <View style={styles.customInputSide}>
@@ -1003,7 +979,7 @@ export default function RedeemScreen() {
                 <Clock size={40} color={isDark ? '#71788E' : colors.textSecondary} />
                 <Text style={[styles.emptyHistoryTitle, { color: colors.textPrimary }]}>No Cashout Requests Found</Text>
                 <Text style={[styles.emptyHistorySub, { color: isDark ? '#71788E' : colors.textSecondary }]}>
-                  Complete Recon Inquests in Dungeon Gates to mine Mana Crystals and initiate your first real withdrawal.
+                  Clear Dungeon Gates to earn Mana Crystals.
                 </Text>
               </View>
             ) : (

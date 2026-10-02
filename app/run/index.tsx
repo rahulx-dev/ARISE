@@ -537,7 +537,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 0.8,
   },
   headerRightPlaceholder: {
@@ -564,13 +564,13 @@ const styles = StyleSheet.create({
   },
   systemTagText: {
     fontSize: 9.5,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#00D2EE',
     letterSpacing: 0.8,
   },
   goalTitle: {
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 0.4,
   },
   goalSub: {
@@ -593,12 +593,12 @@ const styles = StyleSheet.create({
   },
   bigDistanceNumber: {
     fontSize: 52,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: -1,
   },
   bigDistanceUnit: {
     fontSize: 10.5,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: 0.6,
   },
   presetRow: {
@@ -618,7 +618,7 @@ const styles = StyleSheet.create({
   },
   presetPillText: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   rewardPreviewCard: {
     padding: 16,
@@ -626,7 +626,7 @@ const styles = StyleSheet.create({
   },
   rewardPreviewLabel: {
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: 0.6,
   },
   rewardsRow: {
@@ -641,7 +641,7 @@ const styles = StyleSheet.create({
   },
   rewardVal: {
     fontSize: 12.5,
-    fontWeight: '900',
+    fontWeight: '600',
   },
 
   // Live Running HUD Styles
@@ -658,7 +658,7 @@ const styles = StyleSheet.create({
   vehicleWarningTitle: {
     color: '#FF1E44',
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 0.4,
   },
   vehicleWarningSub: {
@@ -697,7 +697,7 @@ const styles = StyleSheet.create({
   },
   liveDistanceNumber: {
     fontSize: 44,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: -1,
   },
   liveDistanceSub: {
@@ -712,7 +712,7 @@ const styles = StyleSheet.create({
   },
   progressPercentText: {
     fontSize: 9.5,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 0.5,
   },
   telemetryGrid: {
@@ -727,11 +727,11 @@ const styles = StyleSheet.create({
   },
   telemetryVal: {
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   telemetryUnit: {
     fontSize: 8.5,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: 0.5,
   },
   secondaryRow: {
@@ -749,11 +749,11 @@ const styles = StyleSheet.create({
   },
   secondaryLabel: {
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   secondaryVal: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   controlBtnRow: {
     flexDirection: 'row',
@@ -771,7 +771,7 @@ const styles = StyleSheet.create({
   },
   actionBtnText: {
     fontSize: 12.5,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.6,
   },
@@ -807,13 +807,13 @@ const styles = StyleSheet.create({
   },
   modalTagText: {
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#00D2EE',
     letterSpacing: 0.6,
   },
   modalSuccessTitle: {
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.6,
     marginTop: 8,
@@ -835,7 +835,7 @@ const styles = StyleSheet.create({
   },
   modalRewardLabel: {
     fontSize: 9.5,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#94A3B8',
     letterSpacing: 0.4,
   },
@@ -852,7 +852,7 @@ const styles = StyleSheet.create({
   },
   modalRewardValue: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#00D2EE',
   },
 });

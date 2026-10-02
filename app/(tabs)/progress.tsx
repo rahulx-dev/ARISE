@@ -207,7 +207,7 @@ export default function GymWorkoutScreen() {
                       style={[
                         styles.dayText,
                         { color: isToday ? colors.primary : colors.textMuted },
-                        isToday && { fontWeight: '800' },
+                        isToday && { fontWeight: '600' },
                       ]}
                     >
                       {day}
@@ -541,7 +541,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 24,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: -0.5,
   },
   headerSub: {
@@ -573,12 +573,12 @@ const styles = StyleSheet.create({
   },
   heroLabel: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: 1.2,
   },
   heroTitle: {
     fontSize: 26,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: -0.5,
   },
   heroSubtitle: {
@@ -600,7 +600,7 @@ const styles = StyleSheet.create({
   },
   heroProgressPercent: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   progressBarTrack: {
     height: 6,
@@ -622,7 +622,7 @@ const styles = StyleSheet.create({
   },
   continueBtnText: {
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.3,
   },
@@ -633,7 +633,7 @@ const styles = StyleSheet.create({
   },
   weeklyTitle: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: 0.5,
   },
   weekDaysRow: {
@@ -658,7 +658,7 @@ const styles = StyleSheet.create({
   },
   todayDayNum: {
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
   },
   exerciseSection: {
@@ -666,7 +666,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: -0.3,
     paddingHorizontal: 2,
   },
@@ -683,7 +683,7 @@ const styles = StyleSheet.create({
   },
   exerciseName: {
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   exerciseCategory: {
     fontSize: 11,
@@ -700,7 +700,7 @@ const styles = StyleSheet.create({
   },
   aiCamBtnText: {
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 0.5,
   },
   modalOverlay: {
@@ -721,7 +721,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   modalSub: {
     fontSize: 13,
@@ -735,12 +735,12 @@ const styles = StyleSheet.create({
   },
   savePrefBtnText: {
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
   },
   prefSectionLabel: {
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: 0.2,
   },
   prefOptionPill: {
@@ -753,7 +753,7 @@ const styles = StyleSheet.create({
   },
   prefOptionText: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   diffOptionCard: {
     flexDirection: 'row',
@@ -764,7 +764,7 @@ const styles = StyleSheet.create({
   },
   diffOptionTitle: {
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   diffOptionDesc: {
     fontSize: 11,
@@ -794,7 +794,7 @@ const styles = StyleSheet.create({
   },
   bossTagText: {
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#EF4444',
     letterSpacing: 0.8,
   },
@@ -811,13 +811,13 @@ const styles = StyleSheet.create({
   },
   bossRewardText: {
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#F59E0B',
     letterSpacing: 0.4,
   },
   bossNameText: {
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: -0.3,
   },
   bossSubText: {
@@ -836,13 +836,13 @@ const styles = StyleSheet.create({
   },
   bossHpLabel: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#8E8E93',
     letterSpacing: 0.5,
   },
   bossHpPercent: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   bossHpTrack: {
     height: 8,
@@ -865,7 +865,7 @@ const styles = StyleSheet.create({
   },
   bossAttackBtnText: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.8,
   },

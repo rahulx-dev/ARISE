@@ -28,7 +28,7 @@ export const fontFamilies = {
   bold: Platform.select({
     ios: 'System',
     web: "'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif",
-    default: 'Inter_700Bold',
+    default: 'Inter_600SemiBold',
   }),
 };
 
@@ -49,7 +49,7 @@ export const fontWeights = {
   regular: '400',
   medium: '500',
   semiBold: '600',
-  bold: '700',
+  bold: '600',
 } as const;
 
 export const typography = {

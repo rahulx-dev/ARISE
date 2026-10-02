@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
   },
   brandTitle: {
     fontSize: 24,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 4,
     marginTop: 4,
   },
@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
   },
   versionText: {
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 0.8,
   },
   infoCard: {
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
   },
   infoHeading: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   infoBody: {
     fontSize: 12,

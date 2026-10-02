@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 0.5,
   },
   textDark: {

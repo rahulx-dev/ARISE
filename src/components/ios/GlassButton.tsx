@@ -81,7 +81,7 @@ export const GlassButton = React.memo(function GlassButton({
           },
           text: {
             color: '#FFFFFF',
-            fontWeight: '800',
+            fontWeight: '600',
           },
         };
 
@@ -93,7 +93,7 @@ export const GlassButton = React.memo(function GlassButton({
           },
           text: {
             color: isDark ? '#60A5FA' : '#1D4ED8',
-            fontWeight: '800',
+            fontWeight: '600',
           },
         };
 
@@ -105,7 +105,7 @@ export const GlassButton = React.memo(function GlassButton({
           },
           text: {
             color: '#FFFFFF',
-            fontWeight: '800',
+            fontWeight: '600',
           },
         };
 
@@ -117,7 +117,7 @@ export const GlassButton = React.memo(function GlassButton({
           },
           text: {
             color: colors.textPrimary,
-            fontWeight: '800',
+            fontWeight: '600',
           },
         };
 
@@ -129,7 +129,7 @@ export const GlassButton = React.memo(function GlassButton({
           },
           text: {
             color: isDark ? '#FCA5A5' : '#DC2626',
-            fontWeight: '800',
+            fontWeight: '600',
           },
         };
 
@@ -142,7 +142,7 @@ export const GlassButton = React.memo(function GlassButton({
           },
           text: {
             color: colors.textPrimary,
-            fontWeight: '800',
+            fontWeight: '600',
           },
         };
     }

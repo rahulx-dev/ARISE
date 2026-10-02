@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
   },
   headerTag: {
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#00D2EE',
     letterSpacing: 1.5,
   },
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.8,
     textAlign: 'center',
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
   },
   bountyText: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#F59E0B',
     letterSpacing: 0.5,
   },
@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
   },
   actionBtnText: {
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 1,
   },

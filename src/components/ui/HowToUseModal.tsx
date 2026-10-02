@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
   },
   tagText: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: 2,
   },
   closeBtn: {
@@ -377,7 +377,7 @@ const styles = StyleSheet.create({
   },
   mainTitle: {
     fontSize: 26,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: -0.5,
     marginTop: 2,
   },
@@ -413,7 +413,7 @@ const styles = StyleSheet.create({
   },
   langBadgeText: {
     fontSize: 10.5,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: 0.5,
   },
   hdBadge: {
@@ -423,7 +423,7 @@ const styles = StyleSheet.create({
   },
   hdBadgeText: {
     fontSize: 10.5,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: 0.5,
   },
 
@@ -446,7 +446,7 @@ const styles = StyleSheet.create({
   },
   thumbnailBrand: {
     fontSize: 8.5,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 2,
     marginTop: 2,
@@ -473,7 +473,7 @@ const styles = StyleSheet.create({
   },
   cardHeading: {
     fontSize: 15.5,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   cardSubHeading: {
     fontSize: 11.5,
@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
   },
   watchBtnText: {
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.3,
   },

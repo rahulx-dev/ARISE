@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
   },
   levelUpGlitchTitle: {
     fontSize: 26,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 2,
     textAlign: 'center',
   },
@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
   },
   statPointsBadgeText: {
     fontSize: 10.5,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 0.6,
   },
   levelRow: {
@@ -365,18 +365,18 @@ const styles = StyleSheet.create({
   },
   levelCircleLabel: {
     fontSize: 9,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#8E8E93',
     letterSpacing: 0.8,
   },
   levelCircleNumOld: {
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#8E8E93',
   },
   levelCircleNumNew: {
     fontSize: 24,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   levelArrowWrap: {
     width: 36,
@@ -392,14 +392,14 @@ const styles = StyleSheet.create({
   },
   transformPreLabel: {
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#8E8E93',
     letterSpacing: 1.8,
     textAlign: 'center',
   },
   transformRankTitle: {
     fontSize: 24,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: -0.5,
     textAlign: 'center',
     textShadowColor: 'rgba(0, 0, 0, 0.8)',
@@ -418,7 +418,7 @@ const styles = StyleSheet.create({
   },
   rankPillText: {
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 0.8,
   },
   rewardBox: {
@@ -442,7 +442,7 @@ const styles = StyleSheet.create({
   },
   rewardTitle: {
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#F59E0B',
     letterSpacing: 0.5,
   },
@@ -452,7 +452,7 @@ const styles = StyleSheet.create({
   },
   rewardAmount: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#F59E0B',
   },
 });

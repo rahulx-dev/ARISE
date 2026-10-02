@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '600',
     color: colors.textPrimary,
     letterSpacing: 0.5,
   },
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
   },
   tabTextActive: {
     color: colors.primary,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   tabIndicator: {
     position: 'absolute',
@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
   },
   achievementTitle: {
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '600',
     color: colors.textPrimary,
   },
   achievementDesc: {
@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
   },
   completedBadgeText: {
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '600',
     color: colors.primary,
   },
   rewardChip: {
@@ -375,7 +375,7 @@ const styles = StyleSheet.create({
   },
   rewardChipText: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
     color: colors.primary,
   },
   progressWrap: {
@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
   },
   badgeName: {
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '600',
     color: colors.textPrimary,
     textAlign: 'center',
   },
@@ -432,7 +432,7 @@ const styles = StyleSheet.create({
   },
   badgeStatusText: {
     fontSize: 9,
-    fontWeight: '900',
+    fontWeight: '600',
     color: colors.textMuted,
   },
   badgeStatusTextUnlocked: {

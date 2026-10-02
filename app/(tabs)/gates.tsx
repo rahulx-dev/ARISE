@@ -358,7 +358,7 @@ export default function DungeonScreen() {
           </View>
           <View style={{ marginLeft: 10, justifyContent: 'center' }}>
             <Text style={[styles.hunterNameText, { color: colors.textPrimary }]} numberOfLines={1}>
-              {profile?.displayName || 'Tara'}
+              {profile?.displayName || 'Warrior'}
             </Text>
             <Text style={[styles.hunterTitleSub, { color: colors.textSecondary }]}>
               {currentRank.rankCode}-Rank Hunter • LVL {userLevel}

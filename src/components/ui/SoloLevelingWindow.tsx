@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
   },
   titleText: {
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: -0.4,
     textAlign: 'center',
     marginTop: 14,
@@ -361,7 +361,7 @@ const styles = StyleSheet.create({
   },
   detailsTag: {
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 1.2,
     color: '#EF4444',
   },
@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
   },
   codeText: {
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#EF4444',
     letterSpacing: 0.5,
   },
@@ -421,7 +421,7 @@ const styles = StyleSheet.create({
   },
   actionBtnText: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: 0.3,
   },
   actionBtnTextPrimary: {

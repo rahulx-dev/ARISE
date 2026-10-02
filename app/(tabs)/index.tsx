@@ -82,22 +82,22 @@ export default function HomeDashboard() {
     init();
   }, []);
 
-  const displayName = profile?.displayName || 'Tara';
-  const level = profile?.level || 12;
-  const currentXP = profile?.currentXP || 380;
-  const streak = profile?.currentStreak || 1;
-  const coins = profile?.coins || 1245;
-  const avatarIcon = profile?.avatarIcon || 'pfp_01';
+  const displayName = profile?.displayName || 'Warrior';
+  const level = profile?.level ?? 1;
+  const currentXP = profile?.currentXP ?? 0;
+  const streak = profile?.currentStreak ?? 0;
+  const coins = profile?.coins ?? 0;
+  const avatarIcon = profile?.avatarIcon || 'user';
 
   const rank = getRankForLevel(level);
-  const xpNeeded = 3715; // Sung Jin-Woo Level benchmark curve
+  const xpNeeded = Math.max(1, Math.round(500 * Math.pow(1.25, Math.max(0, level - 1))));
   const xpPercent = Math.min(
     100,
     Math.round((currentXP / Math.max(1, xpNeeded)) * 100)
-  ) || 10;
+  );
 
   const completedQuests = (dailyQuests || []).filter((q) => q.completed).length;
-  const totalQuests = (dailyQuests && dailyQuests.length > 0) ? dailyQuests.length : 6;
+  const totalQuests = dailyQuests?.length ?? 0;
 
   const quote = getDailyQuote();
   const avatarSrc = getAvatarSource(avatarIcon);

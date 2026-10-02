@@ -353,7 +353,7 @@ export function InAppSurveyModal({
             <View style={{ flex: 1, backgroundColor: '#090B10' }}>
               <View style={{ padding: 12, backgroundColor: '#111218', borderBottomWidth: 1, borderBottomColor: '#1C1E2A', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View style={{ flex: 1, marginRight: 8 }}>
-                  <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '800' }}>Live Survey Station</Text>
+                  <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '600' }}>Live Survey Station</Text>
                   <Text style={{ color: '#8E8E93', fontSize: 11 }}>Complete in portal below or open in external tab</Text>
                 </View>
                 <TouchableOpacity
@@ -368,7 +368,7 @@ export function InAppSurveyModal({
                   activeOpacity={0.85}
                 >
                   <ExternalLink size={13} color="#FFFFFF" />
-                  <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '800' }}>Open In New Tab</Text>
+                  <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '600' }}>Open In New Tab</Text>
                 </TouchableOpacity>
               </View>
               {/* @ts-ignore */}
@@ -533,13 +533,13 @@ const styles = StyleSheet.create({
   },
   providerBadgeText: {
     fontSize: 9.5,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#00D2EE',
     letterSpacing: 1,
   },
   headerTitle: {
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.3,
   },
@@ -589,7 +589,7 @@ const styles = StyleSheet.create({
   },
   loaderText: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#00D2EE',
     letterSpacing: 1,
     marginTop: 8,
@@ -622,7 +622,7 @@ const styles = StyleSheet.create({
   },
   timerPillText: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#00D2EE',
     fontVariant: ['tabular-nums'],
   },
@@ -646,7 +646,7 @@ const styles = StyleSheet.create({
   },
   claimBtnText: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#64748B',
     letterSpacing: 0.5,
   },
@@ -676,7 +676,7 @@ const styles = StyleSheet.create({
   },
   alertTitle: {
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#EF4444',
     letterSpacing: 0.8,
   },
@@ -700,7 +700,7 @@ const styles = StyleSheet.create({
   },
   alertCancelBtnText: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#000000',
   },
   warningModalBtn: {
@@ -719,7 +719,7 @@ const styles = StyleSheet.create({
   },
   warningModalBtnText: {
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#000000',
     letterSpacing: 0.6,
   },
@@ -735,7 +735,7 @@ const styles = StyleSheet.create({
   },
   alertConfirmBtnText: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#EF4444',
   },
 });

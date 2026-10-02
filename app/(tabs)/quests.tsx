@@ -82,7 +82,7 @@ export default function QuestsScreen() {
   const completeQuest = useQuestStore((s) => s.completeQuest);
 
   const [activeTab, setActiveTab] = useState<QuestTabFilter>('ALL');
-  const [penaltyTimeLeft, setPenaltyTimeLeft] = useState('04:12:30');
+  const [penaltyTimeLeft, setPenaltyTimeLeft] = useState('00:00:00');
 
   useEffect(() => {
     loadQuests();
@@ -151,16 +151,17 @@ export default function QuestsScreen() {
   const handleManualComplete = async (q: QuestData) => {
     haptics.success();
     sound.play('quest_complete');
-    const result = await completeQuest(q.id);
-    const coins = result.coins || q.rewardCoins || 18;
-    const xp = result.xp || q.rewardXP || 50;
-
-    showIOSAlert(
-      'Protocol Cleared!',
-      `You completed "${q.title}" and earned +${coins} Coins and +${xp} XP.`,
-      [{ text: 'Awesome', style: 'default' }],
-      { variant: 'quest', tag: 'QUEST CLEARED' }
-    );
+    try {
+      const result = await completeQuest(q.id);
+      showIOSAlert(
+        'Protocol Cleared!',
+        `You completed "${q.title}" and earned +${result.coins} Coins and +${result.xp} XP.`,
+        [{ text: 'Awesome', style: 'default' }],
+        { variant: 'quest', tag: 'QUEST CLEARED' }
+      );
+    } catch {
+      showIOSAlert('Unable to complete quest', 'Your progress was not changed. Please try again.');
+    }
   };
 
   const handleQuestAction = (q: QuestData) => {

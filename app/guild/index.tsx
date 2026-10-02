@@ -750,13 +750,13 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#0A84FF',
     letterSpacing: 1.2,
   },
   headerTitle: {
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.3,
   },
@@ -773,7 +773,7 @@ const styles = StyleSheet.create({
   },
   coinsBadgeText: {
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#F59E0B',
   },
   tabsRow: {
@@ -803,7 +803,7 @@ const styles = StyleSheet.create({
   },
   tabBtnText: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#64748B',
     letterSpacing: 0.5,
   },
@@ -815,7 +815,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#0A84FF',
     letterSpacing: 1,
   },
@@ -851,7 +851,7 @@ const styles = StyleSheet.create({
   },
   guildTagText: {
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#F59E0B',
     letterSpacing: 0.8,
   },
@@ -863,12 +863,12 @@ const styles = StyleSheet.create({
   },
   guildLevelText: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#94A3B8',
   },
   guildHeroName: {
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.5,
   },
@@ -891,7 +891,7 @@ const styles = StyleSheet.create({
   },
   guildStatNum: {
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#FFFFFF',
   },
   guildStatLabel: {
@@ -927,7 +927,7 @@ const styles = StyleSheet.create({
   },
   redGateText: {
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#EF4444',
     letterSpacing: 0.8,
   },
@@ -939,12 +939,12 @@ const styles = StyleSheet.create({
   },
   rankGateText: {
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#F59E0B',
   },
   bossName: {
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.5,
   },
@@ -965,13 +965,13 @@ const styles = StyleSheet.create({
   },
   hpLabel: {
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#EF4444',
     letterSpacing: 0.5,
   },
   hpValue: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#FFFFFF',
   },
   hpBarTrack: {
@@ -999,7 +999,7 @@ const styles = StyleSheet.create({
   },
   raidRewardText: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#E2E8F0',
   },
   attackButton: {
@@ -1016,7 +1016,7 @@ const styles = StyleSheet.create({
   },
   attackButtonText: {
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.8,
   },
@@ -1027,7 +1027,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.8,
   },
@@ -1060,7 +1060,7 @@ const styles = StyleSheet.create({
   },
   memberRankNumText: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#94A3B8',
   },
   memberNameRow: {
@@ -1070,7 +1070,7 @@ const styles = StyleSheet.create({
   },
   memberNameText: {
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#FFFFFF',
   },
   roleTag: {
@@ -1083,7 +1083,7 @@ const styles = StyleSheet.create({
   },
   roleTagText: {
     fontSize: 9,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#94A3B8',
     letterSpacing: 0.4,
   },
@@ -1103,7 +1103,7 @@ const styles = StyleSheet.create({
   },
   hunterRankBadgeText: {
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#0A84FF',
   },
   leaveGuildBtn: {
@@ -1120,7 +1120,7 @@ const styles = StyleSheet.create({
   },
   leaveGuildBtnText: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#EF4444',
     letterSpacing: 0.6,
   },
@@ -1137,7 +1137,7 @@ const styles = StyleSheet.create({
   },
   heroPromoTitle: {
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.8,
     textAlign: 'center',
@@ -1160,7 +1160,7 @@ const styles = StyleSheet.create({
   },
   foundGuildBtnText: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.6,
   },
@@ -1182,7 +1182,7 @@ const styles = StyleSheet.create({
   },
   charterMiniBtnText: {
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#0A84FF',
   },
   guildCard: {
@@ -1205,12 +1205,12 @@ const styles = StyleSheet.create({
   },
   guildCardTag: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#0A84FF',
   },
   guildCardName: {
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#FFFFFF',
   },
   guildRankReq: {
@@ -1221,7 +1221,7 @@ const styles = StyleSheet.create({
   },
   guildRankReqText: {
     fontSize: 9,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#F59E0B',
   },
   guildCardDesc: {
@@ -1259,7 +1259,7 @@ const styles = StyleSheet.create({
   },
   joinedBadgeText: {
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#10B981',
   },
   joinGuildBtn: {
@@ -1270,7 +1270,7 @@ const styles = StyleSheet.create({
   },
   joinGuildBtnText: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.4,
   },
@@ -1295,7 +1295,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.5,
   },
@@ -1309,7 +1309,7 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#64748B',
     letterSpacing: 0.5,
   },
@@ -1336,7 +1336,7 @@ const styles = StyleSheet.create({
   },
   costText: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#94A3B8',
   },
   costValueRow: {
@@ -1346,7 +1346,7 @@ const styles = StyleSheet.create({
   },
   costValue: {
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#F59E0B',
   },
   modalActions: {
@@ -1363,7 +1363,7 @@ const styles = StyleSheet.create({
   },
   modalCancelText: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#94A3B8',
   },
   modalSubmitBtn: {
@@ -1375,7 +1375,7 @@ const styles = StyleSheet.create({
   },
   modalSubmitText: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
   },
   emptyGuildCard: {
@@ -1388,7 +1388,7 @@ const styles = StyleSheet.create({
   },
   emptyGuildTitle: {
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 0.8,
     textAlign: 'center',
     marginTop: 4,

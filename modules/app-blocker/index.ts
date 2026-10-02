@@ -92,7 +92,7 @@ export function setRestrictedPackages(restrictedPackages: string[]): void {
 }
 
 export function setAppBudget(packageName: string | null, budgetMinutes: number): void {
-  if (Platform.OS === 'android' && AppBlocker?.setAppBudget) {
+  if (Platform.OS === 'android' && packageName && AppBlocker?.setAppBudget) {
     try {
       AppBlocker.setAppBudget(packageName, budgetMinutes);
     } catch {}

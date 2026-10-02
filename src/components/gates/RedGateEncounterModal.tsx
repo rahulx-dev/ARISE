@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
   threatBadgeText: {
     color: '#FF1E44',
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 0.8,
   },
   closeBtn: {
@@ -310,13 +310,13 @@ const styles = StyleSheet.create({
   dangerPillText: {
     color: '#FF1E44',
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 1.2,
   },
   threatTitleText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 0.8,
     textAlign: 'center',
     marginTop: 4,
@@ -345,7 +345,7 @@ const styles = StyleSheet.create({
   vaultTitleText: {
     color: '#FF1E44',
     fontSize: 10.5,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 0.8,
   },
   vaultGrid: {
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
   vaultValText: {
     color: '#00D2EE',
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   vaultSubText: {
     color: '#94A3B8',
@@ -391,7 +391,7 @@ const styles = StyleSheet.create({
   trialsSectionTitle: {
     color: '#FF1E44',
     fontSize: 10.5,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 0.6,
   },
   trialsList: {
@@ -423,7 +423,7 @@ const styles = StyleSheet.create({
   trialTitleText: {
     color: '#FFFFFF',
     fontSize: 11.5,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 0.4,
   },
   trialSubText: {
@@ -443,7 +443,7 @@ const styles = StyleSheet.create({
   trialTargetText: {
     color: '#FFFFFF',
     fontSize: 10.5,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   retreatBtn: {
     paddingVertical: 10,
@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
   retreatBtnText: {
     color: '#64748B',
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: 0.6,
   },
 });

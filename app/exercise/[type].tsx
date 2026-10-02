@@ -853,7 +853,7 @@ const styles = StyleSheet.create({
   },
   exerciseTitleText: {
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.2,
   },
@@ -905,7 +905,7 @@ const styles = StyleSheet.create({
   },
   repsNumBig: {
     fontSize: 34,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: -0.5,
     fontVariant: ['tabular-nums'],
@@ -933,7 +933,7 @@ const styles = StyleSheet.create({
   },
   elapsedTimerText: {
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#FFFFFF',
     fontVariant: ['tabular-nums'],
   },
@@ -974,7 +974,7 @@ const styles = StyleSheet.create({
   },
   endSetButtonText: {
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.3,
   },
@@ -1078,20 +1078,20 @@ const styles = StyleSheet.create({
   },
   restTagText: {
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#0A84FF',
     letterSpacing: 1.2,
   },
   restTimerBig: {
     fontSize: 54,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
     fontVariant: ['tabular-nums'],
     marginVertical: 4,
   },
   restSetInfo: {
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#10B981',
     letterSpacing: 0.5,
     marginTop: 4,
@@ -1115,7 +1115,7 @@ const styles = StyleSheet.create({
   },
   skipRestBtnText: {
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.5,
   },

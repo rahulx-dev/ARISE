@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '600',
     color: colors.textPrimary,
   },
   scrollContent: {
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
   },
   infoTitle: {
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '600',
     color: colors.danger,
   },
   infoSubtitle: {
@@ -191,14 +191,14 @@ const styles = StyleSheet.create({
   },
   counterBigNumber: {
     fontSize: 64,
-    fontWeight: '900',
+    fontWeight: '600',
     color: colors.textPrimary,
     fontVariant: ['tabular-nums'],
     marginTop: 2,
   },
   counterTargetFraction: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     color: colors.textMuted,
     marginTop: -4,
     letterSpacing: 1,
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
   },
   protocolTitle: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
     color: colors.textPrimary,
     letterSpacing: 0.5,
   },

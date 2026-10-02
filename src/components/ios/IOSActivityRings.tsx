@@ -212,12 +212,12 @@ const styles = StyleSheet.create({
   },
   legendLabel: {
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: 0.8,
   },
   legendVal: {
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: -0.4,
   },
 });

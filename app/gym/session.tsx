@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
   },
   headerDayTitle: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 1.2,
   },
   timerBadge: {
@@ -469,7 +469,7 @@ const styles = StyleSheet.create({
   },
   timerText: {
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
   finishBtn: {
@@ -479,7 +479,7 @@ const styles = StyleSheet.create({
   },
   finishBtnText: {
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#000',
     letterSpacing: 1,
   },
@@ -499,12 +499,12 @@ const styles = StyleSheet.create({
   },
   exOrderLabel: {
     fontSize: 9,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: 1,
   },
   exTitle: {
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '600',
     marginTop: 2,
   },
   exTargetText: {
@@ -523,7 +523,7 @@ const styles = StyleSheet.create({
   },
   modeBadgeText: {
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 0.5,
   },
   tableHeaderRow: {
@@ -534,7 +534,7 @@ const styles = StyleSheet.create({
   },
   colHeader: {
     fontSize: 9,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: 0.8,
   },
   setRow: {
@@ -553,7 +553,7 @@ const styles = StyleSheet.create({
   },
   setNumText: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   inputCell: {
     flex: 1,
@@ -569,7 +569,7 @@ const styles = StyleSheet.create({
   tableInput: {
     flex: 1,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
     padding: 0,
   },
   inputUnit: {
@@ -606,12 +606,12 @@ const styles = StyleSheet.create({
   },
   restBarLabel: {
     fontSize: 9,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 1,
   },
   restBarCountdown: {
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
   restBarControls: {
@@ -629,7 +629,7 @@ const styles = StyleSheet.create({
   },
   restCtrlText: {
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   restSkipBtn: {
     flexDirection: 'row',
@@ -641,7 +641,7 @@ const styles = StyleSheet.create({
   },
   restSkipText: {
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#000',
   },
   modalOverlay: {
@@ -669,17 +669,17 @@ const styles = StyleSheet.create({
   },
   prHeading: {
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 1.5,
   },
   prExerciseName: {
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '600',
     textAlign: 'center',
   },
   prWeightText: {
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   prSub: {
     fontSize: 12,

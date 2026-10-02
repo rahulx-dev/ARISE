@@ -312,7 +312,7 @@ export default function StreakMilestonesScreen() {
                         style={[
                           styles.giftTitle,
                           { color: colors.textPrimary },
-                          isClaimable && { color: '#F59E0B', fontWeight: '900' },
+                          isClaimable && { color: '#F59E0B', fontWeight: '600' },
                         ]}
                       >
                         {m.title}
@@ -483,7 +483,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 0.5,
   },
   headerSub: {
@@ -505,7 +505,7 @@ const styles = StyleSheet.create({
   },
   headerStreakVal: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#EA580C',
   },
   loadingWrap: {
@@ -516,7 +516,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: 1,
   },
   scrollContent: {
@@ -545,7 +545,7 @@ const styles = StyleSheet.create({
   },
   heroStreakHeading: {
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#EA580C',
     letterSpacing: -0.2,
   },
@@ -575,7 +575,7 @@ const styles = StyleSheet.create({
   },
   heroStatText: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#EA580C',
   },
   milestoneList: {
@@ -583,7 +583,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 1,
     marginBottom: 2,
   },
@@ -606,11 +606,11 @@ const styles = StyleSheet.create({
   },
   daysBadgeNum: {
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   giftTitle: {
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: -0.2,
   },
   giftSub: {
@@ -633,7 +633,7 @@ const styles = StyleSheet.create({
   },
   coinRewardText: {
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#F59E0B',
   },
   perkPill: {
@@ -664,7 +664,7 @@ const styles = StyleSheet.create({
   },
   claimGiftBtnText: {
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#000000',
     letterSpacing: 0.5,
   },
@@ -677,7 +677,7 @@ const styles = StyleSheet.create({
   },
   claimedBadgeText: {
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#10B981',
   },
   lockedBadge: {
@@ -733,7 +733,7 @@ const styles = StyleSheet.create({
   },
   unboxSystemTagText: {
     fontSize: 9,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#F59E0B',
     letterSpacing: 1,
   },
@@ -753,7 +753,7 @@ const styles = StyleSheet.create({
   },
   unboxTitle: {
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '600',
     textAlign: 'center',
     letterSpacing: -0.3,
   },
@@ -774,13 +774,13 @@ const styles = StyleSheet.create({
   },
   bountyPreviewLabel: {
     fontSize: 9,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#F59E0B',
     letterSpacing: 1,
   },
   bountyPreviewVal: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#FFFFFF',
     textAlign: 'center',
   },
@@ -801,7 +801,7 @@ const styles = StyleSheet.create({
   },
   bountyAmountText: {
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#F59E0B',
     letterSpacing: 0.5,
   },
@@ -814,7 +814,7 @@ const styles = StyleSheet.create({
   },
   perkRevealText: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   collectBtn: {
     flexDirection: 'row',
@@ -828,7 +828,7 @@ const styles = StyleSheet.create({
   },
   collectBtnText: {
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 0.8,
   },
 });

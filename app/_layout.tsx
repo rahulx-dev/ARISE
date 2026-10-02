@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
   },
   splashLogo: {
     fontSize: 48,
-    fontWeight: "900",
+    fontWeight: '600',
     color: colors.textPrimary,
     letterSpacing: 8,
   },

@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: -0.3,
   },
   closeBtn: {
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
   },
   notifTitle: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   timeText: {
     fontSize: 11,

@@ -98,12 +98,12 @@ const styles = StyleSheet.create({
   },
   chronometerLabel: {
     fontSize: 9,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 1.2,
   },
   dayLabel: {
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: 1,
   },
   numeralsRow: {
@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
   },
   mainDigits: {
     fontSize: 38,
-    fontWeight: '900',
+    fontWeight: '600',
     fontVariant: ['tabular-nums'],
     letterSpacing: 1,
   },
@@ -128,12 +128,12 @@ const styles = StyleSheet.create({
   },
   secondsDigits: {
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
   secLabel: {
     fontSize: 7,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 0.5,
   },
   bottomRow: {
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
   },
   statusTagText: {
     fontSize: 8,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: 0.5,
   },
 });

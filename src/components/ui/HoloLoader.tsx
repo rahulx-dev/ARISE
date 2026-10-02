@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#111827',
   },
   subText: {

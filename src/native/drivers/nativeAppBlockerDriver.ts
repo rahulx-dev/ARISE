@@ -113,7 +113,7 @@ export class NativeAppBlockerDriver implements IAppBlockerDriver {
   }
 
   setAppBudget(packageName: string | null, budgetMinutes: number): void {
-    if (Platform.OS === 'android' && NativeAppBlocker?.setAppBudget) {
+    if (Platform.OS === 'android' && packageName && NativeAppBlocker?.setAppBudget) {
       try {
         console.log('[NativeAppBlocker] setAppBudget:', packageName, budgetMinutes);
         NativeAppBlocker.setAppBudget(packageName, budgetMinutes);

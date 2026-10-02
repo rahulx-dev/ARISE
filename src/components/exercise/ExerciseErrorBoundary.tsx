@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
     textAlign: 'center',
     letterSpacing: 0.5,
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
   },
   retryBtnText: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#000000',
     letterSpacing: 0.8,
   },
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
   },
   homeBtnText: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.8,
   },

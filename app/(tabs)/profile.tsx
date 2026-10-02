@@ -491,24 +491,14 @@ export default function WarriorProfileTab() {
                 >
                   <Mic size={18} color="#E53935" />
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={[
-                      styles.settingsRowTitle,
-                      { color: colors.textPrimary },
-                    ]}
-                  >
-                    Voice Coach
-                  </Text>
-                  <Text
-                    style={[
-                      styles.settingsRowSub,
-                      { color: colors.textSecondary },
-                    ]}
-                  >
-                    Audio rep counts & encouragement
-                  </Text>
-                </View>
+                <Text
+                  style={[
+                    styles.settingsRowTitle,
+                    { color: colors.textPrimary },
+                  ]}
+                >
+                  Voice Coach
+                </Text>
               </View>
               <Switch
                 value={voiceCoachActive}
@@ -551,26 +541,19 @@ export default function WarriorProfileTab() {
                 >
                   <Moon size={18} color="#A855F7" />
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={[
-                      styles.settingsRowTitle,
-                      { color: colors.textPrimary },
-                    ]}
-                  >
-                    Theme Mode
-                  </Text>
-                  <Text
-                    style={[
-                      styles.settingsRowSub,
-                      { color: colors.textSecondary },
-                    ]}
-                  >
-                    {themeDisplayLabel}
-                  </Text>
-                </View>
+                <Text
+                  style={[
+                    styles.settingsRowTitle,
+                    { color: colors.textPrimary },
+                  ]}
+                >
+                  Theme Mode
+                </Text>
               </View>
-              <ChevronRight size={18} color="#9CA3AF" />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={{ fontSize: 13, color: colors.textSecondary }}>{themeDisplayLabel}</Text>
+                <ChevronRight size={18} color="#9CA3AF" />
+              </View>
             </TouchableOpacity>
 
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
@@ -593,26 +576,21 @@ export default function WarriorProfileTab() {
                 >
                   <Globe size={18} color="#0284C7" />
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={[
-                      styles.settingsRowTitle,
-                      { color: colors.textPrimary },
-                    ]}
-                  >
-                    Language
-                  </Text>
-                  <Text
-                    style={[
-                      styles.settingsRowSub,
-                      { color: colors.textSecondary },
-                    ]}
-                  >
-                    {activeLangObj?.flag} {activeLangObj?.label} ({activeLangObj?.nativeLabel})
-                  </Text>
-                </View>
+                <Text
+                  style={[
+                    styles.settingsRowTitle,
+                    { color: colors.textPrimary },
+                  ]}
+                >
+                  Language
+                </Text>
               </View>
-              <ChevronRight size={18} color="#9CA3AF" />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={{ fontSize: 13, color: colors.textSecondary }}>
+                  {activeLangObj?.flag} {activeLangObj?.label}
+                </Text>
+                <ChevronRight size={18} color="#9CA3AF" />
+              </View>
             </TouchableOpacity>
 
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
@@ -628,24 +606,14 @@ export default function WarriorProfileTab() {
                 >
                   <Bell size={18} color="#D97706" />
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={[
-                      styles.settingsRowTitle,
-                      { color: colors.textPrimary },
-                    ]}
-                  >
-                    Notifications
-                  </Text>
-                  <Text
-                    style={[
-                      styles.settingsRowSub,
-                      { color: colors.textSecondary },
-                    ]}
-                  >
-                    Daily reminders & streak alerts
-                  </Text>
-                </View>
+                <Text
+                  style={[
+                    styles.settingsRowTitle,
+                    { color: colors.textPrimary },
+                  ]}
+                >
+                  Notifications
+                </Text>
               </View>
               <Switch
                 value={notificationsEnabled}
@@ -688,24 +656,14 @@ export default function WarriorProfileTab() {
                 >
                   <Shield size={18} color="#DC2626" />
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={[
-                      styles.settingsRowTitle,
-                      { color: colors.textPrimary },
-                    ]}
-                  >
-                    App Blocking
-                  </Text>
-                  <Text
-                    style={[
-                      styles.settingsRowSub,
-                      { color: colors.textSecondary },
-                    ]}
-                  >
-                    Anti-distraction shield configuration
-                  </Text>
-                </View>
+                <Text
+                  style={[
+                    styles.settingsRowTitle,
+                    { color: colors.textPrimary },
+                  ]}
+                >
+                  App Blocking & Detox
+                </Text>
               </View>
               <ChevronRight size={18} color="#9CA3AF" />
             </TouchableOpacity>
@@ -727,24 +685,14 @@ export default function WarriorProfileTab() {
                 >
                   <Cloud size={18} color="#0A84FF" />
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={[
-                      styles.settingsRowTitle,
-                      { color: colors.textPrimary },
-                    ]}
-                  >
-                    Offline Backup & Export
-                  </Text>
-                  <Text
-                    style={[
-                      styles.settingsRowSub,
-                      { color: colors.textSecondary },
-                    ]}
-                  >
-                    Export SQLite profile & workouts to JSON
-                  </Text>
-                </View>
+                <Text
+                  style={[
+                    styles.settingsRowTitle,
+                    { color: colors.textPrimary },
+                  ]}
+                >
+                  Offline Backup & Export
+                </Text>
               </View>
               <ChevronRight size={18} color="#9CA3AF" />
             </TouchableOpacity>
@@ -770,24 +718,14 @@ export default function WarriorProfileTab() {
                 >
                   <Info size={18} color={colors.textSecondary} />
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={[
-                      styles.settingsRowTitle,
-                      { color: colors.textPrimary },
-                    ]}
-                  >
-                    About ARISE
-                  </Text>
-                  <Text
-                    style={[
-                      styles.settingsRowSub,
-                      { color: colors.textSecondary },
-                    ]}
-                  >
-                    Version 3.3.0 • Release
-                  </Text>
-                </View>
+                <Text
+                  style={[
+                    styles.settingsRowTitle,
+                    { color: colors.textPrimary },
+                  ]}
+                >
+                  About ARISE
+                </Text>
               </View>
               <ChevronRight size={18} color="#9CA3AF" />
             </TouchableOpacity>
@@ -929,7 +867,7 @@ const styles = StyleSheet.create({
   },
   screenHeaderTitle: {
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 0.5,
   },
   settingsBtn: {

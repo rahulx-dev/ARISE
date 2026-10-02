@@ -8,6 +8,7 @@ import {
   Modal,
   Animated,
   Easing,
+  AppState,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -58,6 +59,8 @@ export default function FocusModeScreen() {
 
   const timerRef = useRef<any>(null);
   const startTimeRef = useRef<number | null>(null);
+  const endTimeRef = useRef<number | null>(null);
+  const completedRef = useRef(false);
 
   // 120 FPS Siri Live Ring Animation Values
   const rotateAnim = useRef(new Animated.Value(0)).current;
@@ -154,7 +157,10 @@ export default function FocusModeScreen() {
   // Timer loop
   useEffect(() => {
     if (isActive) {
-      startTimeRef.current = Date.now();
+      if (!startTimeRef.current) {
+        startTimeRef.current = Date.now();
+        endTimeRef.current = Date.now() + remainingMs;
+      }
       if (!isMuted) {
         audioService.play(selectedTrackId);
       } else {
@@ -162,13 +168,19 @@ export default function FocusModeScreen() {
       }
 
       timerRef.current = setInterval(() => {
+        const endTime = endTimeRef.current;
+        if (!endTime) return;
         setRemainingMs((prev) => {
-          if (prev <= 1000) {
+          const next = Math.max(0, endTime - Date.now());
+          if (next <= 0) {
             clearInterval(timerRef.current);
-            handleCompleteSession();
+            if (!completedRef.current) {
+              completedRef.current = true;
+              handleCompleteSession();
+            }
             return 0;
           }
-          return prev - 1000;
+          return next;
         });
       }, 1000);
     } else {
@@ -180,6 +192,20 @@ export default function FocusModeScreen() {
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [isActive, isMuted, selectedTrackId]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active' && isActive && endTimeRef.current) {
+        const remaining = Math.max(0, endTimeRef.current - Date.now());
+        setRemainingMs(remaining);
+        if (remaining === 0 && !completedRef.current) {
+          completedRef.current = true;
+          handleCompleteSession();
+        }
+      }
+    });
+    return () => subscription.remove();
+  }, [isActive]);
 
   const toggleMute = () => {
     haptics.light();
@@ -209,6 +235,9 @@ export default function FocusModeScreen() {
     setIsActive(false);
     audioService.stop();
     setRemainingMs(targetMinutes * 60 * 1000);
+    startTimeRef.current = null;
+    endTimeRef.current = null;
+    completedRef.current = false;
   };
 
   const handleAddFiveMinutes = () => {
@@ -221,11 +250,15 @@ export default function FocusModeScreen() {
     haptics.light();
     setTargetMinutes(mins);
     setRemainingMs(mins * 60 * 1000);
+    startTimeRef.current = null;
+    endTimeRef.current = null;
+    completedRef.current = false;
     setIsPresetSheetOpen(false);
   };
 
   const handleCompleteSession = async () => {
     setIsActive(false);
+    endTimeRef.current = null;
     audioService.stop();
     sound.play('quest_complete');
     haptics.success();
@@ -530,14 +563,14 @@ export default function FocusModeScreen() {
                 {isMuted ? (
                   <>
                     <SpeakerSlash size={16} color="#EF4444" weight="bold" />
-                    <Text style={{ fontSize: 11, fontWeight: '800', color: '#EF4444', letterSpacing: 0.5 }}>
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: '#EF4444', letterSpacing: 0.5 }}>
                       AMBIENT AUDIO MUTED (TAP TO UNMUTE)
                     </Text>
                   </>
                 ) : (
                   <>
                     <SpeakerHigh size={16} color="#0284C7" weight="bold" />
-                    <Text style={{ fontSize: 11, fontWeight: '800', color: '#0284C7', letterSpacing: 0.5 }}>
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: '#0284C7', letterSpacing: 0.5 }}>
                       AMBIENT AUDIO PLAYING (TAP TO MUTE)
                     </Text>
                   </>
@@ -647,7 +680,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: -0.3,
   },
   circleBtn: {
@@ -714,13 +747,13 @@ const styles = StyleSheet.create({
   },
   timerDigits: {
     fontSize: 48,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: -1,
     fontVariant: ['tabular-nums'],
   },
   timerSubLabel: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: 1,
   },
   controlsRow: {
@@ -765,11 +798,11 @@ const styles = StyleSheet.create({
   },
   statVal: {
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   statLabel: {
     fontSize: 9,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: 0.5,
   },
   statDivider: {
@@ -794,7 +827,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '600',
   },
   trackCard: {
     flexDirection: 'row',
@@ -819,7 +852,7 @@ const styles = StyleSheet.create({
   },
   activeBadgeText: {
     fontSize: 9,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.5,
   },
@@ -839,7 +872,7 @@ const styles = StyleSheet.create({
   },
   presetNumber: {
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   presetUnit: {
     fontSize: 11,

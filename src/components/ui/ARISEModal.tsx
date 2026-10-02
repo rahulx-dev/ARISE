@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
   },
   modalTitleText: {
     fontSize: 17,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: -0.3,
   },
   modalSubtitleText: {
