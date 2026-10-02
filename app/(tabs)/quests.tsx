@@ -27,6 +27,7 @@ import {
   ShieldWarning,
   Sparkle,
   Target,
+  Footprints,
 } from 'phosphor-react-native';
 import { useQuestStore } from '../../src/stores/useQuestStore';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
@@ -87,6 +88,7 @@ function QuestCardRow({
   isDone,
   isCameraTracked,
   isFocus,
+  isRunning,
   rank,
   buttonLabel,
   colors,
@@ -98,12 +100,13 @@ function QuestCardRow({
   isDone: boolean;
   isCameraTracked: boolean;
   isFocus: boolean;
+  isRunning?: boolean;
   rank: RankConfig;
   buttonLabel: string;
   colors: any;
   isDark: boolean;
   onAction: () => void;
-  getCategoryIcon: (q: QuestData, isCamera: boolean, isFocus: boolean) => React.ReactNode;
+  getCategoryIcon: (q: QuestData, isCamera: boolean, isFocus: boolean, isRunning?: boolean) => React.ReactNode;
 }) {
   const checkmarkScale = useSharedValue(isDone ? 1 : 0.6);
 
@@ -135,6 +138,8 @@ function QuestCardRow({
           {
             backgroundColor: isDark
               ? '#1C1618'
+              : isRunning
+              ? '#EFF6FF'
               : isCameraTracked
               ? '#FFF1F2'
               : isFocus
@@ -143,7 +148,7 @@ function QuestCardRow({
           },
         ]}
       >
-        {getCategoryIcon(q, isCameraTracked, isFocus)}
+        {getCategoryIcon(q, isCameraTracked, isFocus, isRunning)}
       </View>
 
       {/* Middle: Title, Subtitle, Rewards */}
@@ -152,7 +157,7 @@ function QuestCardRow({
           {q.title}
         </Text>
         <Text style={[styles.questRowDesc, { color: colors.textSecondary }]} numberOfLines={1}>
-          {q.description || (isCameraTracked ? `Target: ${q.target || 20} reps` : 'Daily protocol')}
+          {q.description || (isRunning ? 'Outdoor GPS Run' : isCameraTracked ? `Target: ${q.target || 20} reps` : 'Daily protocol')}
         </Text>
         <View style={styles.rewardBadgesRow}>
           <View style={[styles.bountyMiniPill, { backgroundColor: isDark ? '#1A1C28' : '#F3F4F6' }]}>
@@ -191,7 +196,8 @@ function QuestCardRow({
           <AnimatedPressable
             style={[
               styles.startQuestPillBtn,
-              !isCameraTracked && !isFocus && styles.manualClaimBtn,
+              isRunning && { backgroundColor: '#0A84FF' },
+              !isCameraTracked && !isFocus && !isRunning && styles.manualClaimBtn,
             ]}
             onPress={onAction}
             scaleTo={motion.scale.pressedChip}
@@ -306,10 +312,19 @@ export default function QuestsScreen() {
 
     const cat = (q.category || '').toUpperCase();
     const titleLower = (q.title || '').toLowerCase();
-    const isFocus = cat === 'FOCUS' || q.questType === 'TIMER' || titleLower.includes('focus');
+    const isRunning =
+      cat === 'RUNNING' ||
+      titleLower.includes('run') ||
+      titleLower.includes('sprint') ||
+      titleLower.includes('jog');
+    const isFocus = !isRunning && (cat === 'FOCUS' || q.questType === 'TIMER' || titleLower.includes('focus'));
     const cameraExercise = resolveExerciseType(q);
-    const isCameraTracked = cameraExercise !== null && q.questType !== 'MANUAL';
+    const isCameraTracked = !isRunning && cameraExercise !== null && q.questType !== 'MANUAL';
 
+    if (isRunning) {
+      router.push('/run' as any);
+      return;
+    }
     if (isCameraTracked) {
       router.push({
         pathname: '/exercise/[type]',
@@ -334,8 +349,11 @@ export default function QuestsScreen() {
     }
   };
 
-  const getCategoryIcon = (q: QuestData, isCamera: boolean, isFocus: boolean) => {
+  const getCategoryIcon = (q: QuestData, isCamera: boolean, isFocus: boolean, isRunning?: boolean) => {
     const cat = (q.category || '').toUpperCase();
+    if (isRunning) {
+      return <Footprints size={22} color="#0A84FF" weight="fill" />;
+    }
     if (isCamera) {
       return <Barbell size={22} color="#E53935" weight="fill" />;
     }
@@ -435,6 +453,65 @@ export default function QuestsScreen() {
 
         {/* 4. QUEST CARDS LIST */}
         <View style={styles.questCardsList}>
+          {/* Shadow Sprint GPS Trial Card (All & Special tabs) */}
+          {(activeTab === 'ALL' || activeTab === 'SPECIAL') && (
+            <AnimatedPressable
+              style={[
+                styles.horizontalQuestCard,
+                {
+                  backgroundColor: isDark ? '#0C1324' : '#F0F7FF',
+                  borderColor: isDark ? '#1C2E52' : '#BAE6FD',
+                },
+              ]}
+              onPress={() => {
+                haptics.heavy();
+                router.push('/run' as any);
+              }}
+              scaleTo={motion.scale.pressedCard}
+            >
+              {/* Left: Category Icon Thumbnail */}
+              <View
+                style={[
+                  styles.questThumbBox,
+                  { backgroundColor: isDark ? '#122648' : '#DBEAFE' },
+                ]}
+              >
+                <Footprints size={22} color="#0A84FF" weight="fill" />
+              </View>
+
+              {/* Middle: Title, Subtitle, Rewards */}
+              <View style={styles.questMiddleCol}>
+                <Text style={[styles.questRowTitle, { color: colors.textPrimary }]} numberOfLines={1}>
+                  {t('shadowSprint', 'Shadow Sprint GPS Trial')}
+                </Text>
+                <Text style={[styles.questRowDesc, { color: colors.textSecondary }]} numberOfLines={1}>
+                  {t('sprintDesc', 'Live outdoor distance tracking with pace telemetry.')}
+                </Text>
+                <View style={styles.rewardBadgesRow}>
+                  <View style={[styles.bountyMiniPill, { backgroundColor: isDark ? '#1A1C28' : '#FFFFFF' }]}>
+                    <Image source={APP_3D_ASSETS.goldCoin} style={{ width: 12, height: 12 }} />
+                    <Text style={styles.bountyMiniCoinText}>+50</Text>
+                  </View>
+                  <View style={[styles.bountyMiniPill, { backgroundColor: isDark ? '#1A1C28' : '#FFFFFF' }]}>
+                    <Text style={[styles.bountyMiniXPText, { color: colors.textSecondary }]}>
+                      +200 XP
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Right: Rank Tag & Action Button */}
+              <View style={styles.questRightCol}>
+                <View style={[styles.rankBadgeMini, { backgroundColor: 'rgba(10, 132, 255, 0.15)' }]}>
+                  <Text style={[styles.rankBadgeMiniText, { color: '#0A84FF' }]}>B-RANK</Text>
+                </View>
+                <View style={[styles.startQuestPillBtn, { backgroundColor: '#0A84FF' }]}>
+                  <Text style={styles.startQuestPillBtnText}>{t('startRun', 'START RUN')}</Text>
+                </View>
+              </View>
+            </AnimatedPressable>
+          )}
+
           {displayedQuests.length === 0 ? (
             <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <ShieldWarning size={32} color={colors.textSecondary} />
@@ -452,13 +529,20 @@ export default function QuestsScreen() {
               const isDone = Boolean(q.completed);
               const cat = (q?.category || '').toUpperCase();
               const titleLower = (q?.title || '').toLowerCase();
-              const isFocus = cat === 'FOCUS' || q.questType === 'TIMER' || titleLower.includes('focus');
+              const isRunning =
+                cat === 'RUNNING' ||
+                titleLower.includes('run') ||
+                titleLower.includes('sprint') ||
+                titleLower.includes('jog');
+              const isFocus = !isRunning && (cat === 'FOCUS' || q.questType === 'TIMER' || titleLower.includes('focus'));
               const cameraExercise = resolveExerciseType(q);
-              const isCameraTracked = cameraExercise !== null && q.questType !== 'MANUAL';
+              const isCameraTracked = !isRunning && cameraExercise !== null && q.questType !== 'MANUAL';
               const rank = getRankConfig(q.difficulty);
 
               let buttonLabel = t('claimReward', 'COMPLETE');
-              if (isCameraTracked) {
+              if (isRunning) {
+                buttonLabel = t('startRun', 'START RUN');
+              } else if (isCameraTracked) {
                 buttonLabel = t('startAiWorkout', 'START TRACKER');
               } else if (isFocus) {
                 buttonLabel = t('startFocus', 'START FOCUS');
@@ -471,6 +555,7 @@ export default function QuestsScreen() {
                   isDone={isDone}
                   isCameraTracked={isCameraTracked}
                   isFocus={isFocus}
+                  isRunning={isRunning}
                   rank={rank}
                   buttonLabel={buttonLabel}
                   colors={colors}

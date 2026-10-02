@@ -28,6 +28,7 @@ import {
   Ban,
   ShoppingBag,
   Sparkles,
+  Footprints,
 } from 'lucide-react-native';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { useQuestStore } from '../../src/stores/useQuestStore';
@@ -654,7 +655,11 @@ export default function HomeDashboard() {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.quickActionsCardsRow}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.quickActionsCardsRow}
+          >
             {/* Action 1: Workout */}
             <TouchableOpacity
               style={[
@@ -708,11 +713,68 @@ export default function HomeDashboard() {
                   { color: isDark ? '#8E8E93' : '#64748B' },
                 ]}
               >
-                {t('startSession', 'Start your session')}
+                {t('startSession', 'Start session')}
               </Text>
             </TouchableOpacity>
 
-            {/* Action 2: Focus */}
+            {/* Action 2: Run (Outdoor GPS) */}
+            <TouchableOpacity
+              style={[
+                styles.quickActionCard,
+                {
+                  backgroundColor: isDark ? '#08171E' : '#F0FDF4',
+                  borderColor: isDark ? '#0E2E33' : '#DCFCE7',
+                },
+              ]}
+              onPress={() => {
+                haptics.light();
+                router.push('/run' as any);
+              }}
+              activeOpacity={0.8}
+            >
+              <View
+                style={[
+                  styles.quickActionIconWrap,
+                  {
+                    backgroundColor: isDark
+                      ? 'rgba(16, 185, 129, 0.2)'
+                      : '#DCFCE7',
+                  },
+                ]}
+              >
+                <Footprints size={20} color="#10B981" strokeWidth={2.4} />
+              </View>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <Text
+                  style={[
+                    styles.quickActionCardTitle,
+                    { color: isDark ? '#FFFFFF' : '#0F172A' },
+                  ]}
+                >
+                  {t('run', 'Run')}
+                </Text>
+                <ChevronRight
+                  size={14}
+                  color={isDark ? '#8E8E93' : '#64748B'}
+                />
+              </View>
+              <Text
+                style={[
+                  styles.quickActionCardSub,
+                  { color: isDark ? '#8E8E93' : '#64748B' },
+                ]}
+              >
+                {t('runSub', 'Outdoor GPS')}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Action 3: Focus */}
             <TouchableOpacity
               style={[
                 styles.quickActionCard,
@@ -765,11 +827,11 @@ export default function HomeDashboard() {
                   { color: isDark ? '#8E8E93' : '#64748B' },
                 ]}
               >
-                {t('stayInZone', 'Stay in the zone')}
+                {t('stayInZone', 'Stay in zone')}
               </Text>
             </TouchableOpacity>
 
-            {/* Action 3: Shop */}
+            {/* Action 4: Shop */}
             <TouchableOpacity
               style={[
                 styles.quickActionCard,
@@ -822,10 +884,10 @@ export default function HomeDashboard() {
                   { color: isDark ? '#8E8E93' : '#64748B' },
                 ]}
               >
-                {t('upgradeUnlock', 'Spend your coins')}
+                {t('upgradeUnlock', 'Spend coins')}
               </Text>
             </TouchableOpacity>
-          </View>
+          </ScrollView>
         </View>
 
         <View style={{ height: 32 }} />
@@ -1137,7 +1199,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   quickActionCard: {
-    flex: 1,
+    width: 124,
     borderRadius: 18,
     borderWidth: 1,
     padding: 12,

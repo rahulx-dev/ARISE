@@ -137,11 +137,27 @@ export default function GymTabScreen() {
       badgeBg: isDark ? '#33210C' : '#FEF3C7',
       difficulty: 'E-Rank',
     },
+    {
+      id: 'running',
+      type: 'RUNNING',
+      title: 'Shadow Sprint',
+      targetMuscles: 'Outdoor GPS Distance & Stamina',
+      defaultReps: 1,
+      xpReward: 200,
+      coinsReward: 50,
+      badgeColor: '#0A84FF',
+      badgeBg: isDark ? '#0C203B' : '#E0F2FE',
+      difficulty: 'B-Rank',
+    },
   ];
 
   const handleStartExercise = (exercise: ExerciseCardItem) => {
     haptics.heavy();
     sound.play('unlock');
+    if (exercise.id === 'running' || exercise.type === 'RUNNING') {
+      router.push('/run' as any);
+      return;
+    }
     router.push({
       pathname: '/exercise/[type]',
       params: {
@@ -155,7 +171,7 @@ export default function GymTabScreen() {
     if (categoryFilter === 'all') return true;
     if (categoryFilter === 'bodyweight') return ex.id === 'pushup' || ex.id === 'pullup';
     if (categoryFilter === 'core') return ex.id === 'plank' || ex.id === 'squat';
-    if (categoryFilter === 'cardio') return ex.id === 'jumping_jacks';
+    if (categoryFilter === 'cardio') return ex.id === 'jumping_jacks' || ex.id === 'running';
     return true;
   });
 
@@ -258,7 +274,7 @@ export default function GymTabScreen() {
                     </View>
                     <View style={[styles.rewardTag, { backgroundColor: isDark ? '#1A1C28' : '#F3F4F6' }]}>
                       <Text style={[styles.rewardTagText, { color: colors.textSecondary }]}>
-                        🎯 {item.defaultReps} {item.type === 'PLANK' ? 'sec' : 'reps'}
+                        🎯 {item.type === 'RUNNING' ? '1.0 km' : `${item.defaultReps} ${item.type === 'PLANK' ? 'sec' : 'reps'}`}
                       </Text>
                     </View>
                   </View>
