@@ -53,13 +53,39 @@ const DUNGEON_IMAGES: Record<string, any> = {
   S: require('../../assets/dungeons/dungeon_s_dragon.jpg'),
 };
 
-const RANK_TAG_STYLES: Record<string, { bg: string; text: string }> = {
-  E: { bg: '#ECFDF5', text: '#10B981' },
-  D: { bg: '#EFF6FF', text: '#3B82F6' },
-  C: { bg: '#FAF5FF', text: '#8B5CF6' },
-  B: { bg: '#FFF1F2', text: '#F43F5E' },
-  A: { bg: '#FFFBEB', text: '#F59E0B' },
-  S: { bg: '#FEF2F2', text: '#EF4444' },
+const getRankTagStyles = (rankCode: string, isDark: boolean): { bg: string; border: string; text: string } => {
+  if (isDark) {
+    switch (rankCode) {
+      case 'E':
+        return { bg: 'rgba(16, 185, 129, 0.12)', border: 'rgba(16, 185, 129, 0.4)', text: '#10B981' };
+      case 'D':
+        return { bg: 'rgba(59, 130, 246, 0.12)', border: 'rgba(59, 130, 246, 0.4)', text: '#3B82F6' };
+      case 'C':
+        return { bg: 'rgba(139, 92, 246, 0.12)', border: 'rgba(139, 92, 246, 0.4)', text: '#8B5CF6' };
+      case 'B':
+        return { bg: 'rgba(244, 63, 94, 0.12)', border: 'rgba(244, 63, 94, 0.4)', text: '#F43F5E' };
+      case 'A':
+        return { bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(245, 158, 11, 0.4)', text: '#F59E0B' };
+      case 'S':
+      default:
+        return { bg: 'rgba(239, 68, 68, 0.12)', border: 'rgba(239, 68, 68, 0.4)', text: '#EF4444' };
+    }
+  }
+  switch (rankCode) {
+    case 'E':
+      return { bg: '#ECFDF5', border: '#A7F3D0', text: '#059669' };
+    case 'D':
+      return { bg: '#EFF6FF', border: '#BFDBFE', text: '#2563EB' };
+    case 'C':
+      return { bg: '#FAF5FF', border: '#E9D5FF', text: '#7C3AED' };
+    case 'B':
+      return { bg: '#FFF1F2', border: '#FECDD3', text: '#E11D48' };
+    case 'A':
+      return { bg: '#FFFBEB', border: '#FDE68A', text: '#D97706' };
+    case 'S':
+    default:
+      return { bg: '#FEF2F2', border: '#FECACA', text: '#DC2626' };
+  }
 };
 
 function HunterRadarGraphic({ isDark }: { isDark: boolean }) {
@@ -311,7 +337,7 @@ export default function DungeonScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       {/* 1. TOP STATUS HEADER (Avatar + Tara + Rank | Crystals Pill + Gift Box) */}
-      <View style={[styles.topHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+      <View style={[styles.topHeader, { backgroundColor: isDark ? 'transparent' : colors.card, borderBottomColor: isDark ? 'transparent' : colors.border }]}>
         {/* Left: Player Profile & Rank */}
         <TouchableOpacity
           style={styles.headerPlayerCol}
@@ -328,7 +354,7 @@ export default function DungeonScreen() {
               glow={false}
             />
             {/* Online Green Badge */}
-            <View style={[styles.avatarOnlineDot, { borderColor: colors.card }]} />
+            <View style={[styles.avatarOnlineDot, { borderColor: isDark ? colors.background : '#FFFFFF' }]} />
           </View>
           <View style={{ marginLeft: 10, justifyContent: 'center' }}>
             <Text style={[styles.hunterNameText, { color: colors.textPrimary }]} numberOfLines={1}>
@@ -346,8 +372,8 @@ export default function DungeonScreen() {
             style={[
               styles.crystalCapsule,
               {
-                backgroundColor: colors.surfaceLight,
-                borderColor: colors.border,
+                backgroundColor: isDark ? '#141720' : colors.surfaceLight,
+                borderColor: isDark ? '#1F2433' : colors.border,
               },
             ]}
             onPress={() => {
@@ -356,7 +382,7 @@ export default function DungeonScreen() {
             }}
             activeOpacity={0.8}
           >
-            <ManaCrystalIcon size={17} />
+            <ManaCrystalIcon size={16} />
             <Text style={[styles.crystalCountText, { color: colors.textPrimary }]}>
               {manaCrystals.toLocaleString()}
             </Text>
@@ -366,8 +392,8 @@ export default function DungeonScreen() {
             style={[
               styles.giftBtn,
               {
-                backgroundColor: colors.surfaceLight,
-                borderColor: colors.border,
+                backgroundColor: isDark ? '#141720' : colors.surfaceLight,
+                borderColor: isDark ? '#1F2433' : colors.border,
               },
             ]}
             onPress={() => {
@@ -376,17 +402,17 @@ export default function DungeonScreen() {
             }}
             activeOpacity={0.8}
           >
-            <Gift size={18} color={colors.textSecondary} />
+            <Gift size={16} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
       </View>
 
       {/* 2. SUB-HEADER DUAL TABS: [Gates] vs [Leaderboard] */}
-      <View style={[styles.tabSegmentWrap, { backgroundColor: colors.surfaceLight, borderColor: colors.border }]}>
+      <View style={[styles.tabSegmentWrap, { backgroundColor: isDark ? '#0D0E13' : colors.surfaceLight, borderColor: isDark ? '#1C1F2B' : colors.border }]}>
         <TouchableOpacity
           style={[
             styles.segmentBtn,
-            activeTab === 'gates' && (isDark ? styles.segmentBtnActiveDark : styles.segmentBtnActiveLight),
+            activeTab === 'gates' && (isDark ? styles.segmentBtnGatesActiveDark : styles.segmentBtnActiveLight),
           ]}
           onPress={() => {
             haptics.light();
@@ -394,12 +420,12 @@ export default function DungeonScreen() {
           }}
           activeOpacity={0.85}
         >
-          <Swords size={16} color={activeTab === 'gates' ? colors.primary : colors.textMuted} />
+          <Swords size={16} color={activeTab === 'gates' ? (isDark ? '#EF4444' : colors.primary) : colors.textMuted} />
           <Text
             style={[
               styles.segmentBtnText,
               {
-                color: activeTab === 'gates' ? colors.primary : colors.textSecondary,
+                color: activeTab === 'gates' ? (isDark ? '#EF4444' : colors.primary) : colors.textSecondary,
               },
             ]}
           >
@@ -410,7 +436,7 @@ export default function DungeonScreen() {
         <TouchableOpacity
           style={[
             styles.segmentBtn,
-            activeTab === 'leaderboard' && (isDark ? styles.segmentBtnActiveDark : styles.segmentBtnActiveLight),
+            activeTab === 'leaderboard' && (isDark ? styles.segmentBtnLbActiveDark : styles.segmentBtnActiveLight),
           ]}
           onPress={() => {
             haptics.light();
@@ -418,12 +444,12 @@ export default function DungeonScreen() {
           }}
           activeOpacity={0.85}
         >
-          <Trophy size={16} color={activeTab === 'leaderboard' ? colors.primary : colors.textMuted} />
+          <Trophy size={16} color={activeTab === 'leaderboard' ? (isDark ? '#F59E0B' : colors.primary) : colors.textMuted} />
           <Text
             style={[
               styles.segmentBtnText,
               {
-                color: activeTab === 'leaderboard' ? colors.primary : colors.textSecondary,
+                color: activeTab === 'leaderboard' ? (isDark ? '#F59E0B' : colors.primary) : colors.textSecondary,
               },
             ]}
           >
@@ -482,22 +508,22 @@ export default function DungeonScreen() {
             style={[
               styles.radarHeroCard,
               {
-                backgroundColor: colors.card,
-                borderColor: colors.border,
+                backgroundColor: isDark ? '#111319' : colors.card,
+                borderColor: isDark ? '#1E212B' : colors.border,
               },
             ]}
           >
             <View style={styles.radarHeroLeft}>
-              <Text style={[styles.radarHeroTag, { color: colors.primary }]}>HUNTER RADAR</Text>
+              <Text style={[styles.radarHeroTag, { color: isDark ? '#6B7280' : colors.textMuted }]}>HUNTER RADAR</Text>
               <Text style={[styles.radarHeroTitle, { color: colors.textPrimary }]}>
                 Dimensional Rift Radar
               </Text>
               <Text style={[styles.radarHeroSub, { color: colors.textSecondary }]}>
-                Scan sector coordinates for active gates and anomaly rifts.
+                Scan sector coordinates for active gates and survey areas.
               </Text>
 
               <TouchableOpacity
-                style={[styles.radarScanBtn, { backgroundColor: colors.primary }]}
+                style={[styles.radarScanBtn, { backgroundColor: '#EF4444' }]}
                 onPress={handleRadarPulse}
                 disabled={isScanning}
                 activeOpacity={0.85}
@@ -505,7 +531,7 @@ export default function DungeonScreen() {
                 {isScanning ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <Search size={14} color="#FFFFFF" />
+                  <Search size={14} color="#FFFFFF" strokeWidth={2.4} />
                 )}
                 <Text style={styles.radarScanBtnText}>
                   {isScanning ? 'Scanning...' : 'Radar Scan'}
@@ -523,30 +549,30 @@ export default function DungeonScreen() {
               <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
                 Active Dungeon Gates
               </Text>
-              <Text style={[styles.sectionCount, { color: colors.textMuted }]}> ({spawnedGates.length})</Text>
+              <Text style={[styles.sectionCount, { color: isDark ? '#6B7280' : colors.textMuted }]}> ({spawnedGates.length})</Text>
             </View>
 
             <TouchableOpacity
               style={[
                 styles.sortPill,
                 {
-                  backgroundColor: colors.card,
-                  borderColor: colors.border,
+                  backgroundColor: isDark ? '#14161F' : colors.card,
+                  borderColor: isDark ? '#222634' : colors.border,
                 },
               ]}
               activeOpacity={0.8}
             >
-              <Text style={[styles.sortPillText, { color: colors.textSecondary }]}>
+              <Text style={[styles.sortPillText, { color: isDark ? '#9CA3AF' : colors.textSecondary }]}>
                 Rank E → S
               </Text>
-              <ChevronDown size={13} color={colors.textSecondary} />
+              <ChevronDown size={13} color={isDark ? '#9CA3AF' : colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
           {/* Spawned Dungeon Gate Cards */}
           {spawnedGates.map((gateItem) => {
             const isGateLocked = userLevel < gateItem.requiredLevel;
-            const rankStyle = RANK_TAG_STYLES[gateItem.rankCode] || RANK_TAG_STYLES.E;
+            const rankStyle = getRankTagStyles(gateItem.rankCode, isDark);
             const totalCrystalBounty = gateItem.missions.reduce((acc, m) => acc + m.hunterCrystals, 0);
             const completedMissions = gateItem.missions.filter((m) => m.isCompleted).length;
             const isCompleted = gateItem.isCleared || (gateItem.missions.length > 0 && completedMissions === gateItem.missions.length);
@@ -558,9 +584,11 @@ export default function DungeonScreen() {
                 style={[
                   styles.dungeonGateCard,
                   {
-                    backgroundColor: colors.card,
+                    backgroundColor: isDark ? '#111319' : colors.card,
                     borderColor: isCompleted
                       ? colors.success
+                      : isDark
+                      ? '#1E212C'
                       : colors.border,
                   },
                 ]}
@@ -572,7 +600,7 @@ export default function DungeonScreen() {
                   <Image source={gateThumb} style={styles.gateThumbnail} resizeMode="cover" />
 
                   <View style={styles.gateCardMidCol}>
-                    <View style={[styles.gateRankPill, { backgroundColor: rankStyle.bg }]}>
+                    <View style={[styles.gateRankPill, { backgroundColor: rankStyle.bg, borderColor: rankStyle.border, borderWidth: 1 }]}>
                       <Text style={[styles.gateRankPillText, { color: rankStyle.text }]}>
                         {gateItem.rankCode}-RANK
                       </Text>
@@ -585,24 +613,24 @@ export default function DungeonScreen() {
                     </Text>
                   </View>
 
-                  <View style={[styles.countdownPill, { backgroundColor: colors.surfaceLight }]}>
-                    <Clock size={11} color={colors.textSecondary} />
-                    <Text style={[styles.countdownText, { color: colors.textSecondary }]}>
+                  <View style={[styles.countdownPill, { backgroundColor: isDark ? '#161822' : colors.surfaceLight }]}>
+                    <Clock size={11} color={isDark ? '#8E8E93' : colors.textSecondary} />
+                    <Text style={[styles.countdownText, { color: isDark ? '#D1D5DB' : colors.textSecondary }]}>
                       {getRemainingTime(gateItem.expiresAt)}
                     </Text>
                   </View>
                 </View>
 
-                {/* Middle Stats Strip: Crystals & Inquests */}
-                <View style={[styles.bountyPillRow, { backgroundColor: colors.surfaceLight, borderColor: colors.border }]}>
+                {/* Middle Stats Strip: Crystals & Inquests (Clean floating row) */}
+                <View style={styles.bountyStatsRow}>
                   <View style={styles.bountySubRow}>
                     <ManaCrystalIcon size={14} />
-                    <Text style={[styles.bountyCrystalsVal, { color: colors.textPrimary }]}>
+                    <Text style={[styles.bountyCrystalsVal, { color: isDark ? '#38BDF8' : '#0284C7' }]}>
                       {totalCrystalBounty} Crystals
                     </Text>
                   </View>
 
-                  <View style={[styles.bountyDivider, { backgroundColor: colors.border }]} />
+                  <View style={[styles.bountyDivider, { backgroundColor: isDark ? '#222634' : colors.border }]} />
 
                   <View style={styles.bountySubRow}>
                     <FileText size={12} color={colors.textSecondary} />
@@ -615,13 +643,13 @@ export default function DungeonScreen() {
                 {/* Footer: Required Level / Locked Badge & Action Button */}
                 <View style={styles.gateCardFooterRow}>
                   {isGateLocked ? (
-                    <View style={[styles.gateLockTag, { backgroundColor: isDark ? 'rgba(255, 69, 58, 0.12)' : '#FEF2F2' }]}>
-                      <Lock size={12} color={colors.danger} />
-                      <Text style={[styles.gateLockTagText, { color: colors.danger }]}>Requires LVL {gateItem.requiredLevel}</Text>
+                    <View style={[styles.gateLockTag, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.12)' : '#FEF2F2', borderColor: isDark ? 'rgba(239, 68, 68, 0.25)' : '#FECACA', borderWidth: 1 }]}>
+                      <Lock size={12} color="#EF4444" />
+                      <Text style={[styles.gateLockTagText, { color: '#EF4444' }]}>Requires LVL {gateItem.requiredLevel}</Text>
                     </View>
                   ) : (
-                    <View style={[styles.gateLevelTag, { backgroundColor: colors.surfaceLight }]}>
-                      <Text style={[styles.gateLevelTagText, { color: colors.textSecondary }]}>
+                    <View style={[styles.gateLevelTag, { backgroundColor: isDark ? '#1C1F2B' : colors.surfaceLight }]}>
+                      <Text style={[styles.gateLevelTagText, { color: isDark ? '#9CA3AF' : colors.textSecondary }]}>
                         Level {gateItem.requiredLevel}+
                       </Text>
                     </View>
@@ -634,7 +662,7 @@ export default function DungeonScreen() {
                         ? styles.gateActionBtnCleared
                         : isGateLocked
                         ? (isDark ? styles.gateActionBtnLockedDark : styles.gateActionBtnLockedLight)
-                        : [styles.gateActionBtnEnter, { backgroundColor: colors.primary }],
+                        : styles.gateActionBtnEnterRed,
                     ]}
                     onPress={() => handleOpenGatePage(gateItem)}
                     activeOpacity={0.85}
@@ -646,8 +674,8 @@ export default function DungeonScreen() {
                       </>
                     ) : isGateLocked ? (
                       <>
-                        <Lock size={13} color={colors.textMuted} />
-                        <Text style={[styles.gateActionBtnText, { color: colors.textMuted }]}>Locked</Text>
+                        <Lock size={13} color={isDark ? '#8E8E93' : colors.textMuted} />
+                        <Text style={[styles.gateActionBtnText, { color: isDark ? '#8E8E93' : colors.textMuted }]}>Locked</Text>
                       </>
                     ) : (
                       <>
@@ -680,11 +708,11 @@ export default function DungeonScreen() {
                       styles.lbFilterPill,
                       {
                         backgroundColor: isSelected
-                          ? colors.primary
-                          : colors.surfaceLight,
+                          ? (isDark ? 'rgba(245, 158, 11, 0.15)' : colors.primary)
+                          : (isDark ? '#14161F' : colors.surfaceLight),
                         borderColor: isSelected
-                          ? colors.primary
-                          : colors.border,
+                          ? (isDark ? '#F59E0B' : colors.primary)
+                          : (isDark ? '#222634' : colors.border),
                       },
                     ]}
                     onPress={() => {
@@ -693,7 +721,7 @@ export default function DungeonScreen() {
                     }}
                     activeOpacity={0.8}
                   >
-                    <Text style={[styles.lbFilterPillText, { color: isSelected ? '#FFFFFF' : colors.textSecondary }]}>
+                    <Text style={[styles.lbFilterPillText, { color: isSelected ? (isDark ? '#F59E0B' : '#FFFFFF') : colors.textSecondary }]}>
                       {f === 'daily' ? 'Daily' : f === 'weekly' ? 'Weekly' : 'All-Time'}
                     </Text>
                   </TouchableOpacity>
@@ -702,10 +730,10 @@ export default function DungeonScreen() {
             </View>
 
             {/* Top 3 Podium (Rank 2 Left, Rank 1 Center 👑, Rank 3 Right) */}
-            <View style={[styles.podiumSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={[styles.podiumSection, { backgroundColor: isDark ? '#111319' : colors.card, borderColor: isDark ? '#1E212B' : colors.border }]}>
               {/* #2 Left: Rank 2 Hunter */}
               <View style={styles.podiumCol}>
-                <View style={[styles.podiumAvatarWrap, { borderColor: colors.border }]}>
+                <View style={[styles.podiumAvatarWrap, { borderColor: isDark ? '#252936' : colors.border }]}>
                   <PlayerAvatar iconId={leaderboard[1]?.avatarIcon || 'pfp_02'} size={48} />
                   <View style={[styles.podiumRankBadge, { backgroundColor: '#64748B' }]}>
                     <Text style={styles.podiumRankBadgeText}>2</Text>
@@ -736,7 +764,7 @@ export default function DungeonScreen() {
                 </Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                   <ManaCrystalIcon size={14} />
-                  <Text style={[styles.podiumXPText, { color: colors.primary, fontWeight: '600' }]}>
+                  <Text style={[styles.podiumXPText, { color: isDark ? '#38BDF8' : colors.primary, fontWeight: '600' }]}>
                     {(leaderboard[0]?.crystalsMined || 4820).toLocaleString()}
                   </Text>
                 </View>
@@ -777,7 +805,7 @@ export default function DungeonScreen() {
                     key={item.id || rankNum}
                     style={[
                       styles.rankListRow,
-                      { backgroundColor: colors.card, borderColor: colors.border },
+                      { backgroundColor: isDark ? '#111319' : colors.card, borderColor: isDark ? '#1E212B' : colors.border },
                     ]}
                   >
                     <Text style={[styles.rankListNumber, { color: colors.textSecondary }]}>{rankNum}</Text>
@@ -942,7 +970,7 @@ const styles = StyleSheet.create({
   giftBtn: {
     width: 36,
     height: 36,
-    borderRadius: 12,
+    borderRadius: 18,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -968,12 +996,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginHorizontal: 16,
-    marginTop: 12,
+    marginTop: 10,
     marginBottom: 14,
-    padding: 3.5,
-    borderRadius: 14,
+    padding: 4,
+    borderRadius: 16,
     borderWidth: 1,
-    gap: 4,
+    gap: 6,
   },
   segmentBtn: {
     flex: 1,
@@ -981,8 +1009,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 7.5,
-    borderRadius: 11,
+    paddingVertical: 8,
+    borderRadius: 12,
   },
   segmentBtnActiveLight: {
     backgroundColor: '#FFFFFF',
@@ -992,12 +1020,22 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
+  segmentBtnGatesActiveDark: {
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderWidth: 1,
+    borderColor: '#7F1D1D',
+  },
+  segmentBtnLbActiveDark: {
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    borderWidth: 1,
+    borderColor: '#78350F',
+  },
   segmentBtnActiveDark: {
     backgroundColor: '#1E202B',
   },
   segmentBtnText: {
     fontFamily: fontFamilies.semiBold,
-    fontSize: 13.5,
+    fontSize: 13,
     fontWeight: '600',
     letterSpacing: -0.1,
   },
@@ -1091,8 +1129,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
-    borderRadius: 18,
+    padding: 18,
+    borderRadius: 20,
     borderWidth: 1,
     gap: 12,
     shadowColor: '#000',
@@ -1113,7 +1151,7 @@ const styles = StyleSheet.create({
   },
   radarHeroTitle: {
     fontFamily: fontFamilies.semiBold,
-    fontSize: 16,
+    fontSize: 16.5,
     fontWeight: '600',
     letterSpacing: -0.2,
     lineHeight: 22,
@@ -1130,14 +1168,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'flex-start',
     gap: 6,
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 20,
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 16,
+    paddingVertical: 9.5,
+    borderRadius: 22,
   },
   radarScanBtnText: {
-    fontFamily: fontFamilies.medium,
-    fontSize: 12.5,
-    fontWeight: '500',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 13,
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.1,
   },
@@ -1222,10 +1261,10 @@ const styles = StyleSheet.create({
 
   // Spawned Dungeon Gate Card
   dungeonGateCard: {
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: 1,
-    padding: 14,
-    gap: 12,
+    padding: 16,
+    gap: 14,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -1238,8 +1277,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   gateThumbnail: {
-    width: 72,
-    height: 72,
+    width: 82,
+    height: 82,
     borderRadius: 14,
   },
   gateCardMidCol: {
@@ -1248,19 +1287,19 @@ const styles = StyleSheet.create({
   },
   gateRankPill: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 6,
   },
   gateRankPillText: {
-    fontFamily: fontFamilies.medium,
-    fontSize: 10,
-    fontWeight: '500',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 10.5,
+    fontWeight: '600',
     letterSpacing: 0.3,
   },
   gateCardTitle: {
     fontFamily: fontFamilies.semiBold,
-    fontSize: 15,
+    fontSize: 15.5,
     fontWeight: '600',
     letterSpacing: -0.2,
   },
@@ -1274,8 +1313,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5.5,
     borderRadius: 12,
   },
   countdownText: {
@@ -1306,7 +1345,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
 
-  // Bounty Pill Row / Strip
+  // Middle Stats Strip (Clean Floating Row)
+  bountyStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingVertical: 2,
+  },
   bountyPillRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1340,13 +1385,13 @@ const styles = StyleSheet.create({
   },
   bountyCrystalsVal: {
     fontFamily: fontFamilies.medium,
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '500',
     fontVariant: ['tabular-nums'],
   },
   bountyDivider: {
     width: 1,
-    height: 16,
+    height: 14,
   },
   inquestCountVal: {
     fontFamily: fontFamilies.regular,
@@ -1387,26 +1432,26 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   gateLevelTag: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
   },
   gateLevelTagText: {
     fontFamily: fontFamilies.medium,
-    fontSize: 11.5,
+    fontSize: 12,
     fontWeight: '500',
   },
   gateLockTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
     paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingVertical: 8,
+    borderRadius: 10,
   },
   gateLockTagText: {
     fontFamily: fontFamilies.medium,
-    fontSize: 11.5,
+    fontSize: 12,
     fontWeight: '500',
   },
   gateReqLevelPill: {
@@ -1438,25 +1483,30 @@ const styles = StyleSheet.create({
   gateActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    gap: 5,
+    paddingHorizontal: 18,
+    paddingVertical: 9.5,
+    borderRadius: 12,
+  },
+  gateActionBtnEnterRed: {
+    backgroundColor: '#EF4444',
   },
   gateActionBtnEnter: {},
   gateActionBtnLockedLight: {
     backgroundColor: '#F3F4F6',
   },
   gateActionBtnLockedDark: {
-    backgroundColor: '#1E202B',
+    backgroundColor: '#161922',
+    borderWidth: 1,
+    borderColor: '#242836',
   },
   gateActionBtnCleared: {
     backgroundColor: '#10B981',
   },
   gateActionBtnText: {
-    fontFamily: fontFamilies.medium,
-    fontSize: 12,
-    fontWeight: '500',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 13,
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.1,
   },
