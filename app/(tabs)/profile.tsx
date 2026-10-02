@@ -21,7 +21,6 @@ import {
   Bell,
   Shield,
   Cloud,
-  HelpCircle,
   Info,
   Plus,
   Flame,
@@ -42,12 +41,10 @@ import { getRankForLevel } from '../../src/constants/ranks';
 import { db } from '../../src/database/client';
 import { exerciseSession, achievement } from '../../src/database/schema';
 import { LanguageSelectorModal } from '../../src/components/ui/LanguageSelectorModal';
-import { HowToUseModal } from '../../src/components/ui/HowToUseModal';
 import { AboutAriseSheet } from '../../src/components/ui/AboutAriseSheet';
 import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
 import { backupService } from '../../src/services/backupService';
 import { useLanguageStore, SUPPORTED_LANGUAGES } from '../../src/services/i18n';
-import { getTutorialUrl } from '../../src/config/webConfig';
 import { ThemeMode } from '../../src/theme/themeEngine';
 import { fontFamilies } from '../../src/theme/typography';
 
@@ -75,7 +72,6 @@ export default function WarriorProfileTab() {
   // Modals state
   const [showThemeModal, setShowThemeModal] = useState<boolean>(false);
   const [showLangModal, setShowLangModal] = useState<boolean>(false);
-  const [showHowToUseModal, setShowHowToUseModal] = useState<boolean>(false);
   const [isAboutSheetOpen, setIsAboutSheetOpen] = useState<boolean>(false);
 
   const fetchStats = async () => {
@@ -112,15 +108,6 @@ export default function WarriorProfileTab() {
   const currentRank = getRankForLevel(level);
   const avatarIcon = profile?.avatarIcon || 'pfp_01';
 
-  const handleSelectTutorialLang = (lang: 'hi' | 'en') => {
-    setShowHowToUseModal(false);
-    const url = getTutorialUrl(lang);
-    if (url) {
-      Linking.openURL(url).catch(() => {
-        showIOSAlert('Guide', 'Unable to open video guide URL.');
-      });
-    }
-  };
 
   const handleExportBackup = async () => {
     haptics.medium();
@@ -764,47 +751,6 @@ export default function WarriorProfileTab() {
 
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-            {/* Help & Support */}
-            <TouchableOpacity
-              style={styles.settingsRow}
-              onPress={() => {
-                haptics.light();
-                setShowHowToUseModal(true);
-              }}
-              activeOpacity={0.7}
-            >
-              <View style={styles.settingsRowLeft}>
-                <View
-                  style={[
-                    styles.settingsIconWrap,
-                    { backgroundColor: isDark ? '#1A1C28' : '#F3F4F6' },
-                  ]}
-                >
-                  <HelpCircle size={18} color={colors.textSecondary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={[
-                      styles.settingsRowTitle,
-                      { color: colors.textPrimary },
-                    ]}
-                  >
-                    Help & Video Guides
-                  </Text>
-                  <Text
-                    style={[
-                      styles.settingsRowSub,
-                      { color: colors.textSecondary },
-                    ]}
-                  >
-                    Watch official guides in Hindi & English
-                  </Text>
-                </View>
-              </View>
-              <ChevronRight size={18} color="#9CA3AF" />
-            </TouchableOpacity>
-
-            <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
             {/* About ARISE */}
             <TouchableOpacity
@@ -952,12 +898,6 @@ export default function WarriorProfileTab() {
         onClose={() => setShowLangModal(false)}
       />
 
-      {/* How to Use Video Guide Modal */}
-      <HowToUseModal
-        visible={showHowToUseModal}
-        onClose={() => setShowHowToUseModal(false)}
-        onSelectLanguage={handleSelectTutorialLang}
-      />
 
       {/* About ARISE Bottom Sheet */}
       <AboutAriseSheet
