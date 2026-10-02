@@ -61,34 +61,13 @@ export const AVATAR_ICONS: AvatarIconOption[] = [
   { id: 'star', name: 'Ascended', component: Star },
 ];
 
-export const AVATAR_IMAGES: AvatarImageOption[] = [
-  { id: 'img_pfp_01', name: 'Anime Boy', source: require('../../../assets/img/pfp_01.jpg') },
-  { id: 'img_pfp_02', name: 'AI Character', source: require('../../../assets/img/pfp_02.jpg') },
-  { id: 'img_pfp_03', name: 'Cool Avatar', source: require('../../../assets/img/pfp_03.jpg') },
-  { id: 'img_pfp_04', name: 'Cyber Warrior', source: require('../../../assets/img/pfp_04.jpg') },
-  { id: 'img_pfp_05', name: 'Shadow Hunter', source: require('../../../assets/img/pfp_05.jpg') },
-  { id: 'img_pfp_06', name: 'Neon Rider', source: require('../../../assets/img/pfp_06.jpg') },
-  { id: 'img_pfp_07', name: 'Dark Knight', source: require('../../../assets/img/pfp_07.jpg') },
-  { id: 'img_pfp_08', name: 'Storm Mage', source: require('../../../assets/img/pfp_08.jpg') },
-  { id: 'img_pfp_09', name: 'Iron Wolf', source: require('../../../assets/img/pfp_09.jpg') },
-  { id: 'img_pfp_10', name: 'Pixel King', source: require('../../../assets/img/pfp_10.jpg') },
-  { id: 'img_pfp_11', name: 'Void Walker', source: require('../../../assets/img/pfp_11.jpg') },
-  { id: 'img_pfp_12', name: 'Ghost Blade', source: require('../../../assets/img/pfp_12.jpg') },
-  { id: 'img_pfp_13', name: 'Tech Samurai', source: require('../../../assets/img/pfp_13.jpg') },
-  { id: 'img_pfp_14', name: 'Night Hawk', source: require('../../../assets/img/pfp_14.jpg') },
-  { id: 'img_pfp_15', name: 'Fire Lord', source: require('../../../assets/img/pfp_15.jpg') },
-  { id: 'img_pfp_16', name: 'Ice Phantom', source: require('../../../assets/img/pfp_16.jpg') },
-  { id: 'img_pfp_17', name: 'Rune Master', source: require('../../../assets/img/pfp_17.jpg') },
-  { id: 'img_pfp_18', name: 'Steel Titan', source: require('../../../assets/img/pfp_18.jpg') },
-  { id: 'img_pfp_19', name: 'Anime Style', source: require('../../../assets/img/pfp_19.jpg') },
-  { id: 'img_pfp_20', name: 'Cat Gamer', source: require('../../../assets/img/pfp_20.jpg') },
-  { id: 'img_pfp_21', name: 'Family Guy', source: require('../../../assets/img/pfp_21.jpg') },
-  { id: 'img_pfp_22', name: 'Jerry Cool', source: require('../../../assets/img/pfp_22.jpg') },
-  { id: 'img_pfp_23', name: 'Vihaan PFP', source: require('../../../assets/img/pfp_23.jpg') },
-  { id: 'img_pfp_24', name: 'Spider Hero', source: require('../../../assets/img/pfp_24.jpg') },
-  { id: 'img_pfp_25', name: 'Who Cares', source: require('../../../assets/img/pfp_25.jpg') },
-  { id: 'img_pfp_26', name: 'Imagination', source: require('../../../assets/img/pfp_26.jpg') },
-];
+import { ALL_AVATARS } from '../../constants/avatars';
+
+export const AVATAR_IMAGES: AvatarImageOption[] = ALL_AVATARS.map((a) => ({
+  id: `img_${a.id}`,
+  name: a.name,
+  source: a.source,
+}));
 
 export const AVATAR_COLORS = [
   { id: 'green', color: '#00FF6A', label: 'Neon Green' },

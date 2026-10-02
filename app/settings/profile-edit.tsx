@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,14 +18,10 @@ import {
   User,
   Check,
   Sparkles,
-  Volume2,
-  Vibrate,
-  Music,
-  Sun,
-  Moon,
-  Smartphone,
-  Save,
+  ShoppingBag,
+  ChevronRight,
   Flame,
+  Save,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
@@ -34,6 +30,9 @@ import { useSettingsStore } from '../../src/stores/useSettingsStore';
 import { GlassCard } from '../../src/components/ios/GlassCard';
 import { GlassButton } from '../../src/components/ios/GlassButton';
 import { AVATAR_IMAGES, AVATAR_ICONS } from '../../src/components/profile/AvatarPicker';
+import { ALL_AVATARS } from '../../src/constants/avatars';
+import { PlayerAvatar } from '../../src/components/ui/PlayerAvatar';
+import { inventoryRepository } from '../../src/database/repositories/inventoryRepository';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTheme } from '../../src/hooks/useTheme';
 import { ThemeMode } from '../../src/theme/themeEngine';
@@ -58,8 +57,56 @@ export default function ProfileEditScreen() {
   const [dailyFocusGoal, setDailyFocusGoal] = useState<number>(profile?.dailyFocusGoal || 30);
   const [selectedAvatar, setSelectedAvatar] = useState<string>(profile?.avatarIcon || 'img_pfp_01');
   const [customPhotoUri, setCustomPhotoUri] = useState<string | null>(profile?.profileImageUri || null);
-  const [avatarTab, setAvatarTab] = useState<'images' | 'icons'>('images');
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [unlockedItemIds, setUnlockedItemIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    const loadInventory = async () => {
+      const items = await inventoryRepository.getUnlockedItems();
+      const ids = items.map((i) => i.itemId);
+      const starter = profile?.avatarIcon || 'pfp_01';
+      if (!ids.includes(starter) && !ids.includes(`avatar_${starter}`)) {
+        await inventoryRepository.unlockItem(starter, 'AVATAR');
+        ids.push(starter);
+        ids.push(`avatar_${starter}`);
+      }
+      setUnlockedItemIds(ids);
+    };
+    loadInventory();
+  }, [profile?.avatarIcon]);
+
+  // Only the avatars this user legitimately owns/unlocked for lifetime
+  const unlockedItemsList = useMemo(() => {
+    const list: { id: string; name: string; avatarIcon: string }[] = [];
+    const seen = new Set<string>();
+
+    const starter = profile?.avatarIcon || 'pfp_01';
+    seen.add(starter);
+    seen.add(`avatar_${starter}`);
+    seen.add(`img_${starter}`);
+    list.push({
+      id: starter,
+      name: ALL_AVATARS.find((a) => a.id === starter)?.name || starter,
+      avatarIcon: starter,
+    });
+
+    for (const rawId of unlockedItemIds) {
+      const cleanId = rawId.replace('avatar_', '').replace('insignia_', '').replace('img_', '');
+      if (seen.has(cleanId)) continue;
+      seen.add(cleanId);
+
+      const avatarMatch = ALL_AVATARS.find((a) => a.id === cleanId);
+      if (avatarMatch) {
+        list.push({ id: cleanId, name: avatarMatch.name, avatarIcon: cleanId });
+        continue;
+      }
+      const iconMatch = AVATAR_ICONS.find((i) => i.id === cleanId);
+      if (iconMatch) {
+        list.push({ id: cleanId, name: iconMatch.name, avatarIcon: cleanId });
+      }
+    }
+    return list;
+  }, [unlockedItemIds, profile?.avatarIcon]);
 
   const handleCaptureCameraAvatar = async () => {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
@@ -143,19 +190,15 @@ export default function ProfileEditScreen() {
               <View style={[styles.avatarWrap, { backgroundColor: colors.surfaceLight, borderColor: colors.primary }]}>
                 {customPhotoUri && selectedAvatar === 'custom' ? (
                   <Image source={{ uri: customPhotoUri }} style={styles.avatarImg} />
-                ) : currentAvatarImage ? (
-                  <Image source={currentAvatarImage.source} style={styles.avatarImg} />
                 ) : (
-                  <View style={styles.avatarFallback}>
-                    <User size={40} color={colors.primary} />
-                  </View>
+                  <PlayerAvatar iconId={selectedAvatar} size={64} glow={false} />
                 )}
               </View>
 
               <View style={styles.avatarActionCol}>
                 <Text style={[styles.avatarSectionTitle, { color: colors.textPrimary }]}>Profile Image</Text>
                 <Text style={[styles.avatarSectionSub, { color: colors.textSecondary }]}>
-                  Choose from cyber avatars, or upload your own.
+                  Upload personal photo, or use your unlocked avatars.
                 </Text>
 
                 <View style={styles.avatarButtonsRow}>
@@ -178,88 +221,65 @@ export default function ProfileEditScreen() {
               </View>
             </View>
 
-            {/* Built-in Avatars Horizontal Grid */}
-            <View style={styles.avatarTabsHeader}>
-              <Text style={[styles.inputLabel, { color: colors.textMuted }]}>BUILT-IN CYBER AVATARS</Text>
-              <View style={[styles.tabPillWrap, { backgroundColor: isDark ? colors.surfaceLight : '#E5E5EA' }]}>
-                <TouchableOpacity
-                  onPress={() => setAvatarTab('images')}
-                  style={[styles.tabPill, avatarTab === 'images' && { backgroundColor: isDark ? colors.surfaceElevated : '#FFFFFF' }]}
-                >
-                  <Text style={[styles.tabPillText, avatarTab === 'images' && { color: colors.primary }]}>
-                    PFPs ({AVATAR_IMAGES.length})
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => setAvatarTab('icons')}
-                  style={[styles.tabPill, avatarTab === 'icons' && { backgroundColor: isDark ? colors.surfaceElevated : '#FFFFFF' }]}
-                >
-                  <Text style={[styles.tabPillText, avatarTab === 'icons' && { color: colors.primary }]}>
-                    ICONS
-                  </Text>
-                </TouchableOpacity>
+            {/* My Unlocked Avatars (Only owned / unlocked avatars) */}
+            {unlockedItemsList.length > 0 && (
+              <View style={{ marginTop: 14 }}>
+                <Text style={[styles.inputLabel, { color: colors.textMuted, marginBottom: 8 }]}>
+                  MY UNLOCKED AVATARS ({unlockedItemsList.length})
+                </Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.avatarScroll}>
+                  {unlockedItemsList.map((item) => {
+                    const isSelected = selectedAvatar === item.avatarIcon && !customPhotoUri;
+                    return (
+                      <TouchableOpacity
+                        key={item.id}
+                        onPress={() => {
+                          haptics.light();
+                          setSelectedAvatar(item.avatarIcon);
+                          setCustomPhotoUri(null);
+                        }}
+                        style={[
+                          styles.avatarThumbWrap,
+                          { backgroundColor: colors.surfaceLight, borderColor: colors.border },
+                          isSelected && { borderColor: colors.primary, transform: [{ scale: 1.08 }] },
+                        ]}
+                      >
+                        <PlayerAvatar iconId={item.avatarIcon} size={48} glow={false} />
+                        {isSelected && (
+                          <View style={[styles.checkBadge, { backgroundColor: colors.primary }]}>
+                            <Check size={12} color="#FFFFFF" strokeWidth={3} />
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
               </View>
-            </View>
-
-            {avatarTab === 'images' ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.avatarScroll}>
-                {AVATAR_IMAGES.map((img) => {
-                  const isSelected = selectedAvatar === img.id && !customPhotoUri;
-                  return (
-                    <TouchableOpacity
-                      key={img.id}
-                      onPress={() => {
-                        haptics.light();
-                        setSelectedAvatar(img.id);
-                        setCustomPhotoUri(null);
-                      }}
-                      style={[
-                        styles.avatarThumbWrap,
-                        { backgroundColor: colors.surfaceLight, borderColor: colors.border },
-                        isSelected && { borderColor: colors.primary, transform: [{ scale: 1.08 }] },
-                      ]}
-                    >
-                      <Image source={img.source} style={styles.avatarThumbImg} />
-                      {isSelected && (
-                        <View style={[styles.checkBadge, { backgroundColor: colors.primary }]}>
-                          <Check size={12} color="#FFFFFF" strokeWidth={3} />
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            ) : (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.avatarScroll}>
-                {AVATAR_ICONS.map((iconItem) => {
-                  const isSelected = selectedAvatar === iconItem.id && !customPhotoUri;
-                  const IconComp = iconItem.component;
-                  return (
-                    <TouchableOpacity
-                      key={iconItem.id}
-                      onPress={() => {
-                        haptics.light();
-                        setSelectedAvatar(iconItem.id);
-                        setCustomPhotoUri(null);
-                      }}
-                      style={[
-                        styles.avatarThumbWrap,
-                        styles.iconThumbWrap,
-                        { backgroundColor: colors.surfaceLight, borderColor: colors.border },
-                        isSelected && { borderColor: colors.primary, transform: [{ scale: 1.08 }] },
-                      ]}
-                    >
-                      <IconComp size={22} color={isSelected ? colors.primary : colors.textMuted} />
-                      {isSelected && (
-                        <View style={[styles.checkBadge, { backgroundColor: colors.primary }]}>
-                          <Check size={12} color="#FFFFFF" strokeWidth={3} />
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
             )}
+
+            {/* Shop for More Avatars Promo Banner */}
+            <TouchableOpacity
+              style={[
+                styles.shopPromoCard,
+                { backgroundColor: isDark ? '#141620' : '#F8FAFC', borderColor: colors.border },
+              ]}
+              onPress={() => {
+                haptics.light();
+                router.push('/shop' as any);
+              }}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.shopPromoIconWrap, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7' }]}>
+                <ShoppingBag size={18} color="#F59E0B" />
+              </View>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={[styles.shopPromoTitle, { color: colors.textPrimary }]}>Avatar & Insignia Shop</Text>
+                <Text style={[styles.shopPromoSub, { color: colors.textSecondary }]}>
+                  Unlock 50+ Monarch & Hunter avatars with Coins
+                </Text>
+              </View>
+              <ChevronRight size={16} color={colors.textSecondary} />
+            </TouchableOpacity>
           </GlassCard>
 
           {/* Display Name & Bio */}
@@ -479,27 +499,31 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '500',
   },
-  avatarTabsHeader: {
+  shopPromoCard: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 6,
+    gap: 12,
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginTop: 14,
   },
-  tabPillWrap: {
-    flexDirection: 'row',
-    borderRadius: 8,
-    padding: 2,
+  shopPromoIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  tabPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+  shopPromoTitle: {
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 13.5,
+    fontWeight: '600',
   },
-  tabPillText: {
-    fontFamily: fontFamilies.medium,
-    fontSize: 9.5,
-    fontWeight: '500',
-    color: '#8E8E93',
+  shopPromoSub: {
+    fontFamily: fontFamilies.regular,
+    fontSize: 11,
+    lineHeight: 15,
   },
   avatarScroll: {
     gap: 10,

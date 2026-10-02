@@ -202,13 +202,40 @@ export const expoDb: any = {
   },
   getFirstSync: <T>(sql: string, params: any[] = []) =>
     parseGetFirstSync<T>(sql, params),
-  getAllAsync: async <T>(_sql: string, _params: any[] = []) => {
+  getAllAsync: async <T>(sql: string, _params: any[] = []) => {
+    if (sql.includes('user_inventory')) {
+      const list = mockState.user_inventory || [];
+      return list as T[];
+    }
     return [] as T[];
   },
-  getFirstAsync: async <T>(_sql: string, _params: any[] = []) => {
+  getFirstAsync: async <T>(sql: string, params: any[] = []) => {
+    if (sql.includes('user_inventory')) {
+      const list = mockState.user_inventory || [];
+      const item = list.find((i: any) => i.item_id === params[0]);
+      return item as T | undefined;
+    }
     return undefined as T | undefined;
   },
-  runAsync: async (_sql: string, _params: any[] = []) => undefined,
+  runAsync: async (sql: string, params: any[] = []) => {
+    if (sql.includes('INSERT OR IGNORE INTO user_inventory')) {
+      const list = mockState.user_inventory || (mockState.user_inventory = []);
+      const [item_id, item_type, unlocked_at] = params;
+      if (!list.some((i: any) => i.item_id === item_id)) {
+        list.push({ id: list.length + 1, item_id, item_type, unlocked_at, is_equipped: 1 });
+        saveWebState(mockState);
+      }
+    } else if (sql.includes('UPDATE user_inventory SET is_equipped = 0')) {
+      const list = mockState.user_inventory || [];
+      list.forEach((i: any) => { if (i.item_type === params[0]) i.is_equipped = 0; });
+      saveWebState(mockState);
+    } else if (sql.includes('UPDATE user_inventory SET is_equipped = 1')) {
+      const list = mockState.user_inventory || [];
+      list.forEach((i: any) => { if (i.item_id === params[0]) i.is_equipped = 1; });
+      saveWebState(mockState);
+    }
+    return undefined;
+  },
 };
 
 export const db: any = {

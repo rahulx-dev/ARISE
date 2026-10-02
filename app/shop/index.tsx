@@ -39,6 +39,8 @@ import { useTheme } from '../../src/hooks/useTheme';
 import { fontFamilies } from '../../src/theme/typography';
 import { ManaCrystalIcon } from '../../src/components/ui/ManaCrystalIcon';
 import { PlayerAvatar } from '../../src/components/ui/PlayerAvatar';
+import { ALL_AVATARS } from '../../src/constants/avatars';
+import { AVATAR_ICONS } from '../../src/components/profile/AvatarPicker';
 
 interface BoostItem {
   id: string;
@@ -111,7 +113,17 @@ export default function ShopScreen() {
     setManaCrystals(bal > 0 ? bal : 32);
 
     const items = await inventoryRepository.getUnlockedItems();
-    setUnlockedItemIds(items.map((i) => i.itemId));
+    const unlockedIds = items.map((i) => i.itemId);
+
+    // Ensure the starter avatar selected at install/onboarding is in unlocked inventory for life
+    const starter = profile?.avatarIcon || 'pfp_01';
+    if (!unlockedIds.includes(starter) && !unlockedIds.includes(`avatar_${starter}`)) {
+      await inventoryRepository.unlockItem(starter, 'AVATAR');
+      unlockedIds.push(starter);
+      unlockedIds.push(`avatar_${starter}`);
+    }
+
+    setUnlockedItemIds(unlockedIds);
     if (profile?.avatarIcon) {
       setEquippedAvatar(profile.avatarIcon);
     }
@@ -164,43 +176,28 @@ export default function ShopScreen() {
     },
   ];
 
+  // All 39 Hunter PFPs + 16 Insignia Crests
   const avatarsList: AvatarItem[] = [
-    {
-      id: 'avatar_shadow_hunter',
-      name: 'Shadow Hunter',
-      avatarIcon: 'pfp_02',
-      cost: 1000,
-    },
-    {
-      id: 'avatar_crimson_knight',
-      name: 'Crimson Knight',
-      avatarIcon: 'pfp_03',
-      cost: 1500,
-    },
-    {
-      id: 'avatar_frost_warrior',
-      name: 'Frost Warrior',
-      avatarIcon: 'pfp_04',
-      cost: 1200,
-    },
-    {
-      id: 'avatar_demon_monarch',
-      name: 'Demon Monarch',
-      avatarIcon: 'pfp_05',
-      cost: 2000,
-    },
-    {
-      id: 'avatar_solar_knight',
-      name: 'Solar Knight',
-      avatarIcon: 'pfp_06',
-      cost: 1800,
-    },
-    {
-      id: 'avatar_valkyrie',
-      name: 'Valkyrie Sovereign',
-      avatarIcon: 'pfp_09',
-      cost: 2200,
-    },
+    ...ALL_AVATARS.map((a, index) => {
+      let cost = 500;
+      if (index >= 30) cost = 2200;
+      else if (index >= 20) cost = 1600;
+      else if (index >= 10) cost = 1100;
+      else if (index >= 4) cost = 750;
+
+      return {
+        id: `avatar_${a.id}`,
+        name: a.name,
+        avatarIcon: a.id,
+        cost,
+      };
+    }),
+    ...AVATAR_ICONS.map((icon, index) => ({
+      id: `insignia_${icon.id}`,
+      name: `${icon.name} Crest`,
+      avatarIcon: icon.id,
+      cost: 400 + (index % 4) * 150,
+    })),
   ];
 
   const vouchersList: VoucherItem[] = [
@@ -256,8 +253,12 @@ export default function ShopScreen() {
 
   const handleAvatarAction = async (item: AvatarItem) => {
     haptics.medium();
-    const isUnlocked = unlockedItemIds.includes(item.id) || item.avatarIcon === 'pfp_01';
-    const isEquipped = equippedAvatar === item.avatarIcon;
+    const isUnlocked =
+      unlockedItemIds.includes(item.id) ||
+      unlockedItemIds.includes(item.avatarIcon) ||
+      unlockedItemIds.includes(`avatar_${item.avatarIcon}`) ||
+      profile?.avatarIcon === item.avatarIcon;
+    const isEquipped = equippedAvatar === item.avatarIcon || profile?.avatarIcon === item.avatarIcon;
 
     if (isEquipped) {
       showDialog('Already Equipped', `"${item.name}" is currently active on your profile.`);
@@ -265,8 +266,8 @@ export default function ShopScreen() {
     }
 
     if (isUnlocked) {
-      // Equip
-      await inventoryRepository.equipItem(item.id, 'AVATAR');
+      // Equip directly
+      await inventoryRepository.equipItem(item.avatarIcon, 'AVATAR');
       await userRepository.updateProfile({ avatarIcon: item.avatarIcon });
       setEquippedAvatar(item.avatarIcon);
       await loadProfile();
@@ -276,7 +277,7 @@ export default function ShopScreen() {
       return;
     }
 
-    // Purchase
+    // Purchase with Coins
     if (currentCoins < item.cost) {
       sound.play('rep_count');
       showDialog(
@@ -288,15 +289,18 @@ export default function ShopScreen() {
 
     const ok = await userRepository.spendCoins(item.cost, `Purchased ${item.name}`);
     if (ok) {
+      // Lifetime persistent unlock in SQLite
+      await inventoryRepository.unlockItem(item.avatarIcon, 'AVATAR');
       await inventoryRepository.unlockItem(item.id, 'AVATAR');
-      await inventoryRepository.equipItem(item.id, 'AVATAR');
+      await inventoryRepository.unlockItem(`avatar_${item.avatarIcon}`, 'AVATAR');
+      await inventoryRepository.equipItem(item.avatarIcon, 'AVATAR');
       await userRepository.updateProfile({ avatarIcon: item.avatarIcon });
-      setUnlockedItemIds((prev) => [...prev, item.id]);
+      setUnlockedItemIds((prev) => [...prev, item.id, item.avatarIcon, `avatar_${item.avatarIcon}`]);
       setEquippedAvatar(item.avatarIcon);
       await loadProfile();
       sound.play('purchase');
       haptics.success();
-      showDialog('Unlocked & Equipped!', `"${item.name}" is now your active avatar.`);
+      showDialog('Unlocked & Equipped!', `"${item.name}" is now unlocked for your account for life.`);
     }
   };
 
@@ -536,8 +540,12 @@ export default function ShopScreen() {
             <Text style={[styles.sectionHeading, { color: colors.textPrimary }]}>Avatars & Insignia</Text>
             <View style={styles.avatarsGrid}>
               {avatarsList.map((item) => {
-                const isUnlocked = unlockedItemIds.includes(item.id) || item.avatarIcon === 'pfp_01';
-                const isEquipped = equippedAvatar === item.avatarIcon;
+                const isUnlocked =
+                  unlockedItemIds.includes(item.id) ||
+                  unlockedItemIds.includes(item.avatarIcon) ||
+                  unlockedItemIds.includes(`avatar_${item.avatarIcon}`) ||
+                  profile?.avatarIcon === item.avatarIcon;
+                const isEquipped = equippedAvatar === item.avatarIcon || profile?.avatarIcon === item.avatarIcon;
                 return (
                   <View
                     key={item.id}

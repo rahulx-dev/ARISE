@@ -54,6 +54,7 @@ import { db } from '../../src/database/client';
 import { appRestriction } from '../../src/database/schema';
 import { AriseLogo } from '../../src/components/ui/AriseLogo';
 import { ALL_AVATARS, getAvatarSource } from '../../src/constants/avatars';
+import { inventoryRepository } from '../../src/database/repositories/inventoryRepository';
 import { HUNTER_ALIASES, getRandomHunterName } from '../../src/constants/names';
 import { getIsOnboardingCompleted, setIsOnboardingCompletedSync } from '../../src/services/appStateService';
 import { LanguageSelectorModal } from '../../src/components/ui/LanguageSelectorModal';
@@ -414,6 +415,13 @@ export default function OnboardingScreen() {
         dailyFocusGoal: finalMinutes,
       });
 
+      // 1.1 Unlock the starter avatar permanently in user_inventory (1st time free for life)
+      if (selectedAvatar && selectedAvatar !== 'custom') {
+        await inventoryRepository.unlockItem(selectedAvatar, 'AVATAR');
+        await inventoryRepository.unlockItem(`avatar_${selectedAvatar}`, 'AVATAR');
+        await inventoryRepository.equipItem(selectedAvatar, 'AVATAR');
+      }
+
       // 2. Persist restricted apps
       appBlockerService.setAppBudget?.(null, finalMinutes);
       for (const pkg of selectedApps) {
@@ -664,7 +672,7 @@ export default function OnboardingScreen() {
               {/* Choose Your Avatar (Hunters) */}
               <View style={styles.avatarSectionBlock}>
                 <Text style={[styles.cleanInputLabel, { color: colors.textSecondary }]}>
-                  Choose Your Avatar (Hunters)
+                  Choose Your Starter Avatar (Free)
                 </Text>
 
                 <ScrollView
