@@ -1,6 +1,6 @@
 import { expoDb } from '../database/client';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
-import { Linking } from 'react-native';
+import { Linking, Platform } from 'react-native';
 
 export interface GoogleAuthUser {
   id: string;
@@ -93,22 +93,35 @@ export const googleAuthService = {
     if (!isSupabaseConfigured() || !supabase) {
       return {
         success: false,
-        error: 'Cloud credentials not configured in .env. Use Google One-Tap account instead.',
+        error: 'Cloud credentials not configured in .env',
       };
     }
 
     try {
-      const redirectUrl = 'arise://auth/callback';
+      const isWeb = Platform.OS === 'web' && typeof window !== 'undefined';
+      const redirectUrl = isWeb ? window.location.origin : 'arise://auth/callback';
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: redirectUrl,
-          skipBrowserRedirect: false,
+          queryParams: {
+            prompt: 'select_account',
+            access_type: 'offline',
+          },
+          skipBrowserRedirect: isWeb ? true : false,
         },
       });
 
       if (error) {
         return { success: false, error: error.message };
+      }
+
+      if (isWeb) {
+        if (data?.url && typeof window !== 'undefined') {
+          window.location.href = data.url;
+          return { success: true, url: data.url };
+        }
       }
 
       if (data?.url) {
@@ -126,6 +139,73 @@ export const googleAuthService = {
         error: err?.message || 'Failed to start Google cloud authentication',
       };
     }
+  },
+
+  /**
+   * Listen for OAuth state changes (e.g. after Google redirect)
+   */
+  initAuthListener(onUserLinked?: (user: GoogleAuthUser) => void): (() => void) {
+    if (!isSupabaseConfigured() || !supabase) {
+      return () => {};
+    }
+
+    const handleSession = async (session: any, forceRestore = false) => {
+      if (!session?.user) return;
+      const user = session.user;
+      const email = (user.email || '').trim().toLowerCase();
+      if (!email) return;
+
+      const displayName =
+        user.user_metadata?.full_name ||
+        user.user_metadata?.name ||
+        email.split('@')[0];
+      const photoUrl =
+        user.user_metadata?.avatar_url ||
+        user.user_metadata?.picture ||
+        null;
+
+      const googleUser: GoogleAuthUser = {
+        id: user.id || `google_${Date.now()}`,
+        email,
+        displayName,
+        photoUrl,
+        provider: 'google',
+        linkedAt: new Date().toISOString(),
+      };
+
+      await this.saveGoogleUser(googleUser);
+
+      if (forceRestore) {
+        try {
+          const { cloudSyncService } = await import('./cloudSyncService');
+          await cloudSyncService.restoreFromCloud(email);
+        } catch (e) {
+          console.warn('[GoogleAuth] Cloud sync after OAuth error:', e);
+        }
+      }
+
+      onUserLinked?.(googleUser);
+    };
+
+    // Check immediate session on boot
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        handleSession(session, false);
+      }
+    }).catch(() => {});
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        const isNewSignIn = event === 'SIGNED_IN';
+        await handleSession(session, isNewSignIn);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   },
 
   /**

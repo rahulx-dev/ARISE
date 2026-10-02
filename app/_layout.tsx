@@ -39,6 +39,7 @@ import { PermissionsGateModal } from "../src/components/permissions/PermissionsG
 import { LevelUpModal } from "../src/components/level/LevelUpModal";
 import { syncService } from "../src/services/syncService";
 import { initSentry, Sentry, logErrorToSentry, setSentryUser } from "../src/services/sentryService";
+import { googleAuthService } from "../src/services/googleAuthService";
 
 // Initialize Sentry SDK immediately upon module load
 initSentry();
@@ -99,7 +100,27 @@ function RootLayout() {
         document.head.appendChild(style);
       }
     }
+    const unsubscribeGoogleAuth = googleAuthService.initAuthListener(async (user) => {
+      try {
+        console.log('[ARISE Startup] Google user linked via OAuth:', user.email);
+        await usePlayerStore.getState().loadProfile();
+        const restoredProfile = usePlayerStore.getState().profile;
+        if (restoredProfile) {
+          setSentryUser(restoredProfile.id, restoredProfile.displayName);
+          useSettingsStore.setState({ onboardingCompleted: true });
+          setIsOnboardingCompletedSync(true);
+          setAppState("READY");
+        }
+      } catch (authErr) {
+        console.warn('[ARISE Startup] Google auth listener handler note:', authErr);
+      }
+    });
+
     bootstrapApp();
+
+    return () => {
+      unsubscribeGoogleAuth?.();
+    };
   }, []);
 
   const bootstrapApp = async () => {

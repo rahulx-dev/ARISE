@@ -54,16 +54,19 @@ const sqliteStorage = {
   },
 };
 
+import { Platform } from 'react-native';
+
 let client: SupabaseClient | null = null;
 
 if (isSupabaseConfigured()) {
   try {
+    const isWeb = Platform.OS === 'web';
     client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: {
-        storage: sqliteStorage,
+        storage: isWeb && typeof localStorage !== 'undefined' ? (localStorage as any) : sqliteStorage,
         autoRefreshToken: true,
         persistSession: true,
-        detectSessionInUrl: false,
+        detectSessionInUrl: isWeb,
       },
     });
     console.log("[Supabase] Initialized cloud client successfully");
