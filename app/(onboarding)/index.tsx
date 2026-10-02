@@ -58,6 +58,9 @@ import { inventoryRepository } from '../../src/database/repositories/inventoryRe
 import { HUNTER_ALIASES, getRandomHunterName } from '../../src/constants/names';
 import { getIsOnboardingCompleted, setIsOnboardingCompletedSync } from '../../src/services/appStateService';
 import { LanguageSelectorModal } from '../../src/components/ui/LanguageSelectorModal';
+import { GoogleSignInModal } from '../../src/components/auth/GoogleSignInModal';
+import { GoogleLogo } from '../../src/components/auth/GoogleLogo';
+import { GoogleAuthUser } from '../../src/services/googleAuthService';
 import { useLanguageStore } from '../../src/services/i18n';
 import { Globe } from 'phosphor-react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -134,6 +137,7 @@ export default function OnboardingScreen() {
 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [showLangModal, setShowLangModal] = useState<boolean>(false);
+  const [showGoogleModal, setShowGoogleModal] = useState<boolean>(false);
   const currentLang = useLanguageStore((s) => s.language);
 
   // Check all 5 permissions
@@ -347,9 +351,28 @@ export default function OnboardingScreen() {
     }
   };
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignIn = () => {
     haptics.medium();
-    showIOSAlert('Google Sign-In', 'Connecting to Google Authentication...');
+    setShowGoogleModal(true);
+  };
+
+  const handleGoogleSuccess = (user: GoogleAuthUser) => {
+    if (user.displayName) {
+      setUserName(user.displayName);
+      setNameError('');
+    }
+    if (user.photoUrl) {
+      setCustomPhotoUri(user.photoUrl);
+      setSelectedAvatar('custom');
+    }
+    showIOSAlert(
+      'Google Account Connected',
+      `Welcome ${user.displayName}! Signed in with ${user.email}.`
+    );
+    // Smoothly progress to Step 2
+    setTimeout(() => {
+      setStep(2);
+    }, 250);
   };
 
   const getSelectedAvatar = () => {
@@ -613,9 +636,7 @@ export default function OnboardingScreen() {
                 onPress={handleGoogleSignIn}
                 activeOpacity={0.85}
               >
-                <View style={styles.googleGLogo}>
-                  <Text style={styles.googleGText}>G</Text>
-                </View>
+                <GoogleLogo size={20} />
                 <Text style={[styles.googleSignInText, { color: colors.textPrimary }]}>
                   Continue with Google
                 </Text>
@@ -1290,6 +1311,13 @@ export default function OnboardingScreen() {
 
         {/* Language Selection Modal */}
         <LanguageSelectorModal visible={showLangModal} onClose={() => setShowLangModal(false)} />
+
+        {/* Google Sign-In Account Selector Modal */}
+        <GoogleSignInModal
+          visible={showGoogleModal}
+          onClose={() => setShowGoogleModal(false)}
+          onSuccess={handleGoogleSuccess}
+        />
       </SafeAreaView>
     </View>
   );

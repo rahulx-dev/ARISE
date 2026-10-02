@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -42,6 +42,9 @@ import { getTutorialUrl } from '../../src/config/webConfig';
 import { useLanguageStore, SUPPORTED_LANGUAGES } from '../../src/services/i18n';
 import { backupService } from '../../src/services/backupService';
 import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
+import { GoogleSignInModal } from '../../src/components/auth/GoogleSignInModal';
+import { GoogleLogo } from '../../src/components/auth/GoogleLogo';
+import { googleAuthService, GoogleAuthUser } from '../../src/services/googleAuthService';
 import { ThemeMode } from '../../src/theme/themeEngine';
 import { fontFamilies } from '../../src/theme/typography';
 import { spacing } from '../../src/theme/spacing';
@@ -82,6 +85,20 @@ export default function SettingsScreen() {
   const [showResetModal, setShowResetModal] = useState<boolean>(false);
   const [confirmInput, setConfirmInput] = useState<string>('');
   const [isBusy, setIsBusy] = useState(false);
+  const [googleUser, setGoogleUser] = useState<GoogleAuthUser | null>(null);
+  const [showGoogleModal, setShowGoogleModal] = useState<boolean>(false);
+
+  useEffect(() => {
+    googleAuthService.getStoredGoogleUser().then(setGoogleUser);
+  }, []);
+
+  const handleGoogleSuccess = async (user: GoogleAuthUser) => {
+    setGoogleUser(user);
+    if (user.displayName) {
+      await usePlayerStore.getState().updateProfile({ displayName: user.displayName });
+    }
+    showIOSAlert('Google Account Linked', `Signed in as ${user.displayName} (${user.email}).`);
+  };
 
   const currentLang = useLanguageStore((s) => s.language);
   const activeLangObj = SUPPORTED_LANGUAGES.find((l) => l.code === currentLang);
@@ -321,6 +338,41 @@ export default function SettingsScreen() {
                 <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>Permissions Hub</Text>
               </View>
               <ChevronRight size={16} color="#9CA3AF" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Section: ACCOUNT & CLOUD */}
+        <View style={styles.sectionWrap}>
+          <Text style={[styles.sectionHeading, { color: colors.textSecondary }]}>ACCOUNT & CLOUD</Text>
+          <View style={[styles.cardGroup, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <TouchableOpacity
+              style={styles.menuRow}
+              activeOpacity={0.75}
+              onPress={() => {
+                haptics.light();
+                setShowGoogleModal(true);
+              }}
+            >
+              <View style={[styles.iconCircle, { backgroundColor: isDark ? '#1C1F2E' : '#F3F4F6' }]}>
+                <GoogleLogo size={20} />
+              </View>
+              <View style={styles.menuTextCol}>
+                <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>
+                  {googleUser ? 'Google Account' : 'Connect Google Account'}
+                </Text>
+                <Text style={[styles.menuDesc, { color: colors.textSecondary }]}>
+                  {googleUser ? googleUser.email : 'Sign in to sync your hunter name & stats'}
+                </Text>
+              </View>
+              {googleUser ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#E8F5E9', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}>
+                  <Check size={12} color="#10B981" />
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#10B981' }}>Linked</Text>
+                </View>
+              ) : (
+                <ChevronRight size={16} color="#9CA3AF" />
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -578,6 +630,13 @@ export default function SettingsScreen() {
 
       {/* About Sheet */}
       <AboutAriseSheet visible={isAboutSheetOpen} onClose={() => setIsAboutSheetOpen(false)} />
+
+      {/* Google Sign-In Modal */}
+      <GoogleSignInModal
+        visible={showGoogleModal}
+        onClose={() => setShowGoogleModal(false)}
+        onSuccess={handleGoogleSuccess}
+      />
     </SafeAreaView>
   );
 }
