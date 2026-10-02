@@ -12,6 +12,7 @@ import {
 } from 'phosphor-react-native';
 import { useTheme } from '../../src/hooks/useTheme';
 import { useHaptics } from '../../src/hooks/useHaptics';
+import { fontFamilies } from '../../src/theme/typography';
 
 // Tab Icon Component (Maintains perfect 1:1 square aspect ratio - zero squish/distortion)
 function TabAnimatedIcon({
@@ -116,9 +117,10 @@ export default function TabsLayout() {
         tabBarActiveTintColor: '#E53935',
         tabBarInactiveTintColor: isDark ? '#8E8E93' : '#6B7280',
         tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '800',
-          letterSpacing: -0.2,
+          fontFamily: fontFamilies.medium,
+          fontSize: 10.5,
+          fontWeight: '500',
+          letterSpacing: 0.1,
           marginTop: 3,
         },
       }}

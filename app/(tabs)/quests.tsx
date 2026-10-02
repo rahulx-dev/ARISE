@@ -32,6 +32,7 @@ import { useTheme } from '../../src/hooks/useTheme';
 import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
 import { APP_3D_ASSETS } from '../../src/constants/assets';
 import { AriseBannerAd } from '../../src/components/ads/AriseBannerAd';
+import { fontFamilies } from '../../src/theme/typography';
 
 const { width } = Dimensions.get('window');
 
@@ -351,9 +352,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   screenTitle: {
-    fontSize: 26,
-    fontWeight: '900',
-    letterSpacing: -0.5,
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 22,
+    fontWeight: '600',
+    letterSpacing: -0.4,
   },
   systemProtocolsPill: {
     flexDirection: 'row',
@@ -365,8 +367,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   systemProtocolsText: {
-    fontSize: 12,
-    fontWeight: '800',
+    fontFamily: fontFamilies.medium,
+    fontSize: 11.5,
+    fontWeight: '500',
     color: '#E53935',
   },
   scrollContent: {
@@ -383,8 +386,9 @@ const styles = StyleSheet.create({
     borderRadius: 100,
   },
   filterPillText: {
-    fontSize: 12.5,
-    fontWeight: '800',
+    fontFamily: fontFamilies.medium,
+    fontSize: 12,
+    fontWeight: '500',
   },
   questCardsList: {
     gap: 12,
@@ -414,13 +418,15 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   questRowTitle: {
-    fontSize: 14.5,
-    fontWeight: '900',
-    letterSpacing: -0.2,
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: -0.1,
   },
   questRowDesc: {
+    fontFamily: fontFamilies.regular,
     fontSize: 11.5,
-    fontWeight: '500',
+    fontWeight: '400',
   },
   rewardBadgesRow: {
     flexDirection: 'row',
@@ -437,13 +443,15 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   bountyMiniCoinText: {
+    fontFamily: fontFamilies.semiBold,
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#F59E0B',
   },
   bountyMiniXPText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '500',
   },
   questRightCol: {
     alignItems: 'flex-end',
@@ -455,9 +463,10 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   rankBadgeMiniText: {
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 0.5,
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 9.5,
+    fontWeight: '600',
+    letterSpacing: 0.4,
   },
   startQuestPillBtn: {
     backgroundColor: '#E53935',
@@ -471,10 +480,11 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   startQuestPillBtnText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '500',
     color: '#FFFFFF',
-    letterSpacing: 0.4,
+    letterSpacing: 0.2,
   },
   completedPillMini: {
     flexDirection: 'row',
@@ -486,8 +496,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   completedPillMiniText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 10.5,
-    fontWeight: '900',
+    fontWeight: '500',
     color: '#10B981',
   },
   penaltyBannerBottom: {
@@ -513,20 +524,23 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   penaltyTagText: {
-    fontSize: 13,
-    fontWeight: '900',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 12,
+    fontWeight: '600',
     color: '#FFFFFF',
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
   },
   penaltyCountdownText: {
-    fontSize: 12,
-    fontWeight: '800',
+    fontFamily: fontFamilies.medium,
+    fontSize: 11.5,
+    fontWeight: '500',
     color: '#FFFFFF',
     fontVariant: ['tabular-nums'],
   },
   penaltyDesc: {
-    fontSize: 12,
+    fontFamily: fontFamilies.regular,
+    fontSize: 11.5,
     color: 'rgba(255, 255, 255, 0.95)',
-    fontWeight: '600',
+    fontWeight: '400',
   },
 });

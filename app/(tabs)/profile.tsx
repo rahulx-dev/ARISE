@@ -49,6 +49,7 @@ import { backupService } from '../../src/services/backupService';
 import { useLanguageStore, SUPPORTED_LANGUAGES } from '../../src/services/i18n';
 import { getTutorialUrl } from '../../src/config/webConfig';
 import { ThemeMode } from '../../src/theme/themeEngine';
+import { fontFamilies } from '../../src/theme/typography';
 
 export default function WarriorProfileTab() {
   const profile = usePlayerStore((s) => s.profile);
@@ -1039,8 +1040,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   displayName: {
-    fontSize: 20,
-    fontWeight: '900',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 18,
+    fontWeight: '600',
+    letterSpacing: -0.3,
     flex: 1,
   },
   editBadge: {
@@ -1053,12 +1056,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   editBadgeText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '500',
   },
   rankSubText: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontFamily: fontFamilies.medium,
+    fontSize: 12.5,
+    fontWeight: '500',
     color: '#E53935',
   },
   xpWrap: {
@@ -1070,12 +1075,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   xpLabel: {
+    fontFamily: fontFamilies.regular,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   xpFraction: {
+    fontFamily: fontFamilies.medium,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '500',
+    fontVariant: ['tabular-nums'],
   },
   xpTrack: {
     height: 8,
@@ -1094,8 +1102,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   sectionHeading: {
-    fontSize: 17,
-    fontWeight: '900',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: -0.2,
   },
   sectionHeaderBetween: {
     flexDirection: 'row',
@@ -1103,8 +1113,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   sectionLinkText: {
-    fontSize: 13,
-    fontWeight: '800',
+    fontFamily: fontFamilies.medium,
+    fontSize: 12.5,
+    fontWeight: '500',
     color: '#E53935',
   },
   attributesRow: {
@@ -1120,13 +1131,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   attributeCode: {
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    fontFamily: fontFamilies.medium,
+    fontSize: 10.5,
+    fontWeight: '500',
+    letterSpacing: 0.3,
   },
   attributeVal: {
-    fontSize: 16,
-    fontWeight: '900',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 15,
+    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
   },
 
   // 3. Transformation Journey
@@ -1157,12 +1171,14 @@ const styles = StyleSheet.create({
     fontSize: 32,
   },
   transformCardTitle: {
-    fontSize: 13,
-    fontWeight: '800',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 12.5,
+    fontWeight: '600',
   },
   transformCardSub: {
+    fontFamily: fontFamilies.regular,
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '400',
   },
   addPhotoCard: {
     width: 120,
@@ -1185,8 +1201,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   addPhotoText: {
-    fontSize: 12,
-    fontWeight: '800',
+    fontFamily: fontFamilies.medium,
+    fontSize: 11.5,
+    fontWeight: '500',
   },
 
   // 4. Settings Group
@@ -1219,12 +1236,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   settingsRowTitle: {
-    fontSize: 14,
-    fontWeight: '800',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 13.5,
+    fontWeight: '600',
   },
   settingsRowSub: {
+    fontFamily: fontFamilies.regular,
     fontSize: 11,
-    fontWeight: '500',
+    fontWeight: '400',
     marginTop: 2,
   },
   divider: {
@@ -1261,8 +1280,9 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   modalTitle: {
-    fontSize: 17,
-    fontWeight: '900',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 16,
+    fontWeight: '600',
   },
   optionCard: {
     flexDirection: 'row',
@@ -1273,12 +1293,14 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   optionTitle: {
-    fontSize: 14,
-    fontWeight: '800',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 13.5,
+    fontWeight: '600',
   },
   optionDesc: {
+    fontFamily: fontFamilies.regular,
     fontSize: 11,
-    fontWeight: '500',
+    fontWeight: '400',
     marginTop: 2,
   },
   optionCheck: {

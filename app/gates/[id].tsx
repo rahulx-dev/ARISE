@@ -33,6 +33,7 @@ import { useHaptics } from '../../src/hooks/useHaptics';
 import { useSound } from '../../src/hooks/useSound';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { ManaCrystalIcon } from '../../src/components/ui/ManaCrystalIcon';
+import { fontFamilies } from '../../src/theme/typography';
 
 export default function GateDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -681,16 +682,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   headerTag: {
+    fontFamily: fontFamilies.medium,
     fontSize: 9,
-    fontWeight: '800',
+    fontWeight: '500',
     color: '#E11D48',
-    letterSpacing: 0.8,
+    letterSpacing: 0.6,
   },
   headerTitle: {
+    fontFamily: fontFamilies.semiBold,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
-    letterSpacing: 0.6,
+    letterSpacing: 0.2,
   },
   rankBadge: {
     paddingHorizontal: 10,
@@ -699,10 +702,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   rankBadgeText: {
-    fontSize: 11,
-    fontWeight: '900',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 10.5,
+    fontWeight: '600',
     color: '#000000',
-    letterSpacing: 0.8,
+    letterSpacing: 0.4,
   },
   scrollContent: {
     padding: 16,
@@ -730,9 +734,10 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   threatPillText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    fontWeight: '500',
+    letterSpacing: 0.3,
   },
   lockedPill: {
     flexDirection: 'row',
@@ -744,10 +749,11 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   lockedPillText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '500',
     color: '#EF4444',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   conqueredPill: {
     flexDirection: 'row',
@@ -759,21 +765,25 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   conqueredPillText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '500',
     color: '#10B981',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   threatName: {
-    fontSize: 16,
-    fontWeight: '900',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 15.5,
+    fontWeight: '600',
     color: '#FFFFFF',
-    letterSpacing: 0.6,
+    letterSpacing: 0.2,
   },
   loreText: {
+    fontFamily: fontFamilies.regular,
     fontSize: 12,
     color: '#8E8E93',
     lineHeight: 18,
+    fontWeight: '400',
   },
   bountyRow: {
     flexDirection: 'row',
@@ -795,10 +805,11 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
   },
   bountyItemLabel: {
+    fontFamily: fontFamilies.medium,
     fontSize: 8.5,
-    fontWeight: '800',
+    fontWeight: '500',
     color: '#8E8E93',
-    letterSpacing: 0.4,
+    letterSpacing: 0.3,
   },
   bountyValRow: {
     flexDirection: 'row',
@@ -806,9 +817,11 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   bountyValText: {
+    fontFamily: fontFamilies.semiBold,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#00D2EE',
+    fontVariant: ['tabular-nums'],
   },
   sectionHeaderRow: {
     flexDirection: 'row',
@@ -817,10 +830,11 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   sectionTitle: {
+    fontFamily: fontFamilies.semiBold,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
-    letterSpacing: 0.8,
+    letterSpacing: 0.5,
   },
   missionList: {
     gap: 10,
@@ -845,10 +859,11 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   missionIndexText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 9,
-    fontWeight: '900',
+    fontWeight: '500',
     color: '#E11D48',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   providerBadge: {
     backgroundColor: 'rgba(2, 132, 199, 0.15)',
@@ -859,10 +874,11 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(2, 132, 199, 0.3)',
   },
   providerBadgeText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 9,
-    fontWeight: '800',
+    fontWeight: '500',
     color: '#0284C7',
-    letterSpacing: 0.4,
+    letterSpacing: 0.3,
   },
   missionDurationBadge: {
     flexDirection: 'row',
@@ -870,18 +886,22 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   missionDurationText: {
+    fontFamily: fontFamilies.regular,
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: '400',
     color: '#8E8E93',
   },
   missionTitle: {
-    fontSize: 14,
-    fontWeight: '800',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 13.5,
+    fontWeight: '600',
     color: '#FFFFFF',
   },
   missionTopic: {
+    fontFamily: fontFamilies.regular,
     fontSize: 11,
     color: '#8E8E93',
+    fontWeight: '400',
   },
   externalSurveyBtn: {
     flexDirection: 'row',
@@ -896,10 +916,11 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   externalSurveyBtnText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '500',
     color: '#00D2EE',
-    letterSpacing: 0.4,
+    letterSpacing: 0.3,
   },
   missionFooter: {
     flexDirection: 'row',
@@ -927,13 +948,15 @@ const styles = StyleSheet.create({
     borderColor: '#1C1E2A',
   },
   bountyCutLabel: {
+    fontFamily: fontFamilies.medium,
     fontSize: 9,
-    fontWeight: '800',
+    fontWeight: '500',
     color: '#F59E0B',
   },
   rewardPillText: {
+    fontFamily: fontFamilies.semiBold,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#00D2EE',
   },
   raidBtn: {
@@ -954,10 +977,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#1E202C',
   },
   raidBtnText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 10.5,
-    fontWeight: '900',
+    fontWeight: '500',
     color: '#FFFFFF',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   emptyWrap: {
     flex: 1,
@@ -967,17 +991,20 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   emptyTitle: {
+    fontFamily: fontFamilies.semiBold,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
-    letterSpacing: 0.8,
+    letterSpacing: 0.3,
     textAlign: 'center',
   },
   emptySub: {
+    fontFamily: fontFamilies.regular,
     fontSize: 12,
     color: '#8E8E93',
     textAlign: 'center',
     lineHeight: 18,
+    fontWeight: '400',
   },
   returnBtn: {
     backgroundColor: '#E11D48',
@@ -987,10 +1014,11 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   returnBtnText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '500',
     color: '#FFFFFF',
-    letterSpacing: 0.8,
+    letterSpacing: 0.4,
   },
   modalBackdrop: {
     flex: 1,
@@ -1016,14 +1044,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   modalStepTag: {
+    fontFamily: fontFamilies.medium,
     fontSize: 9,
-    fontWeight: '900',
+    fontWeight: '500',
     color: '#E11D48',
-    letterSpacing: 0.6,
+    letterSpacing: 0.4,
   },
   modalMissionTitle: {
-    fontSize: 14,
-    fontWeight: '900',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 13.5,
+    fontWeight: '600',
     color: '#FFFFFF',
   },
   closeBtn: {
@@ -1042,8 +1072,9 @@ const styles = StyleSheet.create({
     borderColor: '#1C1E2A',
   },
   questionText: {
+    fontFamily: fontFamilies.semiBold,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#FFFFFF',
     lineHeight: 20,
   },
@@ -1083,14 +1114,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#E11D48',
   },
   optionText: {
+    fontFamily: fontFamilies.regular,
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '400',
     color: '#8E8E93',
     flex: 1,
   },
   optionTextSelected: {
     color: '#FFFFFF',
-    fontWeight: '800',
+    fontWeight: '600',
+    fontFamily: fontFamilies.semiBold,
   },
   confirmBtn: {
     backgroundColor: '#E11D48',
@@ -1103,10 +1136,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#2A2D3D',
   },
   confirmBtnText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '500',
     color: '#FFFFFF',
-    letterSpacing: 0.8,
+    letterSpacing: 0.4,
   },
 
   // Victory Card Modal
@@ -1124,21 +1158,25 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   victoryTagText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 9,
-    fontWeight: '900',
+    fontWeight: '500',
     color: '#00D2EE',
-    letterSpacing: 0.8,
+    letterSpacing: 0.5,
   },
   victoryTitle: {
-    fontSize: 17,
-    fontWeight: '900',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 16,
+    fontWeight: '600',
     color: '#FFFFFF',
-    letterSpacing: 0.6,
+    letterSpacing: 0.3,
   },
   victorySub: {
+    fontFamily: fontFamilies.regular,
     fontSize: 11.5,
     color: '#8E8E93',
     lineHeight: 18,
+    fontWeight: '400',
   },
   victoryRewardBox: {
     backgroundColor: '#0B1120',
@@ -1149,14 +1187,16 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   victoryRewardBoxLabel: {
+    fontFamily: fontFamilies.medium,
     fontSize: 9,
-    fontWeight: '800',
+    fontWeight: '500',
     color: '#0284C7',
-    letterSpacing: 0.6,
+    letterSpacing: 0.4,
   },
   victoryRewardVal: {
+    fontFamily: fontFamilies.semiBold,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#00D2EE',
   },
   victoryConfirmBtn: {
@@ -1168,9 +1208,10 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   victoryConfirmBtnText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '500',
     color: '#FFFFFF',
-    letterSpacing: 0.8,
+    letterSpacing: 0.4,
   },
 });

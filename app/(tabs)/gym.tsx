@@ -29,6 +29,7 @@ import { useSound } from '../../src/hooks/useSound';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { db } from '../../src/database/client';
 import { exerciseSession } from '../../src/database/schema';
+import { fontFamilies } from '../../src/theme/typography';
 
 interface ExerciseCardItem {
   id: string;
@@ -317,8 +318,9 @@ const styles = StyleSheet.create({
     borderColor: '#FFE4E6',
   },
   headerStatsText: {
-    fontSize: 12,
-    fontWeight: '800',
+    fontFamily: fontFamilies.medium,
+    fontSize: 11.5,
+    fontWeight: '500',
     color: '#E53935',
   },
   scrollContent: {
@@ -344,15 +346,18 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   statNumber: {
-    fontSize: 20,
-    fontWeight: '900',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 18,
+    fontWeight: '600',
     color: '#111827',
+    fontVariant: ['tabular-nums'],
   },
   statLabel: {
+    fontFamily: fontFamilies.medium,
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '500',
     color: '#6B7280',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   statDivider: {
     width: 1,
@@ -369,8 +374,9 @@ const styles = StyleSheet.create({
     borderRadius: 18,
   },
   filterPillText: {
+    fontFamily: fontFamilies.medium,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '500',
   },
   exerciseList: {
     gap: 12,
@@ -404,19 +410,23 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   rankBadgeText: {
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 0.5,
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 9.5,
+    fontWeight: '600',
+    letterSpacing: 0.4,
   },
   exerciseTitle: {
-    fontSize: 16,
-    fontWeight: '900',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 15,
+    fontWeight: '600',
     color: '#111827',
+    letterSpacing: -0.1,
   },
   exerciseMuscles: {
-    fontSize: 12,
+    fontFamily: fontFamilies.regular,
+    fontSize: 11.5,
     color: '#6B7280',
-    fontWeight: '500',
+    fontWeight: '400',
   },
   rewardsRow: {
     flexDirection: 'row',
@@ -434,8 +444,9 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   rewardTagText: {
-    fontSize: 11,
-    fontWeight: '800',
+    fontFamily: fontFamilies.medium,
+    fontSize: 10.5,
+    fontWeight: '500',
     color: '#1D4ED8',
   },
   startBtnWrap: {
@@ -457,9 +468,10 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   startLabel: {
+    fontFamily: fontFamilies.medium,
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '500',
     color: '#E53935',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
 });

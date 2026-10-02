@@ -731,12 +731,12 @@ export default function DungeonScreen() {
                     <Text style={styles.podiumRankBadgeText}>1</Text>
                   </View>
                 </View>
-                <Text style={[styles.podiumNameText, { color: colors.textPrimary, fontWeight: '700' }]} numberOfLines={1}>
+                <Text style={[styles.podiumNameText, { color: colors.textPrimary, fontWeight: '600' }]} numberOfLines={1}>
                   {leaderboard[0]?.name || displayName}
                 </Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                   <ManaCrystalIcon size={14} />
-                  <Text style={[styles.podiumXPText, { color: colors.primary, fontWeight: '700' }]}>
+                  <Text style={[styles.podiumXPText, { color: colors.primary, fontWeight: '600' }]}>
                     {(leaderboard[0]?.crystalsMined || 4820).toLocaleString()}
                   </Text>
                 </View>
@@ -895,10 +895,10 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   hunterNameText: {
-    fontFamily: fontFamilies.bold,
-    fontSize: 17,
-    fontWeight: '700',
-    letterSpacing: -0.3,
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: -0.2,
   },
   hunterTitleSub: {
     fontFamily: fontFamilies.regular,
@@ -1035,9 +1035,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   redGateAlertPillText: {
-    fontFamily: fontFamilies.bold,
+    fontFamily: fontFamilies.medium,
     fontSize: 9.5,
-    fontWeight: '700',
+    fontWeight: '500',
     color: '#EF4444',
     letterSpacing: 0.5,
   },
@@ -1051,16 +1051,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   redGateBountyPillText: {
-    fontFamily: fontFamilies.semiBold,
+    fontFamily: fontFamilies.medium,
     fontSize: 10,
-    fontWeight: '600',
+    fontWeight: '500',
     color: '#00D2EE',
   },
   redGateHeroTitle: {
-    fontFamily: fontFamilies.bold,
-    fontSize: 15,
-    fontWeight: '700',
-    letterSpacing: 0.2,
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 14.5,
+    fontWeight: '600',
+    letterSpacing: 0.1,
   },
   redGateHeroSub: {
     fontFamily: fontFamilies.regular,
@@ -1079,11 +1079,11 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   redGateHeroActionText: {
-    fontFamily: fontFamilies.bold,
+    fontFamily: fontFamilies.medium,
     fontSize: 11.5,
-    fontWeight: '700',
+    fontWeight: '500',
     color: '#FFFFFF',
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
   },
 
   // Dimensional Rift Radar Card
@@ -1106,16 +1106,16 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   radarHeroTag: {
-    fontFamily: fontFamilies.bold,
-    fontSize: 10.5,
-    fontWeight: '700',
+    fontFamily: fontFamilies.medium,
+    fontSize: 10,
+    fontWeight: '500',
     letterSpacing: 0.8,
   },
   radarHeroTitle: {
-    fontFamily: fontFamilies.bold,
-    fontSize: 16.5,
-    fontWeight: '700',
-    letterSpacing: -0.3,
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: -0.2,
     lineHeight: 22,
   },
   radarHeroSub: {
@@ -1135,9 +1135,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   radarScanBtnText: {
-    fontFamily: fontFamilies.semiBold,
+    fontFamily: fontFamilies.medium,
     fontSize: 12.5,
-    fontWeight: '600',
+    fontWeight: '500',
     color: '#FFFFFF',
     letterSpacing: 0.1,
   },
@@ -1194,15 +1194,15 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   sectionTitle: {
-    fontFamily: fontFamilies.bold,
-    fontSize: 16.5,
-    fontWeight: '700',
-    letterSpacing: -0.3,
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 15.5,
+    fontWeight: '600',
+    letterSpacing: -0.2,
   },
   sectionCount: {
-    fontFamily: fontFamilies.medium,
-    fontSize: 14.5,
-    fontWeight: '500',
+    fontFamily: fontFamilies.regular,
+    fontSize: 13.5,
+    fontWeight: '400',
   },
   sortPill: {
     flexDirection: 'row',
@@ -1253,14 +1253,14 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   gateRankPillText: {
-    fontFamily: fontFamilies.semiBold,
+    fontFamily: fontFamilies.medium,
     fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 0.4,
+    fontWeight: '500',
+    letterSpacing: 0.3,
   },
   gateCardTitle: {
     fontFamily: fontFamilies.semiBold,
-    fontSize: 15.5,
+    fontSize: 15,
     fontWeight: '600',
     letterSpacing: -0.2,
   },
@@ -1279,9 +1279,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   countdownText: {
-    fontFamily: fontFamilies.medium,
-    fontSize: 11.5,
-    fontWeight: '500',
+    fontFamily: fontFamilies.regular,
+    fontSize: 11,
+    fontWeight: '400',
     fontVariant: ['tabular-nums'],
   },
   countdownCapsule: {
@@ -1300,10 +1300,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   gateRankBadgeText: {
-    fontFamily: fontFamilies.bold,
-    fontSize: 10.5,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+    fontFamily: fontFamilies.medium,
+    fontSize: 10,
+    fontWeight: '500',
+    letterSpacing: 0.3,
   },
 
   // Bounty Pill Row / Strip
@@ -1327,21 +1327,21 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   bountyGrossLabel: {
-    fontFamily: fontFamilies.bold,
+    fontFamily: fontFamilies.medium,
     fontSize: 9.5,
-    fontWeight: '700',
-    letterSpacing: 0.4,
+    fontWeight: '500',
+    letterSpacing: 0.3,
   },
   bountyGrossVal: {
-    fontFamily: fontFamilies.bold,
+    fontFamily: fontFamilies.semiBold,
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#F59E0B',
   },
   bountyCrystalsVal: {
-    fontFamily: fontFamilies.semiBold,
-    fontSize: 12.5,
-    fontWeight: '600',
+    fontFamily: fontFamilies.medium,
+    fontSize: 12,
+    fontWeight: '500',
     fontVariant: ['tabular-nums'],
   },
   bountyDivider: {
@@ -1363,11 +1363,11 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   clearedPillText: {
-    fontFamily: fontFamilies.bold,
+    fontFamily: fontFamilies.medium,
     fontSize: 9.5,
-    fontWeight: '700',
+    fontWeight: '500',
     color: '#10B981',
-    letterSpacing: 0.4,
+    letterSpacing: 0.3,
   },
   missionProgressTag: {
     flexDirection: 'row',
@@ -1405,9 +1405,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   gateLockTagText: {
-    fontFamily: fontFamilies.semiBold,
+    fontFamily: fontFamilies.medium,
     fontSize: 11.5,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   gateReqLevelPill: {
     paddingHorizontal: 8,
@@ -1454,9 +1454,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#10B981',
   },
   gateActionBtnText: {
-    fontFamily: fontFamilies.semiBold,
-    fontSize: 12.5,
-    fontWeight: '600',
+    fontFamily: fontFamilies.medium,
+    fontSize: 12,
+    fontWeight: '500',
     color: '#FFFFFF',
     letterSpacing: 0.1,
   },
@@ -1469,10 +1469,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   enterGateBtnText: {
-    fontFamily: fontFamilies.bold,
+    fontFamily: fontFamilies.medium,
     fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.4,
+    fontWeight: '500',
+    letterSpacing: 0.3,
   },
 
   // Leaderboard Filter Pills
@@ -1490,9 +1490,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   lbFilterPillText: {
-    fontFamily: fontFamilies.semiBold,
+    fontFamily: fontFamilies.medium,
     fontSize: 12.5,
-    fontWeight: '600',
+    fontWeight: '500',
   },
 
   // Top 3 Podium
@@ -1527,20 +1527,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   podiumRankBadgeText: {
-    fontFamily: fontFamilies.bold,
+    fontFamily: fontFamilies.semiBold,
     color: '#FFFFFF',
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   podiumNameText: {
     fontFamily: fontFamilies.semiBold,
-    fontSize: 13.5,
+    fontSize: 13,
     fontWeight: '600',
   },
   podiumXPText: {
-    fontFamily: fontFamilies.medium,
+    fontFamily: fontFamilies.regular,
     fontSize: 11.5,
-    fontWeight: '500',
+    fontWeight: '400',
     fontVariant: ['tabular-nums'],
   },
 
@@ -1557,26 +1557,26 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   rankListNumber: {
-    fontFamily: fontFamilies.semiBold,
-    fontSize: 13,
-    fontWeight: '600',
+    fontFamily: fontFamilies.medium,
+    fontSize: 12.5,
+    fontWeight: '500',
     fontVariant: ['tabular-nums'],
     width: 24,
   },
   rankListName: {
     fontFamily: fontFamilies.semiBold,
-    fontSize: 13.5,
+    fontSize: 13,
     fontWeight: '600',
   },
   rankListSub: {
     fontFamily: fontFamilies.regular,
-    fontSize: 11.5,
+    fontSize: 11,
     fontWeight: '400',
   },
   rankListXP: {
-    fontFamily: fontFamilies.semiBold,
-    fontSize: 12.5,
-    fontWeight: '600',
+    fontFamily: fontFamilies.medium,
+    fontSize: 12,
+    fontWeight: '500',
     fontVariant: ['tabular-nums'],
   },
 
@@ -1598,19 +1598,19 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   yourRankNum: {
-    fontFamily: fontFamilies.bold,
-    fontSize: 13.5,
-    fontWeight: '700',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 13,
+    fontWeight: '600',
   },
   yourRankXP: {
-    fontFamily: fontFamilies.semiBold,
-    fontSize: 12.5,
-    fontWeight: '600',
+    fontFamily: fontFamilies.medium,
+    fontSize: 12,
+    fontWeight: '500',
     fontVariant: ['tabular-nums'],
   },
   yourRankDelta: {
-    fontFamily: fontFamilies.semiBold,
+    fontFamily: fontFamilies.medium,
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '500',
   },
 });

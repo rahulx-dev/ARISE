@@ -12,22 +12,22 @@ export const scale = (size: number): number => {
 export const fontFamilies = {
   regular: Platform.select({
     ios: 'System',
-    web: '-apple-system, BlinkMacSystemFont, "SF Pro Text", Inter_400Regular, "Segoe UI", Roboto, sans-serif',
+    web: "'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif",
     default: 'Inter_400Regular',
   }),
   medium: Platform.select({
     ios: 'System',
-    web: '-apple-system, BlinkMacSystemFont, "SF Pro Text", Inter_500Medium, "Segoe UI", Roboto, sans-serif',
+    web: "'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif",
     default: 'Inter_500Medium',
   }),
   semiBold: Platform.select({
     ios: 'System',
-    web: '-apple-system, BlinkMacSystemFont, "SF Pro Display", Inter_600SemiBold, "Segoe UI", Roboto, sans-serif',
+    web: "'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif",
     default: 'Inter_600SemiBold',
   }),
   bold: Platform.select({
     ios: 'System',
-    web: '-apple-system, BlinkMacSystemFont, "SF Pro Display", Inter_700Bold, "Segoe UI", Roboto, sans-serif',
+    web: "'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif",
     default: 'Inter_700Bold',
   }),
 };
@@ -55,7 +55,7 @@ export const fontWeights = {
 export const typography = {
   // Large Hero / Display Title
   display: {
-    fontFamily: fontFamilies.bold,
+    fontFamily: fontFamilies.semiBold,
     fontSize: 32,
     lineHeight: 38,
     color: colors.textPrimary,
@@ -63,7 +63,7 @@ export const typography = {
   } as TextStyle,
 
   displayLarge: {
-    fontFamily: fontFamilies.bold,
+    fontFamily: fontFamilies.semiBold,
     fontSize: 40,
     lineHeight: 46,
     color: colors.textPrimary,
@@ -72,7 +72,7 @@ export const typography = {
 
   // Section & Screen Headings
   h1: {
-    fontFamily: fontFamilies.bold,
+    fontFamily: fontFamilies.semiBold,
     fontSize: 24,
     lineHeight: 30,
     color: colors.textPrimary,

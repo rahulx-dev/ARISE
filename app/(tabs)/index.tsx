@@ -38,6 +38,7 @@ import { getAvatarSource } from '../../src/constants/avatars';
 import { getRankForLevel } from '../../src/constants/ranks';
 import { getDailyQuote } from '../../src/constants/quotes';
 import { NotificationSheet } from '../../src/components/notifications/NotificationSheet';
+import { fontFamilies } from '../../src/theme/typography';
 
 const { width } = Dimensions.get('window');
 
@@ -871,12 +872,15 @@ const styles = StyleSheet.create({
     gap: 1,
   },
   greetingSubtext: {
+    fontFamily: fontFamilies.regular,
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '400',
   },
   userNameText: {
-    fontSize: 18,
-    fontWeight: '900',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 17,
+    fontWeight: '600',
+    letterSpacing: -0.2,
   },
   headerRightCol: {
     flexDirection: 'row',
@@ -907,7 +911,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#EF4444',
   },
   mottoSubtext: {
-    fontSize: 13,
+    fontFamily: fontFamilies.regular,
+    fontSize: 12.5,
     fontStyle: 'italic',
     textAlign: 'center',
     marginTop: -4,
@@ -939,21 +944,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   levelTitle: {
-    fontSize: 18,
-    fontWeight: '900',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: -0.2,
   },
   rankSubText: {
-    fontSize: 12.5,
-    fontWeight: '600',
+    fontFamily: fontFamilies.regular,
+    fontSize: 12,
+    fontWeight: '400',
     marginTop: 1,
   },
   xpFractionText: {
-    fontSize: 12.5,
-    fontWeight: '600',
+    fontFamily: fontFamilies.regular,
+    fontSize: 12,
+    fontWeight: '400',
   },
   xpPercentText: {
-    fontSize: 16,
-    fontWeight: '900',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 14,
+    fontWeight: '600',
     color: '#0A84FF',
   },
   xpTrack: {
@@ -975,6 +985,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   levelQuoteText: {
+    fontFamily: fontFamilies.regular,
     fontSize: 12,
     fontStyle: 'italic',
     flex: 1,
@@ -1008,12 +1019,16 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   metricBigNum: {
-    fontSize: 17,
-    fontWeight: '900',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 16,
+    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
   },
   metricLabel: {
+    fontFamily: fontFamilies.medium,
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: '500',
+    letterSpacing: 0.2,
   },
 
   // 4. Today's Quests Card
@@ -1034,12 +1049,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   todayQuestsTitle: {
-    fontSize: 17,
-    fontWeight: '900',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 15.5,
+    fontWeight: '600',
+    letterSpacing: -0.2,
   },
   todayQuestsCount: {
-    fontSize: 14,
-    fontWeight: '800',
+    fontFamily: fontFamilies.medium,
+    fontSize: 13,
+    fontWeight: '500',
   },
   todayQuestsList: {
     gap: 12,
@@ -1050,8 +1068,9 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   questItemTitle: {
-    fontSize: 13.5,
-    fontWeight: '600',
+    fontFamily: fontFamilies.medium,
+    fontSize: 13,
+    fontWeight: '500',
     flex: 1,
   },
   questBountyTag: {
@@ -1060,8 +1079,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   questBountyText: {
-    fontSize: 13,
-    fontWeight: '800',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 12.5,
+    fontWeight: '600',
     color: '#F59E0B',
   },
   viewAllQuestsBtn: {
@@ -1075,8 +1095,9 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   viewAllQuestsBtnText: {
-    fontSize: 13,
-    fontWeight: '800',
+    fontFamily: fontFamilies.medium,
+    fontSize: 12.5,
+    fontWeight: '500',
   },
 
   // 5. Quick Actions Section
@@ -1090,12 +1111,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   quickActionsTitle: {
-    fontSize: 16,
-    fontWeight: '900',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 15.5,
+    fontWeight: '600',
+    letterSpacing: -0.2,
   },
   seeAllText: {
-    fontSize: 12.5,
-    fontWeight: '700',
+    fontFamily: fontFamilies.medium,
+    fontSize: 12,
+    fontWeight: '500',
   },
   quickActionsCardsRow: {
     flexDirection: 'row',
@@ -1122,11 +1146,13 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   quickActionCardTitle: {
-    fontSize: 13.5,
-    fontWeight: '900',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 13,
+    fontWeight: '600',
   },
   quickActionCardSub: {
-    fontSize: 10,
-    fontWeight: '500',
+    fontFamily: fontFamilies.regular,
+    fontSize: 10.5,
+    fontWeight: '400',
   },
 });
