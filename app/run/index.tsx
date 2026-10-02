@@ -186,9 +186,10 @@ export default function RunningScreen() {
       const runningQuest = activeQuests.find(
         (q) =>
           !q.completed &&
-          (q.category?.toUpperCase() === 'FITNESS' ||
-            (q.title || '').toLowerCase().includes('run') ||
-            (q.title || '').toLowerCase().includes('sprint'))
+          ((q.title || '').toLowerCase().includes('run') ||
+            (q.title || '').toLowerCase().includes('sprint') ||
+            (q.title || '').toLowerCase().includes('walk') ||
+            (q.description || '').toLowerCase().includes('run'))
       );
       if (runningQuest) {
         await questService.completeQuest(runningQuest.id);

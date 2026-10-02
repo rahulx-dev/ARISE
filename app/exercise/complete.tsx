@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Share2, Zap, ShieldAlert, CheckCircle2, ArrowRight } from 'lucide-react-native';
 import LottieView from 'lottie-react-native';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
+import { useQuestStore } from '../../src/stores/useQuestStore';
 import { useSound } from '../../src/hooks/useSound';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTheme } from '../../src/hooks/useTheme';
@@ -158,6 +159,7 @@ export default function QuestCompleteScreen() {
         }
 
         await loadProfile();
+        await useQuestStore.getState().loadQuests();
         sound.play('quest_complete');
         haptics.heavy();
       } catch (e) {

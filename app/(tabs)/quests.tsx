@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,21 +6,15 @@ import {
   TouchableOpacity,
   StyleSheet,
   Image,
-  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import {
   Barbell,
   Brain,
-  Footprints,
   Lightning,
-  Flame,
   Check,
   ShieldWarning,
-  Camera,
-  Play,
-  Clock,
   Sparkle,
   Target,
 } from 'phosphor-react-native';
@@ -31,10 +25,9 @@ import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTheme } from '../../src/hooks/useTheme';
 import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
 import { APP_3D_ASSETS } from '../../src/constants/assets';
-import { AriseBannerAd } from '../../src/components/ads/AriseBannerAd';
 import { fontFamilies } from '../../src/theme/typography';
-
-const { width } = Dimensions.get('window');
+import { EXERCISE_REGISTRY, ExerciseType } from '../../src/exercise';
+import { QuestData } from '../../src/services/questService';
 
 type QuestTabFilter = 'ALL' | 'DAILY' | 'WEEKLY' | 'SPECIAL';
 
@@ -53,6 +46,31 @@ const RANK_CONFIGS: Record<string, RankConfig> = {
   S: { label: 'S-RANK', bg: 'rgba(168, 85, 247, 0.15)', color: '#A855F7' },
 };
 
+const getRankConfig = (difficulty?: string): RankConfig => {
+  const d = (difficulty || '').toUpperCase();
+  if (d === 'LEGENDARY' || d === 'S') return RANK_CONFIGS.S;
+  if (d === 'EPIC' || d === 'A') return RANK_CONFIGS.A;
+  if (d === 'HARD' || d === 'B') return RANK_CONFIGS.B;
+  if (d === 'MEDIUM' || d === 'NORMAL' || d === 'C') return RANK_CONFIGS.C;
+  if (d === 'EASY' || d === 'E') return RANK_CONFIGS.E;
+  return RANK_CONFIGS.D;
+};
+
+const resolveExerciseType = (q: QuestData): ExerciseType | null => {
+  const rawType = (q.exerciseType || '').toUpperCase();
+  if (rawType in EXERCISE_REGISTRY) return rawType as ExerciseType;
+  if (rawType === 'DIAMOND_PUSHUP') return 'PUSHUP';
+  if (rawType === 'CRUNCH') return 'SITUP';
+
+  const titleLower = (q.title || '').toLowerCase();
+  if (titleLower.includes('squat')) return 'SQUAT';
+  if (titleLower.includes('sit') || titleLower.includes('crunch')) return 'SITUP';
+  if (titleLower.includes('plank')) return 'PLANK';
+  if (titleLower.includes('jack')) return 'JUMPING_JACK';
+  if (titleLower.includes('push')) return 'PUSHUP';
+  return null;
+};
+
 export default function QuestsScreen() {
   const { colors, isDark } = useTheme();
   const sound = useSound();
@@ -62,24 +80,19 @@ export default function QuestsScreen() {
   const weeklyQuests = useQuestStore((s) => s.weeklyQuests);
   const loadQuests = useQuestStore((s) => s.loadQuests);
   const completeQuest = useQuestStore((s) => s.completeQuest);
-  const profile = usePlayerStore((s) => s.profile);
 
   const [activeTab, setActiveTab] = useState<QuestTabFilter>('ALL');
   const [penaltyTimeLeft, setPenaltyTimeLeft] = useState('04:12:30');
-  const lastLoadRef = useRef<number>(0);
 
   useEffect(() => {
     loadQuests();
-  }, []);
+  }, [loadQuests]);
 
+  // Always refresh latest quest state when tab gains focus
   useFocusEffect(
     useCallback(() => {
-      const now = Date.now();
-      if (now - lastLoadRef.current > 10000) {
-        lastLoadRef.current = now;
-        loadQuests();
-      }
-    }, [])
+      loadQuests();
+    }, [loadQuests])
   );
 
   // Countdown timer for Penalty Zone
@@ -107,35 +120,103 @@ export default function QuestsScreen() {
   }, []);
 
   const displayedQuests = useMemo(() => {
-    const combined = [...(dailyQuests || []), ...(weeklyQuests || [])];
+    const daily = dailyQuests || [];
+    const weekly = weeklyQuests || [];
+    const combined = [...daily, ...weekly];
+
     if (activeTab === 'DAILY') {
-      return (dailyQuests || []).filter((q) => !q.frequency || q.frequency === 'DAILY');
+      return daily.filter((q) => !q.frequency || q.frequency === 'DAILY');
     }
     if (activeTab === 'WEEKLY') {
-      return (weeklyQuests && weeklyQuests.length > 0)
-        ? weeklyQuests
-        : (dailyQuests || []).filter((q) => q.frequency === 'WEEKLY');
+      return weekly.length > 0
+        ? weekly
+        : daily.filter((q) => q.frequency === 'WEEKLY');
     }
     if (activeTab === 'SPECIAL') {
       return combined.filter(
-        (q) => q.difficulty === 'EPIC' || q.difficulty === 'LEGENDARY' || q.category === 'SPECIAL'
+        (q) =>
+          q.difficulty === 'EPIC' ||
+          q.difficulty === 'LEGENDARY' ||
+          q.difficulty === 'HARD' ||
+          q.category === 'SPECIAL'
       );
     }
-    return dailyQuests && dailyQuests.length > 0 ? dailyQuests : combined;
+    // 'ALL' shows all daily & weekly quests
+    return combined.length > 0 ? combined : daily;
   }, [dailyQuests, weeklyQuests, activeTab]);
 
-  const completedCount = displayedQuests.filter((q) => Boolean(q.completed)).length;
-  const totalCount = displayedQuests.length || 5;
+  const totalDailyCount = (dailyQuests || []).length;
+  const completedDailyCount = (dailyQuests || []).filter((q) => Boolean(q.completed)).length;
 
-  const handleManualComplete = async (questId: number) => {
+  const handleManualComplete = async (q: QuestData) => {
     haptics.success();
     sound.play('quest_complete');
-    await completeQuest(questId);
+    const result = await completeQuest(q.id);
+    const coins = result.coins || q.rewardCoins || 18;
+    const xp = result.xp || q.rewardXP || 50;
+
+    showIOSAlert(
+      'Protocol Cleared!',
+      `You completed "${q.title}" and earned +${coins} Coins and +${xp} XP.`,
+      [{ text: 'Awesome', style: 'default' }],
+      { variant: 'quest', tag: 'QUEST CLEARED' }
+    );
+  };
+
+  const handleQuestAction = (q: QuestData) => {
+    if (q.completed) return;
+    haptics.medium();
+
+    const cat = (q.category || '').toUpperCase();
+    const titleLower = (q.title || '').toLowerCase();
+    const isFocus = cat === 'FOCUS' || q.questType === 'TIMER' || titleLower.includes('focus');
+    const cameraExercise = resolveExerciseType(q);
+    const isCameraTracked = cameraExercise !== null && q.questType !== 'MANUAL';
+
+    if (isCameraTracked) {
+      router.push({
+        pathname: '/exercise/[type]',
+        params: {
+          type: cameraExercise,
+          target: String(q.target || 20),
+          questId: String(q.id),
+          rewardCoins: String(q.rewardCoins || 18),
+          rewardXP: String(q.rewardXP || 50),
+        },
+      } as any);
+    } else if (isFocus) {
+      router.push({
+        pathname: '/focus/session',
+        params: {
+          questId: String(q.id),
+          targetMinutes: String(q.target || 25),
+        },
+      } as any);
+    } else {
+      handleManualComplete(q);
+    }
+  };
+
+  const getCategoryIcon = (q: QuestData, isCamera: boolean, isFocus: boolean) => {
+    const cat = (q.category || '').toUpperCase();
+    if (isCamera) {
+      return <Barbell size={22} color="#E53935" weight="fill" />;
+    }
+    if (isFocus) {
+      return <Brain size={22} color="#0A84FF" weight="fill" />;
+    }
+    if (cat === 'WELLNESS') {
+      return <Sparkle size={22} color="#F59E0B" weight="fill" />;
+    }
+    if (cat === 'DISCIPLINE') {
+      return <Target size={22} color="#A855F7" weight="fill" />;
+    }
+    return <Lightning size={22} color="#10B981" weight="fill" />;
   };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      {/* 1. TOP HEADER (SCREEN 3 MATCH) */}
+      {/* 1. TOP HEADER */}
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <Text style={[styles.screenTitle, { color: colors.textPrimary }]}>Quests</Text>
         <View style={[styles.systemProtocolsPill, { backgroundColor: isDark ? '#1C1215' : '#FFF1F2', borderColor: isDark ? '#3E1C22' : '#FFE4E6' }]}>
@@ -145,7 +226,34 @@ export default function QuestsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* 2. FILTER PILLS: All, Daily, Weekly, Special */}
+        {/* 2. DAILY PROGRESS SUMMARY */}
+        <View style={[styles.progressSummaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.progressSummaryHeader}>
+            <View style={{ gap: 2 }}>
+              <Text style={[styles.progressSummaryTitle, { color: colors.textPrimary }]}>Daily Objectives</Text>
+              <Text style={[styles.progressSummarySub, { color: colors.textSecondary }]}>
+                {completedDailyCount} of {totalDailyCount} protocols completed
+              </Text>
+            </View>
+            <View style={[styles.progressBadge, { backgroundColor: isDark ? '#1C1215' : '#FFF1F2' }]}>
+              <Text style={styles.progressBadgeText}>
+                {totalDailyCount > 0 ? Math.round((completedDailyCount / totalDailyCount) * 100) : 0}%
+              </Text>
+            </View>
+          </View>
+          <View style={[styles.progressTrack, { backgroundColor: isDark ? '#1D202C' : '#E5E7EB' }]}>
+            <View
+              style={[
+                styles.progressFill,
+                {
+                  width: `${totalDailyCount > 0 ? Math.min(100, Math.round((completedDailyCount / totalDailyCount) * 100)) : 0}%`,
+                },
+              ]}
+            />
+          </View>
+        </View>
+
+        {/* 3. FILTER PILLS: All, Daily, Weekly, Special */}
         <View style={styles.filterRow}>
           {(['ALL', 'DAILY', 'WEEKLY', 'SPECIAL'] as const).map((tab) => {
             const isSelected = activeTab === tab;
@@ -195,132 +303,124 @@ export default function QuestsScreen() {
           })}
         </View>
 
-        {/* 3. HORIZONTAL QUEST CARDS LIST (SCREEN 3 1:1 MATCH) */}
+        {/* 4. QUEST CARDS LIST */}
         <View style={styles.questCardsList}>
-          {displayedQuests.map((q, idx) => {
-            const isDone = Boolean(q.completed);
-            const titleLower = (q?.title || '').toLowerCase();
-            const cat = (q?.category || '').toUpperCase();
-            const isExercise =
-              cat === 'STRENGTH' ||
-              cat === 'FITNESS' ||
-              titleLower.includes('push') ||
-              titleLower.includes('squat') ||
-              titleLower.includes('pull') ||
-              titleLower.includes('plank') ||
-              titleLower.includes('jack') ||
-              titleLower.includes('lunge') ||
-              titleLower.includes('crunch');
+          {displayedQuests.length === 0 ? (
+            <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <ShieldWarning size={32} color={colors.textSecondary} />
+              <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
+                {activeTab === 'SPECIAL' ? 'No Special Rank Protocols' : 'No Quests Available'}
+              </Text>
+              <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+                {activeTab === 'SPECIAL'
+                  ? 'High-rank S & A tier protocols unlock as your hunter level increases.'
+                  : 'Check other tabs to view your active hunter protocols.'}
+              </Text>
+            </View>
+          ) : (
+            displayedQuests.map((q) => {
+              const isDone = Boolean(q.completed);
+              const cat = (q?.category || '').toUpperCase();
+              const titleLower = (q?.title || '').toLowerCase();
+              const isFocus = cat === 'FOCUS' || q.questType === 'TIMER' || titleLower.includes('focus');
+              const cameraExercise = resolveExerciseType(q);
+              const isCameraTracked = cameraExercise !== null && q.questType !== 'MANUAL';
+              const rank = getRankConfig(q.difficulty);
 
-            const isFocus = cat === 'FOCUS' || titleLower.includes('focus') || titleLower.includes('study') || titleLower.includes('social');
-
-            let exerciseType = 'PUSHUP';
-            if (titleLower.includes('squat')) exerciseType = 'SQUAT';
-            else if (titleLower.includes('pull')) exerciseType = 'PULLUP';
-            else if (titleLower.includes('plank')) exerciseType = 'PLANK';
-            else if (titleLower.includes('jack')) exerciseType = 'JUMPING_JACK';
-
-            const rankKey = idx === 0 ? 'D' : idx === 1 ? 'D' : idx === 2 ? 'C' : 'B';
-            const rank = RANK_CONFIGS[rankKey] || RANK_CONFIGS.D;
-
-            const handleQuestAction = () => {
-              if (isDone) return;
-              haptics.medium();
-              if (isExercise) {
-                router.push({
-                  pathname: '/exercise/[type]',
-                  params: {
-                    type: exerciseType,
-                    target: String(q.target || 25),
-                    questId: String(q.id),
-                    rewardCoins: String(q.rewardCoins || 20),
-                    rewardXP: String(q.rewardXP || 100),
-                  },
-                } as any);
+              let buttonLabel = 'COMPLETE';
+              if (isCameraTracked) {
+                buttonLabel = 'START TRACKER';
               } else if (isFocus) {
-                router.push('/(tabs)/gym' as any);
-              } else {
-                handleManualComplete(q.id);
+                buttonLabel = 'START FOCUS';
               }
-            };
 
-            return (
-              <View
-                key={q.id}
-                style={[
-                  styles.horizontalQuestCard,
-                  { backgroundColor: colors.card, borderColor: colors.border },
-                  isDone && { opacity: 0.6 },
-                ]}
-              >
-                {/* Left: Exercise Thumbnail Box */}
-                <View style={[
-                  styles.questThumbBox,
-                  {
-                    backgroundColor: isDark
-                      ? '#1C1618'
-                      : idx % 2 === 0
-                      ? '#FFF1F2'
-                      : idx === 1
-                      ? '#FFF1F2'
-                      : idx === 2
-                      ? '#FEF3C7'
-                      : '#EFF6FF'
-                  }
-                ]}>
-                  {isExercise ? (
-                    <Barbell size={24} color={idx === 2 ? '#D97706' : '#E53935'} weight="fill" />
-                  ) : (
-                    <Target size={24} color="#0A84FF" weight="fill" />
-                  )}
-                </View>
-
-                {/* Middle: Title, Subtitle, Rewards */}
-                <View style={styles.questMiddleCol}>
-                  <Text style={[styles.questRowTitle, { color: colors.textPrimary }]} numberOfLines={1}>
-                    {q.title}
-                  </Text>
-                  <Text style={[styles.questRowDesc, { color: colors.textSecondary }]} numberOfLines={1}>
-                    {q.description || (isExercise ? `Do ${q.target || 25} reps` : 'Stay focused')}
-                  </Text>
-                  <View style={styles.rewardBadgesRow}>
-                    <View style={[styles.bountyMiniPill, { backgroundColor: isDark ? '#1A1C28' : '#F3F4F6' }]}>
-                      <Image source={APP_3D_ASSETS.goldCoin} style={{ width: 12, height: 12 }} />
-                      <Text style={styles.bountyMiniCoinText}>+{q.rewardCoins || 20}</Text>
-                    </View>
-                    <View style={[styles.bountyMiniPill, { backgroundColor: isDark ? '#1A1C28' : '#F3F4F6' }]}>
-                      <Text style={[styles.bountyMiniXPText, { color: colors.textSecondary }]}>+{q.rewardXP || 100} XP</Text>
-                    </View>
-                  </View>
-                </View>
-
-                {/* Right: Rank Tag & Red Pill Button */}
-                <View style={styles.questRightCol}>
-                  <View style={[styles.rankBadgeMini, { backgroundColor: rank.bg }]}>
-                    <Text style={[styles.rankBadgeMiniText, { color: rank.color }]}>{rank.label}</Text>
+              return (
+                <View
+                  key={q.id}
+                  style={[
+                    styles.horizontalQuestCard,
+                    { backgroundColor: colors.card, borderColor: colors.border },
+                    isDone && { opacity: 0.65 },
+                  ]}
+                >
+                  {/* Left: Category Icon Thumbnail */}
+                  <View
+                    style={[
+                      styles.questThumbBox,
+                      {
+                        backgroundColor: isDark
+                          ? '#1C1618'
+                          : isCameraTracked
+                          ? '#FFF1F2'
+                          : isFocus
+                          ? '#EFF6FF'
+                          : '#FEF3C7',
+                      },
+                    ]}
+                  >
+                    {getCategoryIcon(q, isCameraTracked, isFocus)}
                   </View>
 
-                  {isDone ? (
-                    <View style={[styles.completedPillMini, { backgroundColor: isDark ? '#06281A' : '#ECFDF5', borderColor: isDark ? '#0D4A32' : '#A7F3D0' }]}>
-                      <Check size={12} color="#10B981" weight="bold" />
-                      <Text style={styles.completedPillMiniText}>DONE</Text>
+                  {/* Middle: Title, Subtitle, Rewards */}
+                  <View style={styles.questMiddleCol}>
+                    <Text style={[styles.questRowTitle, { color: colors.textPrimary }]} numberOfLines={1}>
+                      {q.title}
+                    </Text>
+                    <Text style={[styles.questRowDesc, { color: colors.textSecondary }]} numberOfLines={1}>
+                      {q.description || (isCameraTracked ? `Target: ${q.target || 20} reps` : 'Daily protocol')}
+                    </Text>
+                    <View style={styles.rewardBadgesRow}>
+                      <View style={[styles.bountyMiniPill, { backgroundColor: isDark ? '#1A1C28' : '#F3F4F6' }]}>
+                        <Image source={APP_3D_ASSETS.goldCoin} style={{ width: 12, height: 12 }} />
+                        <Text style={styles.bountyMiniCoinText}>+{q.rewardCoins || 18}</Text>
+                      </View>
+                      <View style={[styles.bountyMiniPill, { backgroundColor: isDark ? '#1A1C28' : '#F3F4F6' }]}>
+                        <Text style={[styles.bountyMiniXPText, { color: colors.textSecondary }]}>
+                          +{q.rewardXP || 50} XP
+                        </Text>
+                      </View>
                     </View>
-                  ) : (
-                    <TouchableOpacity
-                      style={styles.startQuestPillBtn}
-                      onPress={handleQuestAction}
-                      activeOpacity={0.85}
-                    >
-                      <Text style={styles.startQuestPillBtnText}>START QUEST</Text>
-                    </TouchableOpacity>
-                  )}
+                  </View>
+
+                  {/* Right: Rank Tag & Action Button */}
+                  <View style={styles.questRightCol}>
+                    <View style={[styles.rankBadgeMini, { backgroundColor: rank.bg }]}>
+                      <Text style={[styles.rankBadgeMiniText, { color: rank.color }]}>{rank.label}</Text>
+                    </View>
+
+                    {isDone ? (
+                      <View
+                        style={[
+                          styles.completedPillMini,
+                          {
+                            backgroundColor: isDark ? '#06281A' : '#ECFDF5',
+                            borderColor: isDark ? '#0D4A32' : '#A7F3D0',
+                          },
+                        ]}
+                      >
+                        <Check size={12} color="#10B981" weight="bold" />
+                        <Text style={styles.completedPillMiniText}>DONE</Text>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        style={[
+                          styles.startQuestPillBtn,
+                          !isCameraTracked && !isFocus && styles.manualClaimBtn,
+                        ]}
+                        onPress={() => handleQuestAction(q)}
+                        activeOpacity={0.85}
+                      >
+                        <Text style={styles.startQuestPillBtnText}>{buttonLabel}</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </View>
-              </View>
-            );
-          })}
+              );
+            })
+          )}
         </View>
 
-        {/* 4. PENALTY ZONE AT THE BOTTOM (EXACT MOCKUP) */}
+        {/* 5. PENALTY ZONE AT THE BOTTOM */}
         <View style={styles.penaltyBannerBottom}>
           <View style={styles.penaltyHeaderRow}>
             <View style={styles.penaltyTag}>
@@ -330,7 +430,7 @@ export default function QuestsScreen() {
             <Text style={styles.penaltyCountdownText}>Daily reset in {penaltyTimeLeft}</Text>
           </View>
           <Text style={styles.penaltyDesc}>
-            Complete your quests to protect your streak!
+            Complete your daily protocols before midnight to protect your hunter streak!
           </Text>
         </View>
 
@@ -376,6 +476,49 @@ const styles = StyleSheet.create({
     padding: 20,
     gap: 16,
   },
+  progressSummaryCard: {
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 10,
+  },
+  progressSummaryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  progressSummaryTitle: {
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 13.5,
+    fontWeight: '600',
+  },
+  progressSummarySub: {
+    fontFamily: fontFamilies.regular,
+    fontSize: 11,
+    fontWeight: '400',
+  },
+  progressBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 100,
+  },
+  progressBadgeText: {
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#E53935',
+  },
+  progressTrack: {
+    height: 6,
+    borderRadius: 100,
+    overflow: 'hidden',
+    width: '100%',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#E53935',
+    borderRadius: 100,
+  },
   filterRow: {
     flexDirection: 'row',
     gap: 8,
@@ -407,8 +550,8 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   questThumbBox: {
-    width: 48,
-    height: 48,
+    width: 46,
+    height: 46,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
@@ -470,8 +613,8 @@ const styles = StyleSheet.create({
   },
   startQuestPillBtn: {
     backgroundColor: '#E53935',
-    paddingHorizontal: 14,
-    paddingVertical: 7,
+    paddingHorizontal: 12,
+    paddingVertical: 6.5,
     borderRadius: 100,
     shadowColor: '#E53935',
     shadowOffset: { width: 0, height: 2 },
@@ -479,10 +622,14 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  manualClaimBtn: {
+    backgroundColor: '#0A84FF',
+    shadowColor: '#0A84FF',
+  },
   startQuestPillBtnText: {
-    fontFamily: fontFamilies.medium,
-    fontSize: 11,
-    fontWeight: '500',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 10.5,
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.2,
   },
@@ -500,6 +647,26 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     fontWeight: '500',
     color: '#10B981',
+  },
+  emptyCard: {
+    padding: 24,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    gap: 8,
+  },
+  emptyTitle: {
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontFamily: fontFamilies.regular,
+    fontSize: 11.5,
+    fontWeight: '400',
+    textAlign: 'center',
+    lineHeight: 16,
   },
   penaltyBannerBottom: {
     backgroundColor: '#E53935',

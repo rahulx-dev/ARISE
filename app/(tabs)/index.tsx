@@ -478,107 +478,116 @@ export default function HomeDashboard() {
                 { color: isDark ? '#8E8E93' : '#64748B' },
               ]}
             >
-              0 / 6
+              {(dailyQuests || []).length > 0
+                ? `${(dailyQuests || []).filter((q) => Boolean(q.completed)).length} / ${(dailyQuests || []).length}`
+                : '0 / 5'}
             </Text>
           </View>
 
           {/* Quests List */}
           <View style={styles.todayQuestsList}>
-            {/* Quest Item 1 */}
-            <TouchableOpacity
-              style={styles.questItemRow}
-              onPress={() => router.push('/exercise/pushup' as any)}
-              activeOpacity={0.75}
-            >
-              <Circle
-                size={22}
-                color={isDark ? '#374151' : '#D1D5DB'}
-                strokeWidth={2}
-              />
-              <Dumbbell
-                size={18}
-                color="#0A84FF"
-                strokeWidth={2.4}
-                style={{ marginLeft: 4 }}
-              />
-              <Text
-                style={[
-                  styles.questItemTitle,
-                  { color: isDark ? '#FFFFFF' : '#0F172A' },
-                ]}
-                numberOfLines={1}
-              >
-                Complete morning workout
-              </Text>
-              <View style={styles.questBountyTag}>
-                <Coins size={14} color="#F59E0B" />
-                <Text style={styles.questBountyText}>+20</Text>
-              </View>
-            </TouchableOpacity>
+            {(dailyQuests && dailyQuests.length > 0 ? dailyQuests.slice(0, 4) : []).map((q) => {
+              const isDone = Boolean(q.completed);
+              const cat = (q.category || '').toUpperCase();
+              const titleLower = (q.title || '').toLowerCase();
+              const isFitness = cat === 'FITNESS' || cat === 'STRENGTH';
+              const isFocus = cat === 'FOCUS' || q.questType === 'TIMER' || titleLower.includes('focus');
 
-            {/* Quest Item 2 */}
-            <TouchableOpacity
-              style={styles.questItemRow}
-              onPress={() => router.push('/(tabs)/quests' as any)}
-              activeOpacity={0.75}
-            >
-              <Circle
-                size={22}
-                color={isDark ? '#374151' : '#D1D5DB'}
-                strokeWidth={2}
-              />
-              <BookOpen
-                size={18}
-                color="#0A84FF"
-                strokeWidth={2.4}
-                style={{ marginLeft: 4 }}
-              />
-              <Text
-                style={[
-                  styles.questItemTitle,
-                  { color: isDark ? '#FFFFFF' : '#0F172A' },
-                ]}
-                numberOfLines={1}
-              >
-                Read 10 pages
-              </Text>
-              <View style={styles.questBountyTag}>
-                <Coins size={14} color="#F59E0B" />
-                <Text style={styles.questBountyText}>+20</Text>
-              </View>
-            </TouchableOpacity>
+              const handleHomeQuestPress = () => {
+                haptics.light();
+                if (isDone) {
+                  router.push('/(tabs)/quests');
+                  return;
+                }
+                if (isFitness) {
+                  let exType = 'PUSHUP';
+                  if (titleLower.includes('squat')) exType = 'SQUAT';
+                  else if (titleLower.includes('sit') || titleLower.includes('crunch')) exType = 'SITUP';
+                  else if (titleLower.includes('plank')) exType = 'PLANK';
+                  else if (titleLower.includes('jack')) exType = 'JUMPING_JACK';
 
-            {/* Quest Item 3 */}
-            <TouchableOpacity
-              style={styles.questItemRow}
-              onPress={() => router.push('/(tabs)/focus' as any)}
-              activeOpacity={0.75}
-            >
-              <Circle
-                size={22}
-                color={isDark ? '#374151' : '#D1D5DB'}
-                strokeWidth={2}
-              />
-              <Ban
-                size={18}
-                color="#EF4444"
-                strokeWidth={2.4}
-                style={{ marginLeft: 4 }}
-              />
-              <Text
-                style={[
-                  styles.questItemTitle,
-                  { color: isDark ? '#FFFFFF' : '#0F172A' },
-                ]}
-                numberOfLines={1}
-              >
-                No social media (2h)
-              </Text>
-              <View style={styles.questBountyTag}>
-                <Coins size={14} color="#F59E0B" />
-                <Text style={styles.questBountyText}>+20</Text>
-              </View>
-            </TouchableOpacity>
+                  router.push({
+                    pathname: '/exercise/[type]',
+                    params: {
+                      type: exType,
+                      target: String(q.target || 20),
+                      questId: String(q.id),
+                      rewardCoins: String(q.rewardCoins || 18),
+                      rewardXP: String(q.rewardXP || 50),
+                    },
+                  } as any);
+                } else if (isFocus) {
+                  router.push({
+                    pathname: '/focus/session',
+                    params: {
+                      questId: String(q.id),
+                      targetMinutes: String(q.target || 25),
+                    },
+                  } as any);
+                } else {
+                  router.push('/(tabs)/quests');
+                }
+              };
+
+              return (
+                <TouchableOpacity
+                  key={q.id}
+                  style={[styles.questItemRow, isDone && { opacity: 0.6 }]}
+                  onPress={handleHomeQuestPress}
+                  activeOpacity={0.75}
+                >
+                  {isDone ? (
+                    <CheckCircle2 size={22} color="#10B981" />
+                  ) : (
+                    <Circle
+                      size={22}
+                      color={isDark ? '#374151' : '#D1D5DB'}
+                      strokeWidth={2}
+                    />
+                  )}
+                  {isFitness ? (
+                    <Dumbbell
+                      size={18}
+                      color="#E53935"
+                      strokeWidth={2.4}
+                      style={{ marginLeft: 4 }}
+                    />
+                  ) : isFocus ? (
+                    <Clock
+                      size={18}
+                      color="#0A84FF"
+                      strokeWidth={2.4}
+                      style={{ marginLeft: 4 }}
+                    />
+                  ) : (
+                    <Sparkles
+                      size={18}
+                      color="#F59E0B"
+                      strokeWidth={2.4}
+                      style={{ marginLeft: 4 }}
+                    />
+                  )}
+                  <Text
+                    style={[
+                      styles.questItemTitle,
+                      {
+                        color: isDone
+                          ? isDark ? '#8E8E93' : '#94A3B8'
+                          : isDark ? '#FFFFFF' : '#0F172A',
+                        textDecorationLine: isDone ? 'line-through' : 'none',
+                      },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {q.title}
+                  </Text>
+                  <View style={[styles.questBountyTag, isDone && { opacity: 0.7 }]}>
+                    <Coins size={14} color="#F59E0B" />
+                    <Text style={styles.questBountyText}>+{q.rewardCoins || 18}</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
           {/* View All Quests Button */}
