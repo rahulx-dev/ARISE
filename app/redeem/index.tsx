@@ -8,9 +8,11 @@ import {
   TextInput,
   Modal,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   ArrowLeft,
   Coins,
@@ -23,24 +25,22 @@ import {
   History,
   Gift,
   Play,
-  ArrowRightLeft,
   Check,
-  ExternalLink,
   ChevronRight,
   ShieldCheck,
   Lock,
+  User,
   AlertTriangle,
 } from 'lucide-react-native';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { crystalRepository, CrystalRedemptionItem } from '../../src/database/repositories/crystalRepository';
 import { coinService } from '../../src/services/coinService';
 import { gateSpawnService } from '../../src/services/gateSpawnService';
-import { ManaCrystalIcon } from '../../src/components/ui/ManaCrystalIcon';
-import { GlassCard } from '../../src/components/ios/GlassCard';
-import { GlassButton } from '../../src/components/ios/GlassButton';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useSound } from '../../src/hooks/useSound';
 import { useTheme } from '../../src/hooks/useTheme';
+import { fontFamilies } from '../../src/theme/typography';
+import { APP_3D_ASSETS } from '../../src/constants/assets';
 
 const CRYSTALS_PER_INR = 10; // 10 Mana Crystals = ₹1.00 INR
 const MIN_CASHOUT_INR = 25;
@@ -50,16 +50,15 @@ const POPULAR_UPI_HANDLES = ['@okhdfcbank', '@okicici', '@oksbi', '@paytm', '@yb
 
 interface QuickTier {
   inr: number;
-  label?: string;
 }
 
 const CASHOUT_TIERS: QuickTier[] = [
-  { inr: 25, label: 'MIN' },
+  { inr: 25 },
   { inr: 50 },
   { inr: 100 },
   { inr: 250 },
   { inr: 500 },
-  { inr: 1000, label: 'MAX' },
+  { inr: 1000 },
 ];
 
 export default function RedeemScreen() {
@@ -181,7 +180,7 @@ export default function RedeemScreen() {
       return;
     }
 
-    // Anti-cheat verification: Verify user completed at least 1 legitimate gate recon mission
+    // Anti-cheat verification
     if (activeMethod !== 'COINS') {
       const completedMissions = await gateSpawnService.getCompletedMissionsCount();
       if (completedMissions === 0) {
@@ -235,13 +234,11 @@ export default function RedeemScreen() {
       }
     }
 
-    // If Coins exchange, skip modal and execute immediately
     if (activeMethod === 'COINS') {
       handleExecuteCashout();
       return;
     }
 
-    // Open Security Confirmation Modal
     haptics.medium();
     sound.play('unlock');
     setSecurityAgreed(false);
@@ -272,7 +269,6 @@ export default function RedeemScreen() {
         throw new Error(result.error || 'Failed to submit extraction');
       }
 
-      // If instant coin exchange, credit coins immediately
       if (activeMethod === 'COINS') {
         const coinsAwarded = selectedInr * 100; // ₹1 INR = 100 Coins
         await coinService.addCoins(coinsAwarded, `Converted ${crystalsRequired} Crystals`, 'crystal_exchange');
@@ -308,157 +304,294 @@ export default function RedeemScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: '#000000' }]} edges={['top', 'bottom']}>
-      {/* Top Header */}
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+      {/* 1. TOP HEADER (1:1 with Screenshot) */}
       <View style={styles.header}>
         <TouchableOpacity
-          style={styles.backBtn}
+          style={[styles.backBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
           onPress={() => {
             haptics.light();
             router.back();
           }}
           activeOpacity={0.8}
         >
-          <ArrowLeft size={20} color="#FFFFFF" />
+          <ArrowLeft size={19} color={colors.textPrimary} />
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTag}>MONETIZATION PROTOCOL</Text>
-          <Text style={styles.headerTitle}>MANA CRYSTAL VAULT</Text>
+          <Text style={[styles.headerProtocol, { color: colors.textSecondary }]}>MONETIZATION PROTOCOL</Text>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Mana Crystal Vault</Text>
+          <Text style={[styles.headerSub, { color: colors.textSecondary }]}>Convert your crystals into real rewards</Text>
         </View>
 
-        <View style={styles.crystalCapsule}>
-          <ManaCrystalIcon size={16} color="#00D2EE" secondaryColor="#0284C7" />
-          <Text style={styles.crystalCountText}>{manaBalance.toLocaleString()}</Text>
+        <View style={[styles.crystalCapsule, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Image source={APP_3D_ASSETS.manaCrystal} style={{ width: 17, height: 17 }} resizeMode="contain" />
+          <Text style={[styles.crystalCapsuleCount, { color: '#0A84FF' }]}>
+            {manaBalance.toLocaleString()}
+          </Text>
         </View>
       </View>
 
-      {/* Dual Tabs: [CASHOUT VAULT] vs [REQUEST HISTORY] */}
-      <View style={styles.tabRow}>
-        <TouchableOpacity
-          style={[styles.tabBtn, activeTab === 'redeem' && styles.tabBtnActive]}
-          onPress={() => {
-            haptics.light();
-            setActiveTab('redeem');
-          }}
-          activeOpacity={0.8}
-        >
-          <Zap size={14} color={activeTab === 'redeem' ? '#00D2EE' : '#8E8E93'} />
-          <Text style={[styles.tabBtnText, activeTab === 'redeem' && styles.tabBtnTextActive]}>
-            CASHOUT VAULT
-          </Text>
-        </TouchableOpacity>
+      {/* 2. DUAL SEGMENT TABS ([Cashout Vault] vs [History]) */}
+      <View style={styles.tabContainer}>
+        <View style={[styles.tabSegmentWrap, { backgroundColor: isDark ? colors.card : '#F1F3F9' }]}>
+          <TouchableOpacity
+            style={[
+              styles.tabSegmentBtn,
+              activeTab === 'redeem' && styles.tabSegmentBtnActive,
+            ]}
+            onPress={() => {
+              haptics.light();
+              setActiveTab('redeem');
+            }}
+            activeOpacity={0.85}
+          >
+            <Zap
+              size={15}
+              color={activeTab === 'redeem' ? '#FFFFFF' : colors.textSecondary}
+              fill={activeTab === 'redeem' ? '#FFFFFF' : 'none'}
+            />
+            <Text
+              style={[
+                styles.tabSegmentText,
+                { color: activeTab === 'redeem' ? '#FFFFFF' : colors.textSecondary },
+              ]}
+            >
+              Cashout Vault
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.tabBtn, activeTab === 'history' && styles.tabBtnActive]}
-          onPress={() => {
-            haptics.light();
-            setActiveTab('history');
-          }}
-          activeOpacity={0.8}
-        >
-          <History size={14} color={activeTab === 'history' ? '#00D2EE' : '#8E8E93'} />
-          <Text style={[styles.tabBtnText, activeTab === 'history' && styles.tabBtnTextActive]}>
-            HISTORY ({historyList.length})
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.tabSegmentBtn,
+              activeTab === 'history' && styles.tabSegmentBtnActive,
+            ]}
+            onPress={() => {
+              haptics.light();
+              setActiveTab('history');
+            }}
+            activeOpacity={0.85}
+          >
+            <Clock size={15} color={activeTab === 'history' ? '#FFFFFF' : colors.textSecondary} />
+            <Text
+              style={[
+                styles.tabSegmentText,
+                { color: activeTab === 'history' ? '#FFFFFF' : colors.textSecondary },
+              ]}
+            >
+              History ({historyList.length})
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {activeTab === 'redeem' ? (
           <>
-            {/* Mana Crystal Balance Card */}
-            <View style={styles.balanceHeroCard}>
-              <View style={styles.balanceIconRow}>
-                <ManaCrystalIcon size={38} color="#00D2EE" secondaryColor="#0284C7" />
-                <View>
-                  <Text style={styles.balanceSub}>TOTAL MINED MANA CRYSTALS</Text>
-                  <Text style={styles.balanceMain}>{manaBalance.toLocaleString()}</Text>
+            {/* 3. HERO FROST CARD (1:1 with Screenshot) */}
+            <View
+              style={[
+                styles.heroFrostCard,
+                {
+                  backgroundColor: isDark ? '#0D1527' : '#F0F9FF',
+                  borderColor: isDark ? '#1E293B' : '#E0F2FE',
+                },
+              ]}
+            >
+              {/* Frost mountain artwork background fading on the right */}
+              <Image
+                source={require('../../assets/dungeons/dungeon_c_frost.jpg')}
+                style={styles.heroFrostBgImage}
+                resizeMode="cover"
+              />
+              <LinearGradient
+                colors={[
+                  isDark ? 'rgba(13, 21, 39, 0.96)' : 'rgba(240, 249, 255, 0.94)',
+                  isDark ? 'rgba(13, 21, 39, 0.75)' : 'rgba(240, 249, 255, 0.7)',
+                  isDark ? 'rgba(13, 21, 39, 0.2)' : 'rgba(240, 249, 255, 0.15)',
+                ]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={StyleSheet.absoluteFillObject}
+              />
+
+              {/* Main Total Crystals Balance Content */}
+              <View style={styles.heroMainRow}>
+                <Image
+                  source={APP_3D_ASSETS.manaCrystal}
+                  style={styles.hero3DCrystal}
+                  resizeMode="contain"
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.heroLabel, { color: colors.textSecondary }]}>TOTAL MANA CRYSTALS</Text>
+                  <Text style={[styles.heroBigCount, { color: '#0A84FF' }]}>
+                    {manaBalance.toLocaleString()}
+                  </Text>
+                  <Text style={[styles.heroSmallSub, { color: colors.textSecondary }]}>Your earned crystals</Text>
                 </View>
               </View>
 
-              <View style={styles.balanceDivider} />
+              <View
+                style={[
+                  styles.heroDivider,
+                  { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#E0F2FE' },
+                ]}
+              />
 
-              <View style={styles.exchangeRateRow}>
-                <View style={styles.rateCol}>
-                  <Text style={styles.rateLabel}>EXCHANGE RATE</Text>
-                  <Text style={styles.rateValue}>10 Crystals = ₹1.00 INR</Text>
+              {/* Bottom Exchange Rate Row */}
+              <View style={styles.heroFooterRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.rateLabel, { color: colors.textSecondary }]}>EXCHANGE RATE</Text>
+                  <Text style={[styles.rateValue, { color: colors.textPrimary }]}>10 Crystals = ₹1.00 INR</Text>
                 </View>
-                <View style={styles.rateCol}>
-                  <Text style={styles.rateLabel}>ESTIMATED VALUE</Text>
-                  <Text style={[styles.rateValue, { color: '#00D2EE' }]}>
+
+                <View style={styles.heroVerticalLine} />
+
+                <View style={{ flex: 1, paddingLeft: 12 }}>
+                  <Text style={[styles.rateLabel, { color: colors.textSecondary }]}>ESTIMATED VALUE</Text>
+                  <Text style={[styles.rateValue, { color: '#0A84FF' }]}>
                     ₹{(manaBalance / CRYSTALS_PER_INR).toFixed(2)} INR
                   </Text>
                 </View>
               </View>
             </View>
 
-            {/* Method Selector */}
-            <Text style={styles.sectionHeader}>SELECT CASHOUT GATEWAY</Text>
-            <View style={styles.methodGrid}>
+            {/* 4. SELECT CASHOUT GATEWAY */}
+            <View style={styles.sectionHeaderWrap}>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Select Cashout Gateway</Text>
+              <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
+                Choose how you want to receive your rewards
+              </Text>
+            </View>
+
+            <View style={styles.gatewayGrid}>
+              {/* Gateway 1: Direct UPI */}
               <TouchableOpacity
-                style={[styles.methodCard, activeMethod === 'UPI' && styles.methodCardActive]}
+                style={[
+                  styles.gatewayCard,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                  activeMethod === 'UPI' && [
+                    styles.gatewayCardActive,
+                    {
+                      backgroundColor: isDark ? 'rgba(10, 132, 255, 0.12)' : '#F0F7FF',
+                      borderColor: '#0A84FF',
+                    },
+                  ],
+                ]}
                 onPress={() => {
                   haptics.light();
                   setActiveMethod('UPI');
                 }}
                 activeOpacity={0.8}
               >
-                <QrCode size={22} color={activeMethod === 'UPI' ? '#00D2EE' : '#8E8E93'} />
-                <Text style={[styles.methodTitle, activeMethod === 'UPI' && styles.methodTitleActive]}>
-                  DIRECT UPI
-                </Text>
-                <Text style={styles.methodSub}>GPay / PhonePe / Paytm</Text>
+                {activeMethod === 'UPI' && (
+                  <View style={styles.gatewayCheckmarkCircle}>
+                    <Check size={11} color="#FFFFFF" strokeWidth={3} />
+                  </View>
+                )}
+                <View style={styles.upiIconGraphic}>
+                  {/* Stylized UPI triangle ribbon badge */}
+                  <View style={styles.upiRibbonGreen} />
+                  <View style={styles.upiRibbonOrange} />
+                </View>
+                <Text style={[styles.gatewayTitle, { color: colors.textPrimary }]}>Direct UPI</Text>
+                <Text style={[styles.gatewaySub, { color: colors.textSecondary }]}>GPay / PhonePe / Paytm</Text>
               </TouchableOpacity>
 
+              {/* Gateway 2: Amazon Pay */}
               <TouchableOpacity
-                style={[styles.methodCard, activeMethod === 'AMAZON' && styles.methodCardActive]}
+                style={[
+                  styles.gatewayCard,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                  activeMethod === 'AMAZON' && [
+                    styles.gatewayCardActive,
+                    {
+                      backgroundColor: isDark ? 'rgba(255, 153, 0, 0.12)' : '#FFFBF0',
+                      borderColor: '#FF9900',
+                    },
+                  ],
+                ]}
                 onPress={() => {
                   haptics.light();
                   setActiveMethod('AMAZON');
                 }}
                 activeOpacity={0.8}
               >
-                <Gift size={22} color={activeMethod === 'AMAZON' ? '#F59E0B' : '#8E8E93'} />
-                <Text style={[styles.methodTitle, activeMethod === 'AMAZON' && styles.methodTitleActive]}>
-                  AMAZON PAY
-                </Text>
-                <Text style={styles.methodSub}>Gift Voucher Code</Text>
+                {activeMethod === 'AMAZON' && (
+                  <View style={[styles.gatewayCheckmarkCircle, { backgroundColor: '#FF9900' }]}>
+                    <Check size={11} color="#FFFFFF" strokeWidth={3} />
+                  </View>
+                )}
+                <Gift size={24} color="#FF9900" />
+                <Text style={[styles.gatewayTitle, { color: colors.textPrimary }]}>Amazon Pay</Text>
+                <Text style={[styles.gatewaySub, { color: colors.textSecondary }]}>Gift Voucher Code</Text>
               </TouchableOpacity>
 
+              {/* Gateway 3: Google Play */}
               <TouchableOpacity
-                style={[styles.methodCard, activeMethod === 'GOOGLE_PLAY' && styles.methodCardActive]}
+                style={[
+                  styles.gatewayCard,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                  activeMethod === 'GOOGLE_PLAY' && [
+                    styles.gatewayCardActive,
+                    {
+                      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.12)' : '#F0FDF4',
+                      borderColor: '#10B981',
+                    },
+                  ],
+                ]}
                 onPress={() => {
                   haptics.light();
                   setActiveMethod('GOOGLE_PLAY');
                 }}
                 activeOpacity={0.8}
               >
-                <Play size={22} color={activeMethod === 'GOOGLE_PLAY' ? '#10B981' : '#8E8E93'} />
-                <Text style={[styles.methodTitle, activeMethod === 'GOOGLE_PLAY' && styles.methodTitleActive]}>
-                  GOOGLE PLAY
-                </Text>
-                <Text style={styles.methodSub}>Recharge Code</Text>
+                {activeMethod === 'GOOGLE_PLAY' && (
+                  <View style={[styles.gatewayCheckmarkCircle, { backgroundColor: '#10B981' }]}>
+                    <Check size={11} color="#FFFFFF" strokeWidth={3} />
+                  </View>
+                )}
+                <Play size={22} color="#10B981" fill="#10B981" />
+                <Text style={[styles.gatewayTitle, { color: colors.textPrimary }]}>Google Play</Text>
+                <Text style={[styles.gatewaySub, { color: colors.textSecondary }]}>Recharge Code</Text>
               </TouchableOpacity>
 
+              {/* Gateway 4: Exchange Coins */}
               <TouchableOpacity
-                style={[styles.methodCard, activeMethod === 'COINS' && styles.methodCardActive]}
+                style={[
+                  styles.gatewayCard,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                  activeMethod === 'COINS' && [
+                    styles.gatewayCardActive,
+                    {
+                      backgroundColor: isDark ? 'rgba(245, 158, 11, 0.12)' : '#FEFCE8',
+                      borderColor: '#F59E0B',
+                    },
+                  ],
+                ]}
                 onPress={() => {
                   haptics.light();
                   setActiveMethod('COINS');
                 }}
                 activeOpacity={0.8}
               >
-                <Coins size={22} color={activeMethod === 'COINS' ? '#F59E0B' : '#8E8E93'} />
-                <Text style={[styles.methodTitle, activeMethod === 'COINS' && styles.methodTitleActive]}>
-                  EXCHANGE COINS
-                </Text>
-                <Text style={styles.methodSub}>Instant 1:10 System Coins</Text>
+                {activeMethod === 'COINS' && (
+                  <View style={[styles.gatewayCheckmarkCircle, { backgroundColor: '#F59E0B' }]}>
+                    <Check size={11} color="#FFFFFF" strokeWidth={3} />
+                  </View>
+                )}
+                <Image source={APP_3D_ASSETS.goldCoin} style={{ width: 24, height: 24 }} resizeMode="contain" />
+                <Text style={[styles.gatewayTitle, { color: colors.textPrimary }]}>Exchange Coins</Text>
+                <Text style={[styles.gatewaySub, { color: colors.textSecondary }]}>Instant 1:10 System Coins</Text>
               </TouchableOpacity>
             </View>
 
-            {/* Cashout Amount Selection */}
-            <Text style={styles.sectionHeader}>SELECT AMOUNT (INR)</Text>
+            {/* 5. SELECT AMOUNT (INR) */}
+            <View style={styles.sectionHeaderWrap}>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Select Amount (INR)</Text>
+              <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>Choose or enter a custom amount</Text>
+            </View>
+
             <View style={styles.tiersGrid}>
               {CASHOUT_TIERS.map((tier) => {
                 const isSelected = selectedInr === tier.inr;
@@ -469,19 +602,37 @@ export default function RedeemScreen() {
                   <TouchableOpacity
                     key={tier.inr}
                     style={[
-                      styles.tierBtn,
-                      isSelected && styles.tierBtnSelected,
-                      !canAfford && styles.tierBtnDisabled,
+                      styles.tierCard,
+                      { backgroundColor: colors.card, borderColor: colors.border },
+                      isSelected && {
+                        backgroundColor: isDark ? 'rgba(10, 132, 255, 0.12)' : '#F0F7FF',
+                        borderColor: '#0A84FF',
+                      },
+                      !canAfford && { opacity: 0.5 },
                     ]}
                     onPress={() => handleSelectTier(tier.inr)}
                     activeOpacity={0.8}
                   >
-                    <Text style={[styles.tierInrText, isSelected && styles.tierInrTextSelected]}>
+                    <Text
+                      style={[
+                        styles.tierInrNum,
+                        { color: isSelected ? '#0A84FF' : colors.textPrimary },
+                      ]}
+                    >
                       ₹{tier.inr}
                     </Text>
-                    <View style={styles.tierCostRow}>
-                      <ManaCrystalIcon size={12} color={isSelected ? '#00D2EE' : '#8E8E93'} secondaryColor="#0284C7" />
-                      <Text style={[styles.tierCostText, isSelected && styles.tierCostTextSelected]}>
+                    <View style={styles.tierCrystalRow}>
+                      <Image
+                        source={APP_3D_ASSETS.manaCrystal}
+                        style={{ width: 13, height: 13 }}
+                        resizeMode="contain"
+                      />
+                      <Text
+                        style={[
+                          styles.tierCostText,
+                          { color: isSelected ? '#0A84FF' : colors.textSecondary },
+                        ]}
+                      >
                         {cost}
                       </Text>
                     </View>
@@ -490,175 +641,248 @@ export default function RedeemScreen() {
               })}
             </View>
 
-            {/* Custom Amount Input */}
-            <View style={styles.customAmountBox}>
-              <Text style={styles.customAmountLabel}>CUSTOM AMOUNT (₹{MIN_CASHOUT_INR} - ₹{MAX_CASHOUT_INR}):</Text>
-              <View style={styles.customInputRow}>
-                <Text style={styles.rupeePrefix}>₹</Text>
-                <TextInput
-                  style={styles.customTextInput}
-                  value={customInrInput}
-                  onChangeText={handleCustomInrChange}
-                  keyboardType="numeric"
-                  placeholder="50"
-                  placeholderTextColor="#475569"
-                />
-                <View style={styles.customCostBadge}>
-                  <ManaCrystalIcon size={13} color="#00D2EE" secondaryColor="#0284C7" />
-                  <Text style={styles.customCostText}>{crystalsRequired.toLocaleString()} Crystals</Text>
+            {/* 6. CUSTOM AMOUNT CARD */}
+            <View style={[styles.customCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.customCardLabel, { color: colors.textSecondary }]}>
+                Custom Amount (₹{MIN_CASHOUT_INR} - ₹{MAX_CASHOUT_INR})
+              </Text>
+              <View style={styles.customCardRow}>
+                <View style={styles.customInputSide}>
+                  <Text style={styles.rupeeSign}>₹</Text>
+                  <TextInput
+                    style={[styles.customInputField, { color: colors.textPrimary }]}
+                    value={customInrInput}
+                    onChangeText={handleCustomInrChange}
+                    keyboardType="numeric"
+                    placeholder="50"
+                    placeholderTextColor={colors.textSecondary}
+                  />
+                </View>
+
+                <View
+                  style={[
+                    styles.customCrystalPill,
+                    { backgroundColor: isDark ? 'rgba(10, 132, 255, 0.15)' : '#F0F7FF' },
+                  ]}
+                >
+                  <Image source={APP_3D_ASSETS.manaCrystal} style={{ width: 14, height: 14 }} resizeMode="contain" />
+                  <Text style={styles.customCrystalPillText}>
+                    {crystalsRequired.toLocaleString()} Crystals
+                  </Text>
                 </View>
               </View>
             </View>
 
-            {/* Destination Input (unless Coins) */}
+            {/* 7. RECEIVING DETAILS FORM CARD */}
             {activeMethod !== 'COINS' && (
-              <View style={styles.destBox}>
-                <View style={styles.destHeaderRow}>
-                  <Text style={styles.destLabel}>
-                    {activeMethod === 'UPI'
-                      ? 'RECEIVING UPI ID / VPA ADDRESS:'
-                      : activeMethod === 'AMAZON'
-                      ? 'DELIVERY EMAIL OR PHONE FOR AMAZON VOUCHER:'
-                      : 'DELIVERY EMAIL OR PHONE FOR GOOGLE PLAY CODE:'}
-                  </Text>
-                  {activeMethod === 'UPI' && destinationInput.trim().length > 0 && (
-                    <View
-                      style={[
-                        styles.vpaStatusBadge,
-                        UPI_REGEX.test(destinationInput.trim())
-                          ? styles.vpaStatusBadgeValid
-                          : styles.vpaStatusBadgeInvalid,
-                      ]}
-                    >
-                      {UPI_REGEX.test(destinationInput.trim()) ? (
-                        <>
-                          <Check size={10} color="#10B981" />
-                          <Text style={styles.vpaStatusTextValid}>VALID FORMAT</Text>
-                        </>
-                      ) : (
-                        <>
-                          <AlertTriangle size={10} color="#EF4444" />
-                          <Text style={styles.vpaStatusTextInvalid}>INVALID VPA</Text>
-                        </>
-                      )}
-                    </View>
-                  )}
+              <View style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                {/* Field 1: Primary Destination */}
+                <View style={styles.formGroup}>
+                  <View style={styles.formLabelRow}>
+                    <Text style={[styles.formLabel, { color: colors.textSecondary }]}>
+                      {activeMethod === 'UPI'
+                        ? 'Receiving UPI ID / VPA Address'
+                        : activeMethod === 'AMAZON'
+                        ? 'Delivery Email or Phone for Amazon Voucher'
+                        : 'Delivery Email or Phone for Google Play Code'}
+                    </Text>
+                    {activeMethod === 'UPI' && destinationInput.trim().length > 0 && (
+                      <View
+                        style={[
+                          styles.vpaBadge,
+                          UPI_REGEX.test(destinationInput.trim())
+                            ? styles.vpaBadgeValid
+                            : styles.vpaBadgeInvalid,
+                        ]}
+                      >
+                        {UPI_REGEX.test(destinationInput.trim()) ? (
+                          <>
+                            <Check size={9} color="#10B981" strokeWidth={3} />
+                            <Text style={styles.vpaBadgeValidText}>Valid Format</Text>
+                          </>
+                        ) : (
+                          <>
+                            <AlertTriangle size={9} color="#EF4444" />
+                            <Text style={styles.vpaBadgeInvalidText}>Invalid VPA</Text>
+                          </>
+                        )}
+                      </View>
+                    )}
+                  </View>
+
+                  <View
+                    style={[
+                      styles.inputBox,
+                      {
+                        backgroundColor: isDark ? colors.surfaceLight : '#F8FAFC',
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
+                    <User size={16} color={colors.textSecondary} />
+                    <TextInput
+                      style={[styles.textInput, { color: colors.textPrimary }]}
+                      value={destinationInput}
+                      onChangeText={setDestinationInput}
+                      placeholder={
+                        activeMethod === 'UPI'
+                          ? 'e.g. hunter@okhdfcbank'
+                          : 'e.g. hunter@gmail.com / 9876543210'
+                      }
+                      placeholderTextColor={colors.textSecondary}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                  </View>
                 </View>
 
-                <TextInput
-                  style={styles.destInput}
-                  value={destinationInput}
-                  onChangeText={setDestinationInput}
-                  placeholder={
-                    activeMethod === 'UPI'
-                      ? 'e.g. hunter@okhdfcbank'
-                      : 'e.g. hunter@gmail.com / 9876543210'
-                  }
-                  placeholderTextColor="#475569"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-
-                {/* Popular UPI Handles Fast-Fill Chips */}
+                {/* Field 2: Fast-Select Bank Handles (for UPI) */}
                 {activeMethod === 'UPI' && (
-                  <View style={styles.chipsContainer}>
-                    <Text style={styles.chipsLabel}>FAST-SELECT BANK HANDLE:</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsScroll}>
-                      {POPULAR_UPI_HANDLES.map((handle) => (
-                        <TouchableOpacity
-                          key={handle}
-                          style={styles.chipBtn}
-                          onPress={() => handleSelectHandleChip(handle)}
-                          activeOpacity={0.7}
-                        >
-                          <Text style={styles.chipText}>{handle}</Text>
-                        </TouchableOpacity>
-                      ))}
+                  <View style={styles.formGroup}>
+                    <Text style={[styles.formLabel, { color: colors.textSecondary }]}>Fast-select bank handle</Text>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.chipsScroll}
+                    >
+                      {POPULAR_UPI_HANDLES.map((handle) => {
+                        const isSelected = destinationInput.toLowerCase().includes(handle.toLowerCase());
+                        return (
+                          <TouchableOpacity
+                            key={handle}
+                            style={[
+                              styles.chipPill,
+                              {
+                                backgroundColor: isSelected
+                                  ? isDark ? 'rgba(10, 132, 255, 0.15)' : '#EFF6FF'
+                                  : isDark ? colors.surfaceLight : '#F1F5F9',
+                                borderColor: isSelected ? '#0A84FF' : colors.border,
+                              },
+                            ]}
+                            onPress={() => handleSelectHandleChip(handle)}
+                            activeOpacity={0.7}
+                          >
+                            <Text
+                              style={[
+                                styles.chipPillText,
+                                { color: isSelected ? '#0A84FF' : colors.textSecondary },
+                              ]}
+                            >
+                              {handle}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
                     </ScrollView>
                   </View>
                 )}
 
-                {/* Confirm UPI ID Field */}
+                {/* Field 3: Confirm UPI Address */}
                 {activeMethod === 'UPI' && (
-                  <View style={{ marginTop: 14 }}>
-                    <View style={styles.destHeaderRow}>
-                      <Text style={styles.destLabel}>CONFIRM RECEIVING UPI ID:</Text>
+                  <View style={styles.formGroup}>
+                    <View style={styles.formLabelRow}>
+                      <Text style={[styles.formLabel, { color: colors.textSecondary }]}>Confirm Receiving UPI ID</Text>
                       {confirmDestinationInput.trim().length > 0 && (
                         <View
                           style={[
-                            styles.vpaStatusBadge,
+                            styles.vpaBadge,
                             destinationInput.trim().toLowerCase() === confirmDestinationInput.trim().toLowerCase()
-                              ? styles.vpaStatusBadgeValid
-                              : styles.vpaStatusBadgeInvalid,
+                              ? styles.vpaBadgeValid
+                              : styles.vpaBadgeInvalid,
                           ]}
                         >
                           {destinationInput.trim().toLowerCase() === confirmDestinationInput.trim().toLowerCase() ? (
                             <>
-                              <Check size={10} color="#10B981" />
-                              <Text style={styles.vpaStatusTextValid}>MATCHED</Text>
+                              <Check size={9} color="#10B981" strokeWidth={3} />
+                              <Text style={styles.vpaBadgeValidText}>Matched</Text>
                             </>
                           ) : (
                             <>
-                              <AlertTriangle size={10} color="#EF4444" />
-                              <Text style={styles.vpaStatusTextInvalid}>MISMATCH</Text>
+                              <AlertTriangle size={9} color="#EF4444" />
+                              <Text style={styles.vpaBadgeInvalidText}>Mismatch</Text>
                             </>
                           )}
                         </View>
                       )}
                     </View>
-                    <TextInput
-                      style={styles.destInput}
-                      value={confirmDestinationInput}
-                      onChangeText={setConfirmDestinationInput}
-                      placeholder="Re-enter identical UPI address to confirm"
-                      placeholderTextColor="#475569"
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                    />
+
+                    <View
+                      style={[
+                        styles.inputBox,
+                        {
+                          backgroundColor: isDark ? colors.surfaceLight : '#F8FAFC',
+                          borderColor: colors.border,
+                        },
+                      ]}
+                    >
+                      <Lock size={16} color={colors.textSecondary} />
+                      <TextInput
+                        style={[styles.textInput, { color: colors.textPrimary }]}
+                        value={confirmDestinationInput}
+                        onChangeText={setConfirmDestinationInput}
+                        placeholder="Re-enter identical UPI address to confirm"
+                        placeholderTextColor={colors.textSecondary}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                      />
+                    </View>
                   </View>
                 )}
               </View>
             )}
 
-            {/* Extraction Action Button */}
+            {/* 8. CRIMSON RED ACTION CTA BUTTON (1:1 with Screenshot) */}
             <TouchableOpacity
-              style={[
-                styles.submitBtn,
-                (!hasEnoughCrystals || isSubmitting) && styles.submitBtnDisabled,
-              ]}
               onPress={handleInitiateCashout}
               disabled={isSubmitting || !hasEnoughCrystals}
-              activeOpacity={0.85}
+              activeOpacity={0.88}
+              style={[
+                styles.submitBtnTouch,
+                (!hasEnoughCrystals || isSubmitting) && { opacity: 0.6 },
+              ]}
             >
-              {isSubmitting ? (
-                <ActivityIndicator color="#000000" />
-              ) : (
-                <>
-                  <ManaCrystalIcon size={18} color="#000000" secondaryColor="#0284C7" />
-                  <Text style={styles.submitBtnText}>
-                    {activeMethod === 'COINS'
-                      ? `CONVERT FOR ${crystalsRequired.toLocaleString()} CRYSTALS`
-                      : `REQUEST CASHOUT (₹${selectedInr} INR)`}
-                  </Text>
-                </>
-              )}
+              <LinearGradient
+                colors={['#EF4444', '#DC2626']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.submitBtnGradient}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Image
+                      source={APP_3D_ASSETS.manaCrystal}
+                      style={{ width: 22, height: 22 }}
+                      resizeMode="contain"
+                    />
+                    <Text style={styles.submitBtnText}>
+                      {activeMethod === 'COINS'
+                        ? `Convert for ${crystalsRequired.toLocaleString()} Crystals`
+                        : `Request Cashout (₹${selectedInr} INR)`}
+                    </Text>
+                    <ChevronRight size={18} color="#FFFFFF" strokeWidth={2.4} />
+                  </>
+                )}
+              </LinearGradient>
             </TouchableOpacity>
 
+            {/* 9. SECURITY GUARANTEE FOOTER */}
             <View style={styles.guaranteeRow}>
-              <Shield size={13} color="#00D2EE" />
-              <Text style={styles.guaranteeText}>
-                Encrypted Transaction // Payout verified and dispatched within 24-48 hours
+              <Shield size={14} color="#0A84FF" />
+              <Text style={[styles.guaranteeText, { color: colors.textSecondary }]}>
+                Encrypted transaction • Payout verified and dispatched within 24-48 hours
               </Text>
             </View>
           </>
         ) : (
-          /* Request History Tab */
+          /* ======================= HISTORY TAB ======================= */
           <View style={styles.historyContainer}>
             {historyList.length === 0 ? (
               <View style={styles.emptyHistory}>
-                <History size={40} color="#334155" />
-                <Text style={styles.emptyHistoryTitle}>NO CASHOUT REQUESTS FOUND</Text>
-                <Text style={styles.emptyHistorySub}>
+                <Clock size={40} color={colors.textSecondary} />
+                <Text style={[styles.emptyHistoryTitle, { color: colors.textPrimary }]}>No Cashout Requests Found</Text>
+                <Text style={[styles.emptyHistorySub, { color: colors.textSecondary }]}>
                   Complete Recon Inquests in Dungeon Gates to mine Mana Crystals and initiate your first real withdrawal.
                 </Text>
               </View>
@@ -669,10 +893,23 @@ export default function RedeemScreen() {
                 const isRejected = item.status === 'REJECTED';
 
                 return (
-                  <View key={item.id} style={styles.historyCard}>
+                  <View
+                    key={item.id}
+                    style={[
+                      styles.historyCard,
+                      { backgroundColor: colors.card, borderColor: colors.border },
+                    ]}
+                  >
                     <View style={styles.historyCardTop}>
-                      <View style={styles.historyMethodBadge}>
-                        <Text style={styles.historyMethodText}>{item.method}</Text>
+                      <View
+                        style={[
+                          styles.historyMethodBadge,
+                          { backgroundColor: isDark ? '#1F2937' : '#F1F5F9' },
+                        ]}
+                      >
+                        <Text style={[styles.historyMethodText, { color: colors.textSecondary }]}>
+                          {item.method}
+                        </Text>
                       </View>
                       <View
                         style={[
@@ -697,17 +934,23 @@ export default function RedeemScreen() {
 
                     <View style={styles.historyMainRow}>
                       <View>
-                        <Text style={styles.historyInrText}>₹{item.amountInr} INR</Text>
-                        <Text style={styles.historyDestText} numberOfLines={1}>
+                        <Text style={[styles.historyInrText, { color: colors.textPrimary }]}>₹{item.amountInr} INR</Text>
+                        <Text style={[styles.historyDestText, { color: colors.textSecondary }]} numberOfLines={1}>
                           To: {item.destination}
                         </Text>
                       </View>
                       <View style={{ alignItems: 'flex-end' }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                          <ManaCrystalIcon size={12} color="#00D2EE" secondaryColor="#0284C7" />
-                          <Text style={styles.historySpentText}>-{item.crystalsSpent}</Text>
+                          <Image
+                            source={APP_3D_ASSETS.manaCrystal}
+                            style={{ width: 13, height: 13 }}
+                            resizeMode="contain"
+                          />
+                          <Text style={[styles.historySpentText, { color: '#0A84FF' }]}>
+                            -{item.crystalsSpent}
+                          </Text>
                         </View>
-                        <Text style={styles.historyDateText}>
+                        <Text style={[styles.historyDateText, { color: colors.textSecondary }]}>
                           {new Date(item.createdAt).toLocaleDateString()}
                         </Text>
                       </View>
@@ -726,37 +969,41 @@ export default function RedeemScreen() {
       <Modal visible={securityModalVisible} transparent animationType="slide">
         <View style={styles.modalBackdrop}>
           <SafeAreaView style={styles.modalSafe}>
-            <View style={styles.securityCard}>
-              <View style={styles.securityHeaderRow}>
-                <ShieldCheck size={20} color="#00D2EE" />
+            <View
+              style={[
+                styles.securityCard,
+                { backgroundColor: colors.card, borderColor: isDark ? '#0A84FF' : colors.border },
+              ]}
+            >
+              <View style={[styles.securityHeaderRow, { borderBottomColor: colors.border }]}>
+                <ShieldCheck size={20} color="#0A84FF" />
                 <View>
                   <Text style={styles.securityTag}>[ SYSTEM SECURITY PROTOCOL ]</Text>
-                  <Text style={styles.securityTitle}>CASHOUT AUTHORIZATION</Text>
+                  <Text style={[styles.securityTitle, { color: colors.textPrimary }]}>CASHOUT AUTHORIZATION</Text>
                 </View>
               </View>
 
               {/* Transaction Summary Box */}
-              <View style={styles.securitySummaryBox}>
+              <View
+                style={[
+                  styles.securitySummaryBox,
+                  { backgroundColor: isDark ? '#0B132B' : '#F8FAFC', borderColor: colors.border },
+                ]}
+              >
                 <View style={styles.securitySummaryRow}>
-                  <Text style={styles.securitySummaryLabel}>HUNTER:</Text>
-                  <Text style={styles.securitySummaryVal}>
-                    {profile?.displayName || 'Hunter'} (Lv. {profile?.level || 1})
-                  </Text>
-                </View>
-                <View style={styles.securitySummaryRow}>
-                  <Text style={styles.securitySummaryLabel}>CASHOUT AMOUNT:</Text>
-                  <Text style={[styles.securitySummaryVal, { color: '#10B981', fontWeight: '900' }]}>
+                  <Text style={[styles.securitySummaryLabel, { color: colors.textSecondary }]}>CASHOUT AMOUNT:</Text>
+                  <Text style={[styles.securitySummaryVal, { color: '#10B981' }]}>
                     ₹{selectedInr} INR
                   </Text>
                 </View>
                 <View style={styles.securitySummaryRow}>
-                  <Text style={styles.securitySummaryLabel}>CRYSTALS TO BURN:</Text>
-                  <Text style={[styles.securitySummaryVal, { color: '#00D2EE' }]}>
+                  <Text style={[styles.securitySummaryLabel, { color: colors.textSecondary }]}>CRYSTALS TO BURN:</Text>
+                  <Text style={[styles.securitySummaryVal, { color: '#0A84FF' }]}>
                     {crystalsRequired.toLocaleString()} Crystals
                   </Text>
                 </View>
                 <View style={styles.securitySummaryRow}>
-                  <Text style={styles.securitySummaryLabel}>PAYOUT DESTINATION:</Text>
+                  <Text style={[styles.securitySummaryLabel, { color: colors.textSecondary }]}>PAYOUT DESTINATION:</Text>
                   <Text style={[styles.securitySummaryVal, { color: '#F59E0B' }]} numberOfLines={1}>
                     {destinationInput.trim().toLowerCase()}
                   </Text>
@@ -764,9 +1011,14 @@ export default function RedeemScreen() {
               </View>
 
               {/* Anti-Fraud Telemetry Notice */}
-              <View style={styles.securityNoticeBox}>
+              <View
+                style={[
+                  styles.securityNoticeBox,
+                  { backgroundColor: isDark ? '#271A06' : '#FEF3C7', borderColor: '#F59E0B' },
+                ]}
+              >
                 <AlertTriangle size={15} color="#F59E0B" style={{ marginTop: 2 }} />
-                <Text style={styles.securityNoticeText}>
+                <Text style={[styles.securityNoticeText, { color: isDark ? '#FEF3C7' : '#92400E' }]}>
                   ANTI-FRAUD AUDIT: Payouts are dispatched directly via IMPS to this verified address. Accounts flagged for automated bots, glitch abuse, or simulated telemetry will be permanently blacklisted.
                 </Text>
               </View>
@@ -781,9 +1033,9 @@ export default function RedeemScreen() {
                 activeOpacity={0.8}
               >
                 <View style={[styles.checkboxBox, securityAgreed && styles.checkboxBoxChecked]}>
-                  {securityAgreed && <Check size={14} color="#000000" />}
+                  {securityAgreed && <Check size={14} color="#FFFFFF" />}
                 </View>
-                <Text style={styles.agreementText}>
+                <Text style={[styles.agreementText, { color: colors.textSecondary }]}>
                   I certify that this {activeMethod} destination belongs to me and authorize burning {crystalsRequired.toLocaleString()} Mana Crystals.
                 </Text>
               </TouchableOpacity>
@@ -791,14 +1043,17 @@ export default function RedeemScreen() {
               {/* Modal Action Buttons */}
               <View style={styles.securityBtnRow}>
                 <TouchableOpacity
-                  style={styles.securityCancelBtn}
+                  style={[
+                    styles.securityCancelBtn,
+                    { backgroundColor: isDark ? '#1E293B' : '#F1F5F9' },
+                  ]}
                   onPress={() => {
                     haptics.light();
                     setSecurityModalVisible(false);
                   }}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.securityCancelBtnText}>CANCEL</Text>
+                  <Text style={[styles.securityCancelBtnText, { color: colors.textSecondary }]}>CANCEL</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -810,11 +1065,11 @@ export default function RedeemScreen() {
                   disabled={!securityAgreed}
                   activeOpacity={0.85}
                 >
-                  <ShieldCheck size={16} color={securityAgreed ? '#000000' : '#64748B'} />
+                  <ShieldCheck size={16} color={securityAgreed ? '#FFFFFF' : colors.textSecondary} />
                   <Text
                     style={[
                       styles.securityConfirmBtnText,
-                      !securityAgreed && { color: '#64748B' },
+                      !securityAgreed && { color: colors.textSecondary },
                     ]}
                   >
                     AUTHORIZE & CASHOUT
@@ -833,32 +1088,33 @@ export default function RedeemScreen() {
             <View
               style={[
                 styles.modalCard,
-                systemModal.type === 'success' && { borderColor: '#00D2EE' },
+                { backgroundColor: colors.card, borderColor: colors.border },
+                systemModal.type === 'success' && { borderColor: '#0A84FF' },
                 systemModal.type === 'danger' && { borderColor: '#EF4444' },
               ]}
             >
               <View style={styles.modalTagRow}>
                 {systemModal.type === 'success' ? (
-                  <CheckCircle2 size={16} color="#00D2EE" />
+                  <CheckCircle2 size={16} color="#0A84FF" />
                 ) : (
                   <AlertCircle size={16} color="#EF4444" />
                 )}
                 <Text
                   style={[
                     styles.modalTagText,
-                    systemModal.type === 'success' ? { color: '#00D2EE' } : { color: '#EF4444' },
+                    systemModal.type === 'success' ? { color: '#0A84FF' } : { color: '#EF4444' },
                   ]}
                 >
                   [ SYSTEM NOTICE // {systemModal.title} ]
                 </Text>
               </View>
 
-              <Text style={styles.modalSub}>{systemModal.message}</Text>
+              <Text style={[styles.modalSub, { color: colors.textSecondary }]}>{systemModal.message}</Text>
 
               <TouchableOpacity
                 style={[
                   styles.modalConfirmBtn,
-                  systemModal.type === 'success' ? { backgroundColor: '#00D2EE' } : { backgroundColor: '#1E293B' },
+                  systemModal.type === 'success' ? { backgroundColor: '#0A84FF' } : { backgroundColor: isDark ? '#1E293B' : '#E2E8F0' },
                 ]}
                 onPress={() => setSystemModal((prev) => ({ ...prev, visible: false }))}
                 activeOpacity={0.85}
@@ -866,7 +1122,7 @@ export default function RedeemScreen() {
                 <Text
                   style={[
                     styles.modalConfirmBtnText,
-                    systemModal.type === 'success' ? { color: '#000000' } : { color: '#FFFFFF' },
+                    systemModal.type === 'success' ? { color: '#FFFFFF' } : { color: colors.textPrimary },
                   ]}
                 >
                   ACKNOWLEDGE
@@ -883,326 +1139,421 @@ export default function RedeemScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
   },
+  // Top Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1E293B',
+    paddingTop: 6,
+    paddingBottom: 10,
   },
   backBtn: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#111218',
     borderWidth: 1,
-    borderColor: '#1C1E2A',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerCenter: {
     alignItems: 'center',
   },
-  headerTag: {
-    fontSize: 9,
-    fontWeight: '900',
-    color: '#00D2EE',
-    letterSpacing: 1.5,
+  headerProtocol: {
+    fontSize: 9.5,
+    fontFamily: fontFamilies.semiBold,
+    letterSpacing: 1.2,
   },
   headerTitle: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    letterSpacing: 0.5,
+    fontSize: 17,
+    fontFamily: fontFamilies.semiBold,
+    marginTop: 1,
+  },
+  headerSub: {
+    fontSize: 11,
+    fontFamily: fontFamilies.medium,
+    marginTop: 1,
   },
   crystalCapsule: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#082f49',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    gap: 5,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
     borderRadius: 100,
     borderWidth: 1,
-    borderColor: '#0284C7',
   },
-  crystalCountText: {
+  crystalCapsuleCount: {
     fontSize: 13,
-    fontWeight: '900',
-    color: '#00D2EE',
+    fontFamily: fontFamilies.semiBold,
   },
-  tabRow: {
-    flexDirection: 'row',
+
+  // Dual Segment Tabs
+  tabContainer: {
     paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 6,
-    gap: 10,
+    paddingTop: 6,
+    paddingBottom: 10,
   },
-  tabBtn: {
+  tabSegmentWrap: {
+    flexDirection: 'row',
+    borderRadius: 12,
+    padding: 3,
+  },
+  tabSegmentBtn: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 8,
-    backgroundColor: '#0B0D14',
-    borderWidth: 1,
-    borderColor: '#1C1E2A',
-  },
-  tabBtnActive: {
-    backgroundColor: '#082f49',
-    borderColor: '#00D2EE',
-  },
-  tabBtnText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#8E8E93',
-    letterSpacing: 0.5,
-  },
-  tabBtnTextActive: {
-    color: '#00D2EE',
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
-  },
-  balanceHeroCard: {
-    backgroundColor: '#061320',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#0284C7',
-    padding: 16,
-    marginBottom: 18,
-  },
-  balanceIconRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  balanceSub: {
-    fontSize: 10,
-    fontWeight: '900',
-    color: '#38BDF8',
-    letterSpacing: 1,
-  },
-  balanceMain: {
-    fontSize: 30,
-    fontWeight: '900',
-    color: '#00D2EE',
-    letterSpacing: 0.5,
-    marginTop: 2,
-  },
-  balanceDivider: {
-    height: 1,
-    backgroundColor: '#0E3A5A',
-    marginVertical: 14,
-  },
-  exchangeRateRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  rateCol: {},
-  rateLabel: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#64748B',
-    letterSpacing: 0.5,
-    marginBottom: 2,
-  },
-  rateValue: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  sectionHeader: {
-    fontSize: 11,
-    fontWeight: '900',
-    color: '#94A3B8',
-    letterSpacing: 1,
-    marginBottom: 10,
-  },
-  methodGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 18,
-  },
-  methodCard: {
-    width: '48%',
-    backgroundColor: '#0B0D14',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#1C1E2A',
-    padding: 12,
-  },
-  methodCardActive: {
-    backgroundColor: '#082f49',
-    borderColor: '#00D2EE',
-  },
-  methodTitle: {
-    fontSize: 13,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    marginTop: 8,
-  },
-  methodTitleActive: {
-    color: '#00D2EE',
-  },
-  methodSub: {
-    fontSize: 10,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  tiersGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 14,
-  },
-  tierBtn: {
-    width: '31%',
-    backgroundColor: '#0B0D14',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#1C1E2A',
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tierBtnSelected: {
-    backgroundColor: '#082f49',
-    borderColor: '#00D2EE',
-  },
-  tierBtnDisabled: {
-    opacity: 0.4,
-  },
-  tierInrText: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: '#FFFFFF',
-  },
-  tierInrTextSelected: {
-    color: '#00D2EE',
-  },
-  tierCostRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    marginTop: 4,
-  },
-  tierCostText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#8E8E93',
-  },
-  tierCostTextSelected: {
-    color: '#00D2EE',
-  },
-  customAmountBox: {
-    backgroundColor: '#0B0D14',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#1C1E2A',
-    padding: 12,
-    marginBottom: 14,
-  },
-  customAmountLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#64748B',
-    marginBottom: 6,
-  },
-  customInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  rupeePrefix: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#00D2EE',
-    marginRight: 6,
-  },
-  customTextInput: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    paddingVertical: 4,
-  },
-  customCostBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#082f49',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  customCostText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#00D2EE',
-  },
-  destBox: {
-    backgroundColor: '#0B0D14',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#1C1E2A',
-    padding: 12,
-    marginBottom: 18,
-  },
-  destLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#64748B',
-    marginBottom: 8,
-  },
-  destInput: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#1E293B',
-    paddingVertical: 6,
-  },
-  submitBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#00D2EE',
-    borderRadius: 12,
-    paddingVertical: 14,
-    marginBottom: 12,
-  },
-  submitBtnDisabled: {
-    backgroundColor: '#1E293B',
-    opacity: 0.6,
-  },
-  submitBtnText: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: '#000000',
-    letterSpacing: 0.5,
-  },
-  guaranteeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
     paddingVertical: 8,
+    borderRadius: 10,
+  },
+  tabSegmentBtnActive: {
+    backgroundColor: '#0A84FF',
+  },
+  tabSegmentText: {
+    fontSize: 13,
+    fontFamily: fontFamilies.semiBold,
+  },
+
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 4,
+  },
+
+  // Hero Frost Card
+  heroFrostCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    overflow: 'hidden',
+    padding: 16,
+    marginBottom: 18,
+    position: 'relative',
+  },
+  heroFrostBgImage: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: '60%',
+    opacity: 0.35,
+  },
+  heroMainRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginBottom: 14,
+  },
+  hero3DCrystal: {
+    width: 48,
+    height: 48,
+  },
+  heroLabel: {
+    fontSize: 9.5,
+    fontFamily: fontFamilies.semiBold,
+    letterSpacing: 1,
+  },
+  heroBigCount: {
+    fontSize: 32,
+    fontFamily: fontFamilies.semiBold,
+    marginVertical: 1,
+  },
+  heroSmallSub: {
+    fontSize: 11,
+    fontFamily: fontFamilies.medium,
+  },
+  heroDivider: {
+    height: 1,
+    marginBottom: 12,
+  },
+  heroFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  heroVerticalLine: {
+    width: 1,
+    height: 28,
+    backgroundColor: 'rgba(224, 242, 254, 0.6)',
+  },
+  rateLabel: {
+    fontSize: 9,
+    fontFamily: fontFamilies.semiBold,
+    letterSpacing: 0.6,
+    marginBottom: 2,
+  },
+  rateValue: {
+    fontSize: 13,
+    fontFamily: fontFamilies.semiBold,
+  },
+
+  // Section Headers
+  sectionHeaderWrap: {
+    marginBottom: 10,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontFamily: fontFamilies.semiBold,
+  },
+  sectionSubtitle: {
+    fontSize: 11.5,
+    fontFamily: fontFamilies.medium,
+    marginTop: 2,
+  },
+
+  // Gateway Grid
+  gatewayGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 18,
+  },
+  gatewayCard: {
+    width: '48.5%',
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 14,
+    position: 'relative',
+    gap: 4,
+  },
+  gatewayCardActive: {
+    borderWidth: 1.5,
+  },
+  gatewayCheckmarkCircle: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#0A84FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  upiIconGraphic: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    height: 22,
+  },
+  upiRibbonGreen: {
+    width: 10,
+    height: 18,
+    backgroundColor: '#10B981',
+    transform: [{ skewX: '-25deg' }],
+    borderRadius: 2,
+  },
+  upiRibbonOrange: {
+    width: 10,
+    height: 18,
+    backgroundColor: '#F59E0B',
+    transform: [{ skewX: '-25deg' }],
+    borderRadius: 2,
+    marginLeft: 1,
+  },
+  gatewayTitle: {
+    fontSize: 13,
+    fontFamily: fontFamilies.semiBold,
+    marginTop: 2,
+  },
+  gatewaySub: {
+    fontSize: 10.5,
+    fontFamily: fontFamilies.medium,
+  },
+
+  // Tiers Grid
+  tiersGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 14,
+  },
+  tierCard: {
+    width: '31%',
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  tierInrNum: {
+    fontSize: 16,
+    fontFamily: fontFamilies.semiBold,
+  },
+  tierCrystalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  tierCostText: {
+    fontSize: 11,
+    fontFamily: fontFamilies.semiBold,
+  },
+
+  // Custom Amount Card
+  customCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 12,
+    marginBottom: 16,
+  },
+  customCardLabel: {
+    fontSize: 11,
+    fontFamily: fontFamilies.medium,
+    marginBottom: 6,
+  },
+  customCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  customInputSide: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  rupeeSign: {
+    fontSize: 16,
+    fontFamily: fontFamilies.semiBold,
+    color: '#0A84FF',
+    marginRight: 6,
+  },
+  customInputField: {
+    fontSize: 16,
+    fontFamily: fontFamilies.semiBold,
+    flex: 1,
+    paddingVertical: 2,
+  },
+  customCrystalPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  customCrystalPillText: {
+    fontSize: 12,
+    fontFamily: fontFamilies.semiBold,
+    color: '#0A84FF',
+  },
+
+  // Form Card
+  formCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 14,
+    gap: 12,
+    marginBottom: 18,
+  },
+  formGroup: {
+    gap: 6,
+  },
+  formLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  formLabel: {
+    fontSize: 11,
+    fontFamily: fontFamilies.medium,
+  },
+  vpaBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  vpaBadgeValid: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+  },
+  vpaBadgeInvalid: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+  },
+  vpaBadgeValidText: {
+    fontSize: 9,
+    fontFamily: fontFamilies.semiBold,
+    color: '#10B981',
+  },
+  vpaBadgeInvalidText: {
+    fontSize: 9,
+    fontFamily: fontFamilies.semiBold,
+    color: '#EF4444',
+  },
+  inputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+  },
+  textInput: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: fontFamilies.medium,
+    paddingVertical: 9,
+  },
+  chipsScroll: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingVertical: 2,
+  },
+  chipPill: {
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  chipPillText: {
+    fontSize: 11,
+    fontFamily: fontFamilies.semiBold,
+  },
+
+  // Submit CTA Button
+  submitBtnTouch: {
+    borderRadius: 26,
+    overflow: 'hidden',
+    marginBottom: 12,
+    elevation: 3,
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+  },
+  submitBtnGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 26,
+  },
+  submitBtnText: {
+    fontSize: 15,
+    fontFamily: fontFamilies.semiBold,
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
+  },
+
+  // Guarantee Row
+  guaranteeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 4,
   },
   guaranteeText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#64748B',
+    fontSize: 10.5,
+    fontFamily: fontFamilies.medium,
     textAlign: 'center',
   },
+
+  // History Tab Styles
   historyContainer: {
     gap: 10,
   },
@@ -1213,22 +1564,19 @@ const styles = StyleSheet.create({
   },
   emptyHistoryTitle: {
     fontSize: 14,
-    fontWeight: '900',
-    color: '#64748B',
+    fontFamily: fontFamilies.semiBold,
     marginTop: 12,
   },
   emptyHistorySub: {
     fontSize: 12,
-    color: '#475569',
+    fontFamily: fontFamilies.medium,
     textAlign: 'center',
     marginTop: 6,
     lineHeight: 18,
   },
   historyCard: {
-    backgroundColor: '#0B0D14',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#1C1E2A',
     padding: 14,
   },
   historyCardTop: {
@@ -1238,15 +1586,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   historyMethodBadge: {
-    backgroundColor: '#111827',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
   },
   historyMethodText: {
     fontSize: 11,
-    fontWeight: '800',
-    color: '#94A3B8',
+    fontFamily: fontFamilies.semiBold,
   },
   statusBadge: {
     paddingHorizontal: 8,
@@ -1254,17 +1600,17 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   statusBadgePaid: {
-    backgroundColor: '#064e3b',
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
   },
   statusBadgePending: {
-    backgroundColor: '#78350f',
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
   },
   statusBadgeRejected: {
-    backgroundColor: '#7f1d1d',
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
   },
   statusBadgeText: {
     fontSize: 10,
-    fontWeight: '900',
+    fontFamily: fontFamilies.semiBold,
     letterSpacing: 0.5,
   },
   historyMainRow: {
@@ -1274,144 +1620,38 @@ const styles = StyleSheet.create({
   },
   historyInrText: {
     fontSize: 18,
-    fontWeight: '900',
-    color: '#FFFFFF',
+    fontFamily: fontFamilies.semiBold,
   },
   historyDestText: {
     fontSize: 11,
-    color: '#64748B',
+    fontFamily: fontFamilies.medium,
     marginTop: 2,
     maxWidth: 180,
   },
   historySpentText: {
     fontSize: 13,
-    fontWeight: '900',
-    color: '#00D2EE',
+    fontFamily: fontFamilies.semiBold,
   },
   historyDateText: {
     fontSize: 10,
-    color: '#475569',
+    fontFamily: fontFamilies.medium,
     marginTop: 2,
   },
+
+  // Modal Styles
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.85)',
+    backgroundColor: 'rgba(0,0,0,0.65)',
     justifyContent: 'center',
     padding: 20,
   },
   modalSafe: {
     width: '100%',
   },
-  modalCard: {
-    backgroundColor: '#0B0D14',
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: '#1C1E2A',
-    padding: 20,
-  },
-  modalTagRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  modalTagText: {
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
-  modalSub: {
-    fontSize: 13,
-    color: '#E2E8F0',
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-  modalConfirmBtn: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 10,
-  },
-  modalConfirmBtnText: {
-    fontSize: 13,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
-  // Enhanced UPI Validation & Chips
-  destHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  vpaStatusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 1,
-  },
-  vpaStatusBadgeValid: {
-    backgroundColor: '#064e3b',
-    borderColor: '#10B981',
-  },
-  vpaStatusBadgeInvalid: {
-    backgroundColor: '#7f1d1d',
-    borderColor: '#EF4444',
-  },
-  vpaStatusTextValid: {
-    fontSize: 9,
-    fontWeight: '900',
-    color: '#10B981',
-    letterSpacing: 0.5,
-  },
-  vpaStatusTextInvalid: {
-    fontSize: 9,
-    fontWeight: '900',
-    color: '#EF4444',
-    letterSpacing: 0.5,
-  },
-  chipsContainer: {
-    marginTop: 10,
-    marginBottom: 4,
-  },
-  chipsLabel: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#64748B',
-    letterSpacing: 0.5,
-    marginBottom: 6,
-  },
-  chipsScroll: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  chipBtn: {
-    backgroundColor: '#111218',
-    borderWidth: 1,
-    borderColor: '#1C1E2A',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  chipText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#00D2EE',
-  },
-  // Security Modal Styles
   securityCard: {
-    backgroundColor: '#080C14',
     borderRadius: 18,
     borderWidth: 1.5,
-    borderColor: '#0284C7',
     padding: 20,
-    shadowColor: '#00D2EE',
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
-    elevation: 10,
   },
   securityHeaderRow: {
     flexDirection: 'row',
@@ -1419,26 +1659,22 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#1E293B',
     paddingBottom: 12,
   },
   securityTag: {
     fontSize: 9,
-    fontWeight: '900',
-    color: '#00D2EE',
+    fontFamily: fontFamilies.semiBold,
+    color: '#0A84FF',
     letterSpacing: 1,
   },
   securityTitle: {
     fontSize: 15,
-    fontWeight: '900',
-    color: '#FFFFFF',
+    fontFamily: fontFamilies.semiBold,
     letterSpacing: 0.5,
   },
   securitySummaryBox: {
-    backgroundColor: '#0F172A',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#1E293B',
     padding: 12,
     gap: 8,
     marginBottom: 14,
@@ -1450,32 +1686,27 @@ const styles = StyleSheet.create({
   },
   securitySummaryLabel: {
     fontSize: 11,
-    fontWeight: '800',
-    color: '#64748B',
+    fontFamily: fontFamilies.semiBold,
   },
   securitySummaryVal: {
     fontSize: 12,
-    fontWeight: '800',
-    color: '#FFFFFF',
+    fontFamily: fontFamilies.semiBold,
     maxWidth: '65%',
   },
   securityNoticeBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
-    backgroundColor: '#271A06',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#F59E0B',
     padding: 10,
     marginBottom: 14,
   },
   securityNoticeText: {
     flex: 1,
     fontSize: 10,
-    color: '#FEF3C7',
     lineHeight: 15,
-    fontWeight: '600',
+    fontFamily: fontFamilies.semiBold,
   },
   agreementRow: {
     flexDirection: 'row',
@@ -1489,18 +1720,18 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 4,
     borderWidth: 1.5,
-    borderColor: '#00D2EE',
+    borderColor: '#0A84FF',
     backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkboxBoxChecked: {
-    backgroundColor: '#00D2EE',
+    backgroundColor: '#0A84FF',
   },
   agreementText: {
     flex: 1,
     fontSize: 11,
-    color: '#94A3B8',
+    fontFamily: fontFamilies.medium,
     lineHeight: 16,
   },
   securityBtnRow: {
@@ -1513,12 +1744,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 12,
     borderRadius: 10,
-    backgroundColor: '#1E293B',
   },
   securityCancelBtnText: {
     fontSize: 12,
-    fontWeight: '900',
-    color: '#94A3B8',
+    fontFamily: fontFamilies.semiBold,
     letterSpacing: 0.5,
   },
   securityConfirmBtn: {
@@ -1529,16 +1758,48 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 12,
     borderRadius: 10,
-    backgroundColor: '#00D2EE',
+    backgroundColor: '#0A84FF',
   },
   securityConfirmBtnDisabled: {
-    backgroundColor: '#1E293B',
     opacity: 0.6,
   },
   securityConfirmBtnText: {
     fontSize: 12,
-    fontWeight: '900',
-    color: '#000000',
+    fontFamily: fontFamilies.semiBold,
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  modalCard: {
+    borderRadius: 16,
+    borderWidth: 1.5,
+    padding: 20,
+  },
+  modalTagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  modalTagText: {
+    fontSize: 11,
+    fontFamily: fontFamilies.semiBold,
+    letterSpacing: 1,
+  },
+  modalSub: {
+    fontSize: 13,
+    fontFamily: fontFamilies.medium,
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  modalConfirmBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  modalConfirmBtnText: {
+    fontSize: 13,
+    fontFamily: fontFamilies.semiBold,
     letterSpacing: 0.5,
   },
 });

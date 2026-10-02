@@ -499,7 +499,7 @@ export default function LeaderboardScreen() {
                               style={[
                                 styles.hunterName,
                                 { color: colors.textPrimary },
-                                isMe && { color: '#0A84FF', fontWeight: '900' },
+                                isMe && { color: '#0A84FF', fontWeight: '600' },
                               ]}
                               numberOfLines={1}
                             >
@@ -650,7 +650,7 @@ export default function LeaderboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000000' },
+  container: { flex: 1 },
 
   // Header
   header: {
@@ -679,7 +679,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.8,
   },
@@ -702,7 +702,7 @@ const styles = StyleSheet.create({
   },
   activeTagText: {
     fontSize: 9,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#0A84FF',
     letterSpacing: 0.5,
   },
@@ -732,7 +732,7 @@ const styles = StyleSheet.create({
   },
   hubSegmentText: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#64748B',
     letterSpacing: 0.5,
   },
@@ -748,7 +748,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#64748B',
     letterSpacing: 1.0,
   },
@@ -790,13 +790,13 @@ const styles = StyleSheet.create({
   },
   categoryPillText: {
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#8E9BB0',
     letterSpacing: 0.3,
   },
   categoryPillTextActive: {
     color: '#FFFFFF',
-    fontWeight: '900',
+    fontWeight: '600',
   },
 
   // Podium
@@ -849,7 +849,7 @@ const styles = StyleSheet.create({
   },
   podiumRankTextGold: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#000000',
   },
 
@@ -889,7 +889,7 @@ const styles = StyleSheet.create({
   },
   podiumRankTextSilver: {
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#000000',
   },
   podiumRankBadgeBronze: {
@@ -905,19 +905,19 @@ const styles = StyleSheet.create({
   },
   podiumRankTextBronze: {
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
   },
 
   podiumName: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#FFFFFF',
     textAlign: 'center',
   },
   podiumNameGold: {
     fontSize: 13.5,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
     textAlign: 'center',
   },
@@ -932,7 +932,7 @@ const styles = StyleSheet.create({
   },
   podiumStreakTextGold: {
     fontSize: 9.5,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#F59E0B',
   },
   podiumStreakBadgeSilver: {
@@ -946,7 +946,7 @@ const styles = StyleSheet.create({
   },
   podiumStreakTextSilver: {
     fontSize: 9,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#94A3B8',
   },
   podiumStreakBadgeBronze: {
@@ -960,7 +960,7 @@ const styles = StyleSheet.create({
   },
   podiumStreakTextBronze: {
     fontSize: 9,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#D97706',
   },
 
@@ -978,7 +978,7 @@ const styles = StyleSheet.create({
   },
   pedestalSubGold: {
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#F59E0B',
     letterSpacing: 0.5,
   },
@@ -995,7 +995,7 @@ const styles = StyleSheet.create({
   },
   pedestalSubSilver: {
     fontSize: 9.5,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#94A3B8',
   },
   pedestalBronze: {
@@ -1011,7 +1011,7 @@ const styles = StyleSheet.create({
   },
   pedestalSubBronze: {
     fontSize: 9.5,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#D97706',
   },
 
@@ -1022,7 +1022,7 @@ const styles = StyleSheet.create({
   },
   listHeaderTitle: {
     fontSize: 10.5,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#8E9BB0',
     letterSpacing: 0.8,
     paddingHorizontal: 4,
@@ -1055,7 +1055,7 @@ const styles = StyleSheet.create({
   },
   rankNumText: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#64748B',
     fontVariant: ['tabular-nums'],
   },
@@ -1073,7 +1073,7 @@ const styles = StyleSheet.create({
   },
   hunterName: {
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#FFFFFF',
   },
   miniRankBadge: {
@@ -1084,7 +1084,7 @@ const styles = StyleSheet.create({
   },
   miniRankText: {
     fontSize: 8.5,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   hunterTitleSub: {
     fontSize: 10.5,
@@ -1102,12 +1102,12 @@ const styles = StyleSheet.create({
   },
   rowStreakVal: {
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#EA580C',
   },
   rowStreakDaysLabel: {
     fontSize: 8.5,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#EA580C',
   },
 
@@ -1141,12 +1141,12 @@ const styles = StyleSheet.create({
   },
   stickyRankNum: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
   },
   stickyUserName: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.5,
   },
@@ -1170,17 +1170,17 @@ const styles = StyleSheet.create({
   },
   stickyStreakNum: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#EA580C',
   },
   stickyStreakText: {
     fontSize: 8.5,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#EA580C',
   },
   gapInfoText: {
     fontSize: 9,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#0A84FF',
   },
 
@@ -1209,7 +1209,7 @@ const styles = StyleSheet.create({
   },
   tournStatusText: {
     fontSize: 9,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#0A84FF',
     letterSpacing: 0.5,
   },
@@ -1220,12 +1220,12 @@ const styles = StyleSheet.create({
   },
   tournPrizeText: {
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#F59E0B',
   },
   tournTitle: {
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
   },
   tournDesc: {
@@ -1242,7 +1242,7 @@ const styles = StyleSheet.create({
   },
   tournJoinBtnText: {
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.5,
   },

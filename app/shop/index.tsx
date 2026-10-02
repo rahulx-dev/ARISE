@@ -25,6 +25,7 @@ import {
   Gift,
   Check,
   ShoppingBag,
+  ExternalLink,
 } from 'lucide-react-native';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { userRepository } from '../../src/database/repositories/userRepository';
@@ -34,6 +35,8 @@ import { adMobService } from '../../src/services/adMobService';
 import { screenTimerService, appBlockerService } from '../../src/native';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useSound } from '../../src/hooks/useSound';
+import { useTheme } from '../../src/hooks/useTheme';
+import { fontFamilies } from '../../src/theme/typography';
 import { ManaCrystalIcon } from '../../src/components/ui/ManaCrystalIcon';
 import { PlayerAvatar } from '../../src/components/ui/PlayerAvatar';
 
@@ -67,6 +70,7 @@ export default function ShopScreen() {
   const router = useRouter();
   const sound = useSound();
   const haptics = useHaptics();
+  const { colors, isDark } = useTheme();
 
   const profile = usePlayerStore((s) => s.profile);
   const loadProfile = usePlayerStore((s) => s.loadProfile);
@@ -119,7 +123,7 @@ export default function ShopScreen() {
     }, [refreshData])
   );
 
-  const currentCoins = profile?.coins || 1245;
+  const currentCoins = profile?.coins ?? 0;
 
   const boostsList: BoostItem[] = [
     {
@@ -127,7 +131,7 @@ export default function ShopScreen() {
       name: 'Streak Freeze',
       desc: 'Saves your daily streak if missed',
       cost: 200,
-      iconBg: '#DBEAFE',
+      iconBg: isDark ? 'rgba(37, 99, 235, 0.2)' : '#DBEAFE',
       iconColor: '#2563EB',
       icon: Flame,
     },
@@ -136,7 +140,7 @@ export default function ShopScreen() {
       name: 'XP 2X Booster',
       desc: '2x XP on workouts for 1 hour',
       cost: 300,
-      iconBg: '#FCE7F3',
+      iconBg: isDark ? 'rgba(219, 39, 119, 0.2)' : '#FCE7F3',
       iconColor: '#DB2777',
       icon: Zap,
     },
@@ -145,7 +149,7 @@ export default function ShopScreen() {
       name: 'Soul Hunter Pass',
       desc: 'Unlock special raid gates & bonuses',
       cost: 500,
-      iconBg: '#FEF3C7',
+      iconBg: isDark ? 'rgba(217, 119, 6, 0.2)' : '#FEF3C7',
       iconColor: '#D97706',
       icon: Crown,
     },
@@ -154,7 +158,7 @@ export default function ShopScreen() {
       name: 'Focus Shield',
       desc: 'Block all distracting apps for 2 hours',
       cost: 400,
-      iconBg: '#EDE9FE',
+      iconBg: isDark ? 'rgba(124, 58, 237, 0.2)' : '#EDE9FE',
       iconColor: '#7C3AED',
       icon: Shield,
     },
@@ -302,7 +306,7 @@ export default function ShopScreen() {
       sound.play('rep_count');
       showDialog(
         'Insufficient Crystals',
-        `Redeeming ${voucher.name} requires ${voucher.crystalsCost} 💎 Mana Crystals. Complete dungeon gates and surveys to earn more crystals.`
+        `Redeeming ${voucher.name} requires ${voucher.crystalsCost} Mana Crystals. Complete dungeon gates and surveys to earn more crystals.`
       );
       return;
     }
@@ -346,29 +350,57 @@ export default function ShopScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      {/* 1. TOP HEADER (Back + Vault Shop + 🪙 1,245 | 💎 32) */}
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
+      {/* 1. TOP HEADER (Back + Vault Shop + Coins | Crystals) */}
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <View style={styles.headerLeft}>
           <TouchableOpacity
-            style={styles.backBtn}
-            onPress={() => router.back()}
+            style={[styles.backBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+            onPress={() => {
+              haptics.light();
+              router.back();
+            }}
             activeOpacity={0.8}
           >
-            <ArrowLeft size={20} color="#111827" />
+            <ArrowLeft size={20} color={colors.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Vault Shop</Text>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Vault Shop</Text>
         </View>
 
         <View style={styles.headerRightCurrencies}>
-          <View style={styles.currencyBadge}>
+          <View
+            style={[
+              styles.currencyBadge,
+              {
+                backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7',
+                borderColor: isDark ? 'rgba(245, 158, 11, 0.3)' : '#FDE68A',
+              },
+            ]}
+          >
             <Coins size={15} color="#F59E0B" />
-            <Text style={styles.currencyBadgeText}>{currentCoins.toLocaleString()}</Text>
+            <Text style={[styles.currencyBadgeText, { color: isDark ? '#F59E0B' : '#92400E' }]}>
+              {currentCoins.toLocaleString()}
+            </Text>
           </View>
-          <View style={[styles.currencyBadge, { borderColor: '#E0F2FE', backgroundColor: '#F0F9FF' }]}>
+          <TouchableOpacity
+            style={[
+              styles.currencyBadge,
+              {
+                backgroundColor: isDark ? 'rgba(0, 210, 238, 0.15)' : '#F0F9FF',
+                borderColor: isDark ? 'rgba(0, 210, 238, 0.3)' : '#E0F2FE',
+              },
+            ]}
+            onPress={() => {
+              haptics.light();
+              router.push('/redeem' as any);
+            }}
+            activeOpacity={0.8}
+          >
             <ManaCrystalIcon size={15} color="#00D2EE" secondaryColor="#0284C7" />
-            <Text style={[styles.currencyBadgeText, { color: '#0284C7' }]}>{manaCrystals.toLocaleString()}</Text>
-          </View>
+            <Text style={[styles.currencyBadgeText, { color: isDark ? '#00D2EE' : '#0284C7' }]}>
+              {manaCrystals.toLocaleString()}
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -382,7 +414,11 @@ export default function ShopScreen() {
               key={tab}
               style={[
                 styles.filterPill,
-                { backgroundColor: isSelected ? '#E53935' : '#F3F4F6' },
+                {
+                  backgroundColor: isSelected ? '#E53935' : isDark ? colors.card : '#F3F4F6',
+                  borderColor: isSelected ? '#E53935' : colors.border,
+                  borderWidth: 1,
+                },
               ]}
               onPress={() => {
                 haptics.light();
@@ -390,7 +426,12 @@ export default function ShopScreen() {
               }}
               activeOpacity={0.8}
             >
-              <Text style={[styles.filterPillText, { color: isSelected ? '#FFFFFF' : '#6B7280' }]}>
+              <Text
+                style={[
+                  styles.filterPillText,
+                  { color: isSelected ? '#FFFFFF' : colors.textSecondary },
+                ]}
+              >
                 {label}
               </Text>
             </TouchableOpacity>
@@ -401,43 +442,82 @@ export default function ShopScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Watch Ad Free Coins Banner */}
         <TouchableOpacity
-          style={styles.freeCoinsCard}
+          style={[
+            styles.freeCoinsCard,
+            {
+              backgroundColor: isDark ? 'rgba(229, 57, 53, 0.12)' : '#FFF1F2',
+              borderColor: isDark ? 'rgba(229, 57, 53, 0.3)' : '#FFE4E6',
+            },
+          ]}
           onPress={handleWatchAd}
           activeOpacity={0.85}
         >
           <View style={styles.freeCoinsLeft}>
-            <View style={styles.freeCoinsIconWrap}>
+            <View
+              style={[
+                styles.freeCoinsIconWrap,
+                { backgroundColor: isDark ? 'rgba(229, 57, 53, 0.25)' : '#FFFFFF' },
+              ]}
+            >
               <PlayCircle size={22} color="#E53935" />
             </View>
             <View>
-              <Text style={styles.freeCoinsTitle}>Watch Sponsor Video</Text>
-              <Text style={styles.freeCoinsSub}>Earn instant coins for the shop</Text>
+              <Text style={[styles.freeCoinsTitle, { color: colors.textPrimary }]}>Watch Sponsor Video</Text>
+              <Text style={[styles.freeCoinsSub, { color: colors.textSecondary }]}>Earn instant coins for the shop</Text>
             </View>
           </View>
-          <View style={styles.freeCoinsRewardBadge}>
+          <View
+            style={[
+              styles.freeCoinsRewardBadge,
+              {
+                backgroundColor: isDark ? colors.card : '#FFFFFF',
+                borderColor: isDark ? 'rgba(245, 158, 11, 0.3)' : '#FDE68A',
+              },
+            ]}
+          >
             <Coins size={13} color="#F59E0B" />
-            <Text style={styles.freeCoinsRewardText}>+50 COINS</Text>
+            <Text style={[styles.freeCoinsRewardText, { color: isDark ? '#F59E0B' : '#D97706' }]}>+50 COINS</Text>
           </View>
         </TouchableOpacity>
 
         {/* ======================= SECTION 1: BOOSTS & POWER-UPS ======================= */}
         {(filter === 'all' || filter === 'boosts') && (
           <View style={styles.sectionWrap}>
-            <Text style={styles.sectionHeading}>Boosts & Power-ups</Text>
+            <Text style={[styles.sectionHeading, { color: colors.textPrimary }]}>Boosts & Power-ups</Text>
             <View style={styles.boostsGrid}>
               {boostsList.map((item) => {
                 const IconComp = item.icon;
                 return (
-                  <View key={item.id} style={styles.boostCard}>
+                  <View
+                    key={item.id}
+                    style={[
+                      styles.boostCard,
+                      { backgroundColor: colors.card, borderColor: colors.border },
+                    ]}
+                  >
                     <View style={[styles.boostIconWrap, { backgroundColor: item.iconBg }]}>
                       <IconComp size={24} color={item.iconColor} />
                     </View>
-                    <View style={styles.boostCostBadge}>
+                    <View
+                      style={[
+                        styles.boostCostBadge,
+                        {
+                          backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7',
+                        },
+                      ]}
+                    >
                       <Coins size={12} color="#F59E0B" />
-                      <Text style={styles.boostCostText}>{item.cost}</Text>
+                      <Text
+                        style={[
+                          styles.boostCostText,
+                          { color: isDark ? '#F59E0B' : '#92400E' },
+                        ]}
+                      >
+                        {item.cost}
+                      </Text>
                     </View>
-                    <Text style={styles.boostName}>{item.name}</Text>
-                    <Text style={styles.boostDesc}>{item.desc}</Text>
+                    <Text style={[styles.boostName, { color: colors.textPrimary }]}>{item.name}</Text>
+                    <Text style={[styles.boostDesc, { color: colors.textSecondary }]}>{item.desc}</Text>
                     <TouchableOpacity
                       style={styles.boostBuyBtn}
                       onPress={() => handleBuyBoost(item)}
@@ -455,25 +535,31 @@ export default function ShopScreen() {
         {/* ======================= SECTION 2: AVATARS & INSIGNIA ======================= */}
         {(filter === 'all' || filter === 'avatars') && (
           <View style={styles.sectionWrap}>
-            <Text style={styles.sectionHeading}>Avatars & Insignia</Text>
+            <Text style={[styles.sectionHeading, { color: colors.textPrimary }]}>Avatars & Insignia</Text>
             <View style={styles.avatarsGrid}>
               {avatarsList.map((item) => {
                 const isUnlocked = unlockedItemIds.includes(item.id) || item.avatarIcon === 'pfp_01';
                 const isEquipped = equippedAvatar === item.avatarIcon;
                 return (
-                  <View key={item.id} style={styles.avatarCard}>
+                  <View
+                    key={item.id}
+                    style={[
+                      styles.avatarCard,
+                      { backgroundColor: colors.card, borderColor: colors.border },
+                    ]}
+                  >
                     <View style={styles.avatarWrap}>
                       <PlayerAvatar iconId={item.avatarIcon} size={64} />
                       {isEquipped && (
-                        <View style={styles.equippedCheckPill}>
+                        <View style={[styles.equippedCheckPill, { borderColor: colors.card }]}>
                           <Check size={12} color="#FFFFFF" />
                         </View>
                       )}
                     </View>
-                    <Text style={styles.avatarName}>{item.name}</Text>
+                    <Text style={[styles.avatarName, { color: colors.textPrimary }]}>{item.name}</Text>
                     <View style={styles.avatarPriceRow}>
                       <Coins size={13} color="#F59E0B" />
-                      <Text style={styles.avatarPriceText}>
+                      <Text style={[styles.avatarPriceText, { color: colors.textSecondary }]}>
                         {isUnlocked ? 'Owned' : item.cost.toLocaleString()}
                       </Text>
                     </View>
@@ -482,9 +568,13 @@ export default function ShopScreen() {
                         styles.avatarActionBtn,
                         {
                           backgroundColor: isEquipped
-                            ? '#E5E7EB'
+                            ? isDark
+                              ? 'rgba(255, 255, 255, 0.08)'
+                              : '#E5E7EB'
                             : isUnlocked
-                            ? '#111827'
+                            ? isDark
+                              ? '#0A84FF'
+                              : '#111827'
                             : '#E53935',
                         },
                       ]}
@@ -495,7 +585,11 @@ export default function ShopScreen() {
                       <Text
                         style={[
                           styles.avatarActionBtnText,
-                          { color: isEquipped ? '#9CA3AF' : '#FFFFFF' },
+                          {
+                            color: isEquipped
+                              ? colors.textSecondary
+                              : '#FFFFFF',
+                          },
                         ]}
                       >
                         {isEquipped ? 'EQUIPPED' : isUnlocked ? 'EQUIP' : 'BUY'}
@@ -511,20 +605,41 @@ export default function ShopScreen() {
         {/* ======================= SECTION 3: REDEEM MANA CRYSTALS ======================= */}
         {(filter === 'all' || filter === 'redeem') && (
           <View style={styles.sectionWrap}>
-            <Text style={styles.sectionHeading}>Redeem Mana Crystals</Text>
+            <View style={styles.sectionHeadingRow}>
+              <Text style={[styles.sectionHeading, { color: colors.textPrimary }]}>Redeem Mana Crystals</Text>
+              <TouchableOpacity
+                style={styles.openVaultLink}
+                onPress={() => {
+                  haptics.light();
+                  router.push('/redeem' as any);
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.openVaultLinkText}>Open Vault</Text>
+                <ExternalLink size={12} color="#00D2EE" />
+              </TouchableOpacity>
+            </View>
             <View style={styles.vouchersList}>
               {vouchersList.map((voucher) => (
-                <View key={voucher.id} style={styles.voucherCard}>
+                <View
+                  key={voucher.id}
+                  style={[
+                    styles.voucherCard,
+                    { backgroundColor: colors.card, borderColor: colors.border },
+                  ]}
+                >
                   <View style={styles.voucherLeft}>
-                    <View style={[styles.voucherIconCircle, { backgroundColor: voucher.providerColor + '15' }]}>
+                    <View style={[styles.voucherIconCircle, { backgroundColor: voucher.providerColor + '18' }]}>
                       <Gift size={22} color={voucher.providerColor} />
                     </View>
                     <View style={{ gap: 2, flex: 1 }}>
-                      <Text style={styles.voucherTitle}>{voucher.name}</Text>
-                      <Text style={styles.voucherSub}>{voucher.sub}</Text>
+                      <Text style={[styles.voucherTitle, { color: colors.textPrimary }]}>{voucher.name}</Text>
+                      <Text style={[styles.voucherSub, { color: colors.textSecondary }]}>{voucher.sub}</Text>
                       <View style={styles.voucherPricePill}>
                         <ManaCrystalIcon size={13} color="#00D2EE" secondaryColor="#0284C7" />
-                        <Text style={styles.voucherPriceText}>{voucher.crystalsCost} Crystals</Text>
+                        <Text style={[styles.voucherPriceText, { color: isDark ? '#00D2EE' : '#0284C7' }]}>
+                          {voucher.crystalsCost} Crystals
+                        </Text>
                       </View>
                     </View>
                   </View>
@@ -548,9 +663,9 @@ export default function ShopScreen() {
       {/* Solo Leveling Dialog Modal */}
       <Modal visible={dialog.visible} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
-          <View style={styles.dialogCard}>
-            <Text style={styles.dialogTitle}>{dialog.title}</Text>
-            <Text style={styles.dialogMessage}>{dialog.message}</Text>
+          <View style={[styles.dialogCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.dialogTitle, { color: colors.textPrimary }]}>{dialog.title}</Text>
+            <Text style={[styles.dialogMessage, { color: colors.textSecondary }]}>{dialog.message}</Text>
             <TouchableOpacity
               style={styles.dialogBtn}
               onPress={() => {
@@ -571,7 +686,6 @@ export default function ShopScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
 
   // Top Header
@@ -582,6 +696,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 12,
+    borderBottomWidth: 1,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -592,14 +707,13 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#F3F4F6',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
   },
   headerTitle: {
     fontSize: 22,
-    fontWeight: '900',
-    color: '#111827',
+    fontFamily: fontFamilies.semiBold,
   },
   headerRightCurrencies: {
     flexDirection: 'row',
@@ -610,17 +724,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#FEF3C7',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#FDE68A',
   },
   currencyBadgeText: {
     fontSize: 13,
-    fontWeight: '800',
-    color: '#111827',
+    fontFamily: fontFamilies.semiBold,
   },
 
   // Filter Pills
@@ -628,6 +739,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 20,
     gap: 8,
+    marginTop: 8,
     marginBottom: 12,
   },
   filterPill: {
@@ -637,7 +749,7 @@ const styles = StyleSheet.create({
   },
   filterPillText: {
     fontSize: 13,
-    fontWeight: '800',
+    fontFamily: fontFamilies.semiBold,
   },
 
   scrollContent: {
@@ -651,11 +763,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFF1F2',
     borderRadius: 16,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#FFE4E6',
   },
   freeCoinsLeft: {
     flexDirection: 'row',
@@ -666,45 +776,55 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },
   freeCoinsTitle: {
     fontSize: 14,
-    fontWeight: '800',
-    color: '#111827',
+    fontFamily: fontFamilies.semiBold,
   },
   freeCoinsSub: {
     fontSize: 11,
-    color: '#6B7280',
-    fontWeight: '500',
+    fontFamily: fontFamilies.medium,
   },
   freeCoinsRewardBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#FFFFFF',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#FDE68A',
   },
   freeCoinsRewardText: {
     fontSize: 11,
-    fontWeight: '900',
-    color: '#D97706',
+    fontFamily: fontFamilies.semiBold,
   },
 
   // Section Wrap
   sectionWrap: {
     gap: 12,
   },
+  sectionHeadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   sectionHeading: {
     fontSize: 17,
-    fontWeight: '900',
-    color: '#111827',
+    fontFamily: fontFamilies.semiBold,
+  },
+  openVaultLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  openVaultLinkText: {
+    fontSize: 12,
+    fontFamily: fontFamilies.medium,
+    color: '#00D2EE',
   },
 
   // Boosts Grid
@@ -715,11 +835,9 @@ const styles = StyleSheet.create({
   },
   boostCard: {
     width: '48%',
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#EEEEEE',
     gap: 6,
     alignItems: 'center',
     shadowColor: '#000000',
@@ -740,25 +858,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#FEF3C7',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
   },
   boostCostText: {
     fontSize: 12,
-    fontWeight: '900',
-    color: '#92400E',
+    fontFamily: fontFamilies.semiBold,
   },
   boostName: {
     fontSize: 14,
-    fontWeight: '800',
-    color: '#111827',
+    fontFamily: fontFamilies.semiBold,
     textAlign: 'center',
   },
   boostDesc: {
     fontSize: 11,
-    color: '#6B7280',
+    fontFamily: fontFamilies.medium,
     textAlign: 'center',
     minHeight: 28,
   },
@@ -773,7 +888,7 @@ const styles = StyleSheet.create({
   boostBuyBtnText: {
     color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: '900',
+    fontFamily: fontFamilies.semiBold,
     letterSpacing: 0.5,
   },
 
@@ -785,11 +900,9 @@ const styles = StyleSheet.create({
   },
   avatarCard: {
     width: '48%',
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#EEEEEE',
     alignItems: 'center',
     gap: 6,
     shadowColor: '#000000',
@@ -813,12 +926,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#FFFFFF',
   },
   avatarName: {
     fontSize: 13,
-    fontWeight: '800',
-    color: '#111827',
+    fontFamily: fontFamilies.semiBold,
     textAlign: 'center',
   },
   avatarPriceRow: {
@@ -828,8 +939,7 @@ const styles = StyleSheet.create({
   },
   avatarPriceText: {
     fontSize: 12,
-    fontWeight: '800',
-    color: '#6B7280',
+    fontFamily: fontFamilies.semiBold,
   },
   avatarActionBtn: {
     width: '100%',
@@ -840,7 +950,7 @@ const styles = StyleSheet.create({
   },
   avatarActionBtnText: {
     fontSize: 12,
-    fontWeight: '900',
+    fontFamily: fontFamilies.semiBold,
     letterSpacing: 0.5,
   },
 
@@ -852,11 +962,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#EEEEEE',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -878,12 +986,11 @@ const styles = StyleSheet.create({
   },
   voucherTitle: {
     fontSize: 14,
-    fontWeight: '800',
-    color: '#111827',
+    fontFamily: fontFamilies.semiBold,
   },
   voucherSub: {
     fontSize: 11,
-    color: '#6B7280',
+    fontFamily: fontFamilies.medium,
   },
   voucherPricePill: {
     flexDirection: 'row',
@@ -893,8 +1000,7 @@ const styles = StyleSheet.create({
   },
   voucherPriceText: {
     fontSize: 12,
-    fontWeight: '800',
-    color: '#0284C7',
+    fontFamily: fontFamilies.semiBold,
   },
   voucherRedeemBtn: {
     backgroundColor: '#E53935',
@@ -905,7 +1011,7 @@ const styles = StyleSheet.create({
   voucherRedeemBtnText: {
     color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: '900',
+    fontFamily: fontFamilies.semiBold,
   },
 
   // Modal Dialog
@@ -918,21 +1024,20 @@ const styles = StyleSheet.create({
   },
   dialogCard: {
     width: '100%',
-    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 24,
     gap: 12,
     alignItems: 'center',
+    borderWidth: 1,
   },
   dialogTitle: {
     fontSize: 18,
-    fontWeight: '900',
-    color: '#111827',
+    fontFamily: fontFamilies.semiBold,
     textAlign: 'center',
   },
   dialogMessage: {
     fontSize: 14,
-    color: '#4B7280',
+    fontFamily: fontFamilies.medium,
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -947,6 +1052,6 @@ const styles = StyleSheet.create({
   dialogBtnText: {
     color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '800',
+    fontFamily: fontFamilies.semiBold,
   },
 });

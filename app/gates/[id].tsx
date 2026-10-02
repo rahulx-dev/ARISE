@@ -7,14 +7,14 @@ import {
   ScrollView,
   Modal,
   ActivityIndicator,
-  Linking,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   ArrowLeft,
   Swords,
-  Shield,
   Clock,
   Check,
   ArrowRight,
@@ -22,8 +22,6 @@ import {
   X,
   AlertTriangle,
   Lock,
-  ExternalLink,
-  CheckCircle2,
   Award,
 } from 'lucide-react-native';
 import { gateSpawnService, SpawnedDungeonGate, SurveyTask } from '../../src/services/gateSpawnService';
@@ -34,6 +32,63 @@ import { useSound } from '../../src/hooks/useSound';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { ManaCrystalIcon } from '../../src/components/ui/ManaCrystalIcon';
 import { fontFamilies } from '../../src/theme/typography';
+import { APP_3D_ASSETS } from '../../src/constants/assets';
+
+const DUNGEON_IMAGES: Record<string, any> = {
+  E: require('../../assets/dungeons/dungeon_e_goblin.jpg'),
+  D: require('../../assets/dungeons/dungeon_d_orc.jpg'),
+  C: require('../../assets/dungeons/dungeon_c_frost.jpg'),
+  B: require('../../assets/dungeons/dungeon_b_crimson.jpg'),
+  A: require('../../assets/dungeons/dungeon_a_shadow.jpg'),
+  S: require('../../assets/dungeons/dungeon_s_dragon.jpg'),
+};
+
+const getRankPillStyle = (rankCode: string, isDark: boolean) => {
+  switch (rankCode) {
+    case 'E':
+      return {
+        bg: isDark ? 'rgba(16, 185, 129, 0.15)' : '#E6FBF5',
+        border: isDark ? 'rgba(16, 185, 129, 0.3)' : '#A7F3D0',
+        text: '#10B981',
+      };
+    case 'D':
+      return {
+        bg: isDark ? 'rgba(10, 132, 255, 0.15)' : '#EFF6FF',
+        border: isDark ? 'rgba(10, 132, 255, 0.3)' : '#BFDBFE',
+        text: '#0A84FF',
+      };
+    case 'C':
+      return {
+        bg: isDark ? 'rgba(139, 92, 246, 0.15)' : '#F5F3FF',
+        border: isDark ? 'rgba(139, 92, 246, 0.3)' : '#DDD6FE',
+        text: '#8B5CF6',
+      };
+    case 'B':
+      return {
+        bg: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7',
+        border: isDark ? 'rgba(245, 158, 11, 0.3)' : '#FDE68A',
+        text: '#D97706',
+      };
+    case 'A':
+      return {
+        bg: isDark ? 'rgba(225, 29, 72, 0.15)' : '#FFF1F2',
+        border: isDark ? 'rgba(225, 29, 72, 0.3)' : '#FECDD3',
+        text: '#E11D48',
+      };
+    case 'S':
+      return {
+        bg: isDark ? 'rgba(168, 85, 247, 0.15)' : '#FAF5FF',
+        border: isDark ? 'rgba(168, 85, 247, 0.3)' : '#E9D5FF',
+        text: '#A855F7',
+      };
+    default:
+      return {
+        bg: isDark ? 'rgba(16, 185, 129, 0.15)' : '#E6FBF5',
+        border: isDark ? 'rgba(16, 185, 129, 0.3)' : '#A7F3D0',
+        text: '#10B981',
+      };
+  }
+};
 
 export default function GateDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -55,6 +110,7 @@ export default function GateDetailsScreen() {
   const [currentQIdx, setCurrentQIdx] = useState<number>(0);
   const [selectedOptIdx, setSelectedOptIdx] = useState<number | null>(null);
   const [isExtracting, setIsExtracting] = useState<boolean>(false);
+  const [timeLeft, setTimeLeft] = useState('3h 12m');
 
   // Solo Leveling Inquest Victory Dialog
   const [clearedModalVisible, setClearedModalVisible] = useState<boolean>(false);
@@ -107,11 +163,32 @@ export default function GateDetailsScreen() {
     fetchGate();
   }, [id, fetchGate]);
 
+  useEffect(() => {
+    if (!gate?.expiresAt) return;
+    const updateTime = () => {
+      const now = Date.now();
+      const diffMs = gate.expiresAt - now;
+      if (diffMs <= 0) {
+        setTimeLeft('0m');
+        return;
+      }
+      const hrs = Math.floor(diffMs / (1000 * 60 * 60));
+      const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+      setTimeLeft(hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`);
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 60000);
+    return () => clearInterval(interval);
+  }, [gate?.expiresAt]);
+
   if (loadingGate && !gate) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: '#000000', justifyContent: 'center', alignItems: 'center' }]} edges={['top', 'bottom']}>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}
+        edges={['top', 'bottom']}
+      >
         <ActivityIndicator size="large" color="#0284C7" />
-        <Text style={{ color: '#8E8E93', fontSize: 13, marginTop: 14, fontWeight: '700' }}>
+        <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 14, fontFamily: fontFamilies.medium }}>
           ENTERING DUNGEON GATE...
         </Text>
       </SafeAreaView>
@@ -120,23 +197,23 @@ export default function GateDetailsScreen() {
 
   if (!gate) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: '#000000' }]} edges={['top', 'bottom']}>
-        <View style={styles.header}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+        <View style={[styles.header, { borderBottomColor: colors.border }]}>
           <TouchableOpacity
-            style={styles.backBtn}
+            style={[styles.backBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
             onPress={() => router.back()}
             activeOpacity={0.8}
           >
-            <ArrowLeft size={20} color="#FFFFFF" />
+            <ArrowLeft size={18} color={colors.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>GATE PROTOCOL</Text>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>GATE PROTOCOL</Text>
           <View style={{ width: 40 }} />
         </View>
 
         <View style={styles.emptyWrap}>
           <AlertTriangle size={40} color="#E11D48" />
-          <Text style={styles.emptyTitle}>DIMENSIONAL GATE NOT FOUND</Text>
-          <Text style={styles.emptySub}>
+          <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>DIMENSIONAL GATE NOT FOUND</Text>
+          <Text style={[styles.emptySub, { color: colors.textSecondary }]}>
             This gate anomaly has either collapsed, its timer expired, or the rift coordinate address has shifted.
           </Text>
           <TouchableOpacity
@@ -158,7 +235,8 @@ export default function GateDetailsScreen() {
   const totalCrystals = gate.missions.reduce((acc, m) => acc + m.hunterCrystals, 0);
   const totalXP = gate.missions.reduce((acc, m) => acc + m.xpReward, 0);
   const completedMissionsCount = gate.missions.filter((m) => m.isCompleted).length;
-  const allMissionsConquered = completedMissionsCount === gate.missions.length;
+
+  const rankStyle = getRankPillStyle(gate.rankCode, isDark);
 
   const handleStartMission = (mission: SurveyTask) => {
     if (isLocked) {
@@ -168,6 +246,11 @@ export default function GateDetailsScreen() {
 
     if (mission.isCompleted) {
       haptics.warning();
+      return;
+    }
+
+    if (mission.surveyUrl) {
+      handleOpenExternalSurvey(mission);
       return;
     }
 
@@ -239,100 +322,113 @@ export default function GateDetailsScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: '#000000' }]} edges={['top', 'bottom']}>
-      {/* Top Navigation Bar */}
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
+      {/* 1. TOP NAVIGATION BAR */}
       <View style={styles.header}>
         <TouchableOpacity
-          style={styles.backBtn}
+          style={[styles.backBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
           onPress={() => {
             haptics.light();
             router.back();
           }}
           activeOpacity={0.8}
         >
-          <ArrowLeft size={20} color="#FFFFFF" />
+          <ArrowLeft size={18} color={colors.textPrimary} />
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
           <Text style={styles.headerTag}>DIMENSIONAL RAID PROTOCOL</Text>
-          <Text style={styles.headerTitle} numberOfLines={1}>{gate.title.toUpperCase()}</Text>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]} numberOfLines={1}>
+            {gate.title}
+          </Text>
         </View>
 
-        <View style={[styles.rankBadge, { borderColor: gate.borderColor, backgroundColor: gate.badgeColor }]}>
-          <Text style={styles.rankBadgeText}>{gate.rankCode}-RANK</Text>
+        <View style={[styles.rankBadge, { backgroundColor: rankStyle.bg, borderColor: rankStyle.border }]}>
+          <Text style={[styles.rankBadgeText, { color: rankStyle.text }]}>{gate.rankCode}-RANK</Text>
         </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Gate Threat Overview Card */}
-        <View style={[styles.card, { borderColor: gate.borderColor }]}>
-          <View style={styles.threatHeader}>
-            <View style={styles.threatPill}>
-              <Shield size={12} color={gate.badgeColor} />
-              <Text style={[styles.threatPillText, { color: gate.badgeColor }]}>
-                {gate.rankCode}-RANK GATE // SECTOR ANOMALY
+        {/* 2. BOSS HERO BANNER CARD (1:1 with Screenshot) */}
+        <View style={styles.heroBannerContainer}>
+          <Image
+            source={DUNGEON_IMAGES[gate.rankCode] || DUNGEON_IMAGES.E}
+            style={styles.heroBannerImage}
+            resizeMode="cover"
+          />
+          <LinearGradient
+            colors={['rgba(0, 0, 0, 0.25)', 'rgba(0, 0, 0, 0.65)', 'rgba(10, 15, 25, 0.94)']}
+            style={styles.heroBannerGradient}
+          >
+            {/* Top Anomaly Tag */}
+            <View style={styles.heroAnomalyTag}>
+              <Clock size={11.5} color="#FFFFFF" />
+              <Text style={styles.heroAnomalyTagText}>
+                {gate.rankCode}-RANK GATE / SECTOR ANOMALY
               </Text>
             </View>
 
-            {isLocked ? (
-              <View style={styles.lockedPill}>
-                <Lock size={12} color="#EF4444" />
-                <Text style={styles.lockedPillText}>REQ. LVL {gate.requiredLevel}</Text>
-              </View>
-            ) : allMissionsConquered ? (
-              <View style={styles.conqueredPill}>
-                <CheckCircle2 size={12} color="#10B981" />
-                <Text style={styles.conqueredPillText}>GATE CLEARED</Text>
-              </View>
-            ) : null}
+            {/* Bottom Boss Info */}
+            <View style={styles.heroBottomInfo}>
+              <Text style={styles.heroBossTitle}>
+                BOSS: {gate.threatName.toUpperCase()}
+              </Text>
+              <Text style={styles.heroLoreText} numberOfLines={2}>
+                {gate.lore}
+              </Text>
+            </View>
+          </LinearGradient>
+        </View>
+
+        {/* 3. GATE YIELD SUMMARY CARD (3 Columns: Bounty Pool, Hunter Share 20%, System XP) */}
+        <View style={[styles.bountyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          {/* Column 1: Gross Bounty Pool */}
+          <View style={styles.bountyCol}>
+            <Image source={APP_3D_ASSETS.goldCoin} style={{ width: 24, height: 24 }} />
+            <View style={styles.bountyTextCol}>
+              <Text style={[styles.bountyLabel, { color: colors.textSecondary }]}>BOUNTY POOL</Text>
+              <Text style={[styles.bountyValINR, { color: '#F59E0B' }]}>₹{totalGrossPayout} INR</Text>
+            </View>
           </View>
 
-          <Text style={styles.threatName}>BOSS: {gate.threatName.toUpperCase()}</Text>
-          <Text style={styles.loreText}>{gate.lore}</Text>
+          <View style={[styles.bountyDivider, { backgroundColor: isDark ? '#1C1E2A' : '#F1F5F9' }]} />
 
-          {/* Gate Yield Summary (80/20 Profit Model Display) */}
-          <View style={styles.bountyRow}>
-            {/* Gross Bounty Pool */}
-            <View style={styles.bountyItem}>
-              <Text style={styles.bountyItemLabel}>BOUNTY POOL</Text>
-              <View style={styles.bountyValRow}>
-                <Text style={[styles.bountyValText, { color: '#F59E0B' }]}>₹{totalGrossPayout} INR</Text>
-              </View>
+          {/* Column 2: Hunter Share (20%) */}
+          <View style={styles.bountyCol}>
+            <Image source={APP_3D_ASSETS.manaCrystal} style={{ width: 22, height: 22 }} />
+            <View style={styles.bountyTextCol}>
+              <Text style={[styles.bountyLabel, { color: colors.textSecondary }]}>HUNTER SHARE (20%)</Text>
+              <Text style={[styles.bountyValCrystals, { color: '#0A84FF' }]}>+{totalCrystals.toLocaleString()}</Text>
             </View>
+          </View>
 
-            <View style={styles.bountyItemDivider} />
+          <View style={[styles.bountyDivider, { backgroundColor: isDark ? '#1C1E2A' : '#F1F5F9' }]} />
 
-            {/* Hunter Mana Crystals (20% share) */}
-            <View style={styles.bountyItem}>
-              <Text style={styles.bountyItemLabel}>HUNTER SHARE (20%)</Text>
-              <View style={styles.bountyValRow}>
-                <ManaCrystalIcon size={16} color="#00D2EE" secondaryColor="#0284C7" />
-                <Text style={styles.bountyValText}>+{totalCrystals.toLocaleString()}</Text>
-              </View>
-            </View>
-
-            <View style={styles.bountyItemDivider} />
-
-            {/* System XP */}
-            <View style={styles.bountyItem}>
-              <Text style={styles.bountyItemLabel}>SYSTEM XP</Text>
-              <View style={styles.bountyValRow}>
-                <Zap size={15} color="#E11D48" />
-                <Text style={[styles.bountyValText, { color: '#E11D48' }]}>+{totalXP.toLocaleString()}</Text>
-              </View>
+          {/* Column 3: System XP */}
+          <View style={styles.bountyCol}>
+            <Zap size={20} color="#EF4444" fill="#EF4444" />
+            <View style={styles.bountyTextCol}>
+              <Text style={[styles.bountyLabel, { color: colors.textSecondary }]}>SYSTEM XP</Text>
+              <Text style={[styles.bountyValXP, { color: '#EF4444' }]}>+{totalXP.toLocaleString()}</Text>
             </View>
           </View>
         </View>
 
-        {/* Missions Section Header */}
+        {/* 4. SECTION HEADER (SURVEY RECON DIRECTIVES) */}
         <View style={styles.sectionHeaderRow}>
-          <Swords size={16} color="#E11D48" />
-          <Text style={styles.sectionTitle}>
-            SURVEY RECON DIRECTIVES ({completedMissionsCount}/{gate.missions.length})
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Swords size={18} color="#EF4444" />
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+              SURVEY RECON DIRECTIVES ({completedMissionsCount}/{gate.missions.length})
+            </Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Clock size={12} color="#8E8E93" />
+            <Text style={styles.resetTimeText}>Resets in {timeLeft}</Text>
+          </View>
         </View>
 
-        {/* Mission Directives List */}
+        {/* 5. MISSION DIRECTIVES LIST */}
         <View style={styles.missionList}>
           {gate.missions.map((mission, idx) => {
             const isConquered = !!mission.isCompleted;
@@ -342,72 +438,72 @@ export default function GateDetailsScreen() {
                 key={mission.id}
                 style={[
                   styles.missionCard,
-                  isConquered && { borderColor: '#10B981' },
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                  },
+                  isConquered && { opacity: 0.75 },
                 ]}
               >
                 {/* Mission Header */}
-                <View style={styles.missionCardTop}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <View style={styles.missionIndexBadge}>
-                      <Text style={styles.missionIndexText}>MISSION {idx + 1}</Text>
+                <View style={styles.missionTopRow}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <View style={[styles.missionIndexPill, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FFF1F2' }]}>
+                      <Text style={styles.missionIndexPillText}>MISSION {idx + 1}</Text>
                     </View>
-                    <View style={styles.providerBadge}>
-                      <Text style={styles.providerBadgeText}>{mission.provider}</Text>
+                    <View style={[styles.providerPill, { backgroundColor: isDark ? 'rgba(37, 99, 235, 0.15)' : '#EFF6FF' }]}>
+                      <Text style={styles.providerPillText}>{mission.provider}</Text>
                     </View>
                   </View>
-
-                  <View style={styles.missionDurationBadge}>
-                    <Clock size={11} color="#8E8E93" />
-                    <Text style={styles.missionDurationText}>{mission.durationLabel}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Clock size={12} color="#8E8E93" />
+                    <Text style={styles.missionDurationText}>~ {mission.durationLabel || '3 Mins'}</Text>
                   </View>
                 </View>
 
-                <Text style={styles.missionTitle}>{mission.title}</Text>
-                <Text style={styles.missionTopic}>Topic: {mission.topic}</Text>
+                {/* Mission Title & Topic */}
+                <Text style={[styles.missionTitle, { color: colors.textPrimary }]}>
+                  {mission.title}
+                </Text>
+                <Text style={[styles.missionTopic, { color: colors.textSecondary }]}>
+                  Topic: {mission.topic}
+                </Text>
 
-                {/* Mission Footer */}
-                <View style={styles.missionFooter}>
-                  <View style={styles.missionRewards}>
-                    <View style={styles.rewardPill}>
-                      <Text style={styles.bountyCutLabel}>Bounty: ₹{mission.grossPayoutInr}</Text>
+                {/* Mission Action Footer */}
+                <View style={styles.missionActionRow}>
+                  {/* Left: Rewards Badges */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <View style={[styles.rewardBadgePill, { backgroundColor: isDark ? '#141E2D' : '#EFF6FF' }]}>
+                      <ManaCrystalIcon size={13} color="#0284C7" secondaryColor="#0284C7" />
+                      <Text style={styles.crystalRewardText}>+{mission.hunterCrystals}</Text>
                     </View>
-                    <View style={styles.rewardPill}>
-                      <ManaCrystalIcon size={13} color="#00D2EE" secondaryColor="#0284C7" />
-                      <Text style={styles.rewardPillText}>+{mission.hunterCrystals}</Text>
-                    </View>
-                    <View style={styles.rewardPill}>
-                      <Zap size={13} color="#E11D48" />
-                      <Text style={[styles.rewardPillText, { color: '#E11D48' }]}>+{mission.xpReward} XP</Text>
+                    <View style={[styles.rewardBadgePill, { backgroundColor: isDark ? '#261218' : '#FFF1F2' }]}>
+                      <Zap size={13} color="#EF4444" fill="#EF4444" />
+                      <Text style={styles.xpRewardText}>+{mission.xpReward} XP</Text>
                     </View>
                   </View>
 
-                  <TouchableOpacity
-                    style={[
-                      styles.raidBtn,
-                      isConquered && styles.raidBtnCleared,
-                      isLocked && styles.raidBtnLocked,
-                    ]}
-                    onPress={() => handleStartMission(mission)}
-                    disabled={isConquered || isLocked}
-                    activeOpacity={0.85}
-                  >
-                    {isConquered ? (
-                      <>
-                        <Check size={14} color="#10B981" />
-                        <Text style={[styles.raidBtnText, { color: '#10B981' }]}>CLEARED</Text>
-                      </>
-                    ) : isLocked ? (
-                      <>
-                        <Lock size={14} color="#8E8E93" />
-                        <Text style={[styles.raidBtnText, { color: '#8E8E93' }]}>LOCKED</Text>
-                      </>
-                    ) : (
-                      <>
-                        <Text style={styles.raidBtnText}>START INQUEST</Text>
-                        <ArrowRight size={14} color="#FFFFFF" />
-                      </>
-                    )}
-                  </TouchableOpacity>
+                  {/* Right: CTA Button */}
+                  {isConquered ? (
+                    <View style={[styles.conqueredPill, { backgroundColor: isDark ? '#06281A' : '#ECFDF5', borderColor: isDark ? '#0D4A32' : '#A7F3D0' }]}>
+                      <Check size={12} color="#10B981" />
+                      <Text style={styles.conqueredPillText}>CLEARED</Text>
+                    </View>
+                  ) : isLocked ? (
+                    <View style={[styles.lockedPill, { backgroundColor: isDark ? '#1E202C' : '#F3F4F6' }]}>
+                      <Lock size={12} color="#8E8E93" />
+                      <Text style={styles.lockedPillText}>LOCKED</Text>
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.startInquestBtn}
+                      onPress={() => handleStartMission(mission)}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.startInquestBtnText}>Start Inquest</Text>
+                      <ArrowRight size={13} color="#FFFFFF" />
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
             );
@@ -417,84 +513,69 @@ export default function GateDetailsScreen() {
         <View style={{ height: 40 }} />
       </ScrollView>
 
-
-
-      {/* Interactive In-App Question Inquest Modal */}
+      {/* 6. INTERACTIVE IN-APP QUESTION MODAL */}
       <Modal visible={activeMission !== null} transparent animationType="slide">
         <View style={styles.modalBackdrop}>
           <SafeAreaView style={styles.modalSafe}>
             {activeMission && (
-              <View style={styles.modalContent}>
+              <View style={[styles.modalContent, { backgroundColor: colors.card, borderColor: isDark ? '#E11D48' : '#E5E7EB' }]}>
                 {/* Header */}
                 <View style={styles.modalHeader}>
                   <View style={{ flex: 1, gap: 2 }}>
                     <Text style={styles.modalStepTag}>
                       [ RECON INQUEST // QUESTION {currentQIdx + 1} OF {activeMission.questions.length} ]
                     </Text>
-                    <Text style={styles.modalMissionTitle} numberOfLines={1}>
+                    <Text style={[styles.modalMissionTitle, { color: colors.textPrimary }]} numberOfLines={1}>
                       {activeMission.title}
                     </Text>
                   </View>
                   <TouchableOpacity
-                    style={styles.closeBtn}
+                    style={[styles.closeBtn, { backgroundColor: isDark ? '#161926' : '#F1F5F9' }]}
                     onPress={() => {
                       haptics.light();
                       setActiveMission(null);
                     }}
                     activeOpacity={0.8}
                   >
-                    <X size={16} color="#8E8E93" />
+                    <X size={16} color={colors.textSecondary} />
                   </TouchableOpacity>
                 </View>
 
                 {/* Question Box */}
-                <View style={styles.questionBox}>
-                  <Text style={styles.questionText}>
-                    {activeMission.questions[currentQIdx]?.question || 'Answer the following inquest question:'}
+                <View style={[styles.questionBox, { backgroundColor: isDark ? '#111218' : '#F8F9FA', borderColor: colors.border }]}>
+                  <Text style={[styles.questionText, { color: colors.textPrimary }]}>
+                    {activeMission.questions[currentQIdx]?.question}
                   </Text>
                 </View>
 
                 {/* Options List */}
                 <View style={styles.optionsList}>
-                  {(activeMission.questions[currentQIdx]?.options || []).map((opt, oIdx) => {
-                    const isSelected = selectedOptIdx === oIdx;
+                  {activeMission.questions[currentQIdx]?.options.map((option, optIdx) => {
+                    const isSelected = selectedOptIdx === optIdx;
+
                     return (
                       <TouchableOpacity
-                        key={oIdx}
-                        style={[styles.optionCard, isSelected && styles.optionCardSelected]}
-                        onPress={() => handleSelectOption(oIdx)}
-                        activeOpacity={0.85}
+                        key={optIdx}
+                        style={[
+                          styles.optionCard,
+                          { backgroundColor: isDark ? '#111218' : '#F8F9FA', borderColor: colors.border },
+                          isSelected && (isDark ? styles.optionCardSelectedDark : styles.optionCardSelectedLight),
+                        ]}
+                        onPress={() => handleSelectOption(optIdx)}
+                        activeOpacity={0.8}
                       >
                         <View style={[styles.radioDot, isSelected && styles.radioDotSelected]}>
                           {isSelected && <View style={styles.radioDotInner} />}
                         </View>
-                        <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
-                          {opt}
+                        <Text style={[styles.optionText, { color: colors.textPrimary }, isSelected && styles.optionTextSelected]}>
+                          {option}
                         </Text>
                       </TouchableOpacity>
                     );
                   })}
                 </View>
 
-                {/* External Provider Link */}
-                {activeMission.surveyUrl && (
-                  <TouchableOpacity
-                    style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 4 }}
-                    onPress={() => {
-                      const m = activeMission;
-                      setActiveMission(null);
-                      handleOpenExternalSurvey(m);
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <ExternalLink size={12} color="#00D2EE" />
-                    <Text style={{ fontSize: 11, color: '#00D2EE', fontWeight: '700' }}>
-                      Or switch to live {activeMission.provider} Portal
-                    </Text>
-                  </TouchableOpacity>
-                )}
-
-                {/* Confirm / Next Button */}
+                {/* Confirm Action Button */}
                 <TouchableOpacity
                   style={[
                     styles.confirmBtn,
@@ -518,23 +599,23 @@ export default function GateDetailsScreen() {
         </View>
       </Modal>
 
-      {/* Solo Leveling Extraction Victory Modal */}
+      {/* 7. VICTORY REWARDS MODAL */}
       <Modal visible={clearedModalVisible} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <SafeAreaView style={styles.modalSafe}>
-            <View style={styles.victoryCard}>
+            <View style={[styles.victoryCard, { backgroundColor: colors.card, borderColor: '#00D2EE' }]}>
               <View style={styles.victoryTagRow}>
                 <Award size={14} color="#00D2EE" />
                 <Text style={styles.victoryTagText}>[ SYSTEM NOTIFICATION // RECON INQUEST CLEARED ]</Text>
               </View>
 
-              <Text style={styles.victoryTitle}>MANA CRYSTALS EXTRACTED!</Text>
-              <Text style={styles.victorySub}>
+              <Text style={[styles.victoryTitle, { color: colors.textPrimary }]}>MANA CRYSTALS EXTRACTED!</Text>
+              <Text style={[styles.victorySub, { color: colors.textSecondary }]}>
                 Intel reconnaissance successfully submitted. Market bounty unlocked and credited to your hunter profile.
               </Text>
 
               {/* Rewards Acquired */}
-              <View style={styles.victoryRewardBox}>
+              <View style={[styles.victoryRewardBox, { backgroundColor: isDark ? '#0B1120' : '#EFF6FF', borderColor: '#0284C7' }]}>
                 <Text style={styles.victoryRewardBoxLabel}>EXTRACTION REWARDS:</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -563,7 +644,7 @@ export default function GateDetailsScreen() {
         </View>
       </Modal>
 
-      {/* Real In-App Survey WebView Modal */}
+      {/* 8. IN-APP SURVEY WEBVIEW MODAL */}
       <InAppSurveyModal
         visible={inAppSurvey.visible}
         url={inAppSurvey.url}
@@ -613,17 +694,17 @@ export default function GateDetailsScreen() {
         }}
       />
 
-      {/* Inquest Aborted/Incomplete Notice Modal */}
+      {/* 9. INQUEST NOTICE MODAL */}
       <Modal visible={inquestNotice.visible} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <SafeAreaView style={styles.modalSafe}>
-            <View style={[styles.victoryCard, { borderColor: '#EF4444' }]}>
+            <View style={[styles.victoryCard, { backgroundColor: colors.card, borderColor: '#EF4444' }]}>
               <View style={styles.victoryTagRow}>
                 <AlertTriangle size={16} color="#EF4444" />
                 <Text style={[styles.victoryTagText, { color: '#EF4444' }]}>[ SYSTEM NOTICE // {inquestNotice.title} ]</Text>
               </View>
 
-              <Text style={styles.victorySub}>{inquestNotice.message}</Text>
+              <Text style={[styles.victorySub, { color: colors.textSecondary }]}>{inquestNotice.message}</Text>
 
               <TouchableOpacity
                 style={[styles.victoryConfirmBtn, { backgroundColor: '#1E293B' }]}
@@ -643,346 +724,331 @@ export default function GateDetailsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
-  },
-  loadingWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-    gap: 12,
-  },
-  loadingText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#0284C7',
-    letterSpacing: 0.8,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1A1C26',
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 12,
   },
   backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#111218',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#222430',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   headerCenter: {
     flex: 1,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
+    gap: 2,
   },
   headerTag: {
     fontFamily: fontFamilies.medium,
-    fontSize: 9,
+    fontSize: 9.5,
     fontWeight: '500',
-    color: '#E11D48',
+    color: '#8E8E93',
     letterSpacing: 0.6,
   },
   headerTitle: {
     fontFamily: fontFamilies.semiBold,
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
-    letterSpacing: 0.2,
+    letterSpacing: -0.2,
   },
   rankBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 100,
     borderWidth: 1,
   },
   rankBadgeText: {
     fontFamily: fontFamilies.semiBold,
-    fontSize: 10.5,
+    fontSize: 11,
     fontWeight: '600',
-    color: '#000000',
-    letterSpacing: 0.4,
+    letterSpacing: 0.3,
   },
   scrollContent: {
-    padding: 16,
-    gap: 16,
+    paddingHorizontal: 18,
+    gap: 14,
   },
-  card: {
-    backgroundColor: '#111218',
-    borderRadius: 14,
+
+  // 1. Hero Banner Container
+  heroBannerContainer: {
+    width: '100%',
+    height: 195,
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  heroBannerImage: {
+    width: '100%',
+    height: '100%',
+    position: 'absolute',
+  },
+  heroBannerGradient: {
+    flex: 1,
+    justifyContent: 'space-between',
+    padding: 16,
+  },
+  heroAnomalyTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
     borderWidth: 1,
-    padding: 16,
-    gap: 12,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 100,
+    alignSelf: 'flex-start',
   },
-  threatHeader: {
+  heroAnomalyTagText: {
+    fontFamily: fontFamilies.medium,
+    fontSize: 10,
+    fontWeight: '500',
+    color: '#FFFFFF',
+    letterSpacing: 0.4,
+  },
+  heroBottomInfo: {
+    gap: 4,
+  },
+  heroBossTitle: {
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    letterSpacing: -0.1,
+  },
+  heroLoreText: {
+    fontFamily: fontFamilies.regular,
+    fontSize: 11.5,
+    fontWeight: '400',
+    color: 'rgba(255, 255, 255, 0.88)',
+    lineHeight: 16,
+  },
+
+  // 2. Bounty / Yield Summary Card
+  bountyCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  threatPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  threatPillText: {
-    fontFamily: fontFamilies.medium,
-    fontSize: 10,
-    fontWeight: '500',
-    letterSpacing: 0.3,
-  },
-  lockedPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  lockedPillText: {
-    fontFamily: fontFamilies.medium,
-    fontSize: 10,
-    fontWeight: '500',
-    color: '#EF4444',
-    letterSpacing: 0.3,
-  },
-  conqueredPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  conqueredPillText: {
-    fontFamily: fontFamilies.medium,
-    fontSize: 10,
-    fontWeight: '500',
-    color: '#10B981',
-    letterSpacing: 0.3,
-  },
-  threatName: {
-    fontFamily: fontFamilies.semiBold,
-    fontSize: 15.5,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    letterSpacing: 0.2,
-  },
-  loreText: {
-    fontFamily: fontFamilies.regular,
-    fontSize: 12,
-    color: '#8E8E93',
-    lineHeight: 18,
-    fontWeight: '400',
-  },
-  bountyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0B0D14',
-    borderRadius: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#1C1E2A',
-    padding: 12,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  bountyItem: {
+  bountyCol: {
     flex: 1,
-    gap: 4,
-  },
-  bountyItemDivider: {
-    width: 1,
-    height: 30,
-    backgroundColor: '#222430',
-    marginHorizontal: 8,
-  },
-  bountyItemLabel: {
-    fontFamily: fontFamilies.medium,
-    fontSize: 8.5,
-    fontWeight: '500',
-    color: '#8E8E93',
-    letterSpacing: 0.3,
-  },
-  bountyValRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  bountyValText: {
-    fontFamily: fontFamilies.semiBold,
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#00D2EE',
-    fontVariant: ['tabular-nums'],
-  },
-  sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  bountyTextCol: {
+    gap: 2,
+  },
+  bountyLabel: {
+    fontFamily: fontFamilies.medium,
+    fontSize: 8.5,
+    fontWeight: '500',
+    letterSpacing: 0.3,
+  },
+  bountyValINR: {
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  bountyValCrystals: {
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  bountyValXP: {
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  bountyDivider: {
+    width: 1,
+    height: 30,
+    marginHorizontal: 4,
+  },
+
+  // 3. Section Header
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginTop: 4,
   },
   sectionTitle: {
     fontFamily: fontFamilies.semiBold,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
-    color: '#FFFFFF',
-    letterSpacing: 0.5,
+    letterSpacing: -0.1,
   },
+  resetTimeText: {
+    fontFamily: fontFamilies.regular,
+    fontSize: 11.5,
+    fontWeight: '400',
+    color: '#8E8E93',
+  },
+
+  // 4. Mission Directives List
   missionList: {
-    gap: 10,
+    gap: 12,
   },
   missionCard: {
-    backgroundColor: '#111218',
-    borderRadius: 12,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#1C1E2A',
-    padding: 14,
-    gap: 8,
+    padding: 16,
+    gap: 9,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  missionCardTop: {
+  missionTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  missionIndexBadge: {
-    backgroundColor: 'rgba(225, 29, 72, 0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
+  missionIndexPill: {
+    paddingHorizontal: 9,
+    paddingVertical: 3.5,
+    borderRadius: 100,
   },
-  missionIndexText: {
+  missionIndexPillText: {
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#EF4444',
+    letterSpacing: 0.2,
+  },
+  providerPill: {
+    paddingHorizontal: 9,
+    paddingVertical: 3.5,
+    borderRadius: 100,
+  },
+  providerPillText: {
     fontFamily: fontFamilies.medium,
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '500',
-    color: '#E11D48',
-    letterSpacing: 0.3,
-  },
-  providerBadge: {
-    backgroundColor: 'rgba(2, 132, 199, 0.15)',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(2, 132, 199, 0.3)',
-  },
-  providerBadgeText: {
-    fontFamily: fontFamilies.medium,
-    fontSize: 9,
-    fontWeight: '500',
-    color: '#0284C7',
-    letterSpacing: 0.3,
-  },
-  missionDurationBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+    color: '#2563EB',
   },
   missionDurationText: {
     fontFamily: fontFamilies.regular,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '400',
     color: '#8E8E93',
   },
   missionTitle: {
     fontFamily: fontFamilies.semiBold,
-    fontSize: 13.5,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#FFFFFF',
+    letterSpacing: -0.2,
   },
   missionTopic: {
     fontFamily: fontFamilies.regular,
-    fontSize: 11,
-    color: '#8E8E93',
+    fontSize: 12,
     fontWeight: '400',
   },
-  externalSurveyBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 6,
-    backgroundColor: 'rgba(0, 210, 238, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 210, 238, 0.3)',
-    alignSelf: 'flex-start',
-  },
-  externalSurveyBtnText: {
-    fontFamily: fontFamilies.medium,
-    fontSize: 10,
-    fontWeight: '500',
-    color: '#00D2EE',
-    letterSpacing: 0.3,
-  },
-  missionFooter: {
+  missionActionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 6,
-    borderTopWidth: 1,
-    borderTopColor: '#1A1C26',
     marginTop: 4,
   },
-  missionRewards: {
+  rewardBadgePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 100,
   },
-  rewardPill: {
+  crystalRewardText: {
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: '#0A84FF',
+  },
+  xpRewardText: {
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: '#EF4444',
+  },
+  startInquestBtn: {
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 16,
+    paddingVertical: 8.5,
+    borderRadius: 100,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#0B0D14',
-    paddingHorizontal: 7,
-    paddingVertical: 4,
-    borderRadius: 6,
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  startInquestBtnText: {
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    letterSpacing: 0.1,
+  },
+  conqueredPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 100,
     borderWidth: 1,
-    borderColor: '#1C1E2A',
   },
-  bountyCutLabel: {
-    fontFamily: fontFamilies.medium,
-    fontSize: 9,
-    fontWeight: '500',
-    color: '#F59E0B',
-  },
-  rewardPillText: {
+  conqueredPillText: {
     fontFamily: fontFamilies.semiBold,
     fontSize: 11,
     fontWeight: '600',
-    color: '#00D2EE',
+    color: '#10B981',
   },
-  raidBtn: {
+  lockedPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#E11D48',
+    gap: 4,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingVertical: 6,
+    borderRadius: 100,
   },
-  raidBtnCleared: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    borderWidth: 1,
-    borderColor: '#10B981',
-  },
-  raidBtnLocked: {
-    backgroundColor: '#1E202C',
-  },
-  raidBtnText: {
+  lockedPillText: {
     fontFamily: fontFamilies.medium,
-    fontSize: 10.5,
+    fontSize: 11,
     fontWeight: '500',
-    color: '#FFFFFF',
-    letterSpacing: 0.3,
+    color: '#8E8E93',
   },
+
+  // Empty State
   emptyWrap: {
     flex: 1,
     alignItems: 'center',
@@ -994,23 +1060,21 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.semiBold,
     fontSize: 15,
     fontWeight: '600',
-    color: '#FFFFFF',
     letterSpacing: 0.3,
     textAlign: 'center',
   },
   emptySub: {
     fontFamily: fontFamilies.regular,
     fontSize: 12,
-    color: '#8E8E93',
     textAlign: 'center',
     lineHeight: 18,
     fontWeight: '400',
   },
   returnBtn: {
-    backgroundColor: '#E11D48',
+    backgroundColor: '#EF4444',
     paddingHorizontal: 20,
     paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: 100,
     marginTop: 8,
   },
   returnBtnText: {
@@ -1020,9 +1084,11 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: 0.4,
   },
+
+  // In-App Question Modal
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.88)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     padding: 16,
   },
@@ -1031,12 +1097,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   modalContent: {
-    backgroundColor: '#0B0D14',
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#E11D48',
-    padding: 18,
+    padding: 20,
     gap: 14,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 6,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1045,37 +1114,32 @@ const styles = StyleSheet.create({
   },
   modalStepTag: {
     fontFamily: fontFamilies.medium,
-    fontSize: 9,
+    fontSize: 9.5,
     fontWeight: '500',
-    color: '#E11D48',
+    color: '#EF4444',
     letterSpacing: 0.4,
   },
   modalMissionTitle: {
     fontFamily: fontFamilies.semiBold,
-    fontSize: 13.5,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
   closeBtn: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#161926',
     alignItems: 'center',
     justifyContent: 'center',
   },
   questionBox: {
-    backgroundColor: '#111218',
     padding: 14,
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#1C1E2A',
   },
   questionText: {
     fontFamily: fontFamilies.semiBold,
-    fontSize: 13,
+    fontSize: 13.5,
     fontWeight: '600',
-    color: '#FFFFFF',
     lineHeight: 20,
   },
   optionsList: {
@@ -1085,15 +1149,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#111218',
     padding: 12,
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#1C1E2A',
   },
-  optionCardSelected: {
-    borderColor: '#E11D48',
-    backgroundColor: 'rgba(225, 29, 72, 0.1)',
+  optionCardSelectedDark: {
+    borderColor: '#EF4444',
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+  },
+  optionCardSelectedLight: {
+    borderColor: '#EF4444',
+    backgroundColor: '#FFF1F2',
   },
   radioDot: {
     width: 18,
@@ -1105,35 +1171,35 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   radioDotSelected: {
-    borderColor: '#E11D48',
+    borderColor: '#EF4444',
   },
   radioDotInner: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#E11D48',
+    backgroundColor: '#EF4444',
   },
   optionText: {
     fontFamily: fontFamilies.regular,
     fontSize: 12,
     fontWeight: '400',
-    color: '#8E8E93',
     flex: 1,
   },
   optionTextSelected: {
-    color: '#FFFFFF',
-    fontWeight: '600',
     fontFamily: fontFamilies.semiBold,
+    fontWeight: '600',
+    color: '#EF4444',
   },
   confirmBtn: {
-    backgroundColor: '#E11D48',
-    borderRadius: 10,
+    backgroundColor: '#EF4444',
+    borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   confirmBtnDisabled: {
-    backgroundColor: '#2A2D3D',
+    backgroundColor: '#94A3B8',
+    opacity: 0.6,
   },
   confirmBtnText: {
     fontFamily: fontFamilies.medium,
@@ -1145,10 +1211,8 @@ const styles = StyleSheet.create({
 
   // Victory Card Modal
   victoryCard: {
-    backgroundColor: '#05070D',
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#00D2EE',
     padding: 20,
     gap: 14,
   },
@@ -1168,21 +1232,17 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.semiBold,
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
     letterSpacing: 0.3,
   },
   victorySub: {
     fontFamily: fontFamilies.regular,
     fontSize: 11.5,
-    color: '#8E8E93',
     lineHeight: 18,
     fontWeight: '400',
   },
   victoryRewardBox: {
-    backgroundColor: '#0B1120',
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#0284C7',
     padding: 14,
     gap: 8,
   },
@@ -1201,7 +1261,7 @@ const styles = StyleSheet.create({
   },
   victoryConfirmBtn: {
     backgroundColor: '#0284C7',
-    borderRadius: 10,
+    borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
