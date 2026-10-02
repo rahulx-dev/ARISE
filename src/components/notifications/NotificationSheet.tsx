@@ -9,6 +9,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { Bell, X, Sparkle, Trophy, Flame, ShieldWarning } from 'phosphor-react-native';
+import { AnimatedStreakFlame } from '../ui/AnimatedStreakFlame';
 import { useTheme } from '../../hooks/useTheme';
 import { useHaptics } from '../../hooks/useHaptics';
 
@@ -31,7 +32,7 @@ const SAMPLE_NOTIFICATIONS = [
     title: 'Streak Preserved!',
     desc: 'You logged in and maintained your 5-day awakening streak.',
     time: '2h ago',
-    icon: Flame,
+    icon: AnimatedStreakFlame,
     iconColor: '#F59E0B',
   },
   {

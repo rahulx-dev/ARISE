@@ -68,11 +68,15 @@ export default function QuestCompleteScreen() {
 
   const [multiplierClaimed, setMultiplierClaimed] = useState(false);
 
-  const coins = parseInt(earnedCoins || '20', 10);
-  const xp = parseInt(earnedXP || '100', 10);
-  const reps = parseInt(completedReps || '20', 10);
-  const targetNum = parseInt(target || '20', 10);
-  const duration = parseInt(durationSeconds || '60', 10);
+  const parseNonNegativeInt = (value: string | undefined, fallback: number) => {
+    const parsed = Number.parseInt(value || '', 10);
+    return Number.isFinite(parsed) ? Math.max(0, parsed) : fallback;
+  };
+  const coins = parseNonNegativeInt(earnedCoins, 20);
+  const xp = parseNonNegativeInt(earnedXP, 100);
+  const reps = parseNonNegativeInt(completedReps, 20);
+  const targetNum = Math.max(1, parseNonNegativeInt(target, 20));
+  const duration = parseNonNegativeInt(durationSeconds, 60);
 
   const rawType = exerciseType?.toUpperCase() || 'PUSHUP';
   const isFocusCompletion = rawType === 'DEEP_FOCUS' || rawType === 'FOCUS';

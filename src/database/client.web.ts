@@ -39,6 +39,9 @@ const initialMockState: Record<string, any[]> = {
   focus_session: [],
   progress_photo: [],
   notification: [],
+  crystal_redemption: [],
+  crystal_transaction: [],
+  sync_queue: [],
   app_restriction: [],
   settings: [
     {

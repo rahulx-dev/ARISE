@@ -65,11 +65,12 @@ CREATE INDEX IF NOT EXISTS idx_user_cloud_saves_updated ON public.user_cloud_sav
 -- Allow public access for client cloud saves
 ALTER TABLE public.user_cloud_saves ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Allow public read-write on user_cloud_saves"
+DROP POLICY IF EXISTS "Allow public read-write on user_cloud_saves" ON public.user_cloud_saves;
+CREATE POLICY "Allow owner read-write on user_cloud_saves"
 ON public.user_cloud_saves
 FOR ALL
-USING (true)
-WITH CHECK (true);
+USING (lower(email) = lower(COALESCE(auth.jwt() ->> 'email', '')))
+WITH CHECK (lower(email) = lower(COALESCE(auth.jwt() ->> 'email', '')));
 
 -- 4. Public Crystal & Hunter Leaderboard Projection (PUBLIC READ)
 CREATE TABLE IF NOT EXISTS public.crystal_leaderboard (
@@ -86,20 +87,47 @@ CREATE TABLE IF NOT EXISTS public.crystal_leaderboard (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW())
 );
 
+-- Existing installations may have an older leaderboard shape.  Add the
+-- projection columns before creating indexes or replacing RPCs that reference
+-- them; this is safe and preserves existing rows.
+ALTER TABLE public.crystal_leaderboard
+    ADD COLUMN IF NOT EXISTS name TEXT NOT NULL DEFAULT 'Warrior',
+    ADD COLUMN IF NOT EXISTS avatar_icon TEXT NOT NULL DEFAULT 'img_pfp_01',
+    ADD COLUMN IF NOT EXISTS rank_code TEXT NOT NULL DEFAULT 'E',
+    ADD COLUMN IF NOT EXISTS level INTEGER NOT NULL DEFAULT 1,
+    ADD COLUMN IF NOT EXISTS streak INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS total_reps INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS total_xp INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS crystals_mined INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS title TEXT NOT NULL DEFAULT 'Hunter',
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW());
+
 CREATE INDEX IF NOT EXISTS idx_crystal_leaderboard_crystals ON public.crystal_leaderboard (crystals_mined DESC);
 CREATE INDEX IF NOT EXISTS idx_crystal_leaderboard_streak ON public.crystal_leaderboard (streak DESC);
 CREATE INDEX IF NOT EXISTS idx_crystal_leaderboard_reps ON public.crystal_leaderboard (total_reps DESC);
 CREATE INDEX IF NOT EXISTS idx_crystal_leaderboard_xp ON public.crystal_leaderboard (total_xp DESC);
 
 -- Enable Supabase Realtime publication for leaderboard projection
-ALTER PUBLICATION supabase_realtime ADD TABLE public.crystal_leaderboard;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_publication_tables
+        WHERE pubname = 'supabase_realtime'
+          AND schemaname = 'public'
+          AND tablename = 'crystal_leaderboard'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.crystal_leaderboard;
+    END IF;
+END
+$$;
 
 -- 5. Crystal Redemptions Table (Mana Crystal Cashout Requests)
 CREATE TABLE IF NOT EXISTS public.crystal_redemptions (
     id BIGSERIAL PRIMARY KEY,
     user_id TEXT NOT NULL,
-    amount_inr INTEGER NOT NULL CHECK (amount_inr >= 10),
-    crystals_spent INTEGER NOT NULL CHECK (crystals_spent >= 100),
+    amount_inr INTEGER NOT NULL CHECK (amount_inr >= 25),
+    crystals_spent INTEGER NOT NULL CHECK (crystals_spent >= 250),
     method TEXT NOT NULL CHECK (method IN ('UPI', 'AMAZON', 'GOOGLE_PLAY', 'COINS')),
     destination TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'PROCESSING', 'PAID', 'REJECTED')),
@@ -108,6 +136,20 @@ CREATE TABLE IF NOT EXISTS public.crystal_redemptions (
     paid_at TIMESTAMPTZ,
     admin_notes TEXT
 );
+
+ALTER TABLE public.crystal_redemptions
+    ADD COLUMN IF NOT EXISTS request_id TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_crystal_redemptions_request
+    ON public.crystal_redemptions (user_id, request_id)
+    WHERE request_id IS NOT NULL;
+ALTER TABLE public.crystal_redemptions
+    DROP CONSTRAINT IF EXISTS crystal_redemptions_minimum_amount;
+ALTER TABLE public.crystal_redemptions
+    ADD CONSTRAINT crystal_redemptions_minimum_amount CHECK (amount_inr >= 25);
+ALTER TABLE public.crystal_redemptions
+    DROP CONSTRAINT IF EXISTS crystal_redemptions_minimum_crystals;
+ALTER TABLE public.crystal_redemptions
+    ADD CONSTRAINT crystal_redemptions_minimum_crystals CHECK (crystals_spent >= 250);
 
 CREATE INDEX IF NOT EXISTS idx_crystal_redemptions_user ON public.crystal_redemptions (user_id);
 CREATE INDEX IF NOT EXISTS idx_crystal_redemptions_status ON public.crystal_redemptions (status);
@@ -120,12 +162,18 @@ CREATE TABLE IF NOT EXISTS public.payout_requests (
     amount_inr NUMERIC(10, 2) NOT NULL CHECK (amount_inr >= 10),
     coins_spent INTEGER NOT NULL CHECK (coins_spent >= 1000),
     upi_id TEXT NOT NULL,
+    request_id TEXT,
     status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'PROCESSING', 'PAID', 'REJECTED')),
     rejection_reason TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW()),
     paid_at TIMESTAMPTZ,
     admin_notes TEXT
 );
+ALTER TABLE public.payout_requests
+    ADD COLUMN IF NOT EXISTS request_id TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_payout_requests_request
+    ON public.payout_requests (user_id, request_id)
+    WHERE request_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_payout_requests_status ON public.payout_requests (status);
 CREATE INDEX IF NOT EXISTS idx_payout_requests_user ON public.payout_requests (user_id);
@@ -426,12 +474,12 @@ BEGIN
     END IF;
 
     -- 1. Validate Amounts & Conversion Rate (10 crystals = 1 INR)
-    IF p_amount_inr < 10 THEN
-        RETURN jsonb_build_object('success', false, 'error', 'Minimum redemption is 10 INR');
+    IF p_amount_inr < 25 OR p_amount_inr > 2000 THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Redemption must be between 25 and 2000 INR');
     END IF;
 
     v_expected_crystals := p_amount_inr * 10;
-    IF p_crystals_spent < v_expected_crystals THEN
+    IF p_crystals_spent <> v_expected_crystals THEN
         RETURN jsonb_build_object('success', false, 'error', 'Invalid crystal conversion rate');
     END IF;
 
@@ -486,6 +534,7 @@ BEGIN
         method,
         destination,
         status,
+        request_id,
         created_at
     ) VALUES (
         v_user_id,
@@ -494,6 +543,7 @@ BEGIN
         p_method,
         trim(p_destination),
         'PENDING',
+        p_request_uuid,
         TIMEZONE('utc'::text, NOW())
     ) RETURNING id INTO v_redemption_id;
 

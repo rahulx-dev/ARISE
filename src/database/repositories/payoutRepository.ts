@@ -1,6 +1,6 @@
 import { db } from '../client';
-import { payoutRequest } from '../schema';
-import { eq, desc, and } from 'drizzle-orm';
+import { payoutRequest, userProfile, coinTransaction } from '../schema';
+import { eq, desc, and, gte } from 'drizzle-orm';
 import { userRepository } from './userRepository';
 import { supabase, isSupabaseConfigured, getCloudUserId } from '../../services/supabaseClient';
 
@@ -46,53 +46,53 @@ export const payoutRepository = {
         return { success: false, error: 'User profile not found.' };
       }
 
-      // 3. Verify balance
+      if (!Number.isSafeInteger(amountInr) || !Number.isSafeInteger(coinsSpent) ||
+          amountInr <= 0 || coinsSpent <= 0 || !Number.isSafeInteger(sponsorPassesUsed) ||
+          sponsorPassesUsed < 0) {
+        return { success: false, error: 'Invalid payout amount.' };
+      }
+
+      // 3. Verify balance (the transaction below repeats this check under the
+      // write lock; this check is only for a useful early error).
       if (user.coins < coinsSpent) {
         return { success: false, error: `Insufficient coins. You have ${user.coins.toLocaleString()} coins, but need ${coinsSpent.toLocaleString()}.` };
       }
 
-      // 4. Rate-limit check: Only 1 pending request at a time
-      const pendingRequests = await db
-        .select()
-        .from(payoutRequest)
-        .where(eq(payoutRequest.status, 'PENDING'));
-
-      if (pendingRequests.length > 0) {
-        return {
-          success: false,
-          error: 'You already have a pending withdrawal request under review. Please wait for it to be processed before submitting another.',
-        };
-      }
-
-      // 5. Deduct coins from user local balance
-      const deducted = await userRepository.deductCoins(
-        coinsSpent,
-        `UPI Cashout INR ${amountInr}`,
-        'payout'
-      );
-
-      if (!deducted) {
-        return { success: false, error: 'Failed to process coin deduction.' };
-      }
-
-      // 6. Consume sponsor passes
-      if (sponsorPassesUsed > 0) {
-        await userRepository.consumeSponsorPasses(sponsorPassesUsed);
-      }
-
       const createdAt = new Date().toISOString();
+      const requestId = `payout:${Date.now()}:${Math.random().toString(36).slice(2)}`;
 
-      // 7. Insert into local SQLite
-      await db.insert(payoutRequest).values({
-        amountInr,
-        coinsSpent,
-        upiId: trimmedUpi,
-        sponsorPassesUsed,
-        status: 'PENDING',
-        createdAt,
+      // Deduction, pass consumption, and request insertion must commit
+      // together. The previous sequence could lose coins if insertion failed,
+      // and two callers could both pass the pending check.
+      await db.transaction(async (tx: any) => {
+        const pending = await tx.select().from(payoutRequest)
+          .where(eq(payoutRequest.status, 'PENDING')).limit(1);
+        if (pending.length > 0) throw new Error('A withdrawal request is already pending');
+
+        const fresh = (await tx.select().from(userProfile).limit(1))[0];
+        if (!fresh || fresh.coins < coinsSpent) throw new Error('Insufficient coins');
+        if ((fresh.sponsorPasses ?? 0) < sponsorPassesUsed) {
+          throw new Error('Insufficient sponsor passes');
+        }
+        await tx.update(userProfile).set({
+          coins: fresh.coins - coinsSpent,
+          sponsorPasses: (fresh.sponsorPasses ?? 0) - sponsorPassesUsed,
+        }).where(and(eq(userProfile.id, fresh.id), gte(userProfile.coins, coinsSpent)));
+        await tx.insert(coinTransaction).values({
+          amount: -coinsSpent,
+          type: 'spend',
+          description: `UPI Cashout INR ${amountInr}`,
+          source: 'payout',
+          timestamp: createdAt,
+          requestId,
+        });
+        await tx.insert(payoutRequest).values({
+          amountInr, coinsSpent, upiId: trimmedUpi, sponsorPassesUsed,
+          status: 'PENDING', createdAt, requestId,
+        });
       });
 
-      // 8. Sync to Supabase Cloud Database (Live Admin Dashboard)
+      // Sync to Supabase Cloud Database (Live Admin Dashboard)
       if (isSupabaseConfigured() && supabase) {
         try {
           const cloudUserId = await getCloudUserId();
@@ -102,6 +102,7 @@ export const payoutRepository = {
             amount_inr: amountInr,
             coins_spent: coinsSpent,
             upi_id: trimmedUpi,
+            request_id: requestId,
             status: 'PENDING',
             created_at: createdAt,
           });

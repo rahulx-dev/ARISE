@@ -140,26 +140,37 @@ export default function OnboardingScreen() {
   const [showLangModal, setShowLangModal] = useState<boolean>(false);
   const [showGoogleModal, setShowGoogleModal] = useState<boolean>(false);
   const currentLang = useLanguageStore((s) => s.language);
+  const isMountedRef = useRef(true);
+  const permissionCheckInFlight = useRef(false);
 
   // Check all 5 permissions
   const checkAllPermissions = async () => {
+    if (permissionCheckInFlight.current) return;
+    permissionCheckInFlight.current = true;
     try {
       const usage = await appBlockerService.hasUsagePermission();
+      if (!isMountedRef.current) return;
       setUsageGranted(usage);
 
       const overlay = await appBlockerService.hasOverlayPermission();
+      if (!isMountedRef.current) return;
       setOverlayGranted(overlay);
 
       const battery = (await appBlockerService.hasBatteryOptimizationExemption?.()) ?? true;
+      if (!isMountedRef.current) return;
       setBatteryGranted(battery);
 
       const cam = await Camera.getCameraPermissionsAsync();
+      if (!isMountedRef.current) return;
       setCameraGranted(cam.granted);
 
       const notif = await Notifications.getPermissionsAsync();
+      if (!isMountedRef.current) return;
       setNotifGranted(notif.granted);
     } catch (e) {
       console.warn('[Onboarding] Error checking permissions:', e);
+    } finally {
+      permissionCheckInFlight.current = false;
     }
   };
 
@@ -182,7 +193,7 @@ export default function OnboardingScreen() {
       try {
         if (type === 'battery') {
           const granted = (await appBlockerService.hasBatteryOptimizationExemption?.()) ?? false;
-          if (granted) {
+          if (granted && isMountedRef.current) {
             setBatteryGranted(true);
             haptics.success();
             clearInterval(permPollRef.current);
@@ -190,7 +201,7 @@ export default function OnboardingScreen() {
           }
         } else if (type === 'usage') {
           const granted = await appBlockerService.hasUsagePermission();
-          if (granted) {
+          if (granted && isMountedRef.current) {
             setUsageGranted(true);
             haptics.success();
             clearInterval(permPollRef.current);
@@ -198,7 +209,7 @@ export default function OnboardingScreen() {
           }
         } else if (type === 'overlay') {
           const granted = await appBlockerService.hasOverlayPermission();
-          if (granted) {
+          if (granted && isMountedRef.current) {
             setOverlayGranted(true);
             haptics.success();
             clearInterval(permPollRef.current);
@@ -218,6 +229,7 @@ export default function OnboardingScreen() {
   };
 
   useEffect(() => {
+    isMountedRef.current = true;
     loadApps();
     checkAllPermissions();
 
@@ -232,6 +244,7 @@ export default function OnboardingScreen() {
     }, 1200);
 
     return () => {
+      isMountedRef.current = false;
       sub.remove();
       clearInterval(heartbeat);
       if (permPollRef.current) {

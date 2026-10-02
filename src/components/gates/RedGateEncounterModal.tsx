@@ -24,6 +24,7 @@ import {
 import { RedGateEncounter, RedGateTrial } from '../../services/redGateService';
 import { useHaptics } from '../../hooks/useHaptics';
 import { useSound } from '../../hooks/useSound';
+import { AnimatedStreakFlame } from '../ui/AnimatedStreakFlame';
 
 interface RedGateEncounterModalProps {
   visible: boolean;
@@ -83,7 +84,7 @@ export function RedGateEncounterModal({
               {/* Header Lore Banner */}
               <View style={styles.headerBox}>
                 <View style={styles.dangerPill}>
-                  <Flame size={14} color="#FF1E44" />
+                  <AnimatedStreakFlame size={16} />
                   <Text style={styles.dangerPillText}>CLASS S // RED GATE RIFT</Text>
                 </View>
                 <Text style={styles.threatTitleText}>
@@ -154,7 +155,7 @@ export function RedGateEncounterModal({
                   >
                     <View style={styles.trialIconCol}>
                       {trial.id === 'pushups' ? (
-                        <Flame size={22} color="#FF1E44" />
+                        <AnimatedStreakFlame size={24} />
                       ) : trial.id === 'squats' ? (
                         <Swords size={22} color="#38BDF8" />
                       ) : (

@@ -45,6 +45,8 @@ export class RunningTrackerService {
 
   private elapsedSeconds = 0;
   private currentSpeedKmh = 0;
+  private speedEmaKmh = 0;
+  private vehicleSamples = 0;
   private isTracking = false;
   private isPaused = false;
   private isVehicleSpeed = false;
@@ -57,14 +59,17 @@ export class RunningTrackerService {
 
   public async requestPermissions(): Promise<boolean> {
     try {
-      const { status: locStatus } = await Location.requestForegroundPermissionsAsync();
+      let { status: locStatus } = await Location.getForegroundPermissionsAsync();
+      if (locStatus !== 'granted') {
+        ({ status: locStatus } = await Location.requestForegroundPermissionsAsync());
+      }
       try {
         if (Pedometer.requestPermissionsAsync) {
           await Pedometer.requestPermissionsAsync();
         }
       } catch {}
 
-      if (locStatus !== 'granted') {
+      if (locStatus !== 'granted' || !(await Location.hasServicesEnabledAsync())) {
         return false;
       }
       return true;
@@ -93,6 +98,8 @@ export class RunningTrackerService {
     this.lastStepTimestamp = Date.now();
     this.elapsedSeconds = 0;
     this.currentSpeedKmh = 0;
+    this.speedEmaKmh = 0;
+    this.vehicleSamples = 0;
     this.lastLocation = null;
     this.halfwayAlertGiven = false;
     this.nearFinishAlertGiven = false;
@@ -118,10 +125,18 @@ export class RunningTrackerService {
         (loc) => {
           if (this.isPaused || !this.isTracking) return;
 
-          const { latitude, longitude, speed } = loc.coords;
-          const timestamp = loc.timestamp;
+          const { latitude, longitude, speed, accuracy } = loc.coords;
+          const timestamp = Number(loc.timestamp);
+          if (
+            !Number.isFinite(latitude) ||
+            !Number.isFinite(longitude) ||
+            !Number.isFinite(timestamp) ||
+            (accuracy != null && accuracy > 20)
+          ) {
+            return;
+          }
 
-          let rawSpeedKmh = (speed && speed > 0 ? speed : 0) * 3.6;
+          let rawSpeedKmh = Number.isFinite(speed) && (speed as number) > 0 ? (speed as number) * 3.6 : 0;
 
           if (this.lastLocation) {
             const distMeters = getDistanceInMeters(
@@ -138,23 +153,33 @@ export class RunningTrackerService {
               rawSpeedKmh = calculatedSpeedKmh;
             }
 
-            // Anti-Cheat: If speed > 25 km/h, vehicle detected!
-            if (rawSpeedKmh > 25) {
-              this.isVehicleSpeed = true;
-              this.currentSpeedKmh = Math.round(rawSpeedKmh);
-              this.broadcast();
-              return;
-            } else {
-              this.isVehicleSpeed = false;
-            }
+            // Reject impossible jumps and require multiple high-speed samples before
+            // flagging a vehicle. This avoids counting GPS spikes as distance.
+            const plausibleSpeedKmh = Math.min(60, Math.max(0, rawSpeedKmh));
+            this.speedEmaKmh = this.speedEmaKmh === 0
+              ? plausibleSpeedKmh
+              : this.speedEmaKmh * 0.25 + plausibleSpeedKmh * 0.75;
+            if (this.speedEmaKmh > 25) this.vehicleSamples += 1;
+            else this.vehicleSamples = Math.max(0, this.vehicleSamples - 1);
+            this.isVehicleSpeed = this.vehicleSamples >= 5;
 
             // Filter minor GPS noise/jitter
-            if (distMeters >= 1.5 && distMeters < 100) {
+            const isJitter = distMeters < 2.5 && timeDiffSec <= 2;
+            if (!this.isVehicleSpeed && !isJitter && distMeters < 100 && calculatedSpeedKmh < 30) {
               this.totalDistanceMeters += distMeters;
+            }
+            if (this.isVehicleSpeed) {
+              this.currentSpeedKmh = 0;
+              this.broadcast();
+              this.lastLocation = { lat: latitude, lon: longitude, timestamp };
+              return;
             }
           }
 
-          this.currentSpeedKmh = Math.max(0, Math.min(25, Math.round(rawSpeedKmh * 10) / 10));
+          if (!this.lastLocation) {
+            this.speedEmaKmh = Math.min(30, Math.max(0, rawSpeedKmh));
+          }
+          this.currentSpeedKmh = Math.max(0, Math.min(30, Math.round(this.speedEmaKmh * 10) / 10));
           this.lastLocation = { lat: latitude, lon: longitude, timestamp };
 
           this.checkProgress();
@@ -163,6 +188,8 @@ export class RunningTrackerService {
       );
     } catch (err) {
       console.warn('[RunningTracker] Location watch failed:', err);
+      this.stopTracking();
+      return { success: false, error: 'Unable to start location tracking. Check that location services are enabled and try again.' };
     }
 
     // 2. Start Hardware Pedometer
@@ -257,6 +284,10 @@ export class RunningTrackerService {
     }
 
     this.lastLocation = null;
+    this.speedEmaKmh = 0;
+    this.vehicleSamples = 0;
+    this.onUpdateCallback = null;
+    this.onCompletedCallback = null;
   }
 
   private checkProgress(): void {
@@ -281,21 +312,22 @@ export class RunningTrackerService {
 
     // Target Reached!
     if (currentKm >= this.targetKm) {
+      const completedCallback = this.onCompletedCallback;
       this.stopTracking();
       try {
         voiceCoach.speak(`Target reached! ${this.targetKm} kilometers completed. Quest Cleared!`);
       } catch {}
-      if (this.onCompletedCallback) {
-        this.onCompletedCallback();
+      if (completedCallback) {
+        completedCallback();
       }
     }
   }
 
   private getPaceString(): string {
     const km = this.totalDistanceMeters / 1000;
-    if (km <= 0.05 || this.elapsedSeconds <= 5) return '--:--';
+    if (km <= 0.05 || this.elapsedSeconds <= 5 || this.currentSpeedKmh <= 0.5 || this.isVehicleSpeed) return '--:--';
     const paceSecondsPerKm = this.elapsedSeconds / km;
-    if (paceSecondsPerKm > 3600) return '--:--';
+    if (!Number.isFinite(paceSecondsPerKm) || paceSecondsPerKm < 120 || paceSecondsPerKm > 3600) return '--:--';
     const mins = Math.floor(paceSecondsPerKm / 60);
     const secs = Math.floor(paceSecondsPerKm % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -305,7 +337,7 @@ export class RunningTrackerService {
     if (!this.onUpdateCallback) return;
 
     const km = Math.round((this.totalDistanceMeters / 1000) * 100) / 100;
-    const calories = Math.round(km * 65); // Approx 65 kcal per km
+    const calories = Number.isFinite(km) ? Math.max(0, Math.min(5000, Math.round(km * 65))) : 0;
 
     // Dynamic Step Resolution:
     // Stride estimation = distance (meters) / 0.76 meters average running stride

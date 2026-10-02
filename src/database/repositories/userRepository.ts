@@ -17,7 +17,7 @@ import {
   crystalTransaction,
   crystalRedemption,
 } from "../schema";
-import { eq } from "drizzle-orm";
+import { eq, and, gte } from "drizzle-orm";
 import { addSentryBreadcrumb, logErrorToSentry } from "../../services/sentryService";
 
 type UserProfile = typeof userProfile.$inferSelect;
@@ -135,6 +135,7 @@ export const userRepository = {
   },
 
   async spendCoins(amount: number, description: string): Promise<boolean> {
+    if (!Number.isSafeInteger(amount) || amount <= 0 || !description.trim()) return false;
     return await db.transaction(async (tx: any) => {
       const results = await tx.select().from(userProfile).limit(1);
       if (results.length === 0) return false;
@@ -144,12 +145,13 @@ export const userRepository = {
         return false;
       }
 
-      await tx
+      const updated = await tx
         .update(userProfile)
         .set({
           coins: profile.coins - amount,
         })
-        .where(eq(userProfile.id, profile.id));
+        .where(and(eq(userProfile.id, profile.id), gte(userProfile.coins, amount)));
+      if (!updated || ((updated as any).changes ?? 1) === 0) return false;
 
       await tx.insert(coinTransaction).values({
         amount: -amount,
@@ -168,6 +170,7 @@ export const userRepository = {
     description: string,
     source: string = "store",
   ): Promise<boolean> {
+    if (!Number.isSafeInteger(amount) || amount <= 0 || !description.trim()) return false;
     return await db.transaction(async (tx: any) => {
       const results = await tx.select().from(userProfile).limit(1);
       if (results.length === 0) return false;
@@ -177,12 +180,13 @@ export const userRepository = {
         return false;
       }
 
-      await tx
+      const updated = await tx
         .update(userProfile)
         .set({
           coins: profile.coins - amount,
         })
-        .where(eq(userProfile.id, profile.id));
+        .where(and(eq(userProfile.id, profile.id), gte(userProfile.coins, amount)));
+      if (!updated || ((updated as any).changes ?? 1) === 0) return false;
 
       await tx.insert(coinTransaction).values({
         amount: -amount,

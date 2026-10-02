@@ -41,6 +41,7 @@ import {
 } from '../../src/services/guildService';
 import { GlassCard } from '../../src/components/ios/GlassCard';
 import { AriseBannerAd } from '../../src/components/ads/AriseBannerAd';
+import { AnimatedStreakFlame } from '../../src/components/ui/AnimatedStreakFlame';
 
 const { width } = Dimensions.get('window');
 
@@ -347,7 +348,7 @@ export default function GuildScreen() {
               <View style={[styles.raidContainer, { backgroundColor: colors.card }]}>
                 <View style={styles.raidHeaderRow}>
                   <View style={styles.redGateBadge}>
-                    <Flame size={14} color="#EF4444" />
+                    <AnimatedStreakFlame size={16} />
                     <Text style={styles.redGateText}>RED GATE ANOMALY</Text>
                   </View>
                   <View style={[styles.rankGateBadge, { backgroundColor: isDark ? '#1E293B' : colors.surfaceLight }]}>

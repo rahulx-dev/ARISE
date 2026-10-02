@@ -47,7 +47,12 @@ export default function FocusModeScreen() {
   const { colors, isDark } = useTheme();
   const profile = usePlayerStore((s) => s.profile);
 
-  const initialMinutes = params.targetMinutes ? parseInt(params.targetMinutes, 10) || 25 : 25;
+  const parsedInitialMinutes = params.targetMinutes
+    ? Number.parseInt(params.targetMinutes, 10)
+    : 25;
+  const initialMinutes = Number.isFinite(parsedInitialMinutes)
+    ? Math.max(1, Math.min(180, parsedInitialMinutes))
+    : 25;
   const [targetMinutes, setTargetMinutes] = useState<number>(initialMinutes);
   const [remainingMs, setRemainingMs] = useState<number>(initialMinutes * 60 * 1000);
   const [isActive, setIsActive] = useState<boolean>(false);
@@ -137,14 +142,23 @@ export default function FocusModeScreen() {
   });
 
   useEffect(() => {
+    let mounted = true;
     const loadFocusStats = async () => {
-      const stats = await historyService.getTodayRealStats();
-      setTodayStats({
-        focusMinutes: stats.focusMinutes,
-        focusSessionsCount: stats.focusSessionsCount,
-      });
+      try {
+        const stats = await historyService.getTodayRealStats();
+        if (!mounted) return;
+        setTodayStats({
+          focusMinutes: stats.focusMinutes,
+          focusSessionsCount: stats.focusSessionsCount,
+        });
+      } catch {
+        // Stats are supplemental; keep the last known values if loading fails.
+      }
     };
     loadFocusStats();
+    return () => {
+      mounted = false;
+    };
   }, [isActive]);
 
   useEffect(() => {
@@ -242,7 +256,11 @@ export default function FocusModeScreen() {
 
   const handleAddFiveMinutes = () => {
     haptics.light();
-    setRemainingMs((prev) => prev + 5 * 60 * 1000);
+    const extraMs = 5 * 60 * 1000;
+    setRemainingMs((prev) => prev + extraMs);
+    if (endTimeRef.current) {
+      endTimeRef.current += extraMs;
+    }
   };
 
   const handleSelectPreset = (mins: number) => {

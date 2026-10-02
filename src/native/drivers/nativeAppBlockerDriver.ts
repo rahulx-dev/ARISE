@@ -1,4 +1,4 @@
-import { requireNativeModule } from 'expo-modules-core';
+﻿import { requireNativeModule } from 'expo-modules-core';
 import { NativeModules, Platform } from 'react-native';
 import { IAppBlockerDriver, InstalledAppItem } from '../types';
 
@@ -113,9 +113,9 @@ export class NativeAppBlockerDriver implements IAppBlockerDriver {
   }
 
   setAppBudget(packageName: string | null, budgetMinutes: number): void {
-    if (Platform.OS === 'android' && packageName && NativeAppBlocker?.setAppBudget) {
+    if (Platform.OS === 'android' && NativeAppBlocker?.setAppBudget) {
       try {
-        console.log('[NativeAppBlocker] setAppBudget:', packageName, budgetMinutes);
+        console.log('[NativeAppBlocker] setAppBudget:', packageName ?? 'all', budgetMinutes);
         NativeAppBlocker.setAppBudget(packageName, budgetMinutes);
       } catch (e) {
         console.warn('[NativeAppBlocker] setAppBudget error:', e);
@@ -183,3 +183,4 @@ export class NativeAppBlockerDriver implements IAppBlockerDriver {
     return false;
   }
 }
+

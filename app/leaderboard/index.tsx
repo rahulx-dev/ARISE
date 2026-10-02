@@ -43,6 +43,7 @@ import {
 import { AVATAR_IMAGES } from '../../src/components/profile/AvatarPicker';
 import { AriseBannerAd } from '../../src/components/ads/AriseBannerAd';
 import { supabase, isSupabaseConfigured } from '../../src/services/supabaseClient';
+import { AnimatedStreakFlame } from '../../src/components/ui/AnimatedStreakFlame';
 
 const { width } = Dimensions.get('window');
 
@@ -262,11 +263,7 @@ export default function LeaderboardScreen() {
                 }}
                 activeOpacity={0.85}
               >
-                <Fire
-                  size={14}
-                  color={activeCategory === 'streak' ? '#FFFFFF' : '#EA580C'}
-                  weight="fill"
-                />
+                <AnimatedStreakFlame size={16} />
                 <Text
                   style={[
                     styles.categoryPillText,
@@ -367,7 +364,7 @@ export default function LeaderboardScreen() {
                       </>
                     ) : (
                       <>
-                        <Fire size={11} color="#94A3B8" weight="fill" />
+                        <AnimatedStreakFlame size={14} />
                         <Text style={styles.podiumStreakTextSilver}>{topThree[1].currentStreak}d STREAK</Text>
                       </>
                     )}
@@ -412,7 +409,7 @@ export default function LeaderboardScreen() {
                       </>
                     ) : (
                       <>
-                        <Fire size={11} color="#F59E0B" weight="fill" />
+                        <AnimatedStreakFlame size={16} />
                         <Text style={styles.podiumStreakTextGold}>
                           {topThree[0].currentStreak}d STREAK
                         </Text>
@@ -456,7 +453,7 @@ export default function LeaderboardScreen() {
                       </>
                     ) : (
                       <>
-                        <Fire size={11} color="#D97706" weight="fill" />
+                        <AnimatedStreakFlame size={14} />
                         <Text style={styles.podiumStreakTextBronze}>{topThree[2].currentStreak}d STREAK</Text>
                       </>
                     )}
@@ -542,7 +539,7 @@ export default function LeaderboardScreen() {
                             </>
                           ) : (
                             <>
-                              <Fire size={13} color="#EA580C" weight="fill" />
+                              <AnimatedStreakFlame size={14} />
                               <Text style={styles.rowStreakVal}>{hunter.currentStreak}</Text>
                               <Text style={styles.rowStreakDaysLabel}>DAYS</Text>
                             </>
@@ -593,7 +590,7 @@ export default function LeaderboardScreen() {
                     </>
                   ) : (
                     <>
-                      <Fire size={15} color="#EA580C" weight="fill" />
+                      <AnimatedStreakFlame size={16} />
                       <Text style={styles.stickyStreakNum}>{currentUser.currentStreak}</Text>
                       <Text style={styles.stickyStreakText}>DAYS</Text>
                     </>

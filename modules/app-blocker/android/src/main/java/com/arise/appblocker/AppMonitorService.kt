@@ -6,6 +6,8 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
+import android.content.BroadcastReceiver
+import android.content.IntentFilter
 import android.content.Intent
 import android.graphics.Color
 import android.os.Build
@@ -29,6 +31,16 @@ class AppMonitorService : Service() {
     private var dailyResetTimestamp = BlockPolicyController.getTodayEndEpoch()
     private var lastRestrictedPackage: String? = null
     private var awayFromRestrictedSince: Long = 0L
+    private var screenOn = true
+    private val screenReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            screenOn = intent.action != Intent.ACTION_SCREEN_OFF
+            if (screenOn && isMonitoring) {
+                handler.removeCallbacks(monitorRunnable)
+                handler.post(monitorRunnable)
+            }
+        }
+    }
 
     private fun getAppNotificationIcon(): Int {
         val resId = resources.getIdentifier("notification_icon", "drawable", packageName)
@@ -103,7 +115,7 @@ class AppMonitorService : Service() {
 
     private val monitorRunnable = object : Runnable {
         override fun run() {
-            if (!isMonitoring) return
+            if (!isMonitoring || !screenOn) return
 
             val now = System.currentTimeMillis()
 
@@ -190,8 +202,7 @@ class AppMonitorService : Service() {
                 }
             }
 
-            val pollIntervalMs = if (fgPackage != null && isPackageRestricted(fgPackage)) 100L else 250L
-            handler.postDelayed(this, pollIntervalMs)
+            handler.postDelayed(this, 800L)
         }
     }
 
@@ -268,6 +279,10 @@ class AppMonitorService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        registerReceiver(screenReceiver, IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_SCREEN_ON)
+        })
 
         // Load all persisted policy inputs before the first monitor pass.  This
         // prevents a restart from briefly using the zero/default budget.
@@ -283,7 +298,12 @@ class AppMonitorService : Service() {
             Log.w(tag, "Unable to restore restricted package list", e)
         }
 
-        startForeground(1001, createNotification())
+        try {
+            startForeground(1001, createNotification())
+        } catch (securityException: SecurityException) {
+            Log.e(tag, "Foreground notification permission is unavailable", securityException)
+            stopSelf()
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -349,6 +369,7 @@ class AppMonitorService : Service() {
 
         if (shouldReevaluate) {
             handler.removeCallbacks(monitorRunnable)
+            unregisterReceiver(screenReceiver)
             handler.post(monitorRunnable)
         }
 
@@ -384,7 +405,7 @@ class AppMonitorService : Service() {
     }
 
     companion object {
-        const val CHANNEL_ID = "arise_monitor_channel"
+        const val CHANNEL_ID = "arise_app_monitor"
 
         fun setBudget(context: Context?, packageName: String?, budgetMinutes: Double): Long {
             return BlockPolicyController.updateBudget(context, packageName, budgetMinutes)

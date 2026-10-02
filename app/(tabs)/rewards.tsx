@@ -30,6 +30,7 @@ import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { achievementService, AchievementItem } from '../../src/services/achievementService';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { colors } from '../../src/theme/colors';
+import { AnimatedStreakFlame } from '../../src/components/ui/AnimatedStreakFlame';
 
 import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
 
@@ -63,7 +64,7 @@ export default function RewardsTab() {
       case 'brain':
         return Brain;
       case 'flame':
-        return Flame;
+        return AnimatedStreakFlame;
       case 'trophy':
         return Trophy;
       case 'coins':

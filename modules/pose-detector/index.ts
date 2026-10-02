@@ -107,11 +107,19 @@ export function convertToMoveNetKeypoints(landmarks: PoseLandmark[]): MoveNetKey
   for (const landmark of landmarks) {
     const moveNetIndex = ML_KIT_TO_MOVENET_MAP[landmark.type];
     if (moveNetIndex !== undefined && moveNetIndex !== null) {
-      result[moveNetIndex] = {
-        x: landmark.x,
-        y: landmark.y,
-        confidence: landmark.confidence
-      };
+      const confidence = Number.isFinite(landmark.confidence)
+        ? Math.max(0, Math.min(1, landmark.confidence))
+        : 0;
+      // A detector may emit a duplicate point while tracking a transition.
+      // Keep the strongest observation rather than replacing it with a weak
+      // point and accidentally making the exercise appear invalid.
+      if (confidence >= result[moveNetIndex].confidence) {
+        result[moveNetIndex] = {
+          x: Number.isFinite(landmark.x) ? Math.max(0, Math.min(1, landmark.x)) : 0,
+          y: Number.isFinite(landmark.y) ? Math.max(0, Math.min(1, landmark.y)) : 0,
+          confidence
+        };
+      }
     }
   }
   

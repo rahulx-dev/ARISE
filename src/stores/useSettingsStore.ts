@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+﻿import { create } from 'zustand';
 import { db } from '../database/client';
 import { settings, userProfile } from '../database/schema';
 import { eq } from 'drizzle-orm';
@@ -71,13 +71,18 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
           ? (s.theme as ThemeMode)
           : 'system';
 
+        const persistedBudget = Number(s.dailyBudgetMinutes);
+        const safeBudget = Number.isFinite(persistedBudget)
+          ? Math.max(0, Math.trunc(persistedBudget))
+          : 30;
+
         set({
           sfxEnabled: s.sfxEnabled === 1,
           sfxVolume: s.sfxVolume,
           hapticsEnabled: s.hapticsEnabled === 1,
           notificationsEnabled: s.notificationsEnabled === 1,
           onboardingCompleted: s.onboardingCompleted === 1,
-          dailyBudgetMinutes: s.dailyBudgetMinutes,
+          dailyBudgetMinutes: safeBudget,
           theme: savedTheme,
           bgMusicEnabled: (s as any).bgMusicEnabled === 1,
           bgMusicVolume: (s as any).bgMusicVolume ?? 0.5,
@@ -90,7 +95,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
         try {
           const { setAppBudget } = require('../../modules/app-blocker');
-          setAppBudget(null, s.dailyBudgetMinutes);
+          setAppBudget(null, safeBudget);
         } catch {}
 
         voiceCoach.setLanguage(savedLang);
@@ -105,27 +110,32 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
   updateSetting: async (key: string, value: any) => {
     try {
+      const nextValue = key === 'dailyBudgetMinutes'
+        ? (() => {
+            const numVal = Number(value);
+            return Number.isFinite(numVal) ? Math.max(0, Math.trunc(numVal)) : 30;
+          })()
+        : value;
+
       const current = await db.select().from(settings).limit(1);
       if (current.length > 0) {
         const payload: any = {};
-        if (typeof value === 'boolean') {
-          payload[key] = value ? 1 : 0;
+        if (typeof nextValue === 'boolean') {
+          payload[key] = nextValue ? 1 : 0;
         } else {
-          payload[key] = value;
+          payload[key] = nextValue;
         }
         await db.update(settings).set(payload).where(eq(settings.id, current[0].id));
       }
 
       if (key === 'dailyBudgetMinutes') {
-        const numVal = typeof value === 'number' ? value : parseInt(value, 10);
-        const validVal = isNaN(numVal) ? 30 : Math.max(0, numVal);
         try {
           const { setAppBudget } = require('../../modules/app-blocker');
-          setAppBudget(null, validVal);
+          setAppBudget(null, nextValue);
         } catch {}
       }
 
-      set({ [key]: value } as any);
+      set({ [key]: nextValue } as any);
     } catch (error) {
       console.error(`Failed to update setting ${key}`, error);
     }
@@ -180,3 +190,4 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     await get().updateSetting('voiceLanguage', lang);
   },
 }));
+

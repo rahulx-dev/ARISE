@@ -10,6 +10,7 @@ import { userRepository } from '../database/repositories/userRepository';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { googleAuthService } from './googleAuthService';
 import { setIsOnboardingCompletedSync } from './appStateService';
+import NetInfo from '@react-native-community/netinfo';
 
 export interface HunterCloudBackup {
   version: '1.0.0';
@@ -40,6 +41,70 @@ const LAST_SYNC_KEY = '@arise_last_cloud_sync';
 const CLOUD_CACHE_PREFIX = '@arise_cloud_cache_';
 
 export const cloudSyncService = {
+  async enqueueCashoutSync(payload: {
+    requestId: string;
+    amountInr: number;
+    crystalsSpent: number;
+    method: string;
+    destination: string;
+  }): Promise<void> {
+    try {
+      expoDb.runSync(
+        `CREATE TABLE IF NOT EXISTS sync_queue (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          kind TEXT NOT NULL,
+          request_id TEXT NOT NULL UNIQUE,
+          payload TEXT NOT NULL,
+          attempts INTEGER NOT NULL DEFAULT 0,
+          next_attempt_at INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL
+        )`
+      );
+      expoDb.runSync(
+        'INSERT OR IGNORE INTO sync_queue (kind, request_id, payload, created_at) VALUES (?, ?, ?, ?)',
+        ['cashout', payload.requestId, JSON.stringify(payload), new Date().toISOString()]
+      );
+    } catch (error) {
+      console.warn('[CloudSync] Failed to enqueue cashout:', error);
+    }
+  },
+
+  async drainCashoutQueue(): Promise<void> {
+    if (!isSupabaseConfigured() || !supabase) return;
+    try {
+      const rows = ((expoDb as any).getAllSync?.(
+        'SELECT * FROM sync_queue WHERE kind = ? AND next_attempt_at <= ? ORDER BY id ASC LIMIT 20',
+        ['cashout', Date.now()]
+      ) || []) as Array<{ id: number; request_id: string; payload: string; attempts: number }>;
+      for (const row of rows) {
+        const payload = JSON.parse(row.payload) as {
+          amountInr: number;
+          crystalsSpent: number;
+          method: string;
+          destination: string;
+        };
+        const { error } = await supabase.rpc('request_redemption_secure', {
+          p_amount_inr: payload.amountInr,
+          p_crystals_spent: payload.crystalsSpent,
+          p_method: payload.method,
+          p_destination: payload.destination,
+          p_request_uuid: row.request_id,
+        });
+        if (!error) {
+          expoDb.runSync('DELETE FROM sync_queue WHERE id = ?', [row.id]);
+        } else {
+          const attempts = row.attempts + 1;
+          const delay = Math.min(24 * 60 * 60 * 1000, 1000 * 2 ** Math.min(attempts, 16));
+          expoDb.runSync(
+            'UPDATE sync_queue SET attempts = ?, next_attempt_at = ? WHERE id = ?',
+            [attempts, Date.now() + delay, row.id]
+          );
+        }
+      }
+    } catch (error) {
+      console.warn('[CloudSync] Failed to drain cashout queue:', error);
+    }
+  },
   _ensureTable(): void {
     try {
       expoDb.runSync(
@@ -255,8 +320,8 @@ export const cloudSyncService = {
         level: backup.level || 1,
         currentXP: backup.currentXP || 0,
         totalXP: backup.totalXP || 0,
-        coins: backup.coins || 0,
-        manaCrystals: backup.manaCrystals || 0,
+        // Balances and redemption state are device/server-authoritative and must
+        // never be restored from an editable cloud backup.
         currentStreak: backup.currentStreak || 0,
         longestStreak: backup.longestStreak || 0,
         strength: backup.strength || 0,
@@ -295,7 +360,7 @@ export const cloudSyncService = {
 
       return {
         restored: true,
-        message: `Welcome back, ${backup.displayName}! Restored Level ${backup.level}, ${backup.coins.toLocaleString()} Coins, and all unlocked avatars.`,
+        message: `Welcome back, ${backup.displayName}! Restored progression and all unlocked avatars. Financial balances were preserved locally.`,
         backup,
       };
     } catch (err: any) {
@@ -319,3 +384,9 @@ export const cloudSyncService = {
     } catch {}
   },
 };
+
+NetInfo.addEventListener((state) => {
+  if (state.isConnected) {
+    void cloudSyncService.drainCashoutQueue();
+  }
+});

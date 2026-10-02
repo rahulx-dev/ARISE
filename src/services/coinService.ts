@@ -1,6 +1,6 @@
 import { db } from '../database/client';
 import { userProfile, coinTransaction } from '../database/schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and, gte } from 'drizzle-orm';
 import { notificationService } from './notificationService';
 import { historyService } from './historyService';
 
@@ -25,8 +25,8 @@ class CoinService {
   /**
    * Add coins atomically with transaction logging
    */
-  async addCoins(amount: number, description: string, source: string): Promise<number> {
-    if (amount <= 0) return await this.getBalance();
+  async addCoins(amount: number, description: string, source: string, requestId?: string): Promise<number> {
+    if (!Number.isSafeInteger(amount) || amount <= 0 || !description.trim() || !source.trim()) return await this.getBalance();
 
     let newBalance = 0;
     const now = new Date().toISOString();
@@ -36,6 +36,13 @@ class CoinService {
       if (results.length === 0) return;
 
       const profile = results[0];
+      if (requestId) {
+        const existing = await tx.select().from(coinTransaction).where(eq(coinTransaction.requestId, requestId)).limit(1);
+        if (existing.length > 0) {
+          newBalance = profile.coins;
+          return;
+        }
+      }
       newBalance = (profile.coins || 0) + amount;
       const newTotal = (profile.totalCoinsEarned || 0) + amount;
 
@@ -53,6 +60,7 @@ class CoinService {
         description,
         source,
         timestamp: now,
+        requestId: requestId ?? null,
       });
     });
 
@@ -70,8 +78,8 @@ class CoinService {
   /**
    * Spend coins atomically with balance validation (Prevents negative balance)
    */
-  async spendCoins(amount: number, description: string, source = 'store'): Promise<boolean> {
-    if (amount <= 0) return false;
+  async spendCoins(amount: number, description: string, source = 'store', requestId?: string): Promise<boolean> {
+    if (!Number.isSafeInteger(amount) || amount <= 0 || !description.trim() || !source.trim()) return false;
 
     let success = false;
     const now = new Date().toISOString();
@@ -81,6 +89,10 @@ class CoinService {
       if (results.length === 0) return;
 
       const profile = results[0];
+      if (requestId) {
+        const existing = await tx.select().from(coinTransaction).where(eq(coinTransaction.requestId, requestId)).limit(1);
+        if (existing.length > 0) return true;
+      }
       if ((profile.coins || 0) < amount) {
         success = false;
         return;
@@ -88,12 +100,11 @@ class CoinService {
 
       const newBalance = profile.coins - amount;
 
-      await tx
+      const updated = await tx
         .update(userProfile)
-        .set({
-          coins: newBalance,
-        })
-        .where(eq(userProfile.id, profile.id));
+        .set({ coins: newBalance })
+        .where(and(eq(userProfile.id, profile.id), gte(userProfile.coins, amount)));
+      if (!updated || ((updated as any).changes ?? 1) === 0) return false;
 
       await tx.insert(coinTransaction).values({
         amount: -amount,
@@ -101,6 +112,7 @@ class CoinService {
         description,
         source,
         timestamp: now,
+        requestId: requestId ?? null,
       });
 
       success = true;

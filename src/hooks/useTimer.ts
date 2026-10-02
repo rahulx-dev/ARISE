@@ -12,7 +12,14 @@ export function useTimer({ targetMs, onComplete, onTick, autoStart = false }: Us
   const [isRunning, setIsRunning] = useState(autoStart);
   
   const targetEndTime = useRef<number | null>(null);
-  const intervalRef = useRef<any>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const onCompleteRef = useRef(onComplete);
+  const onTickRef = useRef(onTick);
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+    onTickRef.current = onTick;
+  }, [onComplete, onTick]);
 
   const clearTimerInterval = () => {
     if (intervalRef.current) {
@@ -33,6 +40,7 @@ export function useTimer({ targetMs, onComplete, onTick, autoStart = false }: Us
     clearTimerInterval();
     if (targetEndTime.current) {
       setRemainingMs(Math.max(0, targetEndTime.current - Date.now()));
+      targetEndTime.current = null;
     }
   }, []);
 
@@ -49,24 +57,29 @@ export function useTimer({ targetMs, onComplete, onTick, autoStart = false }: Us
 
   useEffect(() => {
     if (isRunning) {
+      // autoStart and a resumed timer both need an absolute deadline. Without
+      // this, the interval runs forever because targetEndTime remains null.
+      if (targetEndTime.current === null) {
+        targetEndTime.current = Date.now() + remainingMs;
+      }
       intervalRef.current = setInterval(() => {
         if (targetEndTime.current) {
           const newRemaining = Math.max(0, targetEndTime.current - Date.now());
           setRemainingMs(newRemaining);
           
-          if (onTick) onTick(newRemaining);
+          onTickRef.current?.(newRemaining);
           
           if (newRemaining <= 0) {
             setIsRunning(false);
             clearTimerInterval();
-            if (onComplete) onComplete();
+            onCompleteRef.current?.();
           }
         }
       }, 1000);
     }
     
     return () => clearTimerInterval();
-  }, [isRunning, onComplete, onTick]);
+  }, [isRunning]);
 
   const progress = targetMs > 0 ? 1 - remainingMs / targetMs : 0;
 

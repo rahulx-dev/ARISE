@@ -31,6 +31,7 @@ import { db } from '../../src/database/client';
 import { exerciseSession } from '../../src/database/schema';
 import { fontFamilies } from '../../src/theme/typography';
 import { useTranslation } from '../../src/services/i18n';
+import { AnimatedStreakFlame } from '../../src/components/ui/AnimatedStreakFlame';
 
 interface ExerciseCardItem {
   id: string;
@@ -185,7 +186,7 @@ export default function GymTabScreen() {
         </View>
 
         <View style={[styles.headerStatsPill, { backgroundColor: isDark ? '#231214' : '#FFF1F2', borderColor: isDark ? '#4C1D24' : '#FFE4E6' }]}>
-          <Flame size={16} color="#E53935" />
+          <AnimatedStreakFlame size={18} />
           <Text style={styles.headerStatsText}>{profile?.currentStreak || 1} {t('dayStreak', 'Day Streak')}</Text>
         </View>
       </View>

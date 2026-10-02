@@ -55,6 +55,7 @@ export interface RepCounterState {
   maxDownY: number;  // Lowest point reached
   smoothedY: number; // Exponential Moving Average of body vertical position
   consecutiveDownFrames: number; // Anti-jitter confirmation counter
+  consecutiveUpFrames: number;
 }
 
 export interface FormFeedback {
@@ -88,6 +89,7 @@ export function createInitialState(): RepCounterState {
     maxDownY: 0,
     smoothedY: 0,
     consecutiveDownFrames: 0,
+    consecutiveUpFrames: 0,
   };
 }
 
@@ -138,6 +140,13 @@ export function processFrame(
     return {
       ...state,
       isBodyDetected: false,
+      repState: 'IDLE',
+      baselineY: 0,
+      maxDownY: 0,
+      smoothedY: 0,
+      consecutiveDownFrames: 0,
+      consecutiveUpFrames: 0,
+      downStartTime: 0,
       feedback: { message: 'Move into camera view', type: 'info' },
     };
   }
@@ -148,6 +157,13 @@ export function processFrame(
     return {
       ...state,
       isBodyDetected: false,
+      repState: 'IDLE',
+      baselineY: 0,
+      maxDownY: 0,
+      smoothedY: 0,
+      consecutiveDownFrames: 0,
+      consecutiveUpFrames: 0,
+      downStartTime: 0,
       feedback: { message: validation.message, type: validation.isFaceOnly ? 'warning' : 'info' },
     };
   }
@@ -158,6 +174,13 @@ export function processFrame(
     return {
       ...state,
       isBodyDetected: false,
+      repState: 'IDLE',
+      baselineY: 0,
+      maxDownY: 0,
+      smoothedY: 0,
+      consecutiveDownFrames: 0,
+      consecutiveUpFrames: 0,
+      downStartTime: 0,
       feedback: { message: 'Position your body in frame', type: 'info' },
     };
   }
@@ -269,28 +292,15 @@ export function processFrame(
       // Y-movement alone is only allowed as a fallback if angle is completely unmeasurable,
       // and only with full body descent.
       let isDownTriggered = false;
-      if (config.type === 'PUSHUP') {
-        if (angle > 0) {
-          isDownTriggered = angle <= 108; // Elbow flexion
-        } else {
-          isDownTriggered = currentSmoothedY >= (newState.baselineY + downDeltaThresh);
-        }
-      } else if (config.type === 'SQUAT') {
-        if (angle > 0) {
-          isDownTriggered = angle <= 120; // Knee flexion
-        } else {
-          isDownTriggered = currentSmoothedY >= (newState.baselineY + downDeltaThresh);
-        }
-      } else {
-        isDownTriggered = (angle > 0 && angle <= config.downThreshold) ||
-                          (currentSmoothedY >= (newState.baselineY + downDeltaThresh));
-      }
+      isDownTriggered = angle > 0
+        ? angle <= config.downThreshold
+        : currentSmoothedY >= (newState.baselineY + downDeltaThresh);
 
       if (isDownTriggered) {
         const nextFrames = (state.consecutiveDownFrames || 0) + 1;
         newState.consecutiveDownFrames = nextFrames;
 
-        if (nextFrames >= 1) {
+        if (nextFrames >= 2) {
           newState.repState = 'DOWN';
           newState.downStartTime = now;
           newState.maxDownY = currentSmoothedY;
@@ -314,26 +324,20 @@ export function processFrame(
       // 2. Physical return near baseline AND joint angle extension
       const holdDuration = now - state.downStartTime;
       let isUpTriggered = false;
-      if (config.type === 'PUSHUP') {
-        if (angle > 0) {
-          isUpTriggered = angle >= 148; // Arms extended back up
-        } else {
-          isUpTriggered = currentSmoothedY <= (newState.baselineY + upReturnThresh);
-        }
-      } else if (config.type === 'SQUAT') {
-        if (angle > 0) {
-          isUpTriggered = angle >= 152; // Legs straight back up
-        } else {
-          isUpTriggered = currentSmoothedY <= (newState.baselineY + upReturnThresh);
-        }
+      isUpTriggered = angle > 0
+        ? angle >= config.upThreshold
+        : currentSmoothedY <= (newState.baselineY + upReturnThresh);
+
+      if (isUpTriggered) {
+        newState.consecutiveUpFrames = (state.consecutiveUpFrames || 0) + 1;
       } else {
-        isUpTriggered = (angle > 0 && angle >= config.upThreshold) ||
-                        (currentSmoothedY <= (newState.baselineY + upReturnThresh));
+        newState.consecutiveUpFrames = 0;
       }
 
-      if (isUpTriggered && holdDuration >= 60) {
+      if (newState.consecutiveUpFrames >= 2 &&
+          holdDuration >= Math.max(100, config.minHoldMs || 0)) {
         const timeSinceLastRep = now - state.lastRepTime;
-        const minDebounce = Math.max(250, config.debounceMs || 250);
+        const minDebounce = Math.max(400, config.debounceMs || 400);
 
         if (timeSinceLastRep >= minDebounce) {
           newState.repState = 'UP';
@@ -341,6 +345,7 @@ export function processFrame(
           newState.lastRepTime = now;
           newState.downStartTime = 0;
           newState.consecutiveDownFrames = 0;
+          newState.consecutiveUpFrames = 0;
           newState.baselineY = currentSmoothedY;
           newState.maxDownY = currentSmoothedY;
           newState.feedback = { message: `${newState.count}! Keep going!`, type: 'good' };

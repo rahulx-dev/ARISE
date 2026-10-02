@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+﻿import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -103,7 +103,7 @@ export default function LockedAppsScreen() {
         );
         setAllApps(merged);
       } else {
-        // No fake/default apps — show empty list if nothing installed on platform
+        // No fake/default apps â€” show empty list if nothing installed on platform
         setAllApps([]);
       }
     } catch (e) {
@@ -127,15 +127,20 @@ export default function LockedAppsScreen() {
   const toggleAppRestriction = async (item: AppItem) => {
     haptics.medium();
     const newStatus = !item.isRestricted;
+    let nextRestrictedPackages: string[] = [];
 
     // Optimistic UI update
-    setAllApps((prev) =>
-      prev.map((a) =>
+    setAllApps((prev) => {
+      const nextApps = prev.map((a) =>
         a.packageName === item.packageName
           ? { ...a, isRestricted: newStatus }
           : a
-      )
-    );
+      );
+      nextRestrictedPackages = nextApps
+        .filter((a) => a.isRestricted)
+        .map((a) => a.packageName);
+      return nextApps;
+    });
 
     try {
       const existing = await db
@@ -156,18 +161,9 @@ export default function LockedAppsScreen() {
         });
       }
 
-      // Sync active restrictions to native daemon
-      const updatedRestricted = allApps
-        .map((a) =>
-          a.packageName === item.packageName
-            ? { ...a, isRestricted: newStatus }
-            : a
-        )
-        .filter((a) => a.isRestricted)
-        .map((a) => a.packageName);
-
-      if (updatedRestricted.length > 0) {
-        appBlockerService.startMonitoring(updatedRestricted);
+      // Sync active restrictions to native daemon using the latest optimistic state.
+      if (nextRestrictedPackages.length > 0) {
+        appBlockerService.startMonitoring(nextRestrictedPackages);
       } else {
         appBlockerService.stopMonitoring();
       }
@@ -1194,3 +1190,4 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
 });
+

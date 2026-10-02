@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -86,6 +86,8 @@ export default function RedeemScreen() {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [historyList, setHistoryList] = useState<CrystalRedemptionItem[]>([]);
   const [activeTab, setActiveTab] = useState<'redeem' | 'history'>('redeem');
+  const redemptionKeyRef = useRef<string | null>(null);
+  const isSubmittingRef = useRef(false);
 
   // Security Verification Dialog State
   const [securityModalVisible, setSecurityModalVisible] = useState<boolean>(false);
@@ -254,6 +256,8 @@ export default function RedeemScreen() {
 
   // Step 2: Final Authorized Cashout Execution
   const handleExecuteCashout = async () => {
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
     setSecurityModalVisible(false);
     let finalDest = destinationInput.trim().toLowerCase();
     if (activeMethod === 'COINS') {
@@ -261,6 +265,9 @@ export default function RedeemScreen() {
     }
 
     setIsSubmitting(true);
+    const idempotencyKey =
+      redemptionKeyRef.current ||
+      (redemptionKeyRef.current = `redeem:${Date.now()}:${Math.random().toString(36).slice(2)}`);
     haptics.heavy();
     sound.play('quest_complete');
 
@@ -270,6 +277,7 @@ export default function RedeemScreen() {
         crystalsSpent: crystalsRequired,
         method: activeMethod,
         destination: finalDest,
+        idempotencyKey,
       });
 
       if (!result.success) {
@@ -278,7 +286,12 @@ export default function RedeemScreen() {
 
       if (activeMethod === 'COINS') {
         const coinsAwarded = selectedInr * 100; // ₹1 INR = 100 Coins
-        await coinService.addCoins(coinsAwarded, `Converted ${crystalsRequired} Crystals`, 'crystal_exchange');
+        await coinService.addCoins(
+          coinsAwarded,
+          `Converted ${crystalsRequired} Crystals`,
+          'crystal_exchange',
+          `${idempotencyKey}:coins`
+        );
       }
 
       sound.play('purchase');
@@ -297,6 +310,7 @@ export default function RedeemScreen() {
 
       setDestinationInput('hunter@okhdfcbank');
       setConfirmDestinationInput('');
+      redemptionKeyRef.current = null;
     } catch (e: any) {
       haptics.warning();
       setSystemModal({
@@ -306,6 +320,7 @@ export default function RedeemScreen() {
         type: 'danger',
       });
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
   };

@@ -1,108 +1,69 @@
-import React, { useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withRepeat,
-  withSequence,
-  withTiming,
-  Easing,
-} from 'react-native-reanimated';
+import React, { useState } from 'react';
+import { View, StyleSheet, StyleProp, ViewStyle } from 'react-native';
+import LottieView from 'lottie-react-native';
 import { Fire } from 'phosphor-react-native';
+import { APP_ANIMATIONS } from '../../constants/assets';
 
-interface AnimatedStreakFlameProps {
+export interface AnimatedStreakFlameProps {
   size?: number;
   color?: string;
+  style?: StyleProp<ViewStyle>;
+  loop?: boolean;
+  autoPlay?: boolean;
 }
 
 export function AnimatedStreakFlame({
   size = 22,
   color = '#FF5500',
+  style,
+  loop = true,
+  autoPlay = true,
 }: AnimatedStreakFlameProps) {
-  const scale = useSharedValue(1);
-  const opacity = useSharedValue(0.9);
-  const rotation = useSharedValue(0);
-  const glowScale = useSharedValue(1);
+  const [hasError, setHasError] = useState(false);
 
-  useEffect(() => {
-    // Breathing & flickering pulse
-    scale.value = withRepeat(
-      withSequence(
-        withTiming(1.22, { duration: 380, easing: Easing.out(Easing.ease) }),
-        withTiming(0.96, { duration: 300, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1.15, { duration: 320, easing: Easing.out(Easing.ease) }),
-        withTiming(1.0, { duration: 300, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      true
+  // If Lottie fails to load or runs on an unsupported target, fallback smoothly to Phosphor Fire icon
+  if (hasError) {
+    return (
+      <View
+        style={[
+          styles.container,
+          { width: size, height: size },
+          style,
+        ]}
+      >
+        <Fire size={size} color={color} weight="fill" />
+      </View>
     );
+  }
 
-    // Organic flame wiggle
-    rotation.value = withRepeat(
-      withSequence(
-        withTiming(5, { duration: 340, easing: Easing.inOut(Easing.ease) }),
-        withTiming(-5, { duration: 380, easing: Easing.inOut(Easing.ease) }),
-        withTiming(3, { duration: 300, easing: Easing.inOut(Easing.ease) }),
-        withTiming(-2, { duration: 320, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      true
-    );
-
-    // Outer glow pulse
-    glowScale.value = withRepeat(
-      withSequence(
-        withTiming(1.4, { duration: 450, easing: Easing.out(Easing.ease) }),
-        withTiming(1.0, { duration: 450, easing: Easing.in(Easing.ease) })
-      ),
-      -1,
-      true
-    );
-
-    opacity.value = withRepeat(
-      withSequence(
-        withTiming(1.0, { duration: 250 }),
-        withTiming(0.75, { duration: 280 }),
-        withTiming(0.95, { duration: 220 })
-      ),
-      -1,
-      true
-    );
-  }, []);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: scale.value },
-      { rotate: `${rotation.value}deg` },
-    ],
-    opacity: opacity.value,
-  }));
-
-  const glowStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: glowScale.value }],
-    opacity: 0.35 * opacity.value,
-  }));
+  // The Lottie fire asset (assets/Animations/strick.json) has a natural bounding frame.
+  // Rendering with 1.35x width/height inside a centered container of exact (size x size)
+  // makes the flame fill badges and headers vibrantly without expanding container dimensions.
+  const lottieDimension = Math.round(size * 1.35);
 
   return (
-    <View style={styles.container}>
-      {/* Outer Golden/Red Aura Halo */}
-      <Animated.View
-        style={[
-          styles.glowHalo,
-          {
-            width: size * 1.6,
-            height: size * 1.6,
-            borderRadius: (size * 1.6) / 2,
-            backgroundColor: color,
-          },
-          glowStyle,
-        ]}
+    <View
+      style={[
+        styles.container,
+        {
+          width: size,
+          height: size,
+        },
+        style,
+      ]}
+      pointerEvents="none"
+    >
+      <LottieView
+        source={APP_ANIMATIONS.streak}
+        autoPlay={autoPlay}
+        loop={loop}
+        resizeMode="contain"
+        onAnimationFailure={() => setHasError(true)}
+        style={{
+          width: lottieDimension,
+          height: lottieDimension,
+        }}
       />
-
-      {/* Main Animated Fire Icon */}
-      <Animated.View style={animatedStyle}>
-        <Fire size={size} color={color} weight="fill" />
-      </Animated.View>
     </View>
   );
 }
@@ -111,14 +72,8 @@ const styles = StyleSheet.create({
   container: {
     justifyContent: 'center',
     alignItems: 'center',
-    position: 'relative',
-  },
-  glowHalo: {
-    position: 'absolute',
-    shadowColor: '#FF4500',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.9,
-    shadowRadius: 10,
-    elevation: 6,
+    overflow: 'visible',
   },
 });
+
+export default AnimatedStreakFlame;

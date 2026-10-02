@@ -1,8 +1,9 @@
 import { db } from '../client';
 import { userProfile, crystalRedemption, crystalTransaction } from '../schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and, gte } from 'drizzle-orm';
 import { supabase, isSupabaseConfigured, getCloudUserId, ensureAuthenticatedUser } from '../../services/supabaseClient';
 import { getRankForLevel } from '../../constants/ranks';
+import { cloudSyncService } from '../../services/cloudSyncService';
 
 export interface CrystalRedemptionItem {
   id: number;
@@ -55,6 +56,9 @@ export const crystalRepository = {
     source: string = 'gate_recon'
   ): Promise<{ success: boolean; newBalance: number }> {
     try {
+      if (!Number.isSafeInteger(amount) || amount <= 0 || amount > 100000 || !description.trim()) {
+        return { success: false, newBalance: await this.getBalance() };
+      }
       const records = await db.select().from(userProfile).limit(1);
       if (records.length === 0) return { success: false, newBalance: 0 };
 
@@ -101,6 +105,7 @@ export const crystalRepository = {
                 description,
                 gateId: gateId ?? null,
                 timestamp: new Date().toISOString(),
+                requestId: deterministicSourceId,
               });
             }
 
@@ -114,20 +119,22 @@ export const crystalRepository = {
       }
 
       // 2. Offline Fallback: Update local SQLite cache
-      const currentCrystals = (profile as any).manaCrystals ?? 0;
-      const newBalance = currentCrystals + amount;
-
-      await db
-        .update(userProfile)
-        .set({ manaCrystals: newBalance } as any)
-        .where(eq(userProfile.id, profile.id));
-
-      await db.insert(crystalTransaction).values({
-        amount,
-        type: 'earn',
-        description,
-        gateId: gateId ?? null,
-        timestamp: new Date().toISOString(),
+      const newBalance = await db.transaction(async (tx: any) => {
+        const fresh = (await tx.select().from(userProfile).limit(1))[0];
+        if (!fresh) return 0;
+        const current = Number(fresh.manaCrystals) || 0;
+        const requestId = deterministicSourceId;
+        const existing = await tx.select().from(crystalTransaction)
+          .where(eq(crystalTransaction.requestId, requestId)).limit(1);
+        if (existing.length > 0) return current;
+        const next = current + amount;
+        await tx.update(userProfile).set({ manaCrystals: next } as any)
+          .where(eq(userProfile.id, fresh.id));
+        await tx.insert(crystalTransaction).values({
+          amount, type: 'earn', description, gateId: gateId ?? null,
+          timestamp: new Date().toISOString(), requestId,
+        });
+        return next;
       });
 
       return { success: true, newBalance };
@@ -163,29 +170,23 @@ export const crystalRepository = {
    */
   async spendCrystals(amount: number, description: string): Promise<boolean> {
     try {
-      const records = await db.select().from(userProfile).limit(1);
-      if (records.length === 0) return false;
-
-      const profile = records[0];
-      const currentCrystals = (profile as any).manaCrystals ?? 0;
-      if (currentCrystals < amount) return false;
-
-      const newBalance = currentCrystals - amount;
-
-      await db
-        .update(userProfile)
-        .set({ manaCrystals: newBalance } as any)
-        .where(eq(userProfile.id, profile.id));
-
-      await db.insert(crystalTransaction).values({
-        amount,
-        type: 'spend',
-        description,
-        gateId: null,
-        timestamp: new Date().toISOString(),
+      if (!Number.isSafeInteger(amount) || amount <= 0 || !description.trim()) return false;
+      return await db.transaction(async (tx: any) => {
+        const records = await tx.select().from(userProfile).limit(1);
+        if (records.length === 0) return false;
+        const profile = records[0];
+        const currentCrystals = Number(profile.manaCrystals) || 0;
+        if (currentCrystals < amount) return false;
+        const updated = await tx.update(userProfile)
+          .set({ manaCrystals: currentCrystals - amount } as any)
+          .where(and(eq(userProfile.id, profile.id), gte(userProfile.manaCrystals, amount)));
+        if (!updated || ((updated as any).changes ?? 1) === 0) return false;
+        await tx.insert(crystalTransaction).values({
+          amount: -amount, type: 'spend', description, gateId: null,
+          timestamp: new Date().toISOString(), requestId: null,
+        });
+        return true;
       });
-
-      return true;
     } catch (e) {
       console.warn('Failed to spend mana crystals:', e);
       return false;
@@ -200,24 +201,33 @@ export const crystalRepository = {
     crystalsSpent: number;
     method: 'UPI' | 'AMAZON' | 'GOOGLE_PLAY' | 'COINS';
     destination: string;
+    idempotencyKey?: string;
   }): Promise<{ success: boolean; error?: string }> {
     try {
-      const balance = await this.getBalance();
-      if (balance < params.crystalsSpent) {
-        return { success: false, error: 'Insufficient Mana Crystals' };
+      const destination = params.destination.trim().toLowerCase();
+      if (!Number.isSafeInteger(params.amountInr) || params.amountInr < 25 || params.amountInr > 2000 ||
+          !Number.isSafeInteger(params.crystalsSpent) || params.crystalsSpent !== params.amountInr * 10 ||
+          !['UPI', 'AMAZON', 'GOOGLE_PLAY', 'COINS'].includes(params.method)) {
+        return { success: false, error: 'Invalid redemption request' };
       }
+      if (params.method === 'UPI' && !/^[a-zA-Z0-9._-]{2,64}@[a-zA-Z0-9.-]{2,32}$/.test(destination)) {
+        return { success: false, error: 'Invalid UPI destination' };
+      }
+      if (params.method !== 'UPI' && params.method !== 'COINS' && destination.length < 6) {
+        return { success: false, error: 'Invalid destination' };
+      }
+      const requestId = params.idempotencyKey?.trim() || `redemption:${Date.now()}:${Math.random().toString(36).slice(2)}`;
 
       // 1. Cloud-authoritative atomic redemption via RPC
       if (isSupabaseConfigured() && supabase) {
         try {
           await ensureAuthenticatedUser();
-          const requestUuid = `redemption:${Date.now()}:${Math.random().toString(36).substring(2, 8)}`;
           const { data: rpcRes, error: rpcErr } = await supabase.rpc('request_redemption_secure', {
             p_amount_inr: params.amountInr,
             p_crystals_spent: params.crystalsSpent,
             p_method: params.method,
-            p_destination: params.destination,
-            p_request_uuid: requestUuid,
+            p_destination: destination,
+            p_request_uuid: requestId,
           });
 
           if (!rpcErr && rpcRes && rpcRes.success) {
@@ -232,24 +242,25 @@ export const crystalRepository = {
                 .where(eq(userProfile.id, records[0].id));
             }
 
-            await db.insert(crystalTransaction).values({
-              amount: params.crystalsSpent,
-              type: 'spend',
-              description: `Redemption: ₹${params.amountInr} via ${params.method}`,
-              gateId: null,
-              timestamp: new Date().toISOString(),
-            });
-
-            await db.insert(crystalRedemption).values({
-              userId: 'default_user',
-              amountInr: params.amountInr,
-              crystalsSpent: params.crystalsSpent,
-              method: params.method,
-              destination: params.destination,
-              status: 'PENDING',
-              createdAt: new Date().toISOString(),
-              paidAt: null,
-            });
+            if (!rpcRes.already_processed) {
+              const createdAt = new Date().toISOString();
+              await db.insert(crystalTransaction).values({
+                amount: -params.crystalsSpent,
+                type: 'spend',
+                description: `Redemption: ₹${params.amountInr} via ${params.method}`,
+                gateId: null,
+                timestamp: createdAt, requestId,
+              });
+              await db.insert(crystalRedemption).values({
+                userId: 'default_user',
+                amountInr: params.amountInr,
+                crystalsSpent: params.crystalsSpent,
+                method: params.method,
+                destination,
+                status: 'PENDING',
+                createdAt, paidAt: null, requestId,
+              });
+            }
 
             return { success: true };
           } else if (rpcErr || (rpcRes && !rpcRes.success)) {
@@ -262,24 +273,45 @@ export const crystalRepository = {
       }
 
       // 2. Local Fallback if offline
-      const spent = await this.spendCrystals(
-        params.crystalsSpent,
-        `Redemption: ₹${params.amountInr} via ${params.method}`
-      );
+      const createdAt = new Date().toISOString();
+      await db.transaction(async (tx: any) => {
+        const existing = await tx.select().from(crystalRedemption)
+          .where(eq(crystalRedemption.requestId, requestId)).limit(1);
+        if (existing.length > 0) return;
+        const recent = await tx.select().from(crystalRedemption)
+          .where(eq(crystalRedemption.status, 'PENDING'));
+        if (recent.length > 0) throw new Error('A redemption is already pending');
+        const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+        const dailyTotal = (await tx.select().from(crystalRedemption)).reduce((sum: number, row: any) => {
+          return sum + (Date.parse(row.createdAt) >= cutoff ? Number(row.amountInr) || 0 : 0);
+        }, 0);
+        if (dailyTotal + params.amountInr > 2000) throw new Error('Daily redemption limit reached');
+        const profile = (await tx.select().from(userProfile).limit(1))[0];
+        if (!profile || (profile.manaCrystals ?? 0) < params.crystalsSpent) {
+          throw new Error('Insufficient Mana Crystals');
+        }
+        const updated = await tx.update(userProfile)
+          .set({ manaCrystals: profile.manaCrystals - params.crystalsSpent } as any)
+          .where(and(eq(userProfile.id, profile.id), gte(userProfile.manaCrystals, params.crystalsSpent)));
+        if (!updated || ((updated as any).changes ?? 1) === 0) throw new Error('Failed to process crystal deduction');
+        await tx.insert(crystalTransaction).values({
+          amount: -params.crystalsSpent, type: 'spend',
+          description: `Redemption: ₹${params.amountInr} via ${params.method}`,
+          gateId: null, timestamp: createdAt, requestId,
+        });
+        await tx.insert(crystalRedemption).values({
+          userId: 'default_user', amountInr: params.amountInr,
+          crystalsSpent: params.crystalsSpent, method: params.method,
+          destination, status: 'PENDING', createdAt, paidAt: null, requestId,
+        });
+      });
 
-      if (!spent) {
-        return { success: false, error: 'Failed to process crystal deduction' };
-      }
-
-      await db.insert(crystalRedemption).values({
-        userId: 'default_user',
+      await cloudSyncService.enqueueCashoutSync({
+        requestId,
         amountInr: params.amountInr,
         crystalsSpent: params.crystalsSpent,
         method: params.method,
-        destination: params.destination,
-        status: 'PENDING',
-        createdAt: new Date().toISOString(),
-        paidAt: null,
+        destination,
       });
 
       return { success: true };

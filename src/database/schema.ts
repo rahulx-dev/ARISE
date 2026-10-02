@@ -1,4 +1,5 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, check } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
 
 export const userProfile = sqliteTable("user_profile", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -53,6 +54,7 @@ export const coinTransaction = sqliteTable("coin_transaction", {
   description: text("description").notNull(),
   source: text("source").notNull(),
   timestamp: text("timestamp").notNull(),
+  requestId: text("request_id").unique(),
 });
 
 export const screenTimeSession = sqliteTable("screen_time_session", {
@@ -238,6 +240,7 @@ export const payoutRequest = sqliteTable("payout_request", {
   status: text("status").notNull().default("PENDING"), // 'PENDING' | 'PAID' | 'REJECTED'
   createdAt: text("created_at").notNull(),
   paidAt: text("paid_at"),
+  requestId: text("request_id").notNull().unique(),
 });
 
 // ================= HUNTER GUILD TABLES =================
@@ -294,7 +297,11 @@ export const crystalRedemption = sqliteTable("crystal_redemption", {
   status: text("status").notNull().default("PENDING"), // 'PENDING' | 'PAID' | 'REJECTED'
   createdAt: text("created_at").notNull(),
   paidAt: text("paid_at"),
-});
+  requestId: text("request_id").notNull().unique(),
+}, (table) => ({
+  validAmount: check("crystal_redemption_positive_amount", sql`${table.amountInr} > 0 AND ${table.crystalsSpent} > 0`),
+  validStatus: check("crystal_redemption_status", sql`${table.status} IN ('PENDING', 'PAID', 'REJECTED')`),
+}));
 
 export const crystalTransaction = sqliteTable("crystal_transaction", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -303,4 +310,18 @@ export const crystalTransaction = sqliteTable("crystal_transaction", {
   description: text("description").notNull(),
   gateId: text("gate_id"),
   timestamp: text("timestamp").notNull(),
+  requestId: text("request_id").unique(),
+}, (table) => ({
+  validAmount: check("crystal_transaction_nonzero", sql`${table.amount} != 0`),
+  validType: check("crystal_transaction_type", sql`${table.type} IN ('earn', 'spend')`),
+}));
+
+export const syncQueue = sqliteTable("sync_queue", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  kind: text("kind").notNull(),
+  requestId: text("request_id").notNull().unique(),
+  payload: text("payload").notNull(),
+  attempts: integer("attempts").notNull().default(0),
+  nextAttemptAt: integer("next_attempt_at").notNull().default(0),
+  createdAt: text("created_at").notNull(),
 });

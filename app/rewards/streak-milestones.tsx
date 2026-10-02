@@ -41,6 +41,7 @@ import {
   StreakMilestoneGift,
 } from '../../src/services/streakGiftService';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
+import { AnimatedStreakFlame } from '../../src/components/ui/AnimatedStreakFlame';
 
 const { width } = Dimensions.get('window');
 
@@ -189,7 +190,7 @@ export default function StreakMilestonesScreen() {
         </View>
 
         <View style={styles.headerStreakPill}>
-          <Fire size={15} color="#EA580C" weight="fill" />
+          <AnimatedStreakFlame size={18} />
           <Text style={styles.headerStreakVal}>{currentStreak}d</Text>
         </View>
       </View>
@@ -216,7 +217,7 @@ export default function StreakMilestonesScreen() {
           >
             <View style={styles.heroTopRow}>
               <View style={styles.heroFlameWrap}>
-                <Fire size={36} color="#EA580C" weight="fill" />
+                <AnimatedStreakFlame size={40} />
               </View>
               <View style={{ flex: 1, gap: 2 }}>
                 <Text style={styles.heroStreakHeading}>{currentStreak} DAYS UNBROKEN</Text>
@@ -290,11 +291,7 @@ export default function StreakMilestonesScreen() {
                       },
                     ]}
                   >
-                    <Fire
-                      size={16}
-                      color={isClaimable ? '#F59E0B' : isClaimed ? '#10B981' : m.color}
-                      weight="fill"
-                    />
+                    <AnimatedStreakFlame size={16} />
                     <Text
                       style={[
                         styles.daysBadgeNum,

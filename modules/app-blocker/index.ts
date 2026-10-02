@@ -1,4 +1,4 @@
-import { requireNativeModule } from 'expo-modules-core';
+﻿import { requireNativeModule } from 'expo-modules-core';
 import { NativeModules, Platform } from 'react-native';
 
 let AppBlocker: any = null;
@@ -19,6 +19,7 @@ if (!AppBlocker) {
     startMonitoring: (_restrictedPackages: string[]) => {},
     stopMonitoring: () => {},
     setRestrictedPackages: (_restrictedPackages: string[]) => {},
+    setAppBudget: (_packageName: string | null, _budgetMinutes: number) => {},
     getInstalledApps: async () => [],
      // A missing Android module must never look like a successful pass.  The UI
      // can then keep the lock in place and surface the native setup problem.
@@ -92,7 +93,7 @@ export function setRestrictedPackages(restrictedPackages: string[]): void {
 }
 
 export function setAppBudget(packageName: string | null, budgetMinutes: number): void {
-  if (Platform.OS === 'android' && packageName && AppBlocker?.setAppBudget) {
+  if (Platform.OS === 'android' && AppBlocker?.setAppBudget) {
     try {
       AppBlocker.setAppBudget(packageName, budgetMinutes);
     } catch {}
@@ -194,3 +195,4 @@ export default {
   showTestOverlay,
   getInstalledApps,
 };
+

@@ -1,18 +1,33 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { Camera } from 'expo-camera';
+import * as Notifications from 'expo-notifications';
 
 // Placeholders for real expo permission hooks if needed, otherwise standard approach
 export function useCameraPermission() {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const mounted = useRef(true);
+  useEffect(() => () => { mounted.current = false; }, []);
 
   const checkPermission = useCallback(async () => {
-    // Implement real expo-camera check
-    setHasPermission(true);
+    try {
+      const result = await Camera.getCameraPermissionsAsync();
+      if (mounted.current) setHasPermission(result.granted);
+      return result.granted;
+    } catch {
+      if (mounted.current) setHasPermission(false);
+      return false;
+    }
   }, []);
 
   const requestPermission = useCallback(async () => {
-    // Implement real expo-camera request
-    setHasPermission(true);
-    return true;
+    try {
+      const result = await Camera.requestCameraPermissionsAsync();
+      if (mounted.current) setHasPermission(result.granted);
+      return result.granted;
+    } catch {
+      if (mounted.current) setHasPermission(false);
+      return false;
+    }
   }, []);
 
   return { hasPermission, requestPermission, checkPermission };
@@ -20,16 +35,29 @@ export function useCameraPermission() {
 
 export function useNotificationPermission() {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const mounted = useRef(true);
+  useEffect(() => () => { mounted.current = false; }, []);
 
   const checkPermission = useCallback(async () => {
-    // Implement real expo-notifications check
-    setHasPermission(true);
+    try {
+      const result = await Notifications.getPermissionsAsync();
+      if (mounted.current) setHasPermission(result.granted);
+      return result.granted;
+    } catch {
+      if (mounted.current) setHasPermission(false);
+      return false;
+    }
   }, []);
 
   const requestPermission = useCallback(async () => {
-    // Implement real expo-notifications request
-    setHasPermission(true);
-    return true;
+    try {
+      const result = await Notifications.requestPermissionsAsync();
+      if (mounted.current) setHasPermission(result.granted);
+      return result.granted;
+    } catch {
+      if (mounted.current) setHasPermission(false);
+      return false;
+    }
   }, []);
 
   return { hasPermission, requestPermission, checkPermission };

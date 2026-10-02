@@ -12,7 +12,20 @@ export const db: ReturnType<typeof drizzle<typeof schema>> = drizzle(expoDb, {
   schema,
 });
 
+let initialization: Promise<void> | null = null;
+
 export async function initializeDatabase(): Promise<void> {
+  if (initialization) return initialization;
+  initialization = initializeDatabaseOnce();
+  try {
+    await initialization;
+  } catch (error) {
+    initialization = null;
+    throw error;
+  }
+}
+
+async function initializeDatabaseOnce(): Promise<void> {
   console.log("[ARISE Persistence] Opening SQLite database:", DATABASE_NAME);
 
   const createTablesSql = `
@@ -67,7 +80,8 @@ export async function initializeDatabase(): Promise<void> {
       type TEXT NOT NULL,
       description TEXT NOT NULL,
       source TEXT NOT NULL,
-      timestamp TEXT NOT NULL
+      timestamp TEXT NOT NULL,
+      request_id TEXT UNIQUE
     );
 
     CREATE TABLE IF NOT EXISTS screen_time_session (
@@ -246,7 +260,10 @@ export async function initializeDatabase(): Promise<void> {
       sponsor_passes_used INTEGER NOT NULL DEFAULT 0,
       status TEXT NOT NULL DEFAULT 'PENDING',
       created_at TEXT NOT NULL,
-      paid_at TEXT
+      paid_at TEXT,
+      request_id TEXT NOT NULL UNIQUE,
+      CHECK (amount_inr > 0 AND coins_spent > 0),
+      CHECK (status IN ('PENDING', 'PAID', 'REJECTED'))
     );
 
     CREATE TABLE IF NOT EXISTS user_inventory (
@@ -315,7 +332,20 @@ export async function initializeDatabase(): Promise<void> {
       type TEXT NOT NULL,
       description TEXT NOT NULL,
       gate_id TEXT,
-      timestamp TEXT NOT NULL
+      timestamp TEXT NOT NULL,
+      request_id TEXT UNIQUE,
+      CHECK (amount != 0),
+      CHECK (type IN ('earn', 'spend'))
+    );
+
+    CREATE TABLE IF NOT EXISTS sync_queue (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      kind TEXT NOT NULL,
+      request_id TEXT NOT NULL UNIQUE,
+      payload TEXT NOT NULL,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      next_attempt_at INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL
     );
 
     CREATE INDEX IF NOT EXISTS idx_quest_date_freq ON quest(date, frequency);
@@ -344,6 +374,9 @@ export async function initializeDatabase(): Promise<void> {
     "ALTER TABLE user_profile ADD COLUMN sponsor_passes INTEGER DEFAULT 0;",
     "ALTER TABLE user_profile ADD COLUMN mana_crystals INTEGER DEFAULT 0;",
     "ALTER TABLE payout_request ADD COLUMN sponsor_passes_used INTEGER DEFAULT 0;",
+    "ALTER TABLE crystal_redemption ADD COLUMN request_id TEXT;",
+    "ALTER TABLE crystal_transaction ADD COLUMN request_id TEXT;",
+    "ALTER TABLE coin_transaction ADD COLUMN request_id TEXT;",
     "ALTER TABLE settings ADD COLUMN bg_music_enabled INTEGER DEFAULT 0;",
     "ALTER TABLE settings ADD COLUMN bg_music_volume REAL DEFAULT 0.5;",
     "ALTER TABLE settings ADD COLUMN focus_music_track TEXT DEFAULT 'deep_focus';",
@@ -356,8 +389,38 @@ export async function initializeDatabase(): Promise<void> {
   for (const sql of migrationStatements) {
     try {
       expoDb.execSync(sql);
-    } catch (_) {}
+    } catch (error) {
+      // ALTER TABLE reports "duplicate column" on already upgraded installs.
+      // Other failures must not be hidden: they leave Drizzle querying a
+      // schema it cannot satisfy.
+      if (!String(error).toLowerCase().includes("duplicate column")) {
+        throw error;
+      }
+    }
   }
+
+  // Older builds wrote duplicate idempotency keys before these constraints
+  // existed. Keep the earliest event so the upgrade itself cannot fail.
+  expoDb.execSync(`
+    DELETE FROM crystal_redemption
+    WHERE request_id IS NOT NULL AND id NOT IN (
+      SELECT MIN(id) FROM crystal_redemption
+      WHERE request_id IS NOT NULL GROUP BY request_id
+    );
+    DELETE FROM crystal_transaction
+    WHERE request_id IS NOT NULL AND id NOT IN (
+      SELECT MIN(id) FROM crystal_transaction
+      WHERE request_id IS NOT NULL GROUP BY request_id
+    );
+    DELETE FROM coin_transaction
+    WHERE request_id IS NOT NULL AND id NOT IN (
+      SELECT MIN(id) FROM coin_transaction
+      WHERE request_id IS NOT NULL GROUP BY request_id
+    );
+  `);
+  expoDb.execSync("CREATE UNIQUE INDEX IF NOT EXISTS idx_crystal_redemption_request ON crystal_redemption(request_id);");
+  expoDb.execSync("CREATE UNIQUE INDEX IF NOT EXISTS idx_crystal_transaction_request ON crystal_transaction(request_id);");
+  expoDb.execSync("CREATE UNIQUE INDEX IF NOT EXISTS idx_coin_transaction_request ON coin_transaction(request_id);");
 
   // Check and seed User Profile only if not existing
   const profileRows = await db.select().from(schema.userProfile).limit(1);

@@ -146,6 +146,7 @@ export class AudioService {
   private volume: number = 0.7;
   private isAudioModeSet: boolean = false;
   private cachedFileUris: Map<string, string> = new Map();
+  private playGeneration = 0;
 
   private constructor() {}
 
@@ -268,7 +269,8 @@ export class AudioService {
   }
 
   async play(trackId: string = this.currentTrackId): Promise<void> {
-    await this.stop();
+    const generation = ++this.playGeneration;
+    await this.stopCurrent();
     this.currentTrackId = trackId;
     await this.initAudioSession();
 
@@ -283,6 +285,10 @@ export class AudioService {
         }
       );
 
+      if (generation !== this.playGeneration) {
+        await sound.unloadAsync();
+        return;
+      }
       this.sound = sound;
       this.isPlaying = true;
     } catch (e) {
@@ -311,7 +317,7 @@ export class AudioService {
     }
   }
 
-  async stop(): Promise<void> {
+  private async stopCurrent(): Promise<void> {
     this.isPlaying = false;
     if (this.sound) {
       try {
@@ -320,6 +326,11 @@ export class AudioService {
       } catch (_) {}
       this.sound = null;
     }
+  }
+
+  async stop(): Promise<void> {
+    this.playGeneration++;
+    await this.stopCurrent();
   }
 
   async next(): Promise<AudioTrackInfo> {

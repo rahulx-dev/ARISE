@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,9 @@ import {
   Alert,
   Animated,
   Easing,
+  Linking,
 } from 'react-native';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import {
@@ -40,6 +42,7 @@ import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { useSound } from '../../src/hooks/useSound';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTheme } from '../../src/hooks/useTheme';
+import { AnimatedStreakFlame } from '../../src/components/ui/AnimatedStreakFlame';
 
 const DISTANCE_PRESETS = [0.5, 1.0, 2.0, 3.0, 5.0, 10.0];
 
@@ -76,6 +79,7 @@ export default function RunningScreen() {
 
   // Animation pulse
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const completionHandled = useRef(false);
 
   useEffect(() => {
     if (isRunning && !isPaused) {
@@ -102,8 +106,20 @@ export default function RunningScreen() {
 
   // Clean up on unmount
   useEffect(() => {
+    if (isRunning) {
+      activateKeepAwakeAsync('running-trial').catch(() => {});
+    } else {
+      deactivateKeepAwake('running-trial').catch(() => {});
+    }
+    return () => {
+      deactivateKeepAwake('running-trial').catch(() => {});
+    };
+  }, [isRunning]);
+
+  useEffect(() => {
     return () => {
       runningTrackerService.stopTracking();
+      deactivateKeepAwake('running-trial').catch(() => {});
     };
   }, []);
 
@@ -115,6 +131,8 @@ export default function RunningScreen() {
 
   // Handle Start
   const handleStartRun = async () => {
+    if (isRunning) return;
+    completionHandled.current = false;
     haptics.heavy();
     sound.play('quest_complete');
 
@@ -129,7 +147,14 @@ export default function RunningScreen() {
     );
 
     if (!result.success) {
-      Alert.alert('Permission Needed', result.error || 'Please grant location permission to track your run.');
+      Alert.alert(
+        'Location Needed',
+        result.error || 'Enable location permission and location services to track your run.',
+        [
+          { text: 'CANCEL', style: 'cancel' },
+          { text: 'OPEN SETTINGS', onPress: () => Linking.openSettings().catch(() => {}) },
+        ]
+      );
       return;
     }
 
@@ -173,14 +198,15 @@ export default function RunningScreen() {
 
   // Handle Run Completed
   const handleRunCompleted = async () => {
+    if (completionHandled.current) return;
+    completionHandled.current = true;
     haptics.success();
     sound.play('level_up');
 
-    // Grant rewards (Hunter XP & in-game Coins only)
-    await userRepository.addXP(calculatedXP);
-    await coinService.addCoins(calculatedCoins, `Shadow Sprint: ${targetDistanceKm} KM`, 'quest');
-
-    // Auto complete running daily quest if exists
+    let earnedXP = calculatedXP;
+    let earnedCoins = calculatedCoins;
+    // Reconcile the run with one matching daily quest. Quest completion is
+    // transactional and already grants its rewards, so never grant both sets.
     try {
       const activeQuests = await questService.getDailyQuests();
       const runningQuest = activeQuests.find(
@@ -192,16 +218,25 @@ export default function RunningScreen() {
             (q.description || '').toLowerCase().includes('run'))
       );
       if (runningQuest) {
-        await questService.completeQuest(runningQuest.id);
+        const completion = await questService.completeQuest(runningQuest.id);
+        earnedXP = completion.earnedXP;
+        earnedCoins = completion.earnedCoins;
+      } else {
+        await userRepository.addXP(calculatedXP);
+        await coinService.addCoins(calculatedCoins, `Shadow Sprint: ${targetDistanceKm} KM`, 'quest');
       }
-    } catch {}
+    } catch {
+      // Do not retry or issue a second reward after an uncertain transaction.
+      earnedXP = 0;
+      earnedCoins = 0;
+    }
 
     await loadProfile();
     await loadQuests();
 
     setEarnedRewards({
-      xp: calculatedXP,
-      coins: calculatedCoins,
+      xp: earnedXP,
+      coins: earnedCoins,
     });
     setShowCompletionModal(true);
     setIsRunning(false);
@@ -428,7 +463,7 @@ export default function RunningScreen() {
               </View>
 
               <View style={[styles.secondaryPill, { backgroundColor: isDark ? '#0A0D15' : '#F1F5F9' }]}>
-                <Fire size={15} color="#F59E0B" weight="fill" />
+                <AnimatedStreakFlame size={16} />
                 <Text style={[styles.secondaryLabel, { color: colors.textSecondary }]}>BURN:</Text>
                 <Text style={[styles.secondaryVal, { color: '#F59E0B' }]}>
                   {stats.caloriesBurned} kcal

@@ -42,6 +42,7 @@ import { PlayerAvatar } from '../../src/components/ui/PlayerAvatar';
 import { ALL_AVATARS } from '../../src/constants/avatars';
 import { AVATAR_ICONS } from '../../src/components/profile/AvatarPicker';
 import { AnimatedNumber } from '../../src/components/motion/AnimatedNumber';
+import { AnimatedStreakFlame } from '../../src/components/ui/AnimatedStreakFlame';
 
 interface BoostItem {
   id: string;
@@ -146,7 +147,7 @@ export default function ShopScreen() {
       cost: 200,
       iconBg: isDark ? 'rgba(37, 99, 235, 0.2)' : '#DBEAFE',
       iconColor: '#2563EB',
-      icon: Flame,
+      icon: AnimatedStreakFlame,
     },
     {
       id: 'double_xp',

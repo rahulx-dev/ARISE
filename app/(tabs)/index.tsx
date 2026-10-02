@@ -36,6 +36,7 @@ import { useTheme } from '../../src/hooks/useTheme';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useSound } from '../../src/hooks/useSound';
 import { getAvatarSource } from '../../src/constants/avatars';
+import { AnimatedStreakFlame } from '../../src/components/ui/AnimatedStreakFlame';
 import { getRankForLevel } from '../../src/constants/ranks';
 import { getDailyQuote } from '../../src/constants/quotes';
 import { NotificationSheet } from '../../src/components/notifications/NotificationSheet';
@@ -156,7 +157,7 @@ export default function HomeDashboard() {
               >
                 {displayName}
               </Text>
-              <Flame size={18} color="#F97316" fill="#F97316" />
+              <AnimatedStreakFlame size={20} />
             </View>
           </TouchableOpacity>
 
@@ -305,7 +306,7 @@ export default function HomeDashboard() {
                 { backgroundColor: isDark ? 'rgba(249, 115, 22, 0.15)' : '#FFF7ED' },
               ]}
             >
-              <Flame size={18} color="#F97316" fill="#F97316" />
+              <AnimatedStreakFlame size={22} />
             </View>
             <Text
               style={[
