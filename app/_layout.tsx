@@ -11,6 +11,12 @@ import {
   SpaceGrotesk_600SemiBold,
   SpaceGrotesk_700Bold,
 } from "@expo-google-fonts/space-grotesk";
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from "@expo-google-fonts/inter";
 import { initializeDatabase, db } from "../src/database/client";
 import { appRestriction, settings } from "../src/database/schema";
 import { appBlockerService } from "../src/native";
@@ -55,6 +61,10 @@ function RootLayout() {
   const [appState, setAppState] = useState<AppState>("INITIALIZING");
 
   const [fontsLoaded] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
     SpaceGrotesk_400Regular,
     SpaceGrotesk_500Medium,
     SpaceGrotesk_600SemiBold,
