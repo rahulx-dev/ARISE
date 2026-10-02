@@ -524,7 +524,7 @@ export default function ShopScreen() {
                       <Text style={styles.voucherSub}>{voucher.sub}</Text>
                       <View style={styles.voucherPricePill}>
                         <ManaCrystalIcon size={13} color="#00D2EE" secondaryColor="#0284C7" />
-                        <Text style={styles.voucherPriceText}>{voucher.crystalsCost} 💎 Crystals</Text>
+                        <Text style={styles.voucherPriceText}>{voucher.crystalsCost} Crystals</Text>
                       </View>
                     </View>
                   </View>

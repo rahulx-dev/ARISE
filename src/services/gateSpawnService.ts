@@ -778,18 +778,20 @@ export function calculateHunterCrystals(grossPayoutInr: number): number {
 }
 
 class GateSpawnService {
+  private inMemoryGates: SpawnedDungeonGate[] = [];
+
   /**
    * Spawns a balanced collection of dimensional gates across ranks (E to S).
    * Maps surveys strictly by payout tier into the appropriate gate rank!
    */
   private generateFreshGates(cloudUserId?: string): SpawnedDungeonGate[] {
     const ranks: ("E" | "D" | "C" | "B" | "A" | "S")[] = [
-      "S",
-      "A",
-      "B",
-      "C",
-      "D",
       "E",
+      "D",
+      "C",
+      "B",
+      "A",
+      "S",
     ];
     const now = Date.now();
     const gates: SpawnedDungeonGate[] = [];
@@ -849,6 +851,27 @@ class GateSpawnService {
   }
 
   /**
+   * Synchronous gate lookup from in-memory cache or fast local storage
+   */
+  getGateByIdSync(id: string): SpawnedDungeonGate | null {
+    if (this.inMemoryGates.length > 0) {
+      const found = this.inMemoryGates.find((g) => g.id === id);
+      if (found) return found;
+    }
+    try {
+      const raw = getKv(SPAWNED_GATES_KEY);
+      if (raw) {
+        const localGates: SpawnedDungeonGate[] = JSON.parse(raw);
+        this.inMemoryGates = localGates;
+        const directMatch = localGates.find((g) => g.id === id);
+        if (directMatch) return directMatch;
+        return localGates[0] || null;
+      }
+    } catch {}
+    return this.inMemoryGates[0] || null;
+  }
+
+  /**
    * Get all active spawned gates.
    * Auto-prunes expired gates and auto-spawns fresh ones if expired or empty.
    */
@@ -867,6 +890,7 @@ class GateSpawnService {
       if (!raw) {
         const fresh = this.generateFreshGates(cloudUserId);
         setKv(SPAWNED_GATES_KEY, JSON.stringify(fresh));
+        this.inMemoryGates = fresh;
         return fresh;
       }
 
@@ -879,6 +903,7 @@ class GateSpawnService {
       if (validGates.length < 3) {
         const fresh = this.generateFreshGates(cloudUserId);
         setKv(SPAWNED_GATES_KEY, JSON.stringify(fresh));
+        this.inMemoryGates = fresh;
         return fresh;
       }
 
@@ -890,23 +915,25 @@ class GateSpawnService {
         }
       }
 
-      // Sort with S rank at top, then A, B, C, D, E
+      // Sort low rank first: E -> D -> C -> B -> A -> S (low rank gate = low mana crystals)
       const rankOrder: Record<string, number> = {
-        S: 6,
-        A: 5,
-        B: 4,
-        C: 3,
-        D: 2,
         E: 1,
+        D: 2,
+        C: 3,
+        B: 4,
+        A: 5,
+        S: 6,
       };
       validGates.sort(
-        (a, b) => (rankOrder[b.rankCode] || 0) - (rankOrder[a.rankCode] || 0),
+        (a, b) => (rankOrder[a.rankCode] || 0) - (rankOrder[b.rankCode] || 0),
       );
 
+      this.inMemoryGates = validGates;
       return validGates;
     } catch {
       const fallback = this.generateFreshGates('warrior_device');
       setKv(SPAWNED_GATES_KEY, JSON.stringify(fallback));
+      this.inMemoryGates = fallback;
       return fallback;
     }
   }
@@ -915,14 +942,8 @@ class GateSpawnService {
    * Get a specific gate by its unique ID
    */
   async getGateById(id: string): Promise<SpawnedDungeonGate | null> {
-    try {
-      const raw = getKv(SPAWNED_GATES_KEY);
-      if (raw) {
-        const localGates: SpawnedDungeonGate[] = JSON.parse(raw);
-        const directMatch = localGates.find((g) => g.id === id);
-        if (directMatch) return directMatch;
-      }
-    } catch {}
+    const syncMatch = this.getGateByIdSync(id);
+    if (syncMatch) return syncMatch;
 
     const gates = await this.getActiveGates();
     return gates.find((g) => g.id === id) ?? (gates.length > 0 ? gates[0] : null);
@@ -1052,6 +1073,18 @@ class GateSpawnService {
    */
   async triggerRadarScan(): Promise<SpawnedDungeonGate[]> {
     const fresh = this.generateFreshGates();
+    const rankOrder: Record<string, number> = {
+      E: 1,
+      D: 2,
+      C: 3,
+      B: 4,
+      A: 5,
+      S: 6,
+    };
+    fresh.sort(
+      (a, b) => (rankOrder[a.rankCode] || 0) - (rankOrder[b.rankCode] || 0),
+    );
+    this.inMemoryGates = fresh;
     setKv(SPAWNED_GATES_KEY, JSON.stringify(fresh));
     setKv(LAST_RADAR_SCAN_KEY, new Date().toISOString());
     return fresh;

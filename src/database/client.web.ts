@@ -166,7 +166,27 @@ function saveWebState(state: Record<string, any[]>) {
 }
 
 const mockState: Record<string, any[]> = loadWebState();
-const kvStore: Record<string, string> = {};
+const KV_STORAGE_KEY = "arise_kv_persistent_v1";
+
+function loadKvStore(): Record<string, string> {
+  try {
+    if (typeof localStorage !== "undefined") {
+      const saved = localStorage.getItem(KV_STORAGE_KEY);
+      if (saved) return JSON.parse(saved);
+    }
+  } catch {}
+  return {};
+}
+
+function saveKvStore(store: Record<string, string>) {
+  try {
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(KV_STORAGE_KEY, JSON.stringify(store));
+    }
+  } catch {}
+}
+
+const kvStore: Record<string, string> = loadKvStore();
 
 function getTableName(table: any): string {
   if (typeof table === "string") return table;
@@ -183,6 +203,7 @@ function parseKeyValueMutation(sql: string, params: any[] = []): void {
     const [key, value] = params;
     if (typeof key === "string") {
       kvStore[key] = String(value ?? "");
+      saveKvStore(kvStore);
     }
     return;
   }
@@ -191,6 +212,7 @@ function parseKeyValueMutation(sql: string, params: any[] = []): void {
     const [key] = params;
     if (typeof key === "string") {
       delete kvStore[key];
+      saveKvStore(kvStore);
     }
   }
 }

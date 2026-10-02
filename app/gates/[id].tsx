@@ -44,8 +44,11 @@ export default function GateDetailsScreen() {
   const profile = usePlayerStore((s) => s.profile);
   const loadProfile = usePlayerStore((s) => s.loadProfile);
 
-  const [gate, setGate] = useState<SpawnedDungeonGate | null>(null);
-  const [loadingGate, setLoadingGate] = useState<boolean>(true);
+  const targetId = id ? (Array.isArray(id) ? id[0] : id) : '';
+  const initialGate = gateSpawnService.getGateByIdSync(targetId);
+
+  const [gate, setGate] = useState<SpawnedDungeonGate | null>(initialGate);
+  const [loadingGate, setLoadingGate] = useState<boolean>(!initialGate);
 
   const [activeMission, setActiveMission] = useState<SurveyTask | null>(null);
   const [currentQIdx, setCurrentQIdx] = useState<number>(0);
@@ -83,8 +86,8 @@ export default function GateDetailsScreen() {
 
   const fetchGate = useCallback(async () => {
     try {
-      const targetId = id ? (Array.isArray(id) ? id[0] : id) : '';
-      const found = await gateSpawnService.getGateById(targetId);
+      const tId = id ? (Array.isArray(id) ? id[0] : id) : '';
+      const found = await gateSpawnService.getGateById(tId);
       if (found) {
         setGate(found);
       } else {
@@ -101,15 +104,15 @@ export default function GateDetailsScreen() {
   useEffect(() => {
     loadProfile();
     fetchGate();
-  }, [loadProfile, fetchGate]);
+  }, [id, fetchGate]);
 
-  if (loadingGate) {
+  if (loadingGate && !gate) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: '#000000' }]} edges={['top', 'bottom']}>
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator size="large" color="#0284C7" />
-          <Text style={styles.loadingText}>SCANNING DIMENSIONAL RIFT COORDINATES...</Text>
-        </View>
+      <SafeAreaView style={[styles.container, { backgroundColor: '#000000', justifyContent: 'center', alignItems: 'center' }]} edges={['top', 'bottom']}>
+        <ActivityIndicator size="large" color="#0284C7" />
+        <Text style={{ color: '#8E8E93', fontSize: 13, marginTop: 14, fontWeight: '700' }}>
+          ENTERING DUNGEON GATE...
+        </Text>
       </SafeAreaView>
     );
   }
@@ -167,7 +170,11 @@ export default function GateDetailsScreen() {
       return;
     }
 
-    handleOpenExternalSurvey(mission);
+    haptics.medium();
+    sound.play('unlock');
+    setCurrentQIdx(0);
+    setSelectedOptIdx(null);
+    setActiveMission(mission);
   };
 
   const handleSelectOption = (idx: number) => {
@@ -410,6 +417,105 @@ export default function GateDetailsScreen() {
       </ScrollView>
 
 
+
+      {/* Interactive In-App Question Inquest Modal */}
+      <Modal visible={activeMission !== null} transparent animationType="slide">
+        <View style={styles.modalBackdrop}>
+          <SafeAreaView style={styles.modalSafe}>
+            {activeMission && (
+              <View style={styles.modalContent}>
+                {/* Header */}
+                <View style={styles.modalHeader}>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={styles.modalStepTag}>
+                      [ RECON INQUEST // QUESTION {currentQIdx + 1} OF {activeMission.questions.length} ]
+                    </Text>
+                    <Text style={styles.modalMissionTitle} numberOfLines={1}>
+                      {activeMission.title}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.closeBtn}
+                    onPress={() => {
+                      haptics.light();
+                      setActiveMission(null);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <X size={16} color="#8E8E93" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Question Box */}
+                <View style={styles.questionBox}>
+                  <Text style={styles.questionText}>
+                    {activeMission.questions[currentQIdx]?.question || 'Answer the following inquest question:'}
+                  </Text>
+                </View>
+
+                {/* Options List */}
+                <View style={styles.optionsList}>
+                  {(activeMission.questions[currentQIdx]?.options || []).map((opt, oIdx) => {
+                    const isSelected = selectedOptIdx === oIdx;
+                    return (
+                      <TouchableOpacity
+                        key={oIdx}
+                        style={[styles.optionCard, isSelected && styles.optionCardSelected]}
+                        onPress={() => handleSelectOption(oIdx)}
+                        activeOpacity={0.85}
+                      >
+                        <View style={[styles.radioDot, isSelected && styles.radioDotSelected]}>
+                          {isSelected && <View style={styles.radioDotInner} />}
+                        </View>
+                        <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
+                          {opt}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* External Provider Link */}
+                {activeMission.surveyUrl && (
+                  <TouchableOpacity
+                    style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 4 }}
+                    onPress={() => {
+                      const m = activeMission;
+                      setActiveMission(null);
+                      handleOpenExternalSurvey(m);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <ExternalLink size={12} color="#00D2EE" />
+                    <Text style={{ fontSize: 11, color: '#00D2EE', fontWeight: '700' }}>
+                      Or switch to live {activeMission.provider} Portal
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                {/* Confirm / Next Button */}
+                <TouchableOpacity
+                  style={[
+                    styles.confirmBtn,
+                    selectedOptIdx === null && styles.confirmBtnDisabled,
+                  ]}
+                  onPress={handleNextOrFinishQuestion}
+                  disabled={selectedOptIdx === null || isExtracting}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.confirmBtnText}>
+                    {isExtracting
+                      ? 'EXTRACTING MANA CRYSTALS...'
+                      : currentQIdx < activeMission.questions.length - 1
+                      ? 'CONFIRM & NEXT QUESTION'
+                      : 'EXTRACT MANA CRYSTALS'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </SafeAreaView>
+        </View>
+      </Modal>
 
       {/* Solo Leveling Extraction Victory Modal */}
       <Modal visible={clearedModalVisible} transparent animationType="fade">

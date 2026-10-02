@@ -860,9 +860,19 @@ export default function DungeonScreen() {
         url={surveyModal.url}
         title={surveyModal.title}
         provider={surveyModal.provider}
-        onClose={(completed) => {
+        onClose={async (completed) => {
           setSurveyModal((prev) => ({ ...prev, visible: false }));
           if (completed) {
+            try {
+              await crystalRepository.addCrystals(
+                200,
+                `Survey Inquest: ${surveyModal.provider}`,
+                'survey_wall',
+                `survey:${Date.now()}`,
+                'survey_wall'
+              );
+              await loadProfile();
+            } catch {}
             refreshData();
           }
         }}

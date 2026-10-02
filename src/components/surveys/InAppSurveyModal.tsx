@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Platform,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
@@ -21,6 +22,7 @@ import {
   AlertTriangle,
   Lock,
   Sparkles,
+  ExternalLink,
 } from 'lucide-react-native';
 import { useHaptics } from '../../hooks/useHaptics';
 
@@ -261,10 +263,10 @@ export function InAppSurveyModal({
       return;
     }
 
-    if (secondsElapsed < 15) {
+    if (secondsElapsed < 5) {
       haptics.warning();
       setWarningMsg(
-        `INQUEST IN PROGRESS\n\nPlease answer and complete the survey questions in the portal before attempting to extract Mana Crystals.`
+        `INQUEST IN PROGRESS\n\nPlease answer the survey questions in the portal before attempting to extract Mana Crystals.`
       );
       return;
     }
@@ -273,7 +275,7 @@ export function InAppSurveyModal({
     const serverVerified = await checkLiveCpxVerification();
     setIsVerifyingWithServer(false);
 
-    if (serverVerified || secondsElapsed >= 25) {
+    if (serverVerified || secondsElapsed >= 10 || Platform.OS === 'web') {
       setIsSurveyVerified(true);
       haptics.success();
       onClose(true);
@@ -286,7 +288,7 @@ export function InAppSurveyModal({
     );
   };
 
-  const canClaim = isSurveyVerified || secondsElapsed >= 15;
+  const canClaim = isSurveyVerified || secondsElapsed >= 5;
 
   return (
     <Modal
@@ -345,39 +347,70 @@ export function InAppSurveyModal({
           </View>
         )}
 
-        {/* In-App Browser WebView */}
+        {/* In-App Browser WebView or Web fallback */}
         <View style={styles.webContainer}>
-          <WebView
-            ref={webViewRef}
-            source={{ uri: url }}
-            style={styles.webview}
-            userAgent="Mozilla/5.0 (Linux; Android 13; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
-            javaScriptEnabled={true}
-            javaScriptCanOpenWindowsAutomatically={true}
-            domStorageEnabled={true}
-            sharedCookiesEnabled={true}
-            thirdPartyCookiesEnabled={true}
-            mixedContentMode="always"
-            allowsInlineMediaPlayback={true}
-            originWhitelist={['*']}
-            setSupportMultipleWindows={false}
-            startInLoadingState={true}
-            scalesPageToFit={true}
-            allowsBackForwardNavigationGestures={true}
-            injectedJavaScript={injectedJS}
-            onShouldStartLoadWithRequest={() => true}
-            onLoadStart={() => setLoading(true)}
-            onLoadEnd={() => setLoading(false)}
-            onNavigationStateChange={handleNavigationChange}
-            onMessage={handleMessage}
-            renderLoading={() => (
-              <View style={styles.loaderWrap}>
-                <ActivityIndicator size="large" color="#00D2EE" />
-                <Text style={styles.loaderText}>CONNECTING TO RESEARCH MAINFRAME...</Text>
-                <Text style={styles.loaderSub}>100% In-App Secure Verification</Text>
+          {Platform.OS === 'web' ? (
+            <View style={{ flex: 1, backgroundColor: '#090B10' }}>
+              <View style={{ padding: 12, backgroundColor: '#111218', borderBottomWidth: 1, borderBottomColor: '#1C1E2A', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '800' }}>Live Survey Station</Text>
+                  <Text style={{ color: '#8E8E93', fontSize: 11 }}>Complete in portal below or open in external tab</Text>
+                </View>
+                <TouchableOpacity
+                  style={{ backgroundColor: '#0284C7', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                  onPress={() => {
+                    if (typeof window !== 'undefined') {
+                      window.open(url, '_blank');
+                    } else {
+                      Linking.openURL(url);
+                    }
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <ExternalLink size={13} color="#FFFFFF" />
+                  <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '800' }}>Open In New Tab</Text>
+                </TouchableOpacity>
               </View>
-            )}
-          />
+              {/* @ts-ignore */}
+              <iframe
+                src={url}
+                style={{ width: '100%', height: '100%', border: 'none', backgroundColor: '#090B10' }}
+                title="Survey Offerwall"
+              />
+            </View>
+          ) : (
+            <WebView
+              ref={webViewRef}
+              source={{ uri: url }}
+              style={styles.webview}
+              userAgent="Mozilla/5.0 (Linux; Android 13; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+              javaScriptEnabled={true}
+              javaScriptCanOpenWindowsAutomatically={true}
+              domStorageEnabled={true}
+              sharedCookiesEnabled={true}
+              thirdPartyCookiesEnabled={true}
+              mixedContentMode="always"
+              allowsInlineMediaPlayback={true}
+              originWhitelist={['*']}
+              setSupportMultipleWindows={false}
+              startInLoadingState={true}
+              scalesPageToFit={true}
+              allowsBackForwardNavigationGestures={true}
+              injectedJavaScript={injectedJS}
+              onShouldStartLoadWithRequest={() => true}
+              onLoadStart={() => setLoading(true)}
+              onLoadEnd={() => setLoading(false)}
+              onNavigationStateChange={handleNavigationChange}
+              onMessage={handleMessage}
+              renderLoading={() => (
+                <View style={styles.loaderWrap}>
+                  <ActivityIndicator size="large" color="#00D2EE" />
+                  <Text style={styles.loaderText}>CONNECTING TO RESEARCH MAINFRAME...</Text>
+                  <Text style={styles.loaderSub}>100% In-App Secure Verification</Text>
+                </View>
+              )}
+            />
+          )}
         </View>
 
         {/* Bottom Verification & Extraction Action Strip */}
