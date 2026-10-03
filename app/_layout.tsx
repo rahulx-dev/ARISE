@@ -242,6 +242,10 @@ function RootLayout() {
                 options={{ animation: "fade" }}
               />
               <Stack.Screen
+                name="auth/callback"
+                options={{ animation: "fade" }}
+              />
+              <Stack.Screen
                 name="exercise"
                 options={{ animation: "slide_from_right" }}
               />

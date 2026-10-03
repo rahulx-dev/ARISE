@@ -209,6 +209,189 @@ export const googleAuthService = {
   },
 
   /**
+   * Parse OAuth tokens or authorization code from a deep link callback URL
+   */
+  parseOAuthUrl(
+    rawUrl?: string | null,
+    fallbackParams?: Record<string, any>
+  ): {
+    accessToken?: string;
+    refreshToken?: string;
+    code?: string;
+    error?: string;
+    errorDescription?: string;
+  } {
+    const result: {
+      accessToken?: string;
+      refreshToken?: string;
+      code?: string;
+      error?: string;
+      errorDescription?: string;
+    } = {};
+
+    // 1. Check fallbackParams from Expo Router
+    if (fallbackParams) {
+      if (fallbackParams.access_token) result.accessToken = String(fallbackParams.access_token);
+      if (fallbackParams.refresh_token) result.refreshToken = String(fallbackParams.refresh_token);
+      if (fallbackParams.code) result.code = String(fallbackParams.code);
+      if (fallbackParams.error) result.error = String(fallbackParams.error);
+      if (fallbackParams.error_description) result.errorDescription = String(fallbackParams.error_description);
+    }
+
+    if (!rawUrl) return result;
+
+    // 2. Parse from rawUrl string (both # hash fragment and ? query params)
+    try {
+      const hashIdx = rawUrl.indexOf('#');
+      const queryIdx = rawUrl.indexOf('?');
+
+      const segments: string[] = [];
+      if (hashIdx !== -1) {
+        segments.push(rawUrl.substring(hashIdx + 1));
+      }
+      if (queryIdx !== -1) {
+        const queryEnd = hashIdx !== -1 && hashIdx > queryIdx ? hashIdx : rawUrl.length;
+        segments.push(rawUrl.substring(queryIdx + 1, queryEnd));
+      }
+
+      for (const seg of segments) {
+        const pairs = seg.split('&');
+        for (const pair of pairs) {
+          const [k, ...vals] = pair.split('=');
+          if (!k) continue;
+          const val = decodeURIComponent(vals.join('='));
+          const lowerKey = k.toLowerCase().trim();
+
+          if (lowerKey === 'access_token') result.accessToken = val;
+          else if (lowerKey === 'refresh_token') result.refreshToken = val;
+          else if (lowerKey === 'code') result.code = val;
+          else if (lowerKey === 'error') result.error = val;
+          else if (lowerKey === 'error_description') result.errorDescription = val;
+        }
+      }
+    } catch (e) {
+      console.warn('[GoogleAuth] Error parsing OAuth URL:', e);
+    }
+
+    return result;
+  },
+
+  /**
+   * Process deep link OAuth callback and authenticate Supabase session
+   */
+  async handleOAuthCallback(
+    rawUrl?: string | null,
+    fallbackParams?: Record<string, any>
+  ): Promise<{
+    success: boolean;
+    user?: GoogleAuthUser;
+    restored?: boolean;
+    error?: string;
+  }> {
+    if (!isSupabaseConfigured() || !supabase) {
+      return { success: false, error: 'Supabase cloud client is not configured' };
+    }
+
+    try {
+      const parsed = this.parseOAuthUrl(rawUrl, fallbackParams);
+
+      if (parsed.error || parsed.errorDescription) {
+        return {
+          success: false,
+          error: parsed.errorDescription || parsed.error || 'Authentication error from Google',
+        };
+      }
+
+      let activeSession = null;
+
+      // 1. Check if tokens are in hash/query (Implicit Grant)
+      if (parsed.accessToken && parsed.refreshToken) {
+        const { data, error } = await supabase.auth.setSession({
+          access_token: parsed.accessToken,
+          refresh_token: parsed.refreshToken,
+        });
+        if (error) {
+          console.warn('[GoogleAuth] setSession error:', error.message);
+          return { success: false, error: error.message };
+        }
+        activeSession = data.session;
+      }
+      // 2. Check if authorization code is present (PKCE Flow)
+      else if (parsed.code) {
+        const { data, error } = await supabase.auth.exchangeCodeForSession(parsed.code);
+        if (error) {
+          console.warn('[GoogleAuth] exchangeCodeForSession error:', error.message);
+          return { success: false, error: error.message };
+        }
+        activeSession = data.session;
+      }
+      // 3. Fallback: check if session is already stored
+      else {
+        const { data } = await supabase.auth.getSession();
+        activeSession = data.session;
+      }
+
+      if (!activeSession?.user) {
+        return {
+          success: false,
+          error: 'No active Google session found after redirect',
+        };
+      }
+
+      const user = activeSession.user;
+      const email = (user.email || '').trim().toLowerCase();
+      if (!email) {
+        return { success: false, error: 'Google account did not provide an email address' };
+      }
+
+      const displayName =
+        user.user_metadata?.full_name ||
+        user.user_metadata?.name ||
+        email.split('@')[0];
+      const photoUrl =
+        user.user_metadata?.avatar_url ||
+        user.user_metadata?.picture ||
+        null;
+
+      const googleUser: GoogleAuthUser = {
+        id: user.id || `google_${Date.now()}`,
+        email,
+        displayName,
+        photoUrl,
+        provider: 'google',
+        linkedAt: new Date().toISOString(),
+      };
+
+      await this.saveGoogleUser(googleUser);
+
+      // Check and restore cloud backup
+      let restored = false;
+      try {
+        const { cloudSyncService } = await import('./cloudSyncService');
+        const res = await cloudSyncService.restoreFromCloud(email);
+        restored = res.restored;
+        if (!restored) {
+          await cloudSyncService.saveToCloud(email);
+        }
+      } catch (syncErr) {
+        console.warn('[GoogleAuth] Cloud backup restore note:', syncErr);
+      }
+
+      return {
+        success: true,
+        user: googleUser,
+        restored,
+      };
+    } catch (e: any) {
+      console.error('[GoogleAuth] handleOAuthCallback exception:', e);
+      return {
+        success: false,
+        error: e?.message || 'Unexpected error processing Google authentication',
+      };
+    }
+  },
+
+  /**
    * Sign in or register with Google credentials (One-Tap / Account Chooser flow)
    */
   async signInWithAccount(params: {
