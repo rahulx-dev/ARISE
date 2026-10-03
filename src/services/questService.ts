@@ -23,6 +23,18 @@ export interface QuestData {
 
 export const DAILY_QUEST_POOL = [
   {
+    title: 'Shadow Sprint Protocol',
+    description: 'Execute outdoor running distance',
+    category: 'FITNESS',
+    exerciseType: 'RUN',
+    target: 1000,
+    rewardCoins: 25,
+    rewardXP: 80,
+    difficulty: 'MEDIUM',
+    questType: 'TRACKED',
+    frequency: 'DAILY' as const,
+  },
+  {
     title: 'Push-ups Protocol',
     description: 'Complete tracked push-up repetitions',
     category: 'FITNESS',
@@ -248,29 +260,51 @@ export const DAILY_QUEST_POOL = [
 /**
  * Level-based dynamic difficulty scaling helper.
  * Scales rep targets and rewards progressively as player ascends through ranks.
- * At Level 20+ (S-Rank / Monarch): 100 reps (The Sung Jin-Woo daily quest!).
+ * At Level 20+ (S-Rank / Monarch): 100 reps / 10 km (The Sung Jin-Woo daily quest!).
  */
 export function getLevelScaledQuest(template: typeof DAILY_QUEST_POOL[0], level: number) {
-  const mult = level >= 20 ? 5.0 : level >= 15 ? 3.5 : level >= 10 ? 2.5 : level >= 6 ? 1.7 : level >= 3 ? 1.3 : 1.0;
+  // Solo Leveling Rank-Based Scaling:
+  // Level 1-2 (E-Rank): 1.0x  -> 15 Pushups, 20 Squats, 15 Situps, 1km Run, 15m Focus
+  // Level 3-5 (D-Rank): 1.6x  -> 25 Pushups, 35 Squats, 25 Situps, 2km Run, 25m Focus
+  // Level 6-9 (C-Rank): 2.5x  -> 40 Pushups, 50 Squats, 40 Situps, 3.5km Run, 35m Focus
+  // Level 10-14 (B-Rank): 4.0x -> 60 Pushups, 75 Squats, 60 Situps, 5km Run, 45m Focus
+  // Level 15-19 (A-Rank): 5.5x -> 80 Pushups, 90 Squats, 80 Situps, 7.5km Run, 60m Focus
+  // Level 20+ (S-Rank / Monarch): 6.67x -> The Canonical 100 Reps & 10km Run!
+  const mult = level >= 20 ? 6.67 : level >= 15 ? 5.5 : level >= 10 ? 4.0 : level >= 6 ? 2.5 : level >= 3 ? 1.6 : 1.0;
 
   let scaledTarget = template.target;
+
   if (template.category === 'FITNESS') {
     if (template.exerciseType === 'PLANK') {
-      scaledTarget = Math.min(180, Math.round(template.target * Math.min(2.5, mult)));
+      scaledTarget = Math.min(180, Math.round(template.target * Math.min(3.0, mult)));
+    } else if (template.exerciseType === 'RUN') {
+      const km = level >= 20 ? 10 : level >= 15 ? 7.5 : level >= 10 ? 5 : level >= 6 ? 3.5 : level >= 3 ? 2 : 1;
+      scaledTarget = Math.round(km * 1000); // in meters
+    } else if (template.exerciseType === 'JUMPING_JACK') {
+      scaledTarget = Math.min(150, Math.round(template.target * mult));
     } else {
-      scaledTarget = Math.min(100, Math.round(template.target * mult));
+      // Pushups, Squats, Situps
+      if (level >= 20) {
+        scaledTarget = 100;
+      } else {
+        scaledTarget = Math.min(100, Math.round(template.target * mult));
+      }
     }
   } else if (template.category === 'FOCUS') {
-    scaledTarget = Math.min(90, Math.round(template.target * Math.min(2.0, mult)));
+    scaledTarget = Math.min(90, Math.round(template.target * Math.min(2.5, mult)));
   }
 
-  const scaledCoins = Math.round(template.rewardCoins * (1 + (mult - 1) * 0.6));
+  // Rewards scale up with higher level/difficulty
+  const rewardMult = level >= 20 ? 4.0 : level >= 15 ? 3.0 : level >= 10 ? 2.2 : level >= 6 ? 1.7 : level >= 3 ? 1.3 : 1.0;
+  const scaledCoins = Math.round(template.rewardCoins * rewardMult);
   const scaledXP = Math.round(template.rewardXP * mult);
 
   let scaledDesc = template.description;
   if (template.category === 'FITNESS') {
     if (template.exerciseType === 'PLANK') {
       scaledDesc = `Hold a firm core plank for ${scaledTarget} seconds`;
+    } else if (template.exerciseType === 'RUN') {
+      scaledDesc = `Cover ${(scaledTarget / 1000).toFixed(1)} km in outdoor running`;
     } else {
       scaledDesc = `Complete ${scaledTarget} tracked ${(template.title || 'exercise').toLowerCase()} repetitions`;
     }
@@ -279,8 +313,12 @@ export function getLevelScaledQuest(template: typeof DAILY_QUEST_POOL[0], level:
   }
 
   let difficulty = template.difficulty;
-  if (mult >= 3.5) difficulty = 'EPIC';
-  else if (mult >= 2.5) difficulty = 'HARD';
+  if (level >= 20) difficulty = 'LEGENDARY';
+  else if (level >= 15) difficulty = 'EPIC';
+  else if (level >= 10) difficulty = 'HARD';
+  else if (level >= 6) difficulty = 'MEDIUM';
+  else if (level >= 3) difficulty = 'NORMAL';
+  else difficulty = 'EASY';
 
   return {
     ...template,
@@ -373,21 +411,23 @@ class QuestService {
         .where(and(eq(quest.frequency, 'DAILY'), eq(quest.date, today)));
 
       if (dailyRows.length === 0) {
-        // Deterministically select 5 balanced quests for today from the 14-quest pool
-        // (2 Fitness, 1 Focus, 2 Wellness/Discipline)
         const d = new Date();
         const dayOfYear = Math.floor((d.getTime() - new Date(d.getFullYear(), 0, 0).getTime()) / 86400000);
 
-        const fitnessQuests = DAILY_QUEST_POOL.filter((q) => q.category === 'FITNESS');
+        const pushupQuests = DAILY_QUEST_POOL.filter((q) => q.exerciseType === 'PUSHUP');
+        const squatQuests = DAILY_QUEST_POOL.filter((q) => q.exerciseType === 'SQUAT');
+        const coreQuests = DAILY_QUEST_POOL.filter((q) => q.exerciseType === 'SITUP' || q.exerciseType === 'PLANK');
+        const runQuests = DAILY_QUEST_POOL.filter((q) => q.exerciseType === 'RUN');
         const focusQuests = DAILY_QUEST_POOL.filter((q) => q.category === 'FOCUS');
         const lifeQuests = DAILY_QUEST_POOL.filter((q) => q.category !== 'FITNESS' && q.category !== 'FOCUS');
 
         const selected = [
-          fitnessQuests[dayOfYear % fitnessQuests.length],
-          fitnessQuests[(dayOfYear + 1) % fitnessQuests.length],
-          focusQuests[dayOfYear % focusQuests.length],
-          lifeQuests[dayOfYear % lifeQuests.length],
-          lifeQuests[(dayOfYear + 1) % lifeQuests.length],
+          pushupQuests[dayOfYear % Math.max(1, pushupQuests.length)] || DAILY_QUEST_POOL[0],
+          squatQuests[dayOfYear % Math.max(1, squatQuests.length)] || DAILY_QUEST_POOL[1],
+          coreQuests[dayOfYear % Math.max(1, coreQuests.length)] || DAILY_QUEST_POOL[2],
+          runQuests[dayOfYear % Math.max(1, runQuests.length)] || DAILY_QUEST_POOL[0],
+          focusQuests[dayOfYear % Math.max(1, focusQuests.length)] || DAILY_QUEST_POOL[3],
+          lifeQuests[dayOfYear % Math.max(1, lifeQuests.length)] || DAILY_QUEST_POOL[4],
         ];
 
         let userLevel = 1;
@@ -400,6 +440,7 @@ class QuestService {
 
         const now = new Date().toISOString();
         for (const rawTemplate of selected) {
+          if (!rawTemplate) continue;
           const t = getLevelScaledQuest(rawTemplate, userLevel);
           await db.insert(quest).values({
             title: t.title,
@@ -599,6 +640,130 @@ class QuestService {
   }
 
   /**
+   * Rescales all active, uncompleted daily quests to match a player's newly attained level
+   */
+  async rescaleActiveQuestsForLevel(newLevel: number): Promise<void> {
+    const today = this.getTodayDateString();
+    try {
+      const activeDaily = await db
+        .select()
+        .from(quest)
+        .where(and(eq(quest.frequency, 'DAILY'), eq(quest.date, today), eq(quest.completed, 0)));
+
+      for (const q of activeDaily) {
+        const template =
+          DAILY_QUEST_POOL.find((t) => t.title === q.title) ||
+          DAILY_QUEST_POOL.find(
+            (t) =>
+              t.category === q.category &&
+              (t.exerciseType || null) === (q.exerciseType || null)
+          );
+
+        if (template) {
+          const scaled = getLevelScaledQuest(template, newLevel);
+          await db
+            .update(quest)
+            .set({
+              target: scaled.target,
+              rewardCoins: scaled.rewardCoins,
+              rewardXP: scaled.rewardXP,
+              description: scaled.description,
+              difficulty: scaled.difficulty,
+            })
+            .where(eq(quest.id, q.id));
+        }
+      }
+
+      await notificationService.createNotification(
+        'QUEST',
+        '⚔️ [QUEST EVOLUTION // RANK ASCENSION]',
+        `Active daily quests have evolved to Level ${newLevel} difficulty with enhanced coin and XP bounties!`
+      );
+    } catch (e) {
+      console.warn('Error rescaling active quests:', e);
+    }
+  }
+
+  /**
+   * Automatically reconciles completed exercises (pushups, squats, situps, plank, run, focus)
+   * with any active uncompleted daily quests.
+   */
+  async reconcileCompletedActivity(
+    activityType: string,
+    value: number
+  ): Promise<{ completedCount: number; coins: number; xp: number }> {
+    const today = this.getTodayDateString();
+    let completedCount = 0;
+    let earnedCoins = 0;
+    let earnedXP = 0;
+
+    try {
+      const activeQuests = await db
+        .select()
+        .from(quest)
+        .where(and(eq(quest.frequency, 'DAILY'), eq(quest.date, today), eq(quest.completed, 0)));
+
+      const normType = activityType.toUpperCase();
+
+      for (const q of activeQuests) {
+        let isMatch = false;
+        const qExType = (q.exerciseType || '').toUpperCase();
+        const qTitle = (q.title || '').toUpperCase();
+
+        if (
+          normType === 'PUSHUP' &&
+          (qExType === 'PUSHUP' || qTitle.includes('PUSH-UP') || qTitle.includes('PUSHUP'))
+        ) {
+          isMatch = true;
+        } else if (
+          normType === 'SQUAT' &&
+          (qExType === 'SQUAT' || qTitle.includes('SQUAT'))
+        ) {
+          isMatch = true;
+        } else if (
+          (normType === 'SITUP' || normType === 'CRUNCH') &&
+          (qExType === 'SITUP' || qTitle.includes('SIT-UP') || qTitle.includes('CRUNCH'))
+        ) {
+          isMatch = true;
+        } else if (
+          normType === 'PLANK' &&
+          (qExType === 'PLANK' || qTitle.includes('PLANK'))
+        ) {
+          isMatch = true;
+        } else if (
+          normType === 'JUMPING_JACK' &&
+          (qExType === 'JUMPING_JACK' || qTitle.includes('JUMPING JACK'))
+        ) {
+          isMatch = true;
+        } else if (
+          (normType === 'RUN' || normType === 'RUNNING' || normType === 'SPRINT') &&
+          (qExType === 'RUN' || qTitle.includes('SPRINT') || qTitle.includes('RUN') || qTitle.includes('WALK'))
+        ) {
+          isMatch = true;
+        } else if (
+          (normType === 'FOCUS' || normType === 'DEEP_FOCUS') &&
+          (q.category === 'FOCUS' || qTitle.includes('FOCUS'))
+        ) {
+          isMatch = true;
+        }
+
+        if (isMatch && value >= (q.target || 1)) {
+          const res = await this.completeQuest(q.id);
+          if (res.success) {
+            completedCount++;
+            earnedCoins += res.earnedCoins;
+            earnedXP += res.earnedXP;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[QuestService] reconcileCompletedActivity error:', err);
+    }
+
+    return { completedCount, coins: earnedCoins, xp: earnedXP };
+  }
+
+  /**
    * Test Mode helper: Reset today's daily quests to incomplete
    */
   async resetTodayQuests(): Promise<void> {
@@ -607,7 +772,7 @@ class QuestService {
   }
 
   /**
-   * Test Mode helper: Re-seed 5 fresh random quests from the 14-quest pool
+   * Test Mode helper: Re-seed 6 fresh random quests from the pool
    */
   async rerollDailyQuests(): Promise<void> {
     const today = this.getTodayDateString();

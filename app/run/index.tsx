@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import {
   CaretLeft,
   Play,
@@ -53,9 +53,11 @@ export default function RunningScreen() {
 
   const loadProfile = usePlayerStore((s) => s.loadProfile);
   const loadQuests = useQuestStore((s) => s.loadQuests);
+  const params = useLocalSearchParams<{ targetKm?: string; questId?: string }>();
 
   // Setup / Tracking States
-  const [targetDistanceKm, setTargetDistanceKm] = useState<number>(1.0);
+  const initialTargetKm = params.targetKm ? Math.max(0.1, parseFloat(params.targetKm) || 1.0) : 1.0;
+  const [targetDistanceKm, setTargetDistanceKm] = useState<number>(initialTargetKm);
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [stats, setStats] = useState<RunningStats>({
@@ -80,10 +82,14 @@ export default function RunningScreen() {
   // Animation pulse
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const completionHandled = useRef(false);
+  const pulseLoopRef = useRef<Animated.CompositeAnimation | null>(null);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
+    mountedRef.current = true;
     if (isRunning && !isPaused) {
-      Animated.loop(
+      pulseLoopRef.current?.stop();
+      pulseLoopRef.current = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
             toValue: 1.08,
@@ -98,10 +104,17 @@ export default function RunningScreen() {
             useNativeDriver: true,
           }),
         ])
-      ).start();
+      );
+      pulseLoopRef.current.start();
     } else {
+      pulseLoopRef.current?.stop();
+      pulseLoopRef.current = null;
       pulseAnim.setValue(1);
     }
+    return () => {
+      pulseLoopRef.current?.stop();
+      pulseLoopRef.current = null;
+    };
   }, [isRunning, isPaused]);
 
   // Clean up on unmount
@@ -118,6 +131,7 @@ export default function RunningScreen() {
 
   useEffect(() => {
     return () => {
+      mountedRef.current = false;
       runningTrackerService.stopTracking();
       deactivateKeepAwake('running-trial').catch(() => {});
     };
@@ -139,7 +153,7 @@ export default function RunningScreen() {
     const result = await runningTrackerService.startTracking(
       targetDistanceKm,
       (newStats) => {
-        setStats(newStats);
+        if (mountedRef.current) setStats(newStats);
       },
       () => {
         handleRunCompleted();
@@ -147,6 +161,7 @@ export default function RunningScreen() {
     );
 
     if (!result.success) {
+      if (!mountedRef.current) return;
       Alert.alert(
         'Location Needed',
         result.error || 'Enable location permission and location services to track your run.',
@@ -158,8 +173,10 @@ export default function RunningScreen() {
       return;
     }
 
-    setIsRunning(true);
-    setIsPaused(false);
+    if (mountedRef.current) {
+      setIsRunning(true);
+      setIsPaused(false);
+    }
   };
 
   // Handle Pause / Resume
@@ -198,7 +215,7 @@ export default function RunningScreen() {
 
   // Handle Run Completed
   const handleRunCompleted = async () => {
-    if (completionHandled.current) return;
+    if (!mountedRef.current || completionHandled.current) return;
     completionHandled.current = true;
     haptics.success();
     sound.play('level_up');
@@ -208,22 +225,36 @@ export default function RunningScreen() {
     // Reconcile the run with one matching daily quest. Quest completion is
     // transactional and already grants its rewards, so never grant both sets.
     try {
-      const activeQuests = await questService.getDailyQuests();
-      const runningQuest = activeQuests.find(
-        (q) =>
-          !q.completed &&
-          ((q.title || '').toLowerCase().includes('run') ||
-            (q.title || '').toLowerCase().includes('sprint') ||
-            (q.title || '').toLowerCase().includes('walk') ||
-            (q.description || '').toLowerCase().includes('run'))
-      );
-      if (runningQuest) {
-        const completion = await questService.completeQuest(runningQuest.id);
-        earnedXP = completion.earnedXP;
-        earnedCoins = completion.earnedCoins;
-      } else {
-        await userRepository.addXP(calculatedXP);
-        await coinService.addCoins(calculatedCoins, `Shadow Sprint: ${targetDistanceKm} KM`, 'quest');
+      let questCompleted = false;
+      if (params.questId) {
+        try {
+          const completion = await questService.completeQuest(parseInt(params.questId, 10));
+          earnedXP = completion.earnedXP;
+          earnedCoins = completion.earnedCoins;
+          questCompleted = true;
+        } catch {
+          // If quest was already completed or not found, fall back to searching active quests
+        }
+      }
+
+      if (!questCompleted) {
+        const activeQuests = await questService.getDailyQuests();
+        const runningQuest = activeQuests.find(
+          (q) =>
+            !q.completed &&
+            ((q.title || '').toLowerCase().includes('run') ||
+              (q.title || '').toLowerCase().includes('sprint') ||
+              (q.title || '').toLowerCase().includes('walk') ||
+              (q.description || '').toLowerCase().includes('run'))
+        );
+        if (runningQuest) {
+          const completion = await questService.completeQuest(runningQuest.id);
+          earnedXP = completion.earnedXP;
+          earnedCoins = completion.earnedCoins;
+        } else {
+          await userRepository.addXP(calculatedXP);
+          await coinService.addCoins(calculatedCoins, `Shadow Sprint: ${targetDistanceKm} KM`, 'quest');
+        }
       }
     } catch {
       // Do not retry or issue a second reward after an uncertain transaction.
@@ -231,9 +262,15 @@ export default function RunningScreen() {
       earnedCoins = 0;
     }
 
+    try {
+      const { streakService } = await import('../../src/services/streakService');
+      await streakService.recordWorkoutStreak();
+    } catch {}
+
     await loadProfile();
     await loadQuests();
 
+    if (!mountedRef.current) return;
     setEarnedRewards({
       xp: earnedXP,
       coins: earnedCoins,

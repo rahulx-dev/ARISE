@@ -99,6 +99,11 @@ export default function QuestCompleteScreen() {
         };
 
   const hasAwarded = useRef(false);
+  const mountedRef = useRef(true);
+
+  useEffect(() => () => {
+    mountedRef.current = false;
+  }, []);
 
   useEffect(() => {
     if (hasAwarded.current) return;
@@ -116,7 +121,7 @@ export default function QuestCompleteScreen() {
         // Emergency Red Gate Victory Check
         if (isRedGate === 'true') {
           const res = await redGateService.claimVictory('exercise');
-          if (res.success) {
+          if (res.success && mountedRef.current) {
             setRedGateVictory({
               coins: res.coinsAwarded,
               xp: res.rewardXP,
@@ -132,6 +137,16 @@ export default function QuestCompleteScreen() {
             xp,
             config.statType as any
           );
+        } else {
+          // Auto-reconcile with any matching active daily quests!
+          const { questService } = await import('../../src/services/questService');
+          const reconciled = await questService.reconcileCompletedActivity(
+            isFocusCompletion ? 'FOCUS' : validExerciseType,
+            reps || targetNum
+          );
+          if (reconciled.completedCount > 0) {
+            awarded = true;
+          }
         }
 
         if (!awarded) {
@@ -148,7 +163,8 @@ export default function QuestCompleteScreen() {
           await userRepository.updateStat(config.statType as any, 1);
         }
 
-        await userRepository.updateStreak();
+        const { streakService } = await import('../../src/services/streakService');
+        await streakService.recordWorkoutStreak();
 
         if (!isFocusCompletion && !isGymCompletion) {
           await exerciseRepository.createSession({
@@ -164,8 +180,10 @@ export default function QuestCompleteScreen() {
 
         await loadProfile();
         await useQuestStore.getState().loadQuests();
-        sound.play('quest_complete');
-        haptics.heavy();
+        if (mountedRef.current) {
+          sound.play('quest_complete');
+          haptics.heavy();
+        }
       } catch (e) {
         console.warn('Error awarding rewards:', e);
       }
@@ -181,14 +199,16 @@ export default function QuestCompleteScreen() {
       try {
         await userRepository.addCoins(bonusCoins, '3X Workout Ad Multiplier', 'ad');
         await loadProfile();
-        setMultiplierClaimed(true);
-        sound.play('level_up');
-        haptics.success();
-        showIOSAlert(
-          '3X REWARD CLAIMED!',
-          `+${bonusCoins} Bonus Gold Coins transferred to your Vault!`,
-          [{ text: 'CLAIM REWARD', style: 'primary' }]
-        );
+        if (mountedRef.current) {
+          setMultiplierClaimed(true);
+          sound.play('level_up');
+          haptics.success();
+          showIOSAlert(
+            '3X REWARD CLAIMED!',
+            `+${bonusCoins} Bonus Gold Coins transferred to your Vault!`,
+            [{ text: 'CLAIM REWARD', style: 'primary' }]
+          );
+        }
       } catch (err) {
         console.warn('Ad multiplier error:', err);
       }

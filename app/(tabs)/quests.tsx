@@ -322,7 +322,14 @@ export default function QuestsScreen() {
     const isCameraTracked = !isRunning && cameraExercise !== null && q.questType !== 'MANUAL';
 
     if (isRunning) {
-      router.push('/run' as any);
+      const targetKm = q.target && q.target >= 500 ? q.target / 1000 : 1.0;
+      router.push({
+        pathname: '/run',
+        params: {
+          questId: String(q.id),
+          targetKm: String(targetKm),
+        },
+      } as any);
       return;
     }
     if (isCameraTracked) {

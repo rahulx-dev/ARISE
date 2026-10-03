@@ -43,4 +43,5 @@ modules/**/build/
 modules/**/.cxx/
 modules/**/.gradle/
 .vscode/
+*.apk
 

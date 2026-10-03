@@ -63,13 +63,9 @@ export default function HomeDashboard() {
 
   useFocusEffect(
     useCallback(() => {
-      const now = Date.now();
-      if (now - lastFocusRef.current > 6000) {
-        lastFocusRef.current = now;
-        loadProfile();
-        loadQuests();
-      }
-    }, [])
+      loadProfile();
+      loadQuests();
+    }, [loadProfile, loadQuests])
   );
 
   useEffect(() => {

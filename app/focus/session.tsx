@@ -66,6 +66,11 @@ export default function FocusModeScreen() {
   const startTimeRef = useRef<number | null>(null);
   const endTimeRef = useRef<number | null>(null);
   const completedRef = useRef(false);
+  const mountedRef = useRef(true);
+
+  useEffect(() => () => {
+    mountedRef.current = false;
+  }, []);
 
   // 120 FPS Siri Live Ring Animation Values
   const rotateAnim = useRef(new Animated.Value(0)).current;
@@ -275,6 +280,7 @@ export default function FocusModeScreen() {
   };
 
   const handleCompleteSession = async () => {
+    if (!mountedRef.current) return;
     setIsActive(false);
     endTimeRef.current = null;
     audioService.stop();
@@ -300,6 +306,7 @@ export default function FocusModeScreen() {
       console.warn('Failed to record focus session:', e);
     }
 
+    if (!mountedRef.current) return;
     router.replace({
       pathname: '/exercise/complete',
       params: {

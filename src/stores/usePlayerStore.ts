@@ -101,6 +101,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
             `Level ${newProfile.level} Rank Ascension Bonus`,
             'level_up'
           );
+          // Dynamically rescale active daily quests for the new higher level!
+          const { questService } = await import('../services/questService');
+          await questService.rescaleActiveQuestsForLevel(newProfile.level);
+          const { useQuestStore } = await import('./useQuestStore');
+          await useQuestStore.getState().loadQuests();
         } catch {}
 
         const refreshed = (await userRepository.getProfile()) as PlayerProfile | undefined;
@@ -160,7 +165,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   updateStreak: async () => {
     try {
-      await userRepository.updateStreak();
+      await streakService.recordWorkoutStreak();
       const profile = (await userRepository.getProfile()) as PlayerProfile | undefined;
       set({ profile: profile || null });
       scheduleCloudSync();

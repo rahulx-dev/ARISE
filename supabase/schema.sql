@@ -315,6 +315,12 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'error', 'Invalid crystal reward amount');
     END IF;
 
+    IF p_source IS NULL OR p_source NOT IN (
+        'gate_recon', 'red_gate', 'cpx_survey', 'bitlabs_survey', 'admin'
+    ) OR p_source_id IS NULL OR length(trim(p_source_id)) = 0 THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Invalid reward source');
+    END IF;
+
     IF p_source = 'gate_recon' THEN
         v_allowed_max := 500;
     ELSIF p_source = 'red_gate' THEN
@@ -485,6 +491,9 @@ BEGIN
 
     IF p_destination IS NULL OR length(trim(p_destination)) < 4 THEN
         RETURN jsonb_build_object('success', false, 'error', 'Invalid redemption destination format');
+    END IF;
+    IF p_request_uuid IS NULL OR length(trim(p_request_uuid)) = 0 THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Missing redemption request id');
     END IF;
 
     -- 2. Check Idempotency via crystal_ledger
@@ -883,3 +892,36 @@ BEGIN
     );
 END;
 $$;
+
+-- Harden all SECURITY DEFINER RPCs after every definition exists.
+ALTER FUNCTION public.grant_crystals_secure(
+    INTEGER, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, INTEGER, INTEGER, INTEGER, INTEGER
+) SET search_path = public;
+ALTER FUNCTION public.request_redemption_secure(INTEGER, INTEGER, TEXT, TEXT, TEXT)
+    SET search_path = public;
+ALTER FUNCTION public.sync_hunter_profile_secure(
+    TEXT, TEXT, TEXT, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER
+) SET search_path = public;
+ALTER FUNCTION public.get_hunter_leaderboard(TEXT, INTEGER, TEXT)
+    SET search_path = public;
+
+REVOKE EXECUTE ON FUNCTION public.grant_crystals_secure(
+    INTEGER, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, INTEGER, INTEGER, INTEGER, INTEGER
+) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.request_redemption_secure(INTEGER, INTEGER, TEXT, TEXT, TEXT)
+    FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.sync_hunter_profile_secure(
+    TEXT, TEXT, TEXT, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER
+) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.get_hunter_leaderboard(TEXT, INTEGER, TEXT)
+    FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.grant_crystals_secure(
+    INTEGER, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, INTEGER, INTEGER, INTEGER, INTEGER
+) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.request_redemption_secure(INTEGER, INTEGER, TEXT, TEXT, TEXT)
+    TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.sync_hunter_profile_secure(
+    TEXT, TEXT, TEXT, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER
+) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.get_hunter_leaderboard(TEXT, INTEGER, TEXT)
+    TO authenticated, service_role;

@@ -286,7 +286,7 @@ class NotificationService {
   }
 
   /**
-   * Create a persistent local notification in SQLite
+   * Create a persistent local notification in SQLite and trigger an immediate Android notification banner
    */
   async createNotification(
     type: NotificationType,
@@ -303,6 +303,41 @@ class NotificationService {
         isRead: 0,
         entityId: entityId || null,
       });
+
+      // Present live device banner notification
+      try {
+        await this.setupNotificationChannels();
+        const channelId =
+          type === 'STREAK'
+            ? 'streak_alerts'
+            : type === 'MOTIVATION'
+            ? 'hunter_motivation'
+            : 'hunter_reminders';
+
+        const color =
+          type === 'STREAK'
+            ? '#EA580C'
+            : type === 'MOTIVATION'
+            ? '#A855F7'
+            : '#0A84FF';
+
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title,
+            body: message,
+            color,
+            sound: 'default',
+            priority:
+              type === 'STREAK'
+                ? Notifications.AndroidNotificationPriority.MAX
+                : Notifications.AndroidNotificationPriority.HIGH,
+            data: { type, entityId: entityId || null },
+          },
+          trigger: { channelId } as any,
+        });
+      } catch (deviceNotifErr) {
+        console.warn('System notification banner display note:', deviceNotifErr);
+      }
     } catch (e) {
       console.warn('Error creating notification:', e);
     }

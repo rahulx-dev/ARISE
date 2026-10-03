@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -140,26 +140,34 @@ export default function GateDetailsScreen() {
     title: '',
     message: '',
   });
+  const mountedRef = useRef(true);
+  const completingMissionRef = useRef(false);
+
+  useEffect(() => () => {
+    mountedRef.current = false;
+  }, []);
 
   const fetchGate = useCallback(async () => {
     try {
       const tId = id ? (Array.isArray(id) ? id[0] : id) : '';
       const found = await gateSpawnService.getGateById(tId);
+      if (!mountedRef.current) return;
       if (found) {
         setGate(found);
       } else {
         const allGates = await gateSpawnService.getActiveGates();
+        if (!mountedRef.current) return;
         setGate(allGates[0] || null);
       }
     } catch (e) {
       console.warn('Error fetching gate:', e);
     } finally {
-      setLoadingGate(false);
+      if (mountedRef.current) setLoadingGate(false);
     }
   }, [id]);
 
   useEffect(() => {
-    loadProfile();
+    loadProfile().catch(() => {});
     fetchGate();
   }, [id, fetchGate]);
 
@@ -290,6 +298,8 @@ export default function GateDetailsScreen() {
       setCurrentQIdx((prev) => prev + 1);
       setSelectedOptIdx(null);
     } else {
+      if (completingMissionRef.current) return;
+      completingMissionRef.current = true;
       setIsExtracting(true);
       haptics.heavy();
       sound.play('level_up');
@@ -299,10 +309,11 @@ export default function GateDetailsScreen() {
         await loadProfile();
 
         const updated = await gateSpawnService.getGateById(gate.id);
-        if (updated) {
+        if (updated && mountedRef.current) {
           setGate(updated);
         }
 
+        if (!mountedRef.current) return;
         setIsExtracting(false);
         setActiveMission(null);
 
@@ -315,8 +326,12 @@ export default function GateDetailsScreen() {
         sound.play('purchase');
         haptics.success();
       } catch {
-        setIsExtracting(false);
-        haptics.warning();
+        if (mountedRef.current) {
+          setIsExtracting(false);
+          haptics.warning();
+        }
+      } finally {
+        completingMissionRef.current = false;
       }
     }
   };
@@ -662,19 +677,21 @@ export default function GateDetailsScreen() {
               message: 'You exited the survey portal before completing the questions. No Mana Crystals were extracted.',
             });
             await loadProfile();
-            await fetchGate();
+            if (mountedRef.current) await fetchGate();
             return;
           }
 
-          if (finishedMissionId && gate) {
+          if (finishedMissionId && gate && !completingMissionRef.current) {
+            completingMissionRef.current = true;
             const m = gate.missions.find((item) => item.id === finishedMissionId);
             if (m && !m.isCompleted) {
               try {
                 const result = await gateSpawnService.completeMission(gate.id, finishedMissionId);
                 await loadProfile();
                 const updated = await gateSpawnService.getGateById(gate.id);
-                if (updated) setGate(updated);
+                if (updated && mountedRef.current) setGate(updated);
 
+                if (!mountedRef.current) return;
                 setClearedReward({
                   crystals: result.crystalsAwarded,
                   xp: result.xpAwarded,
@@ -685,12 +702,16 @@ export default function GateDetailsScreen() {
                 haptics.success();
               } catch (e) {
                 console.warn('Error completing inquest:', e);
+              } finally {
+                completingMissionRef.current = false;
               }
+            } else {
+              completingMissionRef.current = false;
             }
           }
 
           await loadProfile();
-          await fetchGate();
+          if (mountedRef.current) await fetchGate();
         }}
       />
 

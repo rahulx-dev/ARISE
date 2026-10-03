@@ -348,10 +348,14 @@ export const userRepository = {
       .where(eq(userProfile.id, profile.id));
   },
 
-  async updateStreak(): Promise<void> {
-    await db.transaction(async (tx: any) => {
+  /**
+   * Called when a workout, quest, run, or focus session is completed.
+   * Increments currentStreak only once per calendar day.
+   */
+  async recordActivityAndIncrementStreak(): Promise<{ streak: number; increased: boolean }> {
+    return await db.transaction(async (tx: any) => {
       const results = await tx.select().from(userProfile).limit(1);
-      if (results.length === 0) return;
+      if (results.length === 0) return { streak: 0, increased: false };
 
       const profile = results[0];
       const now = new Date();
@@ -365,7 +369,8 @@ export const userRepository = {
         : null;
 
       if (lastActiveDateStr === today) {
-        return; // Already active today
+        // Activity already registered today; prevent duplicate increment
+        return { streak: profile.currentStreak, increased: false };
       }
 
       const yesterdayDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -373,9 +378,11 @@ export const userRepository = {
 
       let newStreak = 1;
       if (lastActiveDateStr === yesterday) {
+        // Consecutive calendar day training!
         newStreak = (profile.currentStreak || 0) + 1;
-      } else if (lastActiveDateStr && lastActiveDateStr < yesterday) {
-        newStreak = 1; // streak reset
+      } else {
+        // First session or streak broke previously
+        newStreak = 1;
       }
 
       const newLongest = Math.max(newStreak, profile.longestStreak || 0);
@@ -388,7 +395,45 @@ export const userRepository = {
           lastActiveDate: today,
         })
         .where(eq(userProfile.id, profile.id));
+
+      return { streak: newStreak, increased: true };
     });
+  },
+
+  /**
+   * Checks on startup or day-change whether the previous day was missed.
+   * If missed (lastActiveDate < yesterday), resets currentStreak to 0 without modifying lastActiveDate.
+   */
+  async checkDailyStreakLapse(): Promise<{ streak: number; broken: boolean }> {
+    return await db.transaction(async (tx: any) => {
+      const results = await tx.select().from(userProfile).limit(1);
+      if (results.length === 0) return { streak: 0, broken: false };
+
+      const profile = results[0];
+      const now = new Date();
+      const pad = (n: number) => String(n).padStart(2, "0");
+      const getLocalDateStr = (d: Date) =>
+        `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      const yesterday = getLocalDateStr(new Date(now.getTime() - 24 * 60 * 60 * 1000));
+
+      const lastActiveDateStr = profile.lastActiveDate
+        ? profile.lastActiveDate.split("T")[0]
+        : null;
+
+      if (lastActiveDateStr && lastActiveDateStr < yesterday && profile.currentStreak > 0) {
+        await tx
+          .update(userProfile)
+          .set({ currentStreak: 0 })
+          .where(eq(userProfile.id, profile.id));
+        return { streak: 0, broken: true };
+      }
+
+      return { streak: profile.currentStreak, broken: false };
+    });
+  },
+
+  async updateStreak(): Promise<void> {
+    await this.recordActivityAndIncrementStreak();
   },
 
   async resetProfile(): Promise<void> {

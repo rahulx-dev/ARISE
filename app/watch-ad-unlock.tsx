@@ -33,25 +33,30 @@ export default function WatchAdUnlockScreen() {
   useEffect(() => {
     let timer: any = null;
     let pollInterval: any = null;
+    let showTimer: any = null;
+    let mounted = true;
 
     const executeAdFlow = () => {
-      if (isHandledRef.current) return;
+      if (!mounted || isHandledRef.current) return;
 
       const attemptShow = () => {
-        if (isHandledRef.current) return;
+        if (!mounted || isHandledRef.current) return;
 
         if (adMobService.isRewardedLoaded) {
           clearInterval(pollInterval);
           clearTimeout(timer);
+          if (!mounted) return;
           setStatus('SHOWING');
 
           const adShown = adMobService.showRewardedAd(async (coins: number) => {
-            if (isHandledRef.current) return;
+            if (!mounted || isHandledRef.current) return;
             isHandledRef.current = true;
 
             const coinsAwarded = coins || 25;
-            setEarnedCoins(coinsAwarded);
-            setStatus('REWARDED');
+            if (mounted) {
+              setEarnedCoins(coinsAwarded);
+              setStatus('REWARDED');
+            }
 
             // 1. Award coins to player's SQLite vault
             await coinService.addCoins(coinsAwarded, 'Sponsor Pass: Video Ad', 'ad');
@@ -62,8 +67,10 @@ export default function WatchAdUnlockScreen() {
             // 3. Reload profile
             await loadProfile();
 
-            haptics.success();
-            sound.play('quest_complete');
+            if (mounted) {
+              haptics.success();
+              sound.play('quest_complete');
+            }
           });
 
           if (!adShown) {
@@ -74,7 +81,7 @@ export default function WatchAdUnlockScreen() {
 
       // Try immediately
       if (adMobService.isRewardedLoaded) {
-        setTimeout(attemptShow, 400);
+        showTimer = setTimeout(attemptShow, 400);
       } else {
         adMobService.preloadRewarded();
         // Poll every 800ms for up to 6 seconds
@@ -82,7 +89,7 @@ export default function WatchAdUnlockScreen() {
 
         timer = setTimeout(() => {
           clearInterval(pollInterval);
-          if (!isHandledRef.current) {
+          if (mounted && !isHandledRef.current) {
             setStatus('FAILED');
           }
         }, 6500);
@@ -92,8 +99,10 @@ export default function WatchAdUnlockScreen() {
     executeAdFlow();
 
     return () => {
+      mounted = false;
       if (pollInterval) clearInterval(pollInterval);
       if (timer) clearTimeout(timer);
+      if (showTimer) clearTimeout(showTimer);
     };
   }, []);
 

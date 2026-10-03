@@ -40,6 +40,8 @@ import { LevelUpModal } from "../src/components/level/LevelUpModal";
 import { syncService } from "../src/services/syncService";
 import { initSentry, Sentry, logErrorToSentry, setSentryUser } from "../src/services/sentryService";
 import { googleAuthService } from "../src/services/googleAuthService";
+import { notificationService } from "../src/services/notificationService";
+import { useQuestStore } from "../src/stores/useQuestStore";
 
 // Initialize Sentry SDK immediately upon module load
 initSentry();
@@ -137,6 +139,12 @@ function RootLayout() {
       if (loadedProfile) {
         setSentryUser(loadedProfile.id, loadedProfile.displayName);
       }
+
+      // 3b. Populate daily quests and scale to current level
+      useQuestStore.getState().loadQuests().catch(() => {});
+
+      // 3c. Schedule daily alarms & notification channels
+      notificationService.scheduleDailyTimelyReminders().catch(() => {});
 
       // 4. Initialize Google Mobile Ads (AdMob)
       adMobService.initialize();

@@ -17,6 +17,7 @@ import android.os.Looper
 import android.provider.Settings
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 
 class AppMonitorService : Service() {
 
@@ -32,6 +33,7 @@ class AppMonitorService : Service() {
     private var lastRestrictedPackage: String? = null
     private var awayFromRestrictedSince: Long = 0L
     private var screenOn = true
+    private var screenReceiverRegistered = false
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             screenOn = intent.action != Intent.ACTION_SCREEN_OFF
@@ -279,10 +281,11 @@ class AppMonitorService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        registerReceiver(screenReceiver, IntentFilter().apply {
+        ContextCompat.registerReceiver(this, screenReceiver, IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_OFF)
             addAction(Intent.ACTION_SCREEN_ON)
-        })
+        }, ContextCompat.RECEIVER_NOT_EXPORTED)
+        screenReceiverRegistered = true
 
         // Load all persisted policy inputs before the first monitor pass.  This
         // prevents a restart from briefly using the zero/default budget.
@@ -300,8 +303,8 @@ class AppMonitorService : Service() {
 
         try {
             startForeground(1001, createNotification())
-        } catch (securityException: SecurityException) {
-            Log.e(tag, "Foreground notification permission is unavailable", securityException)
+        } catch (startException: Exception) {
+            Log.e(tag, "Foreground service could not be started", startException)
             stopSelf()
         }
     }
@@ -369,7 +372,6 @@ class AppMonitorService : Service() {
 
         if (shouldReevaluate) {
             handler.removeCallbacks(monitorRunnable)
-            unregisterReceiver(screenReceiver)
             handler.post(monitorRunnable)
         }
 
@@ -398,6 +400,14 @@ class AppMonitorService : Service() {
     override fun onDestroy() {
         isMonitoring = false
         handler.removeCallbacks(monitorRunnable)
+        if (screenReceiverRegistered) {
+            try {
+                unregisterReceiver(screenReceiver)
+            } catch (e: IllegalArgumentException) {
+                Log.w(tag, "Screen receiver was already unregistered", e)
+            }
+            screenReceiverRegistered = false
+        }
         // A killed/replaced monitor must not leave a presentation behind that could
         // be mistaken for an active policy or block a newly scoped package.
         dismissPresentation()

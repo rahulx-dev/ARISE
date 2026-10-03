@@ -66,8 +66,11 @@ export default function ActiveGymSessionScreen() {
 
   const sessionTimerRef = useRef<any>(null);
   const restTimerRef = useRef<any>(null);
+  const mountedRef = useRef(true);
+  const finishingRef = useRef(false);
 
   useEffect(() => {
+    mountedRef.current = true;
     initSession();
 
     sessionTimerRef.current = setInterval(() => {
@@ -75,6 +78,7 @@ export default function ActiveGymSessionScreen() {
     }, 1000);
 
     return () => {
+      mountedRef.current = false;
       if (sessionTimerRef.current) clearInterval(sessionTimerRef.current);
       if (restTimerRef.current) clearInterval(restTimerRef.current);
     };
@@ -82,6 +86,7 @@ export default function ActiveGymSessionScreen() {
 
   const initSession = async () => {
     if (!todayWorkout) return;
+    if (!mountedRef.current) return;
     setExercises(todayWorkout.exercises);
 
     const session = await startWorkout(
@@ -96,7 +101,7 @@ export default function ActiveGymSessionScreen() {
       if (!map[setItem.exerciseId]) map[setItem.exerciseId] = [];
       map[setItem.exerciseId].push(setItem);
     }
-    setSessionSets(map);
+    if (mountedRef.current) setSessionSets(map);
   };
 
   // Rest timer countdown effect
@@ -158,6 +163,7 @@ export default function ActiveGymSessionScreen() {
   };
 
   const handleFinishWorkout = async () => {
+    if (finishingRef.current) return;
     showIOSAlert(
       'Finish Workout?',
       'Are you ready to submit your workout session and claim your rewards?',
@@ -167,20 +173,27 @@ export default function ActiveGymSessionScreen() {
           text: 'Finish & Claim',
           style: 'primary',
           onPress: async () => {
+            if (finishingRef.current) return;
+            finishingRef.current = true;
             haptics.success();
             sound.play('quest_complete');
-            const result = await completeWorkout(elapsedSeconds);
-            router.replace({
-              pathname: '/exercise/complete',
-              params: {
-                exerciseType: 'GYM_WORKOUT',
-                completedReps: '1',
-                target: '1',
-                earnedCoins: result.coinsEarned.toString(),
-                earnedXP: result.xpEarned.toString(),
-                durationSeconds: elapsedSeconds.toString(),
-              },
-            });
+            try {
+              const result = await completeWorkout(elapsedSeconds);
+              if (!mountedRef.current) return;
+              router.replace({
+                pathname: '/exercise/complete',
+                params: {
+                  exerciseType: 'GYM_WORKOUT',
+                  completedReps: '1',
+                  target: '1',
+                  earnedCoins: result.coinsEarned.toString(),
+                  earnedXP: result.xpEarned.toString(),
+                  durationSeconds: elapsedSeconds.toString(),
+                },
+              });
+            } finally {
+              finishingRef.current = false;
+            }
           },
         },
       ]
