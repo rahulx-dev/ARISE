@@ -59,17 +59,19 @@ export default function AuthCallbackScreen() {
   useEffect(() => {
     let isMounted = true;
 
-    async function processAuth() {
-      if (hasProcessedRef.current) return;
+    async function processAuth(passedUrl?: string) {
+      if (hasProcessedRef.current && !passedUrl) return;
       hasProcessedRef.current = true;
 
       try {
         // Collect URL from all possible sources
-        let currentUrl: string | null = null;
-        if (Platform.OS === 'web' && typeof window !== 'undefined') {
-          currentUrl = window.location.href;
-        } else {
-          currentUrl = await Linking.getInitialURL();
+        let currentUrl: string | null = passedUrl || null;
+        if (!currentUrl) {
+          if (Platform.OS === 'web' && typeof window !== 'undefined') {
+            currentUrl = window.location.href;
+          } else {
+            currentUrl = await Linking.getInitialURL();
+          }
         }
 
         const mergedParams = {
@@ -141,7 +143,7 @@ export default function AuthCallbackScreen() {
     const sub = Linking.addEventListener('url', (event) => {
       if (event.url && (event.url.includes('auth/callback') || event.url.includes('access_token') || event.url.includes('code'))) {
         hasProcessedRef.current = false;
-        processAuth();
+        processAuth(event.url);
       }
     });
 

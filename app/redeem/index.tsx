@@ -81,7 +81,7 @@ export default function RedeemScreen() {
   const [activeMethod, setActiveMethod] = useState<'UPI' | 'AMAZON' | 'GOOGLE_PLAY' | 'COINS'>('UPI');
   const [selectedInr, setSelectedInr] = useState<number>(50);
   const [customInrInput, setCustomInrInput] = useState<string>('50');
-  const [destinationInput, setDestinationInput] = useState<string>('hunter@okhdfcbank');
+  const [destinationInput, setDestinationInput] = useState<string>('');
   const [confirmDestinationInput, setConfirmDestinationInput] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [historyList, setHistoryList] = useState<CrystalRedemptionItem[]>([]);

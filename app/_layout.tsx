@@ -192,7 +192,18 @@ function RootLayout() {
         const cam = await Camera.getCameraPermissionsAsync();
         const allPermsGranted = usage && overlay && battery && cam.granted;
 
-        if (allPermsGranted) {
+        let isAuthCallback = false;
+        try {
+          const initialUrl = await Linking.getInitialURL();
+          isAuthCallback =
+            !!initialUrl &&
+            (initialUrl.includes('auth/callback') ||
+              initialUrl.includes('callback') ||
+              initialUrl.includes('access_token') ||
+              initialUrl.includes('code='));
+        } catch {}
+
+        if (allPermsGranted || isAuthCallback) {
           setAppState("READY");
           syncService.syncAll().catch(() => {});
         } else {
@@ -250,7 +261,11 @@ function RootLayout() {
                 options={{ animation: "fade" }}
               />
               <Stack.Screen
-                name="auth/callback"
+                name="auth"
+                options={{ animation: "fade" }}
+              />
+              <Stack.Screen
+                name="callback"
                 options={{ animation: "fade" }}
               />
               <Stack.Screen

@@ -3,6 +3,7 @@ import { userProfile } from '../database/schema';
 import { eq } from 'drizzle-orm';
 import { notificationService } from './notificationService';
 import { achievementService } from './achievementService';
+import { getRequiredXP } from './xpService';
 
 export type PlayerStatName = 'strength' | 'discipline' | 'focus' | 'health' | 'knowledge';
 
@@ -16,10 +17,10 @@ export interface LevelProgress {
 
 class ProgressionService {
   /**
-   * Required XP for a given level: Base 500 * (1.2 ^ (level - 1))
+   * Required XP for a given level: Canonical Solo Leveling curve
    */
   calculateRequiredXP(level: number): number {
-    return Math.round(500 * Math.pow(1.25, Math.max(0, level - 1)));
+    return getRequiredXP(level);
   }
 
   /**

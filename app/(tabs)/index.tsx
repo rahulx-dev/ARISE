@@ -42,6 +42,7 @@ import { getDailyQuote } from '../../src/constants/quotes';
 import { NotificationSheet } from '../../src/components/notifications/NotificationSheet';
 import { fontFamilies } from '../../src/theme/typography';
 import { useTranslation } from '../../src/services/i18n';
+import { getRequiredXP } from '../../src/services/xpService';
 
 const { width } = Dimensions.get('window');
 
@@ -90,7 +91,7 @@ export default function HomeDashboard() {
   const avatarIcon = profile?.avatarIcon || 'user';
 
   const rank = getRankForLevel(level);
-  const xpNeeded = Math.max(1, Math.round(500 * Math.pow(1.25, Math.max(0, level - 1))));
+  const xpNeeded = Math.max(1, getRequiredXP(level));
   const xpPercent = Math.min(
     100,
     Math.round((currentXP / Math.max(1, xpNeeded)) * 100)

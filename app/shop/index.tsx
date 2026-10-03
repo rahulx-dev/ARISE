@@ -112,7 +112,7 @@ export default function ShopScreen() {
   const refreshData = useCallback(async () => {
     await loadProfile();
     const bal = await crystalRepository.getBalance();
-    setManaCrystals(bal > 0 ? bal : 32);
+    setManaCrystals(bal);
 
     const items = await inventoryRepository.getUnlockedItems();
     const unlockedIds = items.map((i) => i.itemId);

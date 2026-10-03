@@ -636,6 +636,38 @@ export default function WarriorProfileTab() {
 
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
+            {/* System Settings */}
+            <TouchableOpacity
+              style={styles.settingsRow}
+              onPress={() => {
+                haptics.light();
+                router.push('/settings' as any);
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={styles.settingsRowLeft}>
+                <View
+                  style={[
+                    styles.settingsIconWrap,
+                    { backgroundColor: isDark ? '#1C2438' : '#EFF6FF' },
+                  ]}
+                >
+                  <Settings size={18} color="#0A84FF" />
+                </View>
+                <Text
+                  style={[
+                    styles.settingsRowTitle,
+                    { color: colors.textPrimary },
+                  ]}
+                >
+                  {t('systemSettings', 'System Settings & Preferences')}
+                </Text>
+              </View>
+              <ChevronRight size={18} color="#9CA3AF" />
+            </TouchableOpacity>
+
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
             {/* App Blocking */}
             <TouchableOpacity
               style={styles.settingsRow}
