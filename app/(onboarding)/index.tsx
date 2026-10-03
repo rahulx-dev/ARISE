@@ -43,6 +43,11 @@ import {
   BatteryCharging,
   CheckCircle2,
   ChevronRight,
+  ArrowRight,
+  X,
+  Sliders,
+  Minus,
+  Plus,
 } from 'lucide-react-native';
 import { useSettingsStore } from '../../src/stores/useSettingsStore';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
@@ -73,6 +78,25 @@ const APP_CATEGORIES = ['ALL', 'SOCIAL', 'GAMES', 'STREAMING'] as const;
 const SOCIAL_KEYWORDS = ['instagram', 'snapchat', 'facebook', 'twitter', 'reddit', 'threads', 'whatsapp', 'telegram', 'discord', 'tiktok', 'social'];
 const GAME_KEYWORDS = ['game', 'pubg', 'bgmi', 'freefire', 'clash', 'candy', 'roblox', 'genshin', 'minecraft', 'cod', 'battlegrounds'];
 const STREAMING_KEYWORDS = ['youtube', 'netflix', 'prime', 'hotstar', 'twitch', 'reels', 'shorts', 'hulu', 'disney', 'video'];
+
+function getAppCategoryLabel(appName: string, packageName: string): { label: string; color: string; bg: string } {
+  const name = appName.toLowerCase();
+  const pkg = packageName.toLowerCase();
+
+  if (SOCIAL_KEYWORDS.some((k) => name.includes(k) || pkg.includes(k))) {
+    return { label: 'Social Media', color: '#EC4899', bg: 'rgba(236, 72, 153, 0.12)' };
+  }
+  if (STREAMING_KEYWORDS.some((k) => name.includes(k) || pkg.includes(k))) {
+    return { label: 'Video & Media', color: '#EF4444', bg: 'rgba(239, 68, 68, 0.12)' };
+  }
+  if (GAME_KEYWORDS.some((k) => name.includes(k) || pkg.includes(k))) {
+    return { label: 'Gaming', color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.12)' };
+  }
+  if (['browser', 'chrome', 'brave', 'firefox', 'opera', 'edge'].some((k) => name.includes(k) || pkg.includes(k))) {
+    return { label: 'Web Browser', color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.12)' };
+  }
+  return { label: 'Installed App', color: '#64748B', bg: 'rgba(100, 116, 139, 0.1)' };
+}
 
 export default function OnboardingScreen() {
   const router = useRouter();
@@ -1141,20 +1165,64 @@ export default function OnboardingScreen() {
           {/* ================= STEP 3: DAILY GOALS & APPS ================= */}
           {step === 3 && (
             <View style={styles.stepContainer}>
-              <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>Set Your Goals</Text>
-              <Text style={[styles.heroSubtitle, { color: colors.textSecondary }]}>
-                Let's personalize your daily journey.
-              </Text>
-
-              {/* 1. Daily Screen Time Allowance Section */}
-              <View style={styles.goalSectionBlock}>
-                <Text style={[styles.cleanInputLabel, { color: colors.textSecondary }]}>
-                  Daily Screen Time Allowance
+              {/* Hero Header */}
+              <View style={styles.step3HeroBox}>
+                <View
+                  style={[
+                    styles.step3BadgePill,
+                    {
+                      backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#EFF6FF',
+                      borderColor: isDark ? 'rgba(59, 130, 246, 0.3)' : '#BFDBFE',
+                    },
+                  ]}
+                >
+                  <Shield size={12} color="#3B82F6" strokeWidth={2.5} />
+                  <Text style={[styles.step3BadgeText, { color: isDark ? '#93C5FD' : '#2563EB' }]}>
+                    FINAL PROTOCOL STEP
+                  </Text>
+                </View>
+                <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>Set Your Daily Goals</Text>
+                <Text style={[styles.heroSubtitle, { color: colors.textSecondary }]}>
+                  Choose your daily allowance and guard apps behind workout challenges.
                 </Text>
+              </View>
 
-                <View style={styles.timePillsRow}>
+              {/* 1. Daily Screen Time Allowance Card */}
+              <View
+                style={[
+                  styles.redesignedCard,
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                  },
+                ]}
+              >
+                {/* Header */}
+                <View style={styles.cardHeaderRow}>
+                  <View
+                    style={[
+                      styles.cardHeaderIconBox,
+                      {
+                        backgroundColor: isDark ? 'rgba(59, 130, 246, 0.16)' : '#EFF6FF',
+                      },
+                    ]}
+                  >
+                    <Clock size={20} color="#3B82F6" strokeWidth={2.4} />
+                  </View>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={[styles.cardTitleText, { color: colors.textPrimary }]}>
+                      Daily Screen Time Allowance
+                    </Text>
+                    <Text style={[styles.cardSubtitleText, { color: colors.textSecondary }]}>
+                      Time allowed for non-productive apps per day.
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Time Pills Grid */}
+                <View style={styles.timePillsGrid}>
                   {[
-                    { mins: 0, label: '0m (Lock)' },
+                    { mins: 0, label: '0m', isLock: true },
                     { mins: 15, label: '15m' },
                     { mins: 30, label: '30m' },
                     { mins: 45, label: '45m' },
@@ -1165,9 +1233,20 @@ export default function OnboardingScreen() {
                       <TouchableOpacity
                         key={b.mins}
                         style={[
-                          styles.timePill,
-                          { backgroundColor: colors.card, borderColor: colors.border },
-                          isSelected && { backgroundColor: colors.primary, borderColor: colors.primary },
+                          styles.modernTimePill,
+                          {
+                            backgroundColor: isDark ? '#171B26' : '#F6F8FA',
+                            borderColor: isDark ? '#262D3D' : '#E2E6EC',
+                          },
+                          isSelected && {
+                            backgroundColor: colors.primary,
+                            borderColor: colors.primary,
+                            shadowColor: colors.primary,
+                            shadowOffset: { width: 0, height: 3 },
+                            shadowOpacity: 0.3,
+                            shadowRadius: 6,
+                            elevation: 3,
+                          },
                         ]}
                         onPress={() => {
                           haptics.light();
@@ -1176,18 +1255,50 @@ export default function OnboardingScreen() {
                         }}
                         activeOpacity={0.8}
                       >
-                        <Text style={[styles.timePillText, { color: colors.textSecondary }, isSelected && { color: '#FFFFFF' }]}>
-                          {b.label}
-                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                          {b.isLock && <Lock size={12} color={isSelected ? '#FFFFFF' : colors.textPrimary} strokeWidth={2.5} />}
+                          <Text
+                            style={[
+                              styles.modernTimePillText,
+                              { color: colors.textPrimary },
+                              isSelected && { color: '#FFFFFF', fontWeight: '700' },
+                            ]}
+                          >
+                            {b.label}
+                          </Text>
+                        </View>
+                        {b.isLock && (
+                          <Text
+                            style={[
+                              styles.modernTimePillSub,
+                              { color: colors.textMuted },
+                              isSelected && { color: 'rgba(255,255,255,0.85)' },
+                            ]}
+                          >
+                            Lock
+                          </Text>
+                        )}
                       </TouchableOpacity>
                     );
                   })}
 
+                  {/* Custom Pill */}
                   <TouchableOpacity
                     style={[
-                      styles.timePill,
-                      { backgroundColor: colors.card, borderColor: colors.border },
-                      isCustomTime && { backgroundColor: colors.primary, borderColor: colors.primary },
+                      styles.modernTimePill,
+                      {
+                        backgroundColor: isDark ? '#171B26' : '#F6F8FA',
+                        borderColor: isDark ? '#262D3D' : '#E2E6EC',
+                      },
+                      isCustomTime && {
+                        backgroundColor: colors.primary,
+                        borderColor: colors.primary,
+                        shadowColor: colors.primary,
+                        shadowOffset: { width: 0, height: 3 },
+                        shadowOpacity: 0.3,
+                        shadowRadius: 6,
+                        elevation: 3,
+                      },
                     ]}
                     onPress={() => {
                       haptics.light();
@@ -1195,61 +1306,246 @@ export default function OnboardingScreen() {
                     }}
                     activeOpacity={0.8}
                   >
-                    <Text style={[styles.timePillText, { color: colors.textSecondary }, isCustomTime && { color: '#FFFFFF' }]}>
-                      Custom
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Sliders size={12} color={isCustomTime ? '#FFFFFF' : colors.textPrimary} />
+                      <Text
+                        style={[
+                          styles.modernTimePillText,
+                          { color: colors.textPrimary },
+                          isCustomTime && { color: '#FFFFFF', fontWeight: '700' },
+                        ]}
+                      >
+                        Custom
+                      </Text>
+                    </View>
                   </TouchableOpacity>
                 </View>
 
+                {/* Custom Time Stepper */}
                 {isCustomTime && (
-                  <View style={[styles.customTimeInputBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                    <Text style={[styles.customTimeLabel, { color: colors.textSecondary }]}>Allowance in minutes:</Text>
-                    <TextInput
-                      style={[styles.customTimeTextInput, { color: colors.primary, borderColor: colors.primary, backgroundColor: colors.background }]}
-                      value={customTimeInput}
-                      onChangeText={setCustomTimeInput}
-                      keyboardType="numeric"
-                      maxLength={3}
-                      placeholder="50"
-                      placeholderTextColor={colors.textMuted}
-                    />
+                  <View
+                    style={[
+                      styles.customStepperBox,
+                      {
+                        backgroundColor: isDark ? '#161A24' : '#F1F4F9',
+                        borderColor: isDark ? '#283145' : '#DDE3ED',
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.customStepperLabel, { color: colors.textSecondary }]}>
+                      Daily Allowance:
+                    </Text>
+                    <View style={styles.customStepperControls}>
+                      <TouchableOpacity
+                        style={[styles.stepperBtn, { backgroundColor: isDark ? '#222838' : '#FFFFFF', borderColor: colors.border }]}
+                        onPress={() => {
+                          haptics.light();
+                          const cur = parseInt(customTimeInput, 10) || 30;
+                          setCustomTimeInput(String(Math.max(5, cur - 5)));
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Minus size={14} color={colors.textPrimary} />
+                      </TouchableOpacity>
+
+                      <View style={styles.stepperInputWrap}>
+                        <TextInput
+                          style={[styles.stepperInput, { color: colors.primary }]}
+                          value={customTimeInput}
+                          onChangeText={setCustomTimeInput}
+                          keyboardType="numeric"
+                          maxLength={3}
+                        />
+                        <Text style={[styles.stepperMinsText, { color: colors.textMuted }]}>mins</Text>
+                      </View>
+
+                      <TouchableOpacity
+                        style={[styles.stepperBtn, { backgroundColor: isDark ? '#222838' : '#FFFFFF', borderColor: colors.border }]}
+                        onPress={() => {
+                          haptics.light();
+                          const cur = parseInt(customTimeInput, 10) || 30;
+                          setCustomTimeInput(String(Math.min(240, cur + 5)));
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Plus size={14} color={colors.textPrimary} />
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 )}
+
+                {/* Dynamic Guidance Banner */}
+                <View
+                  style={[
+                    styles.budgetInfoBanner,
+                    {
+                      backgroundColor: isDark ? 'rgba(59, 130, 246, 0.08)' : '#F0F7FF',
+                      borderColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#D0E3FF',
+                    },
+                  ]}
+                >
+                  <Shield size={14} color="#3B82F6" />
+                  <Text style={[styles.budgetInfoText, { color: isDark ? '#93C5FD' : '#1D4ED8' }]}>
+                    {dailyFocusMinutes === 0 && !isCustomTime
+                      ? 'Hardcore Discipline: Apps are locked immediately. Complete workout reps to earn screen time!'
+                      : `You will get ${isCustomTime ? customTimeInput || '0' : dailyFocusMinutes} mins of free app access daily before the blocker takes over.`}
+                  </Text>
+                </View>
               </View>
 
-              {/* 2. Select Your Top Distractions */}
-              <View style={styles.goalSectionBlock}>
-                <View style={styles.sectionHeaderRow}>
-                  <Text style={[styles.cleanInputLabel, { color: colors.textSecondary, flex: 1 }]}>
-                    Select Your Top Distractions
-                  </Text>
+              {/* 2. Select Your Top Distractions Card */}
+              <View
+                style={[
+                  styles.redesignedCard,
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                  },
+                ]}
+              >
+                {/* Header */}
+                <View style={styles.cardHeaderRow}>
+                  <View
+                    style={[
+                      styles.cardHeaderIconBox,
+                      {
+                        backgroundColor: isDark ? 'rgba(239, 68, 68, 0.16)' : '#FEE2E2',
+                      },
+                    ]}
+                  >
+                    <Layers size={20} color="#EF4444" strokeWidth={2.4} />
+                  </View>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={[styles.cardTitleText, { color: colors.textPrimary }]}>
+                      Select Your Top Distractions
+                    </Text>
+                    <Text style={[styles.cardSubtitleText, { color: colors.textSecondary }]}>
+                      Choose the apps that distract you the most.
+                    </Text>
+                  </View>
                   {selectedApps.length > 0 && (
-                    <Text style={[styles.appCountText, { color: colors.primary }]}>{selectedApps.length} selected</Text>
+                    <View
+                      style={[
+                        styles.appsSelectedPill,
+                        {
+                          backgroundColor: isDark ? 'rgba(239, 68, 68, 0.18)' : '#FEE2E2',
+                          borderColor: isDark ? 'rgba(239, 68, 68, 0.4)' : '#FCA5A5',
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.appsSelectedText, { color: isDark ? '#F87171' : '#DC2626' }]}>
+                        {selectedApps.length} Selected
+                      </Text>
+                    </View>
                   )}
                 </View>
 
                 {/* Auto Select Button */}
                 <TouchableOpacity
-                  style={[styles.quickSelectBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+                  style={[
+                    styles.autoSelectBanner,
+                    {
+                      backgroundColor: isDark ? 'rgba(239, 68, 68, 0.08)' : '#FFF5F5',
+                      borderColor: isDark ? 'rgba(239, 68, 68, 0.25)' : '#FED7D7',
+                    },
+                  ]}
                   onPress={handleSelectTopDistractions}
-                  activeOpacity={0.85}
+                  activeOpacity={0.8}
                 >
-                  <Sparkles size={14} color={colors.primary} />
-                  <Text style={[styles.quickSelectBtnText, { color: colors.primary }]}>
-                    Auto Select (Top Apps)
-                  </Text>
+                  <View style={styles.autoSelectLeft}>
+                    <View style={[styles.sparkleCircle, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.2)' : '#FEE2E2' }]}>
+                      <Sparkles size={16} color="#EF4444" />
+                    </View>
+                    <View style={{ flex: 1, gap: 1 }}>
+                      <Text style={[styles.autoSelectTitle, { color: isDark ? '#FCA5A5' : '#DC2626' }]}>
+                        Auto Select (Top Apps)
+                      </Text>
+                      <Text style={[styles.autoSelectSub, { color: colors.textSecondary }]}>
+                        Instantly selects YouTube, Instagram, Reddit, Games & TikTok
+                      </Text>
+                    </View>
+                  </View>
+                  <ChevronRight size={18} color={isDark ? '#FCA5A5' : '#DC2626'} />
                 </TouchableOpacity>
 
+                {/* Category Filter Pills (ALL / SOCIAL / GAMES / STREAMING) */}
+                <View style={styles.categoryPillsRow}>
+                  {APP_CATEGORIES.map((cat) => {
+                    const isCatActive = activeCategory === cat;
+                    const catLabel =
+                      cat === 'ALL'
+                        ? 'All'
+                        : cat === 'SOCIAL'
+                        ? 'Social'
+                        : cat === 'GAMES'
+                        ? 'Games'
+                        : 'Media';
+                    return (
+                      <TouchableOpacity
+                        key={cat}
+                        style={[
+                          styles.categoryPill,
+                          {
+                            backgroundColor: isDark ? '#171B26' : '#F6F8FA',
+                            borderColor: isDark ? '#262D3D' : '#E2E6EC',
+                          },
+                          isCatActive && {
+                            backgroundColor: isDark ? '#2C1D24' : '#FEE2E2',
+                            borderColor: isDark ? '#EF4444' : '#F87171',
+                          },
+                        ]}
+                        onPress={() => {
+                          haptics.light();
+                          setActiveCategory(cat);
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Text
+                          style={[
+                            styles.categoryPillText,
+                            { color: colors.textSecondary },
+                            isCatActive && {
+                              color: isDark ? '#FCA5A5' : '#DC2626',
+                              fontWeight: '700',
+                            },
+                          ]}
+                        >
+                          {catLabel}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
                 {/* Search Bar */}
-                <View style={[styles.searchBarBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <Search size={15} color={colors.textMuted} />
+                <View
+                  style={[
+                    styles.modernSearchBox,
+                    {
+                      backgroundColor: isDark ? '#161922' : '#F4F6F9',
+                      borderColor: isDark ? '#282F3F' : '#E2E6EC',
+                    },
+                  ]}
+                >
+                  <Search size={16} color={colors.textMuted} />
                   <TextInput
-                    style={[styles.searchBarInput, { color: colors.textPrimary }]}
+                    style={[styles.modernSearchInput, { color: colors.textPrimary }]}
                     placeholder="Search apps..."
                     placeholderTextColor={colors.textMuted}
                     value={appSearchQuery}
                     onChangeText={setAppSearchQuery}
                   />
+                  {appSearchQuery.length > 0 && (
+                    <TouchableOpacity
+                      onPress={() => {
+                        haptics.light();
+                        setAppSearchQuery('');
+                      }}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <X size={15} color={colors.textMuted} />
+                    </TouchableOpacity>
+                  )}
                 </View>
 
                 {/* Apps List */}
@@ -1260,57 +1556,113 @@ export default function OnboardingScreen() {
                   </View>
                 ) : filteredApps.length === 0 ? (
                   <View style={styles.noAppsBox}>
-                    <Smartphone size={24} color={colors.textMuted} />
+                    <Smartphone size={26} color={colors.textMuted} />
                     <Text style={[styles.noAppsText, { color: colors.textMuted }]}>No apps found.</Text>
                   </View>
                 ) : (
-                  <ScrollView
-                    style={{ maxHeight: 240, width: '100%' }}
-                    contentContainerStyle={{ gap: 8 }}
-                    nestedScrollEnabled
-                    showsVerticalScrollIndicator={false}
-                  >
-                    {filteredApps.slice(0, 30).map((app) => {
-                      const isSelected = selectedApps.includes(app.packageName);
-                      return (
-                        <TouchableOpacity
-                          key={app.packageName}
-                          onPress={() => toggleApp(app.packageName)}
-                          activeOpacity={0.8}
-                        >
-                          <View
+                  <View style={styles.appsListWrap}>
+                    <ScrollView
+                      style={{ maxHeight: 290, width: '100%' }}
+                      contentContainerStyle={{ gap: 8, paddingVertical: 2 }}
+                      nestedScrollEnabled
+                      showsVerticalScrollIndicator={false}
+                    >
+                      {filteredApps.slice(0, 40).map((app) => {
+                        const isSelected = selectedApps.includes(app.packageName);
+                        const catMeta = getAppCategoryLabel(app.appName, app.packageName);
+
+                        return (
+                          <TouchableOpacity
+                            key={app.packageName}
+                            onPress={() => toggleApp(app.packageName)}
+                            activeOpacity={0.75}
                             style={[
-                              styles.miniAppCard,
-                              { backgroundColor: colors.card, borderColor: colors.border },
-                              isSelected && { borderColor: colors.primary, backgroundColor: 'rgba(229, 57, 53, 0.04)' },
+                              styles.modernAppRow,
+                              {
+                                backgroundColor: isDark ? '#161A24' : '#FAFAFA',
+                                borderColor: isDark ? '#232938' : '#EDF0F5',
+                              },
+                              isSelected && {
+                                borderColor: isDark ? '#EF4444' : '#F87171',
+                                backgroundColor: isDark ? 'rgba(239, 68, 68, 0.08)' : '#FFF5F5',
+                              },
                             ]}
                           >
-                            <View style={[styles.miniAppIcon, { backgroundColor: colors.surfaceLight }]}>
+                            <View
+                              style={[
+                                styles.modernAppIconBox,
+                                { backgroundColor: isDark ? '#202638' : '#EEF2F6' },
+                              ]}
+                            >
                               {app.appIconBase64 ? (
                                 <Image
                                   source={{ uri: app.appIconBase64 }}
-                                  style={{ width: 28, height: 28, borderRadius: 6 }}
+                                  style={{ width: 34, height: 34, borderRadius: 9 }}
                                 />
                               ) : (
-                                <Smartphone size={18} color={isSelected ? colors.primary : colors.textMuted} />
+                                <Smartphone
+                                  size={20}
+                                  color={isSelected ? colors.primary : colors.textMuted}
+                                />
                               )}
                             </View>
-                            <View style={{ flex: 1 }}>
-                              <Text style={[styles.miniAppName, { color: colors.textPrimary }, isSelected && { fontFamily: fontFamilies.semiBold, fontWeight: '600' }]}>
+
+                            <View style={{ flex: 1, gap: 2 }}>
+                              <Text
+                                style={[
+                                  styles.modernAppName,
+                                  { color: colors.textPrimary },
+                                  isSelected && { fontWeight: '700' },
+                                ]}
+                                numberOfLines={1}
+                              >
                                 {app.appName}
                               </Text>
-                              <Text style={[styles.miniAppPkg, { color: colors.textMuted }]} numberOfLines={1}>
-                                {app.packageName}
-                              </Text>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <View
+                                  style={[
+                                    styles.categoryTagPill,
+                                    { backgroundColor: catMeta.bg },
+                                  ]}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.categoryTagText,
+                                      { color: catMeta.color },
+                                    ]}
+                                  >
+                                    {catMeta.label}
+                                  </Text>
+                                </View>
+                              </View>
                             </View>
-                            <View style={[styles.lockIndicator, { backgroundColor: colors.surfaceLight }, isSelected && { backgroundColor: colors.primary }]}>
-                              <Check size={12} color={isSelected ? '#FFFFFF' : colors.textMuted} strokeWidth={3} />
+
+                            <View
+                              style={[
+                                styles.modernCheckbox,
+                                {
+                                  borderColor: isDark ? '#3E475E' : '#CBD5E1',
+                                  backgroundColor: isDark ? '#1C212E' : '#FFFFFF',
+                                },
+                                isSelected && {
+                                  backgroundColor: '#EF4444',
+                                  borderColor: '#EF4444',
+                                },
+                              ]}
+                            >
+                              {isSelected && <Check size={13} color="#FFFFFF" strokeWidth={3.2} />}
                             </View>
-                          </View>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+
+                    <View style={styles.appsListFooter}>
+                      <Text style={[styles.appsListFooterText, { color: colors.textMuted }]}>
+                        {filteredApps.length} apps • {selectedApps.length} guarded
+                      </Text>
+                    </View>
+                  </View>
                 )}
               </View>
             </View>
@@ -1320,9 +1672,20 @@ export default function OnboardingScreen() {
         </ScrollView>
 
         {/* Bottom Prominent CTA Button */}
-        <View style={[styles.footerContainer, { borderTopColor: step === 2 ? 'transparent' : colors.border }]}>
+        <View style={[styles.footerContainer, { borderTopColor: isDark ? '#1F2432' : colors.border }]}>
           <TouchableOpacity
-            style={[styles.primaryCtaBtn, { backgroundColor: '#E53935' }, isSubmitting && styles.primaryCtaBtnDisabled]}
+            style={[
+              styles.primaryCtaBtn,
+              {
+                backgroundColor: colors.primary,
+                shadowColor: colors.primary,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 4,
+              },
+              isSubmitting && styles.primaryCtaBtnDisabled,
+            ]}
             onPress={handleNext}
             disabled={isSubmitting}
             activeOpacity={0.85}
@@ -1330,12 +1693,22 @@ export default function OnboardingScreen() {
             {isSubmitting ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
-              <Text style={styles.primaryCtaText}>
-                {step === 1 ? 'Continue  →' : step === 2 ? 'Continue  →' : 'Start Training  🚀'}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <Text style={styles.primaryCtaText}>
+                  {step === 1 ? 'Continue  →' : step === 2 ? 'Continue  →' : 'Start Training'}
+                </Text>
+                {step === 3 && <ArrowRight size={18} color="#FFFFFF" strokeWidth={2.4} />}
+              </View>
             )}
           </TouchableOpacity>
-          {step === 2 ? (
+          {step === 3 ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 4 }}>
+              <Shield size={12} color={colors.textMuted} />
+              <Text style={[styles.footerMottoText, { color: colors.textMuted }]}>
+                ARISE guards these apps on your device until workouts are cleared.
+              </Text>
+            </View>
+          ) : step === 2 ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 4, paddingHorizontal: 16 }}>
               <Lock size={13} color={colors.textMuted} />
               <Text style={[styles.privacyNoteText, { color: colors.textMuted, textAlign: 'center', fontSize: 11 }]}>
@@ -1654,154 +2027,304 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontWeight: '400',
   },
-  // Step 3 Styles
-  goalSectionBlock: {
+  // Step 3 Redesigned Styles
+  step3HeroBox: {
+    alignItems: 'center',
     width: '100%',
-    gap: 10,
+    gap: 4,
+    marginBottom: 4,
   },
-  sectionHeaderRow: {
+  step3BadgePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  appCountText: {
-    fontFamily: fontFamilies.medium,
-    fontSize: 11,
-    fontWeight: '500',
-  },
-  timePillsRow: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  timePill: {
-    flex: 1,
-    paddingVertical: 9,
-    borderRadius: 8,
-    borderWidth: 1,
-    alignItems: 'center',
-  },
-  timePillText: {
-    fontFamily: fontFamilies.medium,
-    fontSize: 11,
-    fontWeight: '500',
-  },
-  customTimeInputBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderWidth: 1,
-  },
-  customTimeLabel: {
-    fontFamily: fontFamilies.medium,
-    fontSize: 11.5,
-    fontWeight: '500',
-  },
-  customTimeTextInput: {
-    fontFamily: fontFamilies.semiBold,
-    width: 60,
-    fontSize: 13,
-    fontWeight: '600',
-    textAlign: 'center',
-    borderRadius: 6,
+    gap: 5,
+    paddingHorizontal: 10,
     paddingVertical: 4,
+    borderRadius: 100,
     borderWidth: 1,
+    marginBottom: 2,
   },
-  quickSelectBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 9,
-    borderRadius: 10,
+  step3BadgeText: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+  },
+  redesignedCard: {
+    width: '100%',
+    borderRadius: 22,
     borderWidth: 1,
+    padding: 16,
+    gap: 14,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
   },
-  quickSelectBtnText: {
-    fontFamily: fontFamilies.medium,
-    fontSize: 11,
-    fontWeight: '500',
-    letterSpacing: 0.2,
-  },
-  searchBarBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: 1,
-  },
-  searchBarInput: {
-    fontFamily: fontFamilies.regular,
-    flex: 1,
-    fontSize: 12.5,
-    fontWeight: '400',
-    padding: 0,
-  },
-  appsLoadingBox: {
-    paddingVertical: 20,
-    alignItems: 'center',
-    gap: 6,
-  },
-  appsLoadingText: {
-    fontFamily: fontFamilies.regular,
-    fontSize: 11.5,
-    fontWeight: '400',
-  },
-  noAppsBox: {
-    paddingVertical: 20,
-    alignItems: 'center',
-    gap: 6,
-  },
-  noAppsText: {
-    fontFamily: fontFamilies.regular,
-    fontSize: 11.5,
-    fontWeight: '400',
-  },
-  miniAppCard: {
+  cardHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  cardHeaderIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cardTitleText: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  cardSubtitleText: {
+    fontFamily: fontFamilies.regular,
+    fontSize: 11.5,
+    lineHeight: 16,
+    marginTop: 1,
+  },
+  timePillsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  modernTimePill: {
+    flexBasis: '31%',
+    flexGrow: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modernTimePillText: {
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 12.5,
+    fontWeight: '600',
+  },
+  modernTimePillSub: {
+    fontFamily: fontFamilies.regular,
+    fontSize: 10,
+    marginTop: 2,
+  },
+  customStepperBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     padding: 10,
     borderRadius: 12,
     borderWidth: 1,
   },
-  miniAppIcon: {
+  customStepperLabel: {
+    fontFamily: fontFamilies.medium,
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  customStepperControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  stepperBtn: {
     width: 32,
     height: 32,
     borderRadius: 8,
+    borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  miniAppName: {
+  stepperInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    minWidth: 64,
+    justifyContent: 'center',
+  },
+  stepperInput: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+    minWidth: 32,
+    padding: 0,
+  },
+  stepperMinsText: {
+    fontFamily: fontFamilies.medium,
+    fontSize: 11,
+  },
+  budgetInfoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  budgetInfoText: {
+    fontFamily: fontFamilies.medium,
+    fontSize: 11.5,
+    flex: 1,
+    lineHeight: 16,
+  },
+  appsSelectedPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 100,
+    borderWidth: 1,
+  },
+  appsSelectedText: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  autoSelectBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  autoSelectLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  sparkleCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  autoSelectTitle: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  autoSelectSub: {
+    fontFamily: fontFamilies.regular,
+    fontSize: 10.5,
+    marginTop: 1,
+  },
+  categoryPillsRow: {
+    flexDirection: 'row',
+    gap: 6,
+    width: '100%',
+  },
+  categoryPill: {
+    flex: 1,
+    paddingVertical: 7,
+    borderRadius: 9,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryPillText: {
+    fontFamily: fontFamilies.medium,
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  modernSearchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  modernSearchInput: {
+    fontFamily: fontFamilies.regular,
+    flex: 1,
+    fontSize: 13,
+    padding: 0,
+  },
+  appsLoadingBox: {
+    paddingVertical: 24,
+    alignItems: 'center',
+    gap: 8,
+  },
+  appsLoadingText: {
+    fontFamily: fontFamilies.regular,
+    fontSize: 12,
+  },
+  noAppsBox: {
+    paddingVertical: 24,
+    alignItems: 'center',
+    gap: 8,
+  },
+  noAppsText: {
+    fontFamily: fontFamilies.regular,
+    fontSize: 12,
+  },
+  appsListWrap: {
+    width: '100%',
+    gap: 6,
+  },
+  modernAppRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  modernAppIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  modernAppName: {
     fontFamily: fontFamilies.semiBold,
-    fontSize: 12.5,
+    fontSize: 13.5,
     fontWeight: '600',
   },
-  miniAppPkg: {
-    fontFamily: fontFamilies.regular,
-    fontSize: 10,
-    fontWeight: '400',
+  categoryTagPill: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
   },
-  lockIndicator: {
+  categoryTagText: {
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 9.5,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+  },
+  modernCheckbox: {
     width: 24,
     height: 24,
     borderRadius: 12,
+    borderWidth: 2,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  appsListFooter: {
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  appsListFooterText: {
+    fontFamily: fontFamilies.regular,
+    fontSize: 11,
   },
   footerContainer: {
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 8,
+    paddingBottom: 10,
     borderTopWidth: 1,
     gap: 6,
   },
   primaryCtaBtn: {
-    height: 50,
-    borderRadius: 12,
+    height: 52,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1809,15 +2332,15 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   primaryCtaText: {
-    fontFamily: fontFamilies.semiBold,
-    fontSize: 15,
-    fontWeight: '600',
+    fontFamily: fontFamilies.bold,
+    fontSize: 15.5,
+    fontWeight: '700',
     color: '#FFFFFF',
     letterSpacing: 0.2,
   },
   footerMottoText: {
     fontFamily: fontFamilies.regular,
-    fontSize: 10.5,
+    fontSize: 11,
     textAlign: 'center',
     fontStyle: 'italic',
     fontWeight: '400',
