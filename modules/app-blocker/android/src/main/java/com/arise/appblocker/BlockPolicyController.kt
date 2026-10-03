@@ -42,6 +42,7 @@ object BlockPolicyController {
     private const val BUDGET_PREFIX = "budget_"
     private const val UNLOCKED_UNTIL_KEY = "unlocked_until_epoch"
     private const val DAILY_RESET_KEY = "last_daily_reset_epoch"
+    private const val MAX_UNLOCK_WINDOW_MS = 20 * 60 * 1000L
 
     private val policyLock = Any()
     private val packageBudgetsMs = ConcurrentHashMap<String, Long>()
@@ -344,7 +345,15 @@ object BlockPolicyController {
 
     /** Returns false when the native context cannot persist the pass. */
     fun setUnlockUntil(context: Context?, epochMs: Long): Boolean {
-        val target = if (epochMs > System.currentTimeMillis()) epochMs else 0L
+        val now = System.currentTimeMillis()
+        val target = when {
+            epochMs <= now -> 0L
+            epochMs - now > MAX_UNLOCK_WINDOW_MS -> {
+                Log.w(TAG_BLOCKER, "Rejecting unlock window longer than 20 minutes")
+                return false
+            }
+            else -> epochMs
+        }
         val actualContext = context ?: return false
         return try {
             val editor = preferences(actualContext).edit()

@@ -32,6 +32,7 @@ import { db } from '../../src/database/client';
 import { focusSession } from '../../src/database/schema';
 import { useKeepAwake } from 'expo-keep-awake';
 import { historyService } from '../../src/services/historyService';
+import { issueCompletionToken } from '../../src/services/completionGate';
 import { useSound } from '../../src/hooks/useSound';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTheme } from '../../src/hooks/useTheme';
@@ -317,6 +318,7 @@ export default function FocusModeScreen() {
         earnedXP: xpEarned.toString(),
         durationSeconds: (targetMinutes * 60).toString(),
         ...(params.questId ? { questId: params.questId } : {}),
+        completionToken: issueCompletionToken(),
       },
     });
   };

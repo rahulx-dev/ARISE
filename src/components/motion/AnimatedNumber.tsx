@@ -21,42 +21,58 @@ export const AnimatedNumber = React.memo(function AnimatedNumber({
 }: AnimatedNumberProps) {
   const [displayValue, setDisplayValue] = useState<number>(value);
   const previousValueRef = useRef<number>(value);
+  const displayValueRef = useRef<number>(value);
   const animFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
+    if (animFrameRef.current !== null) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = null;
+    }
+
     const startVal = previousValueRef.current;
     const endVal = value;
     previousValueRef.current = value;
 
     if (startVal === endVal) {
-      setDisplayValue(endVal);
+      displayValueRef.current = endVal;
+      setDisplayValue((current) => (current === endVal ? current : endVal));
       return;
     }
 
     const startTime = Date.now();
     const diff = endVal - startVal;
+    const animationDuration = Math.max(0, duration);
+    let lastRenderedValue = displayValueRef.current;
 
     const tick = () => {
       const now = Date.now();
-      const progress = Math.min(1, (now - startTime) / duration);
+      const progress = animationDuration === 0 ? 1 : Math.min(1, (now - startTime) / animationDuration);
       // Apple ease-out cubic curve
       const easedProgress = 1 - Math.pow(1 - progress, 3);
       const current = Math.round(startVal + diff * easedProgress);
 
-      setDisplayValue(current);
+      if (current !== lastRenderedValue) {
+        lastRenderedValue = current;
+        displayValueRef.current = current;
+        setDisplayValue(current);
+      }
 
       if (progress < 1) {
         animFrameRef.current = requestAnimationFrame(tick);
       } else {
+        displayValueRef.current = endVal;
         setDisplayValue(endVal);
+        animFrameRef.current = null;
       }
     };
 
     animFrameRef.current = requestAnimationFrame(tick);
 
     return () => {
-      if (animFrameRef.current) {
+      if (animFrameRef.current !== null) {
         cancelAnimationFrame(animFrameRef.current);
+        animFrameRef.current = null;
       }
     };
   }, [value, duration]);

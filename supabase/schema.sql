@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS public.crystal_ledger (
     user_id TEXT NOT NULL,
     amount INTEGER NOT NULL,
     type TEXT NOT NULL CHECK (type IN ('EARN', 'SPEND')),
-    source TEXT NOT NULL, -- 'gate_recon', 'red_gate', 'cpx_survey', 'bitlabs_survey', 'redemption', 'admin'
+    source TEXT NOT NULL, -- 'gate_recon', 'red_gate', 'cpx_survey', 'bitlabs_survey', 'redemption'
     source_id TEXT NOT NULL, -- Canonical idempotency key (e.g. 'recon:e_mobile:user_1', 'redgate:rg_1:user_1', 'cpx:tx_1:user_1')
     description TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW()),
@@ -316,7 +316,7 @@ BEGIN
     END IF;
 
     IF p_source IS NULL OR p_source NOT IN (
-        'gate_recon', 'red_gate', 'cpx_survey', 'bitlabs_survey', 'admin'
+        'gate_recon', 'red_gate', 'cpx_survey', 'bitlabs_survey'
     ) OR p_source_id IS NULL OR length(trim(p_source_id)) = 0 THEN
         RETURN jsonb_build_object('success', false, 'error', 'Invalid reward source');
     END IF;
@@ -328,7 +328,7 @@ BEGIN
     ELSIF p_source = 'cpx_survey' OR p_source = 'bitlabs_survey' THEN
         v_allowed_max := 5000;
     ELSE
-        v_allowed_max := 1000;
+        v_allowed_max := 0;
     END IF;
 
     IF p_amount > v_allowed_max THEN
@@ -480,7 +480,8 @@ BEGIN
     END IF;
 
     -- 1. Validate Amounts & Conversion Rate (10 crystals = 1 INR)
-    IF p_amount_inr < 25 OR p_amount_inr > 2000 THEN
+    IF p_amount_inr IS NULL OR p_crystals_spent IS NULL
+        OR p_amount_inr < 25 OR p_amount_inr > 2000 THEN
         RETURN jsonb_build_object('success', false, 'error', 'Redemption must be between 25 and 2000 INR');
     END IF;
 
@@ -489,11 +490,21 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'error', 'Invalid crystal conversion rate');
     END IF;
 
+    IF p_method IS NULL OR p_method NOT IN ('UPI', 'AMAZON', 'GOOGLE_PLAY', 'COINS') THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Invalid redemption method');
+    END IF;
+
     IF p_destination IS NULL OR length(trim(p_destination)) < 4 THEN
         RETURN jsonb_build_object('success', false, 'error', 'Invalid redemption destination format');
     END IF;
+    IF p_method = 'UPI' AND trim(p_destination) !~ '^[A-Za-z0-9._-]{2,64}@[A-Za-z0-9.-]{2,32}$' THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Invalid UPI destination format');
+    END IF;
     IF p_request_uuid IS NULL OR length(trim(p_request_uuid)) = 0 THEN
         RETURN jsonb_build_object('success', false, 'error', 'Missing redemption request id');
+    END IF;
+    IF length(trim(p_request_uuid)) > 128 THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Invalid redemption request id');
     END IF;
 
     -- 2. Check Idempotency via crystal_ledger

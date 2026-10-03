@@ -28,7 +28,7 @@ import { useHaptics } from '../../src/hooks/useHaptics';
 import { useSound } from '../../src/hooks/useSound';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { db } from '../../src/database/client';
-import { exerciseSession } from '../../src/database/schema';
+import { exerciseSession, workoutSessions } from '../../src/database/schema';
 import { fontFamilies } from '../../src/theme/typography';
 import { useTranslation } from '../../src/services/i18n';
 import { AnimatedStreakFlame } from '../../src/components/ui/AnimatedStreakFlame';
@@ -61,10 +61,16 @@ export default function GymTabScreen() {
 
   const fetchGymStats = async () => {
     try {
-      const records = await db.select().from(exerciseSession);
-      setTotalWorkoutsCount(records.length);
-      const totalRepsSum = records.reduce((acc: number, curr: any) => acc + (curr.totalReps || 0), 0);
-      setTodayReps(totalRepsSum);
+      const [records, wRecords] = await Promise.all([
+        db.select().from(exerciseSession),
+        db.select().from(workoutSessions),
+      ]);
+      const completedWorkouts = wRecords.filter((w: any) => w.status === 'COMPLETED');
+      setTotalWorkoutsCount(records.length + completedWorkouts.length);
+
+      const exerciseReps = records.reduce((acc: number, curr: any) => acc + (curr.completedReps || 0), 0);
+      const workoutReps = completedWorkouts.reduce((acc: number, curr: any) => acc + (curr.totalReps || 0), 0);
+      setTodayReps(exerciseReps + workoutReps);
     } catch (e) {
       console.warn('Failed to load gym stats:', e);
     }

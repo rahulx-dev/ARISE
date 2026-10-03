@@ -176,6 +176,14 @@ class AppBlockerModule : Module() {
             val context = appContext.reactContext ?: appContext.currentActivity
             if (context != null) {
                 Log.d(TAG, "stopMonitoring called")
+                try {
+                    context.getSharedPreferences(BlockPolicyController.PREFS_NAME, Context.MODE_PRIVATE)
+                        .edit()
+                        .remove("saved_restricted_packages")
+                        .commit()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Unable to clear persisted restricted packages", e)
+                }
                 val intent = Intent(context, AppMonitorService::class.java)
                 try {
                     context.stopService(intent)
@@ -231,7 +239,8 @@ class AppBlockerModule : Module() {
         }
 
         Function("temporaryUnlock") { durationMs: Double ->
-            if (!durationMs.isFinite() || durationMs <= 0.0) {
+            val maxUnlockMs = 20 * 60 * 1000L
+            if (!durationMs.isFinite() || durationMs <= 0.0 || durationMs > maxUnlockMs) {
                 Log.w(TAG, "temporaryUnlock rejected invalid duration: $durationMs")
                 return@Function false
             }

@@ -35,6 +35,7 @@ import { GlassButton } from '../../src/components/ios/GlassButton';
 import { useSound } from '../../src/hooks/useSound';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTheme } from '../../src/hooks/useTheme';
+import { issueCompletionToken } from '../../src/services/completionGate';
 
 export default function ActiveGymSessionScreen() {
   const router = useRouter();
@@ -189,6 +190,7 @@ export default function ActiveGymSessionScreen() {
                   earnedCoins: result.coinsEarned.toString(),
                   earnedXP: result.xpEarned.toString(),
                   durationSeconds: elapsedSeconds.toString(),
+                  completionToken: issueCompletionToken(),
                 },
               });
             } finally {

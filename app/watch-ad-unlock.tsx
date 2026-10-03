@@ -106,12 +106,6 @@ export default function WatchAdUnlockScreen() {
     };
   }, []);
 
-  const handleGrantCourtesyPass = () => {
-    haptics.medium();
-    appBlockerService.temporaryUnlock?.(5 * 60 * 1000);
-    router.replace('/(tabs)');
-  };
-
   const handleFinishAndReturn = () => {
     haptics.light();
     router.replace('/(tabs)');
@@ -198,24 +192,17 @@ export default function WatchAdUnlockScreen() {
             </View>
             <Text style={[styles.title, { color: '#F59E0B' }]}>SPONSOR NETWORK CALIBRATING</Text>
             <Text style={styles.subtitle}>
-              No sponsor video was available right now. As a courtesy for your patience, claim a free 5-minute emergency screen pass!
+              No sponsor video is available right now. Please return home and try again later.
             </Text>
 
             <TouchableOpacity
               style={[styles.actionBtn, { backgroundColor: '#F59E0B' }]}
-              onPress={handleGrantCourtesyPass}
+              onPress={handleFinishAndReturn}
               activeOpacity={0.85}
             >
-              <Text style={[styles.actionBtnText, { color: '#000000' }]}>CLAIM FREE 5-MIN PASS</Text>
+              <Text style={[styles.actionBtnText, { color: '#000000' }]}>RETURN TO HOME</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.cancelBtn}
-              onPress={() => router.replace('/(tabs)')}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.cancelBtnText}>RETURN TO HOME</Text>
-            </TouchableOpacity>
           </View>
         )}
       </View>

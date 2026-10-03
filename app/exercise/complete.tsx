@@ -26,6 +26,7 @@ import { exerciseRepository } from '../../src/database/repositories/exerciseRepo
 import { userRepository } from '../../src/database/repositories/userRepository';
 import { adMobService } from '../../src/services/adMobService';
 import { appBlockerService } from '../../src/native';
+import { consumeCompletionToken } from '../../src/services/completionGate';
 
 const { width } = Dimensions.get('window');
 
@@ -45,6 +46,7 @@ export default function QuestCompleteScreen() {
     questId,
     isRedGate,
     source,
+    completionToken,
   } = useLocalSearchParams<{
     exerciseType: string;
     completedReps: string;
@@ -55,6 +57,7 @@ export default function QuestCompleteScreen() {
     questId?: string;
     isRedGate?: string;
     source?: string;
+    completionToken?: string;
   }>();
 
   const profile = usePlayerStore((s) => s.profile);
@@ -111,12 +114,18 @@ export default function QuestCompleteScreen() {
 
     const grantRewards = async () => {
       try {
-        let awarded = false;
+        if (!consumeCompletionToken(completionToken)) {
+          showIOSAlert('Invalid Completion', 'This completion session is no longer valid.');
+          router.replace('/(tabs)');
+          return;
+        }
 
         // Unlock focus shield / screen time for 20 minutes
         try {
           appBlockerService.temporaryUnlock?.(20 * 60 * 1000);
         } catch (_: any) {}
+
+        let awarded = false;
 
         // Emergency Red Gate Victory Check
         if (isRedGate === 'true') {

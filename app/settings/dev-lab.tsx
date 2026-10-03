@@ -64,6 +64,22 @@ export default function DevLabScreen() {
   const coins = profile?.coins || 0;
   const rank = getRankForLevel(level);
 
+  if (!__DEV__) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={styles.emptyState}>
+          <ShieldCheck size={42} color={colors.primary} />
+          <Text style={[styles.emptyStateTitle, { color: colors.textPrimary }]}>
+            Developer Lab Unavailable
+          </Text>
+          <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>
+            This testing area is disabled in production builds.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   const notifySuccess = (text: string) => {
     haptics.success();
     sound.play('quest_complete');
@@ -134,6 +150,10 @@ export default function DevLabScreen() {
   };
 
   const handleTestUnlock = () => {
+    if (!__DEV__) {
+      Alert.alert('Unavailable', 'Test unlock is only available in development builds.');
+      return;
+    }
     haptics.success();
     temporaryUnlock(15 * 60 * 1000);
     notifySuccess('Apps unlocked for 15 minutes test session!');
@@ -605,6 +625,23 @@ export default function DevLabScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    gap: 12,
+  },
+  emptyStateTitle: {
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 20,
+    textAlign: 'center',
+  },
+  emptyStateText: {
+    fontFamily: fontFamilies.medium,
+    fontSize: 14,
+    textAlign: 'center',
   },
   header: {
     flexDirection: 'row',

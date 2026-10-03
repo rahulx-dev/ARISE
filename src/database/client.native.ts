@@ -44,6 +44,7 @@ async function initializeDatabaseOnce(): Promise<void> {
       coins INTEGER NOT NULL DEFAULT 0,
       total_coins_earned INTEGER NOT NULL DEFAULT 0,
       sponsor_passes INTEGER NOT NULL DEFAULT 0,
+      mana_crystals INTEGER NOT NULL DEFAULT 0,
       current_streak INTEGER NOT NULL DEFAULT 0,
       longest_streak INTEGER NOT NULL DEFAULT 0,
       last_active_date TEXT,

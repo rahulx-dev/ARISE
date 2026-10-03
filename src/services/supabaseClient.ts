@@ -1,5 +1,7 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { expoDb } from "../database/client";
+import * as SecureStore from "expo-secure-store";
+import { Platform } from "react-native";
 
 const SUPABASE_URL =
   process.env.EXPO_PUBLIC_SUPABASE_URL ||
@@ -17,7 +19,8 @@ export const isSupabaseConfigured = (): boolean => {
   );
 };
 
-// Pure SQLite key-value adapter for Supabase session persistence
+// SQLite remains available for non-sensitive local app data. Auth sessions use
+// OS-backed secure storage on native platforms and browser storage on web.
 const sqliteStorage = {
   getItem: async (key: string): Promise<string | null> => {
     try {
@@ -54,7 +57,50 @@ const sqliteStorage = {
   },
 };
 
-import { Platform } from 'react-native';
+const secureSessionStorage = {
+  getItem: async (key: string): Promise<string | null> => {
+    try {
+      const secureValue = await SecureStore.getItemAsync(key);
+      if (secureValue) return secureValue;
+
+      // Migrate sessions written by older builds, then remove the plaintext copy.
+      const legacyValue = await sqliteStorage.getItem(key);
+      if (legacyValue) {
+        try {
+          await SecureStore.setItemAsync(key, legacyValue, {
+            keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+          });
+          await sqliteStorage.removeItem(key);
+        } catch {}
+      }
+      return legacyValue;
+    } catch (error) {
+      console.warn("[Supabase] Secure session read failed, falling back to SQLite:", error);
+      return await sqliteStorage.getItem(key);
+    }
+  },
+  setItem: async (key: string, value: string): Promise<void> => {
+    try {
+      await SecureStore.setItemAsync(key, value, {
+        keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+      });
+      await sqliteStorage.removeItem(key);
+    } catch (error) {
+      console.warn("[Supabase] Secure session write failed, falling back to SQLite:", error);
+      await sqliteStorage.setItem(key, value);
+    }
+  },
+  removeItem: async (key: string): Promise<void> => {
+    try {
+      await SecureStore.deleteItemAsync(key);
+    } catch {}
+    try {
+      await sqliteStorage.removeItem(key);
+    } catch (error) {
+      console.warn("[Supabase] Secure session removal failed:", error);
+    }
+  },
+};
 
 let client: SupabaseClient | null = null;
 
@@ -63,7 +109,9 @@ if (isSupabaseConfigured()) {
     const isWeb = Platform.OS === 'web';
     client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: {
-        storage: isWeb && typeof localStorage !== 'undefined' ? (localStorage as any) : sqliteStorage,
+        storage: isWeb && typeof localStorage !== 'undefined'
+          ? (localStorage as any)
+          : secureSessionStorage,
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: isWeb,

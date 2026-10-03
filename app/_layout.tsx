@@ -210,7 +210,22 @@ function RootLayout() {
           setAppState("PERMISSIONS_REQUIRED");
         }
       } else {
-        setAppState("PROFILE_REQUIRED");
+        let isAuthCallback = false;
+        try {
+          const initialUrl = await Linking.getInitialURL();
+          isAuthCallback =
+            !!initialUrl &&
+            (initialUrl.includes('auth/callback') ||
+              initialUrl.includes('callback') ||
+              initialUrl.includes('access_token') ||
+              initialUrl.includes('code='));
+        } catch {}
+
+        if (isAuthCallback) {
+          setAppState("READY");
+        } else {
+          setAppState("PROFILE_REQUIRED");
+        }
       }
     } catch (e) {
       console.error("[ARISE Startup] Bootstrap failed:", e);

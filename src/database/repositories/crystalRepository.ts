@@ -235,7 +235,7 @@ export const crystalRepository = {
 
             // Update local SQLite cache
             const records = await db.select().from(userProfile).limit(1);
-            if (records.length > 0) {
+            if (records.length > 0 && Number.isSafeInteger(authoritativeBalance)) {
               await db
                 .update(userProfile)
                 .set({ manaCrystals: authoritativeBalance } as any)

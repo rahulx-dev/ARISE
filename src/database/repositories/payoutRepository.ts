@@ -206,7 +206,11 @@ export const payoutRepository = {
         .where(eq(payoutRequest.id, id))
         .limit(1);
 
-      if (req.length > 0 && refundCoins) {
+      if (req.length === 0 || req[0].status !== 'PENDING') {
+        return false;
+      }
+
+      if (refundCoins) {
         await userRepository.addCoins(
           req[0].coinsSpent,
           `Refund: UPI Cashout INR ${req[0].amountInr}`,

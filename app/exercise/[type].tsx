@@ -48,6 +48,7 @@ import { useKeepAwake } from 'expo-keep-awake';
 import { useSound } from '../../src/hooks/useSound';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { voiceCoach } from '../../src/services/voiceCoach';
+import { issueCompletionToken } from '../../src/services/completionGate';
 
 function ExerciseTrackerInner() {
   useKeepAwake();
@@ -87,10 +88,11 @@ function ExerciseTrackerInner() {
   const config = getExerciseConfig(validExerciseType);
   const isPlank = isDurationBased(validExerciseType);
 
-  const target = paramTarget
-    ? parseInt(paramTarget, 10)
+  const parsedTarget = paramTarget ? Number.parseInt(paramTarget, 10) : NaN;
+  const target = Number.isFinite(parsedTarget)
+    ? Math.min(config.maxTarget, Math.max(config.minTarget, parsedTarget))
     : config.defaultTarget || 20;
-  const parsedSets = paramSets ? parseInt(paramSets, 10) : NaN;
+  const parsedSets = paramSets ? Number.parseInt(paramSets, 10) : NaN;
   const totalSets =
     !isNaN(parsedSets) && parsedSets > 0
       ? parsedSets
@@ -134,7 +136,9 @@ function ExerciseTrackerInner() {
   const lastBodyDetectedRef = useRef<boolean>(false);
   const missedFramesRef = useRef<number>(0);
   const smoothedKeypointsRef = useRef<MoveNetKeypoint[] | null>(null);
+  const lastOverlayUpdateAtRef = useRef<number>(0);
   const hasAwardedRef = useRef<boolean>(false);
+  const elapsedSecondsRef = useRef<number>(0);
 
   // Lifecycle Initialization & Cleanup
   useEffect(() => {
@@ -142,6 +146,7 @@ function ExerciseTrackerInner() {
     hasAwardedRef.current = false;
     currentSetRef.current = 1;
     isRestingRef.current = false;
+    lastOverlayUpdateAtRef.current = 0;
 
     if (!cameraPermission?.granted) {
       requestCameraPermission();
@@ -167,7 +172,11 @@ function ExerciseTrackerInner() {
     // 1-Second Timer loop
     timerRef.current = setInterval(() => {
       if (!isMountedRef.current) return;
-      setElapsedSeconds((prev) => prev + 1);
+      setElapsedSeconds((prev) => {
+        const next = prev + 1;
+        elapsedSecondsRef.current = next;
+        return next;
+      });
 
       if (isRestingRef.current) {
         setRestCountdown((prev) => {
@@ -262,7 +271,12 @@ function ExerciseTrackerInner() {
             };
           });
           smoothedKeypointsRef.current = smoothed;
-          setDetectedKeypoints(smoothed);
+          // Keep pose processing responsive while limiting React/SVG layout
+          // work to approximately 30 updates per second.
+          if (now - lastOverlayUpdateAtRef.current >= 33) {
+            lastOverlayUpdateAtRef.current = now;
+            setDetectedKeypoints(smoothed);
+          }
 
           if (!lastBodyDetectedRef.current) {
             lastBodyDetectedRef.current = true;
@@ -387,7 +401,7 @@ function ExerciseTrackerInner() {
       totalCompletedReps = target * totalSetsRef.current;
     }
 
-    const duration = elapsedSeconds || 1;
+    const duration = elapsedSecondsRef.current || 1;
     const rewards = calculateRewards(
       validExerciseType,
       totalCompletedReps,
@@ -414,6 +428,7 @@ function ExerciseTrackerInner() {
         questId: questId || '',
         isRedGate: isRedGate || '',
         source: source || '',
+        completionToken: issueCompletionToken(),
       },
     });
   };

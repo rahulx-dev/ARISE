@@ -77,7 +77,8 @@
           "androidAppId": "ca-app-pub-3502968689589307~2344226726"
         }
       ],
-      "@sentry/react-native"
+      "@sentry/react-native",
+      "expo-secure-store"
     ],
     "splash": {
       "image": "./assets/splash-icon.png",
