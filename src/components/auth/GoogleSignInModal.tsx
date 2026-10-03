@@ -121,8 +121,6 @@ export function GoogleSignInModal({ visible, onClose, onSuccess }: GoogleSignInM
         sound.play('level_up');
         haptics.success();
       } else {
-        // If brand new account, save current player state to cloud
-        await cloudSyncService.saveToCloud(authUser.email);
         haptics.success();
       }
 

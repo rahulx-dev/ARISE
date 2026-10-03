@@ -12,7 +12,7 @@ import {
   AppState,
   Keyboard,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Camera } from 'expo-camera';
 import * as Notifications from 'expo-notifications';
@@ -116,12 +116,23 @@ export default function OnboardingScreen() {
   const [step, setStep] = useState<number>(1);
   const totalSteps = 3;
 
-  // Step 1: Identity States
+  const params = useLocalSearchParams<{ googleName?: string; googlePhoto?: string; forceProfile?: string }>();
   const [userName, setUserName] = useState<string>('');
   const [nameError, setNameError] = useState<string>('');
   const [selectedAvatar, setSelectedAvatar] = useState<string>('pfp_01');
   const [customPhotoUri, setCustomPhotoUri] = useState<string | null>(null);
   const [isInputFocused, setIsInputFocused] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (params?.googleName && !userName) {
+      setUserName(String(params.googleName));
+      setNameError('');
+    }
+    if (params?.googlePhoto && !customPhotoUri) {
+      setCustomPhotoUri(String(params.googlePhoto));
+      setSelectedAvatar('custom');
+    }
+  }, [params?.googleName, params?.googlePhoto]);
 
   // Animated Dice Rotation
   const diceRotation = useSharedValue(0);
@@ -202,11 +213,17 @@ export default function OnboardingScreen() {
   const allPermissionsGranted = allPermissionsCount === 5;
 
   useEffect(() => {
+    if (params?.googleName || params?.forceProfile === 'true') {
+      useSettingsStore.setState({ onboardingCompleted: false });
+      setIsOnboardingCompletedSync(false);
+      return;
+    }
+
     if (onboardingCompleted || getIsOnboardingCompleted()) {
       useSettingsStore.setState({ onboardingCompleted: true });
       router.replace('/(tabs)');
     }
-  }, [onboardingCompleted]);
+  }, [onboardingCompleted, params?.googleName, params?.forceProfile]);
 
   const permPollRef = useRef<any>(null);
 
@@ -430,12 +447,8 @@ export default function OnboardingScreen() {
     }
     showIOSAlert(
       'Google Account Connected',
-      `Welcome ${user.displayName}! Signed in with ${user.email}.`
+      `Welcome ${user.displayName || 'Hunter'}! Your Google credentials have been filled. You can customize your name, avatar, and focus goals before continuing.`
     );
-    // Smoothly progress to Step 2
-    setTimeout(() => {
-      setStep(2);
-    }, 250);
   };
 
   const getSelectedAvatar = () => {

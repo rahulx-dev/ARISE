@@ -9,7 +9,7 @@ import { inventoryRepository, InventoryItem } from '../database/repositories/inv
 import { userRepository } from '../database/repositories/userRepository';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { googleAuthService } from './googleAuthService';
-import { setIsOnboardingCompletedSync } from './appStateService';
+import { setIsOnboardingCompletedSync, getIsOnboardingCompleted } from './appStateService';
 import NetInfo from '@react-native-community/netinfo';
 
 export interface HunterCloudBackup {
@@ -202,6 +202,15 @@ export const cloudSyncService = {
       }
 
       const cleanEmail = email.trim().toLowerCase();
+
+      // Guard: Do not write placeholder profile over real cloud backups if user has not completed onboarding
+      const isOnboarded = getIsOnboardingCompleted();
+      const localProfile = await userRepository.getProfile();
+      if (!isOnboarded && (!localProfile?.displayName || localProfile.displayName === 'Warrior')) {
+        console.log('[CloudSync] Skipping saveToCloud: user has not finished onboarding profile yet');
+        return { success: false, message: 'Onboarding not finished yet.' };
+      }
+
       const backupData = await this.gatherLocalState(cleanEmail);
       if (!backupData) {
         return {
@@ -303,11 +312,21 @@ export const cloudSyncService = {
         } catch {}
       }
 
-      // If no save found anywhere for this email -> fresh user
-      if (!backup) {
+      // Check if backup has authentic gameplay progression or custom profile
+      const isAuthenticSave =
+        Boolean(backup) &&
+        (Boolean(backup?.level && backup.level > 1) ||
+          Boolean(backup?.totalXP && backup.totalXP > 0) ||
+          Boolean(backup?.currentStreak && backup.currentStreak > 0) ||
+          Boolean(backup?.displayName && backup.displayName !== 'Warrior' && backup.displayName.trim().length > 0) ||
+          Boolean(Array.isArray(backup?.quests) && backup.quests.length > 0) ||
+          Boolean(Array.isArray(backup?.achievements) && backup.achievements.length > 0));
+
+      // If no valid save found anywhere for this email -> fresh user
+      if (!backup || !isAuthenticSave) {
         return {
           restored: false,
-          message: 'No existing cloud backup found for this account. Starting fresh!',
+          message: 'No prior cloud backup found for this account. Starting fresh!',
         };
       }
 

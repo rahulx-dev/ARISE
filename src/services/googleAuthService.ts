@@ -286,6 +286,7 @@ export const googleAuthService = {
     success: boolean;
     user?: GoogleAuthUser;
     restored?: boolean;
+    backup?: any;
     error?: string;
   }> {
     if (!isSupabaseConfigured() || !supabase) {
@@ -366,13 +367,12 @@ export const googleAuthService = {
 
       // Check and restore cloud backup
       let restored = false;
+      let cloudBackup = undefined;
       try {
         const { cloudSyncService } = await import('./cloudSyncService');
         const res = await cloudSyncService.restoreFromCloud(email);
         restored = res.restored;
-        if (!restored) {
-          await cloudSyncService.saveToCloud(email);
-        }
+        cloudBackup = res.backup;
       } catch (syncErr) {
         console.warn('[GoogleAuth] Cloud backup restore note:', syncErr);
       }
@@ -381,6 +381,7 @@ export const googleAuthService = {
         success: true,
         user: googleUser,
         restored,
+        backup: cloudBackup,
       };
     } catch (e: any) {
       console.error('[GoogleAuth] handleOAuthCallback exception:', e);

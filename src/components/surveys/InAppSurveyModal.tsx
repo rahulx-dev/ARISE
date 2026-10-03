@@ -26,7 +26,7 @@ import {
 } from 'lucide-react-native';
 import { useHaptics } from '../../hooks/useHaptics';
 
-import { getCloudUserId } from '../../services/supabaseClient';
+import { getCloudUserId, supabase, isSupabaseConfigured } from '../../services/supabaseClient';
 import { SURVEY_CONFIG } from '../../config/surveyConfig';
 
 interface InAppSurveyModalProps {
@@ -124,38 +124,30 @@ export function InAppSurveyModal({
       (currentUrl.startsWith('https://offers.cpx-research.com/index.php?app_id') &&
         !currentUrl.includes('status=') &&
         !currentUrl.includes('completed') &&
-        !currentUrl.includes('success'))
+        !currentUrl.includes('trans_id=') &&
+        !currentUrl.includes('transaction_id='))
     ) {
       return;
     }
 
-    // Detect authentic survey completion or success redirects
+    // Require at least 45 seconds to avoid false positive early redirects / screenouts
+    if (secondsElapsed < 45) {
+      return;
+    }
+
+    // Detect authentic survey completion or transaction confirmation parameters
     const completionKeywords = [
       'status=completed',
       'status=complete',
       'status=success',
-      'status=finished',
-      'survey_success',
-      'completed=1',
-      'complete=1',
-      'finished=1',
-      'success=1',
-      'reward_granted',
-      'rewarded',
+      'cpx_status=success',
+      'survey_success=1',
+      'trans_id=',
+      'transaction_id=',
       '/survey/complete',
       '/survey/success',
       '/survey_completed',
-      '/thank_you',
-      '/thankyou',
-      '/congratulations',
-      'thank_you',
-      'thankyou',
-      'congratulations',
-      'submission_received',
-      'response_recorded',
       'cpx_success',
-      'trans_id',
-      'transaction_id',
     ];
 
     if (completionKeywords.some((keyword) => currentUrl.includes(keyword))) {
@@ -173,10 +165,11 @@ export function InAppSurveyModal({
     try {
       const data = JSON.parse(event.nativeEvent.data);
       if (
-        data?.type === 'SURVEY_COMPLETED' ||
-        data?.status === 'completed' ||
-        data?.status === 'success' ||
-        data?.event === 'survey_completed'
+        (data?.type === 'SURVEY_COMPLETED' ||
+          data?.status === 'completed' ||
+          data?.status === 'success' ||
+          data?.event === 'survey_completed') &&
+        secondsElapsed >= 45
       ) {
         setIsSurveyVerified(true);
       } else if (data?.url) {
@@ -187,6 +180,8 @@ export function InAppSurveyModal({
 
   const injectedJS = `
     (function() {
+      var surveyStartTime = Date.now();
+
       // 1. Force all target="_blank" links to open in the current WebView
       function fixLinks() {
         try {
@@ -207,31 +202,29 @@ export function InAppSurveyModal({
         return window;
       };
 
-      // 3. Check for survey completion keywords
+      // 3. Check for genuine survey completion keywords only after adequate elapsed time (45s+)
       function checkPage() {
         try {
           fixLinks();
+          if (Date.now() - surveyStartTime < 45000) return;
+
           var text = (document.body ? document.body.innerText : '').toLowerCase();
-          var href = window.location.href.toLowerCase();
-          
-          var hasCompletionWord = 
-            text.includes('thank you for participating') ||
+          var hasCompletionPhrase = 
             text.includes('survey completed') ||
             text.includes('survey complete') ||
             text.includes('successfully completed') ||
             text.includes('response has been recorded') ||
             text.includes('responses have been recorded') ||
             text.includes('survey finished') ||
-            text.includes('reward credited') ||
-            text.includes('congratulations');
+            text.includes('reward credited');
 
-          if (hasCompletionWord) {
+          if (hasCompletionPhrase) {
             window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'SURVEY_COMPLETED', url: window.location.href }));
           }
         } catch(e) {}
       }
 
-      setInterval(checkPage, 1500);
+      setInterval(checkPage, 2000);
       window.addEventListener('load', checkPage);
       document.addEventListener('DOMContentLoaded', checkPage);
     })();
@@ -241,14 +234,45 @@ export function InAppSurveyModal({
   const checkLiveCpxVerification = async (): Promise<boolean> => {
     try {
       const uid = await getCloudUserId();
+
+      // 1. Check Supabase cpx_postback_log if configured
+      if (isSupabaseConfigured() && supabase) {
+        try {
+          const { data, error } = await supabase
+            .from('cpx_postback_log')
+            .select('trans_id, amount_crystals, status, created_at')
+            .eq('user_id', uid)
+            .eq('status', 'completed')
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+          if (!error && data && data.length > 0) {
+            const pbTime = new Date(data[0].created_at).getTime();
+            // If postback arrived within the last 45 minutes
+            if (Date.now() - pbTime < 45 * 60 * 1000) {
+              return true;
+            }
+          }
+        } catch (dbErr) {
+          console.warn('[CPX Verification] Supabase postback check note:', dbErr);
+        }
+      }
+
+      // 2. Query live CPX Research API
       const appId = SURVEY_CONFIG.CPX.APP_ID;
       const res = await fetch(
         `https://api.cpx-research.com/api/get-user-history.php?app_id=${appId}&ext_user_id=${encodeURIComponent(uid)}`
       );
-      if (!res.ok) return false;
-      const data = await res.json();
-      if (data && (data.status === 'success' || data.success) && Array.isArray(data.transactions) && data.transactions.length > 0) {
-        return true;
+      if (res.ok) {
+        const data = await res.json();
+        if (
+          data &&
+          (data.status === 'success' || data.success) &&
+          Array.isArray(data.transactions) &&
+          data.transactions.length > 0
+        ) {
+          return true;
+        }
       }
       return false;
     } catch {
@@ -257,16 +281,10 @@ export function InAppSurveyModal({
   };
 
   const handleVerifyAndClaim = async () => {
-    if (isSurveyVerified) {
-      haptics.success();
-      onClose(true);
-      return;
-    }
-
-    if (secondsElapsed < 5) {
+    if (secondsElapsed < 45) {
       haptics.warning();
       setWarningMsg(
-        `INQUEST IN PROGRESS\n\nPlease answer the survey questions in the portal before attempting to extract Mana Crystals.`
+        `INQUEST IN PROGRESS\n\nAuthentic market research surveys require thorough completion.\n\nMinimum survey time required: 45s (Elapsed: ${secondsElapsed}s).\n\nPlease answer the questions in the portal before attempting to verify.`
       );
       return;
     }
@@ -275,7 +293,8 @@ export function InAppSurveyModal({
     const serverVerified = await checkLiveCpxVerification();
     setIsVerifyingWithServer(false);
 
-    if (serverVerified || secondsElapsed >= 10 || Platform.OS === 'web') {
+    // Strictly require real partner verification or verified URL after 45s+
+    if (serverVerified || (isSurveyVerified && secondsElapsed >= 45)) {
       setIsSurveyVerified(true);
       haptics.success();
       onClose(true);
@@ -284,11 +303,11 @@ export function InAppSurveyModal({
 
     haptics.warning();
     setWarningMsg(
-      `NO TRANSACTION CONFIRMED YET\n\nThe survey provider has not confirmed a completed payout for this session.\n\n• If you just completed the survey, wait a moment on the final page and tap Verify & Claim again.`
+      `SURVEY NOT CONFIRMED BY PARTNER\n\nThe survey partner (CPX Research) has not confirmed a completed survey payout for your hunter ID yet.\n\n• Please make sure you answer all questions until the final confirmation page.\n• Mana Crystals are only distributed once partner earning is confirmed to protect system economics.\n\nIf you just submitted the last question, wait 10-15 seconds and tap Verify again.`
     );
   };
 
-  const canClaim = isSurveyVerified || secondsElapsed >= 5;
+  const canClaim = secondsElapsed >= 45;
 
   return (
     <Modal
@@ -443,9 +462,9 @@ export function InAppSurveyModal({
                 ? 'VERIFYING WITH CPX SERVER...'
                 : isSurveyVerified
                 ? 'CLAIM EXTRACTED CRYSTALS'
-                : secondsElapsed >= 30
+                : secondsElapsed >= 45
                 ? 'VERIFY & CLAIM REWARDS'
-                : 'SURVEY IN PROGRESS...'}
+                : `SURVEY IN PROGRESS (${45 - secondsElapsed}s)`}
             </Text>
           </TouchableOpacity>
         </View>

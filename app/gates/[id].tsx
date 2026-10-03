@@ -114,9 +114,10 @@ export default function GateDetailsScreen() {
 
   // Solo Leveling Inquest Victory Dialog
   const [clearedModalVisible, setClearedModalVisible] = useState<boolean>(false);
-  const [clearedReward, setClearedReward] = useState<{ crystals: number; xp: number; title: string }>({
+  const [clearedReward, setClearedReward] = useState<{ crystals: number; xp: number; coins: number; title: string }>({
     crystals: 0,
     xp: 0,
+    coins: 0,
     title: '',
   });
 
@@ -305,7 +306,8 @@ export default function GateDetailsScreen() {
       sound.play('level_up');
 
       try {
-        const result = await gateSpawnService.completeMission(gate.id, activeMission.id);
+        // Local questions are unmonetized practice: awards 0 Mana Crystals + in-game Coins & XP
+        const result = await gateSpawnService.completeMission(gate.id, activeMission.id, false);
         await loadProfile();
 
         const updated = await gateSpawnService.getGateById(gate.id);
@@ -320,6 +322,7 @@ export default function GateDetailsScreen() {
         setClearedReward({
           crystals: result.crystalsAwarded,
           xp: result.xpAwarded,
+          coins: result.coinsAwarded,
           title: activeMission.title,
         });
         setClearedModalVisible(true);
@@ -624,19 +627,30 @@ export default function GateDetailsScreen() {
                 <Text style={styles.victoryTagText}>[ SYSTEM NOTIFICATION // RECON INQUEST CLEARED ]</Text>
               </View>
 
-              <Text style={[styles.victoryTitle, { color: colors.textPrimary }]}>MANA CRYSTALS EXTRACTED!</Text>
+              <Text style={[styles.victoryTitle, { color: colors.textPrimary }]}>
+                {clearedReward.crystals > 0 ? 'MANA CRYSTALS EXTRACTED!' : 'INQUEST DIRECTIVE CLEARED!'}
+              </Text>
               <Text style={[styles.victorySub, { color: colors.textSecondary }]}>
-                Intel reconnaissance successfully submitted. Market bounty unlocked and credited to your hunter profile.
+                {clearedReward.crystals > 0
+                  ? 'Intel reconnaissance successfully confirmed by survey partner. Market bounty unlocked and credited to your hunter profile.'
+                  : 'Reconnaissance training directives mastered. System XP and Gold Coins credited to your profile.'}
               </Text>
 
               {/* Rewards Acquired */}
-              <View style={[styles.victoryRewardBox, { backgroundColor: isDark ? '#0B1120' : '#EFF6FF', borderColor: '#0284C7' }]}>
+              <View style={[styles.victoryRewardBox, { backgroundColor: isDark ? '#0B1120' : '#EFF6FF', borderColor: clearedReward.crystals > 0 ? '#0284C7' : '#F59E0B' }]}>
                 <Text style={styles.victoryRewardBoxLabel}>EXTRACTION REWARDS:</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <ManaCrystalIcon size={18} color="#00D2EE" secondaryColor="#0284C7" />
-                    <Text style={styles.victoryRewardVal}>+{clearedReward.crystals.toLocaleString()} Crystals</Text>
-                  </View>
+                  {clearedReward.crystals > 0 ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <ManaCrystalIcon size={18} color="#00D2EE" secondaryColor="#0284C7" />
+                      <Text style={styles.victoryRewardVal}>+{clearedReward.crystals.toLocaleString()} Crystals</Text>
+                    </View>
+                  ) : (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Image source={APP_3D_ASSETS.goldCoin} style={{ width: 18, height: 18 }} />
+                      <Text style={[styles.victoryRewardVal, { color: '#F59E0B' }]}>+{clearedReward.coins.toLocaleString()} Coins</Text>
+                    </View>
+                  )}
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <Zap size={16} color="#E11D48" />
                     <Text style={[styles.victoryRewardVal, { color: '#E11D48' }]}>+{clearedReward.xp} XP</Text>
@@ -686,7 +700,8 @@ export default function GateDetailsScreen() {
             const m = gate.missions.find((item) => item.id === finishedMissionId);
             if (m && !m.isCompleted) {
               try {
-                const result = await gateSpawnService.completeMission(gate.id, finishedMissionId);
+                // Verified external survey from partner: award 20% Mana Crystals
+                const result = await gateSpawnService.completeMission(gate.id, finishedMissionId, true);
                 await loadProfile();
                 const updated = await gateSpawnService.getGateById(gate.id);
                 if (updated && mountedRef.current) setGate(updated);
@@ -695,6 +710,7 @@ export default function GateDetailsScreen() {
                 setClearedReward({
                   crystals: result.crystalsAwarded,
                   xp: result.xpAwarded,
+                  coins: result.coinsAwarded,
                   title: m.title,
                 });
                 setClearedModalVisible(true);

@@ -109,9 +109,6 @@ function RootLayout() {
         const restoredProfile = usePlayerStore.getState().profile;
         if (restoredProfile) {
           setSentryUser(restoredProfile.id, restoredProfile.displayName);
-          useSettingsStore.setState({ onboardingCompleted: true });
-          setIsOnboardingCompletedSync(true);
-          setAppState("READY");
         }
       } catch (authErr) {
         console.warn('[ARISE Startup] Google auth listener handler note:', authErr);

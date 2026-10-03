@@ -103,12 +103,31 @@ export default function AuthCallbackScreen() {
           // Refresh profile in SQLite & store
           await usePlayerStore.getState().loadProfile();
 
-          // Check if onboarding was already done or restored
-          const wasOnboarded = getIsOnboardingCompleted() || useSettingsStore.getState().onboardingCompleted || result.restored;
+          // Check if user has an authentic restored save file or existing customized profile
+          const currentProfile = usePlayerStore.getState().profile;
+          const isAuthenticSave =
+            Boolean(result.restored) &&
+            Boolean(result.backup) &&
+            (
+              Boolean(result.backup.level && result.backup.level > 1) ||
+              Boolean(result.backup.totalXP && result.backup.totalXP > 0) ||
+              Boolean(result.backup.displayName && result.backup.displayName !== 'Warrior' && result.backup.displayName.trim().length > 0)
+            );
 
-          if (result.restored) {
+          const hasCustomProfile =
+            isAuthenticSave ||
+            (Boolean(currentProfile) &&
+              Boolean(currentProfile?.displayName) &&
+              currentProfile?.displayName !== 'Warrior' &&
+              getIsOnboardingCompleted());
+
+          if (hasCustomProfile) {
             useSettingsStore.setState({ onboardingCompleted: true });
             setIsOnboardingCompletedSync(true);
+          } else {
+            // New hunter linking Google: Ensure onboarding is NOT flagged as completed so profile creation is shown!
+            useSettingsStore.setState({ onboardingCompleted: false });
+            setIsOnboardingCompletedSync(false);
           }
 
           setStatus('success');
@@ -116,10 +135,17 @@ export default function AuthCallbackScreen() {
           // Smooth redirect after visual confirmation
           setTimeout(() => {
             if (!isMounted) return;
-            if (wasOnboarded) {
+            if (hasCustomProfile) {
               router.replace('/(tabs)');
             } else {
-              router.replace('/(onboarding)');
+              router.replace({
+                pathname: '/(onboarding)',
+                params: {
+                  googleName: result.user?.displayName || '',
+                  googlePhoto: result.user?.photoUrl || '',
+                  forceProfile: 'true',
+                },
+              });
             }
           }, 900);
         } else {

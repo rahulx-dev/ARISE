@@ -72,7 +72,7 @@ function setKv(key: string, val: string): void {
 
 // Master pool of real-world consumer / market research survey tasks
 const SURVEY_CATALOG: Omit<SurveyTask, "hunterCrystals">[] = [
-  // --- E-RANK SURVEYS (Gross Payout: ₹10 - ₹25 INR -> Hunter gets 20 - 50 Crystals) ---
+  // --- E-RANK SURVEYS (Gross Payout: ₹6 - ₹15 INR -> Hunter gets 12 - 30 Crystals) ---
   {
     id: "surv_e_mobile_gaming",
     provider: "CPX Research",
@@ -80,7 +80,7 @@ const SURVEY_CATALOG: Omit<SurveyTask, "hunterCrystals">[] = [
     topic: "Gaming Habits & Microtransactions",
     durationMinutes: 2,
     durationLabel: "2 Mins",
-    grossPayoutInr: 15,
+    grossPayoutInr: 10,
     xpReward: 50,
     questions: [
       {
@@ -122,7 +122,7 @@ const SURVEY_CATALOG: Omit<SurveyTask, "hunterCrystals">[] = [
     topic: "App Usage & Distraction Triggers",
     durationMinutes: 3,
     durationLabel: "3 Mins",
-    grossPayoutInr: 22,
+    grossPayoutInr: 14,
     xpReward: 75,
     questions: [
       {
@@ -158,7 +158,7 @@ const SURVEY_CATALOG: Omit<SurveyTask, "hunterCrystals">[] = [
     ],
   },
 
-  // --- D-RANK SURVEYS (Gross Payout: ₹30 - ₹55 INR -> Hunter gets 60 - 110 Crystals) ---
+  // --- D-RANK SURVEYS (Gross Payout: ₹16 - ₹30 INR -> Hunter gets 32 - 60 Crystals) ---
   {
     id: "surv_d_wearables",
     provider: "Hunter Analytics",
@@ -166,7 +166,7 @@ const SURVEY_CATALOG: Omit<SurveyTask, "hunterCrystals">[] = [
     topic: "Smartwatches, Heart Rate & Sleep Tracking",
     durationMinutes: 4,
     durationLabel: "4 Mins",
-    grossPayoutInr: 40,
+    grossPayoutInr: 20,
     xpReward: 120,
     questions: [
       {
@@ -207,7 +207,7 @@ const SURVEY_CATALOG: Omit<SurveyTask, "hunterCrystals">[] = [
     topic: "Whey Protein, Creatine & Gym Gear",
     durationMinutes: 5,
     durationLabel: "5 Mins",
-    grossPayoutInr: 50,
+    grossPayoutInr: 28,
     xpReward: 160,
     questions: [
       {
@@ -243,7 +243,7 @@ const SURVEY_CATALOG: Omit<SurveyTask, "hunterCrystals">[] = [
     ],
   },
 
-  // --- C-RANK SURVEYS (Gross Payout: ₹65 - ₹100 INR -> Hunter gets 130 - 200 Crystals) ---
+  // --- C-RANK SURVEYS (Gross Payout: ₹31 - ₹50 INR -> Hunter gets 62 - 100 Crystals) ---
   {
     id: "surv_c_streaming_entertainment",
     provider: "BitLabs Market",
@@ -251,7 +251,7 @@ const SURVEY_CATALOG: Omit<SurveyTask, "hunterCrystals">[] = [
     topic: "OTT Subscriptions & Workout Playlists",
     durationMinutes: 6,
     durationLabel: "6 Mins",
-    grossPayoutInr: 75,
+    grossPayoutInr: 36,
     xpReward: 240,
     questions: [
       {
@@ -292,7 +292,7 @@ const SURVEY_CATALOG: Omit<SurveyTask, "hunterCrystals">[] = [
     topic: "Gamified Wellness & Real-Time Computer Vision",
     durationMinutes: 8,
     durationLabel: "8 Mins",
-    grossPayoutInr: 95,
+    grossPayoutInr: 45,
     xpReward: 320,
     questions: [
       {
@@ -328,7 +328,7 @@ const SURVEY_CATALOG: Omit<SurveyTask, "hunterCrystals">[] = [
     ],
   },
 
-  // --- B-RANK SURVEYS (Gross Payout: ₹130 - ₹220 INR -> Hunter gets 260 - 440 Crystals) ---
+  // --- B-RANK SURVEYS (Gross Payout: ₹51 - ₹80 INR -> Hunter gets 102 - 160 Crystals) ---
   {
     id: "surv_b_fintech_banking",
     provider: "Hunter Analytics",
@@ -336,7 +336,7 @@ const SURVEY_CATALOG: Omit<SurveyTask, "hunterCrystals">[] = [
     topic: "Banking Apps, Wallets & Financial Discipline",
     durationMinutes: 10,
     durationLabel: "10 Mins",
-    grossPayoutInr: 160,
+    grossPayoutInr: 60,
     xpReward: 500,
     questions: [
       {
@@ -388,7 +388,7 @@ const SURVEY_CATALOG: Omit<SurveyTask, "hunterCrystals">[] = [
     topic: "Flagship Chips, Battery Endurance & Displays",
     durationMinutes: 12,
     durationLabel: "12 Mins",
-    grossPayoutInr: 200,
+    grossPayoutInr: 75,
     xpReward: 650,
     questions: [
       {
@@ -423,7 +423,7 @@ const SURVEY_CATALOG: Omit<SurveyTask, "hunterCrystals">[] = [
     ],
   },
 
-  // --- A-RANK SURVEYS (Gross Payout: ₹260 - ₹450 INR -> Hunter gets 520 - 900 Crystals) ---
+  // --- A-RANK SURVEYS (Gross Payout: ₹81 - ₹120 INR -> Hunter gets 162 - 240 Crystals) ---
   {
     id: "surv_a_dev_cloud_ai",
     provider: "Monarch Market Inquest",
@@ -431,7 +431,7 @@ const SURVEY_CATALOG: Omit<SurveyTask, "hunterCrystals">[] = [
     topic: "LLM Coding Agents, AWS/GCP & Enterprise Tooling",
     durationMinutes: 15,
     durationLabel: "15 Mins",
-    grossPayoutInr: 320,
+    grossPayoutInr: 95,
     xpReward: 1000,
     questions: [
       {
@@ -481,7 +481,7 @@ const SURVEY_CATALOG: Omit<SurveyTask, "hunterCrystals">[] = [
     topic: "Subscription Stack & AI Workforce Automation",
     durationMinutes: 18,
     durationLabel: "18 Mins",
-    grossPayoutInr: 420,
+    grossPayoutInr: 115,
     xpReward: 1300,
     questions: [
       {
@@ -517,7 +517,7 @@ const SURVEY_CATALOG: Omit<SurveyTask, "hunterCrystals">[] = [
     ],
   },
 
-  // --- S-RANK SURVEYS (Gross Payout: ₹550 - ₹1,000+ INR -> Hunter gets 1,100 - 2,000+ Crystals) ---
+  // --- S-RANK SURVEYS (Gross Payout: ₹121 - ₹180 INR -> Hunter gets 242 - 360 Crystals) ---
   {
     id: "surv_s_monarch_deep_tech",
     provider: "Monarch Strategic Research",
@@ -525,7 +525,7 @@ const SURVEY_CATALOG: Omit<SurveyTask, "hunterCrystals">[] = [
     topic: "Executive Strategy, AI Hardware & Global Discipline",
     durationMinutes: 22,
     durationLabel: "22 Mins",
-    grossPayoutInr: 700,
+    grossPayoutInr: 140,
     xpReward: 2500,
     questions: [
       {
@@ -577,7 +577,7 @@ const SURVEY_CATALOG: Omit<SurveyTask, "hunterCrystals">[] = [
     topic: "Comprehensive Health Span, Wealth & Biohacking",
     durationMinutes: 25,
     durationLabel: "25 Mins",
-    grossPayoutInr: 950,
+    grossPayoutInr: 175,
     xpReward: 3200,
     questions: [
       {
@@ -716,8 +716,8 @@ const RANK_CONFIG: Record<
     borderColor: "#0284C7",
     softGlow: "rgba(2, 132, 199, 0.15)",
     requiredLevel: 1,
-    minGrossPayout: 10,
-    maxGrossPayout: 29,
+    minGrossPayout: 6,
+    maxGrossPayout: 15,
     collapseHours: 4,
   },
   D: {
@@ -725,8 +725,8 @@ const RANK_CONFIG: Record<
     borderColor: "#0D9488",
     softGlow: "rgba(13, 148, 136, 0.15)",
     requiredLevel: 4,
-    minGrossPayout: 30,
-    maxGrossPayout: 59,
+    minGrossPayout: 16,
+    maxGrossPayout: 30,
     collapseHours: 6,
   },
   C: {
@@ -734,8 +734,8 @@ const RANK_CONFIG: Record<
     borderColor: "#059669",
     softGlow: "rgba(5, 150, 105, 0.15)",
     requiredLevel: 8,
-    minGrossPayout: 60,
-    maxGrossPayout: 119,
+    minGrossPayout: 31,
+    maxGrossPayout: 50,
     collapseHours: 8,
   },
   B: {
@@ -743,8 +743,8 @@ const RANK_CONFIG: Record<
     borderColor: "#6D28D9",
     softGlow: "rgba(109, 40, 217, 0.15)",
     requiredLevel: 14,
-    minGrossPayout: 120,
-    maxGrossPayout: 249,
+    minGrossPayout: 51,
+    maxGrossPayout: 80,
     collapseHours: 10,
   },
   A: {
@@ -752,8 +752,8 @@ const RANK_CONFIG: Record<
     borderColor: "#D97706",
     softGlow: "rgba(217, 119, 6, 0.15)",
     requiredLevel: 20,
-    minGrossPayout: 250,
-    maxGrossPayout: 499,
+    minGrossPayout: 81,
+    maxGrossPayout: 120,
     collapseHours: 12,
   },
   S: {
@@ -761,8 +761,8 @@ const RANK_CONFIG: Record<
     borderColor: "#D90429",
     softGlow: "rgba(217, 4, 41, 0.20)",
     requiredLevel: 25,
-    minGrossPayout: 500,
-    maxGrossPayout: 2000,
+    minGrossPayout: 121,
+    maxGrossPayout: 180,
     collapseHours: 24,
   },
 };
@@ -899,8 +899,11 @@ class GateSpawnService {
       // Check if gates have expired
       const validGates = gates.filter((g) => g.expiresAt > now);
 
-      // If all gates expired or fewer than 3 remain, auto-regenerate fresh gates
-      if (validGates.length < 3) {
+      // If gates expired, fewer than 3 remain, or have outdated pre-calibration payouts, regenerate
+      const hasOutdatedGates = validGates.some((g) =>
+        g.missions.some((m) => m.grossPayoutInr > 180)
+      );
+      if (validGates.length < 3 || hasOutdatedGates) {
         const fresh = this.generateFreshGates(cloudUserId);
         setKv(SPAWNED_GATES_KEY, JSON.stringify(fresh));
         this.inMemoryGates = fresh;
@@ -951,16 +954,19 @@ class GateSpawnService {
 
   /**
    * Complete a survey mission within a gate.
-   * Credits 20% Mana Crystals and XP, updates gate state, and triggers victory if all missions cleared.
+   * If partner survey is verified, credits 20% Mana Crystals and XP.
+   * If local questions / practice inquest, awards ZERO Mana Crystals (awards Gold Coins & XP only).
    */
   async completeMission(
     gateId: string,
     missionId: string,
+    isPartnerVerified: boolean = false,
   ): Promise<{
     success: boolean;
     allCleared: boolean;
     crystalsAwarded: number;
     xpAwarded: number;
+    coinsAwarded: number;
     error?: string;
   }> {
     try {
@@ -973,6 +979,7 @@ class GateSpawnService {
           allCleared: false,
           crystalsAwarded: 0,
           xpAwarded: 0,
+          coinsAwarded: 0,
           error: "Gate not found",
         };
       }
@@ -984,6 +991,7 @@ class GateSpawnService {
           allCleared: false,
           crystalsAwarded: 0,
           xpAwarded: 0,
+          coinsAwarded: 0,
           error: "Mission not found",
         };
       }
@@ -994,6 +1002,7 @@ class GateSpawnService {
           allCleared: false,
           crystalsAwarded: 0,
           xpAwarded: 0,
+          coinsAwarded: 0,
           error: "Mission already cleared",
         };
       }
@@ -1015,23 +1024,38 @@ class GateSpawnService {
         Number(getKv("@arise_lifetime_completed_missions") || 0) + 1;
       setKv("@arise_lifetime_completed_missions", String(lifetime));
 
-      // Award Mana Crystals (20% share)
-      await crystalRepository.addCrystals(
-        mission.hunterCrystals,
-        `Cleared Gate Recon: ${mission.title}`,
-        gate.id,
-        `recon:${gate.id}:${mission.id}`,
-        "gate_recon",
-      );
+      let crystalsAwarded = 0;
+      let coinsAwarded = 0;
 
-      // Award System XP
+      if (isPartnerVerified) {
+        // Award Mana Crystals (20% share) strictly when verified with CPX / partner
+        crystalsAwarded = mission.hunterCrystals;
+        await crystalRepository.addCrystals(
+          crystalsAwarded,
+          `Cleared Gate Recon: ${mission.title}`,
+          gate.id,
+          `recon:${gate.id}:${mission.id}`,
+          "gate_recon",
+        );
+      } else {
+        // Local inquest: 0 Mana Crystals! Award Coins + XP to protect system revenue
+        coinsAwarded = Math.max(50, Math.round(mission.xpReward / 2));
+        await userRepository.addCoins(
+          coinsAwarded,
+          `Local Inquest Training: ${mission.title}`,
+          "gate_local_quiz"
+        );
+      }
+
+      // Award System XP in all cases
       await userRepository.addXP(mission.xpReward);
 
       return {
         success: true,
         allCleared,
-        crystalsAwarded: mission.hunterCrystals,
+        crystalsAwarded,
         xpAwarded: mission.xpReward,
+        coinsAwarded,
       };
     } catch (e: any) {
       return {
@@ -1039,6 +1063,7 @@ class GateSpawnService {
         allCleared: false,
         crystalsAwarded: 0,
         xpAwarded: 0,
+        coinsAwarded: 0,
         error: e?.message || "Failed to complete mission",
       };
     }
