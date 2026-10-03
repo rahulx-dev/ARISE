@@ -160,51 +160,48 @@ class PoseCameraView(context: Context, appContext: AppContext) : ExpoView(contex
     private fun processImageProxy(imageProxy: ImageProxy) {
         val mediaImage = imageProxy.image
         val detector = poseDetector
+
         if (mediaImage == null || detector == null) {
             imageProxy.close()
             return
         }
 
-        try {
-            // Pass the camera image and its metadata directly to ML Kit. Do not
-            // convert through a Bitmap: conversion is expensive and loses the
-            // ImageProxy rotation/crop metadata.
-            val rotationDegrees = imageProxy.imageInfo.rotationDegrees
-            val inputImage = InputImage.fromMediaImage(mediaImage, rotationDegrees)
-            detector.process(inputImage)
-                .addOnSuccessListener { pose ->
-                    val isRotated = rotationDegrees == 90 || rotationDegrees == 270
-                    val imgW = if (isRotated) mediaImage.height.toFloat() else mediaImage.width.toFloat()
-                    val imgH = if (isRotated) mediaImage.width.toFloat() else mediaImage.height.toFloat()
-                    val landmarks = ArrayList<Map<String, Any>>()
-                    for (lm in pose.allPoseLandmarks) {
-                        val confidence = lm.inFrameLikelihood.coerceIn(0f, 1f)
-                        landmarks.add(mapOf(
-                            "x" to (lm.position.x / imgW).coerceIn(0f, 1f).toDouble(),
-                            "y" to (lm.position.y / imgH).coerceIn(0f, 1f).toDouble(),
+        val rotationDegrees = imageProxy.imageInfo.rotationDegrees
+        val inputImage = InputImage.fromMediaImage(mediaImage, rotationDegrees)
+
+        detector.process(inputImage)
+            .addOnSuccessListener { pose ->
+                val isRotated = rotationDegrees == 90 || rotationDegrees == 270
+                val imgW = if (isRotated) mediaImage.height.toFloat() else mediaImage.width.toFloat()
+                val imgH = if (isRotated) mediaImage.width.toFloat() else mediaImage.height.toFloat()
+
+                val landmarks = ArrayList<Map<String, Any>>()
+                for (lm in pose.allPoseLandmarks) {
+                    val normX = (lm.position.x / imgW).coerceIn(0f, 1f)
+                    val normY = (lm.position.y / imgH).coerceIn(0f, 1f)
+                    landmarks.add(
+                        mapOf(
+                            "x" to normX.toDouble(),
+                            "y" to normY.toDouble(),
                             "z" to lm.position3D.z.toDouble(),
-                            "confidence" to confidence.toDouble(),
+                            "confidence" to lm.inFrameLikelihood.toDouble(),
                             "type" to lm.landmarkType
-                        ))
-                    }
-                    if (landmarks.isNotEmpty()) {
-                        ContextCompat.getMainExecutor(context).execute {
-                            onPoseDetected(mapOf("landmarks" to landmarks))
-                        }
+                        )
+                    )
+                }
+
+                if (landmarks.isNotEmpty()) {
+                    ContextCompat.getMainExecutor(context).execute {
+                        onPoseDetected(mapOf("landmarks" to landmarks))
                     }
                 }
-                .addOnFailureListener { e ->
-                    Log.w("ARISE_POSE_CAMERA", "Pose detection failed: ${e.message}")
-                }
-                // Every successful, failed, or cancelled task releases the
-                // frame, allowing CameraX to deliver the next image.
-                .addOnCompleteListener { imageProxy.close() }
-        } catch (e: Exception) {
-            // InputImage construction/detector submission can fail before a
-            // Task exists; close here to avoid stalling the analyzer.
-            imageProxy.close()
-            Log.w("ARISE_POSE_CAMERA", "Unable to submit camera frame: ${e.message}")
-        }
+            }
+            .addOnFailureListener { e ->
+                Log.w("ARISE_POSE_CAMERA", "Pose detection failed: ${e.message}")
+            }
+            .addOnCompleteListener {
+                imageProxy.close()
+            }
     }
 
     override fun onDetachedFromWindow() {

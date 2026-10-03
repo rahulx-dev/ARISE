@@ -135,23 +135,6 @@ function ExerciseTrackerInner() {
   const missedFramesRef = useRef<number>(0);
   const smoothedKeypointsRef = useRef<MoveNetKeypoint[] | null>(null);
   const hasAwardedRef = useRef<boolean>(false);
-  const poseInitializedRef = useRef<boolean>(false);
-
-  const resetPoseTracking = () => {
-    const current = repStateRef.current;
-    repStateRef.current = {
-      ...current,
-      repState: 'IDLE',
-      baselineY: 0,
-      maxDownY: 0,
-      smoothedY: 0,
-      downStartTime: 0,
-      consecutiveDownFrames: 0,
-      consecutiveUpFrames: 0,
-      isBodyDetected: false,
-    };
-    smoothedKeypointsRef.current = null;
-  };
 
   // Lifecycle Initialization & Cleanup
   useEffect(() => {
@@ -167,11 +150,6 @@ function ExerciseTrackerInner() {
     // Initialize native on-device pose detector
     initPoseDetector()
       .then((ok) => {
-        if (!isMountedRef.current) {
-          if (ok) releasePoseDetector();
-          return;
-        }
-        poseInitializedRef.current = ok;
         if (__DEV__) console.log('[ARISE TRACKER] MODEL_READY:', ok);
       })
       .catch((err) => {
@@ -217,13 +195,9 @@ function ExerciseTrackerInner() {
 
     return () => {
       isMountedRef.current = false;
-      setIsActive(false);
       if (timerRef.current) clearInterval(timerRef.current);
       voiceCoach.stop();
-      if (poseInitializedRef.current) {
-        releasePoseDetector();
-        poseInitializedRef.current = false;
-      }
+      releasePoseDetector();
     };
   }, []);
 
@@ -237,7 +211,6 @@ function ExerciseTrackerInner() {
         missedFramesRef.current += 1;
         if (missedFramesRef.current >= 8) {
           setDetectedKeypoints(null);
-          resetPoseTracking();
           if (lastBodyDetectedRef.current) {
             lastBodyDetectedRef.current = false;
             setIsBodyDetected(false);
@@ -256,7 +229,6 @@ function ExerciseTrackerInner() {
           missedFramesRef.current += 1;
           if (missedFramesRef.current >= 6) {
             setDetectedKeypoints(null);
-            resetPoseTracking();
             if (lastBodyDetectedRef.current) {
               lastBodyDetectedRef.current = false;
               setIsBodyDetected(false);
@@ -382,8 +354,6 @@ function ExerciseTrackerInner() {
 
     // Reset rep tracker for the new set
     repStateRef.current = createInitialState();
-    smoothedKeypointsRef.current = null;
-    missedFramesRef.current = 0;
     repsRef.current = 0;
     setCurrentReps(0);
     setPlankSetElapsed(0);
