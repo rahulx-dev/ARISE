@@ -419,7 +419,7 @@ export default function DungeonScreen() {
   const [isRedGateModalOpen, setIsRedGateModalOpen] = useState<boolean>(false);
 
   // Mana Crystals & Leaderboard State
-  const [manaCrystals, setManaCrystals] = useState<number>(32);
+  const [manaCrystals, setManaCrystals] = useState<number>(0);
   const [leaderboard, setLeaderboard] = useState<CrystalLeaderboardHunter[]>([]);
   const [spawnedGates, setSpawnedGates] = useState<SpawnedDungeonGate[]>([]);
   const [isScanning, setIsScanning] = useState<boolean>(false);
@@ -467,7 +467,7 @@ export default function DungeonScreen() {
 
   const refreshData = useCallback(async () => {
     const bal = await crystalRepository.getBalance();
-    setManaCrystals(bal > 0 ? bal : 32);
+    setManaCrystals(bal);
 
     const lb = await crystalRepository.getCrystalLeaderboard(bal, displayName, avatarIcon);
     setLeaderboard(lb);

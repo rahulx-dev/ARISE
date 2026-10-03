@@ -80,7 +80,7 @@ export default function ShopScreen() {
   const loadProfile = usePlayerStore((s) => s.loadProfile);
 
   const [filter, setFilter] = useState<'all' | 'avatars' | 'boosts' | 'redeem'>('all');
-  const [manaCrystals, setManaCrystals] = useState<number>(32);
+  const [manaCrystals, setManaCrystals] = useState<number>(0);
   const [unlockedItemIds, setUnlockedItemIds] = useState<string[]>([]);
   const [equippedAvatar, setEquippedAvatar] = useState<string>('pfp_01');
   const [purchasingId, setPurchasingId] = useState<string | null>(null);

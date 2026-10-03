@@ -124,12 +124,20 @@ class HistoryService {
 
       const mapByDate: Record<string, DayActivitySummary> = {};
 
-      // Initialize 84 days (12 weeks) backwards from today
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const getLocalDateString = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      const toLocalDateKey = (iso?: string | null) => {
+        if (!iso) return '';
+        const d = new Date(iso);
+        return Number.isNaN(d.getTime()) ? iso.split('T')[0] : getLocalDateString(d);
+      };
+
+      // Initialize 84 days (12 weeks) backwards from today using local calendar dates
       const today = new Date();
       for (let i = 83; i >= 0; i--) {
         const d = new Date(today);
         d.setDate(today.getDate() - i);
-        const dateKey = d.toISOString().split('T')[0];
+        const dateKey = getLocalDateString(d);
         mapByDate[dateKey] = {
           date: dateKey,
           dayOfWeek: d.getDay(),
@@ -144,7 +152,7 @@ class HistoryService {
 
       // Populate exercises
       for (const ex of exercises) {
-        const key = ex.timestamp ? ex.timestamp.split('T')[0] : '';
+        const key = toLocalDateKey(ex.timestamp);
         if (mapByDate[key]) {
           mapByDate[key].workoutCount += 1;
           mapByDate[key].xpEarned += (ex.completedReps || 0) * 5;
@@ -155,7 +163,7 @@ class HistoryService {
       // Populate workouts
       for (const w of workouts) {
         if (w.status === 'COMPLETED' && w.startTime) {
-          const key = w.startTime.split('T')[0];
+          const key = toLocalDateKey(w.startTime);
           if (mapByDate[key]) {
             mapByDate[key].workoutCount += 1;
             mapByDate[key].xpEarned += w.rewardXP || 40;
@@ -166,7 +174,7 @@ class HistoryService {
 
       // Populate focus sessions
       for (const f of focuses) {
-        const key = f.startTime ? f.startTime.split('T')[0] : '';
+        const key = toLocalDateKey(f.startTime);
         if (mapByDate[key]) {
           mapByDate[key].focusMinutes += f.completedMinutes || 0;
           mapByDate[key].xpEarned += f.rewardXP || 0;
@@ -225,7 +233,14 @@ class HistoryService {
     totalQuests: number;
   }> {
     try {
-      const todayIso = new Date().toISOString().split('T')[0];
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const getLocalDateString = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      const toLocalDateKey = (iso?: string | null) => {
+        if (!iso) return '';
+        const d = new Date(iso);
+        return Number.isNaN(d.getTime()) ? iso.split('T')[0] : getLocalDateString(d);
+      };
+      const todayLocal = getLocalDateString(new Date());
 
       const [exercises, focuses, workouts, quests] = await Promise.all([
         db.select().from(exerciseSession),
@@ -237,7 +252,7 @@ class HistoryService {
       let focusMinutes = 0;
       let focusSessionsCount = 0;
       for (const f of focuses) {
-        if (f.startTime && f.startTime.startsWith(todayIso)) {
+        if (toLocalDateKey(f.startTime) === todayLocal) {
           focusMinutes += f.completedMinutes || 0;
           focusSessionsCount += 1;
         }
@@ -246,13 +261,13 @@ class HistoryService {
       let workoutMinutes = 0;
       let workoutCount = 0;
       for (const w of workouts) {
-        if (w.status === 'COMPLETED' && w.startTime && w.startTime.startsWith(todayIso)) {
+        if (w.status === 'COMPLETED' && toLocalDateKey(w.startTime) === todayLocal) {
           workoutMinutes += Math.round((w.durationSeconds || 0) / 60);
           workoutCount += 1;
         }
       }
       for (const ex of exercises) {
-        if (ex.timestamp && ex.timestamp.startsWith(todayIso)) {
+        if (toLocalDateKey(ex.timestamp) === todayLocal) {
           workoutMinutes += Math.max(1, Math.round(ex.durationSeconds / 60));
           workoutCount += 1;
         }
@@ -261,7 +276,7 @@ class HistoryService {
       let completedQuests = 0;
       let totalQuests = 0;
       for (const q of quests) {
-        if (q.date === todayIso || q.frequency === 'DAILY' || (q.createdAt && q.createdAt.startsWith(todayIso))) {
+        if (q.frequency === 'DAILY' && q.date === todayLocal) {
           totalQuests += 1;
           if (q.completed === 1) {
             completedQuests += 1;
