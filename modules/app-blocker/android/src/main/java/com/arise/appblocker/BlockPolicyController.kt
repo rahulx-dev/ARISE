@@ -35,6 +35,7 @@ object BlockPolicyController {
     private const val MAX_UNLOCK_WINDOW_MS = 30 * 60 * 1000L // Up to 30 min passes
 
     // Default to 30 minutes if unconfigured
+    private const val FALLBACK_DEFAULT_BUDGET_MS = 30 * 60 * 1000L
     private const val USAGE_PREFIX = "usage_today_"
 
     private val policyLock = Any()
