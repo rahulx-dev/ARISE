@@ -31,6 +31,7 @@ import {
   X,
   PlayCircle,
   Sparkles,
+  HelpCircle,
 } from 'lucide-react-native';
 import { PlayerAvatar } from '../../src/components/ui/PlayerAvatar';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';

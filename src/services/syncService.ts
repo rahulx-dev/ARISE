@@ -75,20 +75,43 @@ class SyncService {
         const totalXP = profile.totalXP || profile.currentXP || 0;
 
         // 1. Call secure server-authoritative sync RPC
-        const { data: syncRes, error: syncErr } = await supabase.rpc(
-          "sync_hunter_profile_secure",
-          {
+        let syncRes: any = null;
+        let syncErr: any = null;
+
+        const call1 = await supabase.rpc("sync_hunter_profile_secure", {
+          p_display_name: userName,
+          p_avatar_icon: profile.avatarIcon || "img_pfp_01",
+          p_level: profile.level || 1,
+          p_rank_code: rankInfo.rankCode,
+          p_title: rankInfo.title,
+          p_current_streak: profile.currentStreak || 0,
+          p_total_reps: totalReps,
+          p_total_xp: totalXP,
+          p_cloud_coins: profile.coins || 0,
+        });
+
+        if (
+          call1.error &&
+          (call1.error.message?.includes("schema cache") ||
+            (call1.error as any).code === "PGRST202")
+        ) {
+          // Fallback to legacy 8-parameter signature in case Supabase schema cache hasn't reloaded
+          const call2 = await supabase.rpc("sync_hunter_profile_secure", {
             p_display_name: userName,
             p_avatar_icon: profile.avatarIcon || "img_pfp_01",
-            p_level: profile.level || 1,
             p_rank_code: rankInfo.rankCode,
-            p_title: rankInfo.title,
-            p_current_streak: profile.currentStreak || 0,
+            p_level: profile.level || 1,
+            p_streak: profile.currentStreak || 0,
             p_total_reps: totalReps,
             p_total_xp: totalXP,
             p_cloud_coins: profile.coins || 0,
-          },
-        );
+          });
+          syncRes = call2.data;
+          syncErr = call2.error;
+        } else {
+          syncRes = call1.data;
+          syncErr = call1.error;
+        }
 
         if (syncErr) {
           console.warn(
@@ -101,7 +124,11 @@ class SyncService {
             extra: { details: syncErr },
           });
         } else if (syncRes && syncRes.success) {
-          const authCrystals = Number(syncRes.authoritative_mana_crystals);
+          const authCrystals = Number(
+            syncRes.authoritative_mana_crystals ??
+              syncRes.authoritative_crystals ??
+              0,
+          );
           // Apply authoritative cloud crystal balance to local SQLite cache
           if (typeof authCrystals === "number" && !isNaN(authCrystals)) {
             await db

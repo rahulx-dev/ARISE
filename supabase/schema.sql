@@ -593,14 +593,16 @@ $$;
 -- to user_wallets and crystal_leaderboard WITHOUT touching mana_crystals. Triggers Realtime broadcast for all metric categories!
 -- Identity is STRICTLY derived from authenticated auth.uid() session (zero client fallback).
 CREATE OR REPLACE FUNCTION public.sync_hunter_profile_secure(
-    p_display_name TEXT,
-    p_avatar_icon TEXT,
-    p_rank_code TEXT,
-    p_level INTEGER,
-    p_streak INTEGER,
-    p_total_reps INTEGER,
-    p_total_xp INTEGER,
-    p_cloud_coins INTEGER
+    p_display_name TEXT DEFAULT 'Warrior',
+    p_avatar_icon TEXT DEFAULT 'img_pfp_01',
+    p_rank_code TEXT DEFAULT 'E',
+    p_level INTEGER DEFAULT 1,
+    p_streak INTEGER DEFAULT 0,
+    p_total_reps INTEGER DEFAULT 0,
+    p_total_xp INTEGER DEFAULT 0,
+    p_cloud_coins INTEGER DEFAULT 0,
+    p_title TEXT DEFAULT 'Hunter',
+    p_current_streak INTEGER DEFAULT NULL
 )
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -611,6 +613,7 @@ DECLARE
     v_clean_name TEXT;
     v_clean_avatar TEXT;
     v_clean_rank TEXT;
+    v_clean_title TEXT;
     v_clean_level INTEGER;
     v_clean_streak INTEGER;
     v_clean_reps INTEGER;
@@ -626,8 +629,9 @@ BEGIN
     v_clean_name := COALESCE(NULLIF(trim(p_display_name), ''), 'Warrior');
     v_clean_avatar := COALESCE(NULLIF(trim(p_avatar_icon), ''), 'img_pfp_01');
     v_clean_rank := COALESCE(NULLIF(trim(p_rank_code), ''), 'E');
+    v_clean_title := COALESCE(NULLIF(trim(p_title), ''), 'Hunter');
     v_clean_level := GREATEST(1, COALESCE(p_level, 1));
-    v_clean_streak := GREATEST(0, COALESCE(p_streak, 0));
+    v_clean_streak := GREATEST(0, COALESCE(p_current_streak, p_streak, 0));
     v_clean_reps := GREATEST(0, COALESCE(p_total_reps, 0));
     v_clean_xp := GREATEST(0, COALESCE(p_total_xp, 0));
     v_clean_coins := GREATEST(0, COALESCE(p_cloud_coins, 0));
@@ -693,13 +697,14 @@ BEGIN
         v_clean_reps,
         v_clean_xp,
         v_current_crystals,
-        'Hunter',
+        v_clean_title,
         TIMEZONE('utc'::text, NOW())
     )
     ON CONFLICT (user_id) DO UPDATE SET
         name = v_clean_name,
         avatar_icon = v_clean_avatar,
         rank_code = v_clean_rank,
+        title = v_clean_title,
         level = GREATEST(crystal_leaderboard.level, v_clean_level),
         streak = GREATEST(crystal_leaderboard.streak, v_clean_streak),
         total_reps = GREATEST(crystal_leaderboard.total_reps, v_clean_reps),
@@ -710,6 +715,7 @@ BEGIN
     RETURN jsonb_build_object(
         'success', true,
         'authoritative_crystals', v_current_crystals,
+        'authoritative_mana_crystals', v_current_crystals,
         'user_id', v_user_id
     );
 END;
@@ -911,7 +917,7 @@ ALTER FUNCTION public.grant_crystals_secure(
 ALTER FUNCTION public.request_redemption_secure(INTEGER, INTEGER, TEXT, TEXT, TEXT)
     SET search_path = public;
 ALTER FUNCTION public.sync_hunter_profile_secure(
-    TEXT, TEXT, TEXT, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER
+    TEXT, TEXT, TEXT, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, TEXT, INTEGER
 ) SET search_path = public;
 ALTER FUNCTION public.get_hunter_leaderboard(TEXT, INTEGER, TEXT)
     SET search_path = public;
@@ -922,7 +928,7 @@ REVOKE EXECUTE ON FUNCTION public.grant_crystals_secure(
 REVOKE EXECUTE ON FUNCTION public.request_redemption_secure(INTEGER, INTEGER, TEXT, TEXT, TEXT)
     FROM PUBLIC, anon;
 REVOKE EXECUTE ON FUNCTION public.sync_hunter_profile_secure(
-    TEXT, TEXT, TEXT, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER
+    TEXT, TEXT, TEXT, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, TEXT, INTEGER
 ) FROM PUBLIC, anon;
 REVOKE EXECUTE ON FUNCTION public.get_hunter_leaderboard(TEXT, INTEGER, TEXT)
     FROM PUBLIC, anon;
@@ -932,7 +938,7 @@ GRANT EXECUTE ON FUNCTION public.grant_crystals_secure(
 GRANT EXECUTE ON FUNCTION public.request_redemption_secure(INTEGER, INTEGER, TEXT, TEXT, TEXT)
     TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.sync_hunter_profile_secure(
-    TEXT, TEXT, TEXT, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER
+    TEXT, TEXT, TEXT, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, TEXT, INTEGER
 ) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.get_hunter_leaderboard(TEXT, INTEGER, TEXT)
     TO authenticated, service_role;
