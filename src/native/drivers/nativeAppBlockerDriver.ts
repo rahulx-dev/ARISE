@@ -1,4 +1,4 @@
-﻿import { requireNativeModule } from 'expo-modules-core';
+import { requireNativeModule } from 'expo-modules-core';
 import { NativeModules, Platform } from 'react-native';
 import { IAppBlockerDriver, InstalledAppItem } from '../types';
 
@@ -181,6 +181,24 @@ export class NativeAppBlockerDriver implements IAppBlockerDriver {
       }
     }
     return false;
+  }
+
+  getPackageTodayUsageMs(packageName: string): number {
+    if (Platform.OS !== 'android' || !NativeAppBlocker?.getPackageTodayUsageMs) return 0;
+    try {
+      return NativeAppBlocker.getPackageTodayUsageMs(packageName) || 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  getTotalTodayUsageMs(): number {
+    if (Platform.OS !== 'android' || !NativeAppBlocker?.getTotalTodayUsageMs) return 0;
+    try {
+      return NativeAppBlocker.getTotalTodayUsageMs() || 0;
+    } catch {
+      return 0;
+    }
   }
 }
 

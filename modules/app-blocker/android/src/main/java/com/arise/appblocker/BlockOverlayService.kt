@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.Toast
@@ -18,7 +19,7 @@ import java.util.Locale
 
 class BlockOverlayService : Service() {
 
-    private val TAG = "ARISE_OVERLAY_SERVICE"
+    private val TAG = "ARISE_OVERLAY_SVC"
     private var windowManager: WindowManager? = null
     private var overlayView: View? = null
     private var currentPackageName: String? = null
@@ -44,20 +45,19 @@ class BlockOverlayService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // START_STICKY may restart a service with a null intent.  A lock overlay
-        // without a fresh package scope is never safe to restore.
         val pkg = intent?.getStringExtra("PACKAGE_NAME")
             ?.trim()
             ?.lowercase(Locale.ROOT)
             ?.takeIf { it.isNotEmpty() && it != "null" }
+
         if (pkg == null) {
             removeExistingOverlay()
             stopSelf(startId)
             return START_NOT_STICKY
         }
 
-        val packageChanged = currentPackageName != pkg
-        if (packageChanged) {
+        // If package changed, tear down old overlay first
+        if (currentPackageName != pkg) {
             removeExistingOverlay()
         }
         currentPackageName = pkg
@@ -69,8 +69,7 @@ class BlockOverlayService : Service() {
             removeExistingOverlay(clearPackage = false)
             showOverlay()
         }
-        // The monitor service is responsible for re-presenting after a process
-        // restart.  Do not let Android recreate an unscoped overlay on its own.
+
         return START_NOT_STICKY
     }
 
@@ -175,7 +174,9 @@ class BlockOverlayService : Service() {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
             }
             startActivity(startMain)
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            Log.e(TAG, "Error returning home", e)
+        }
         removeExistingOverlay()
         stopSelf()
     }
@@ -185,6 +186,7 @@ class BlockOverlayService : Service() {
             ?.trim()
             ?.lowercase(Locale.ROOT)
             ?.takeIf { it.isNotEmpty() && it != "null" }
+
         if (scopedPackage == null) {
             Log.w(TAG, "Refusing to show an unscoped lock overlay")
             removeExistingOverlay()
@@ -206,16 +208,16 @@ class BlockOverlayService : Service() {
             WindowManager.LayoutParams.TYPE_PHONE
         }
 
+        // Strictly modal layout: NO FLAG_NOT_TOUCH_MODAL so touches CANNOT pass through to the blocked app!
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
             layoutParamsType,
-            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                    WindowManager.LayoutParams.FLAG_FULLSCREEN or
-                    WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED or
-                    WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS or
-                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_FULLSCREEN or
+                WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED or
+                WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS or
+                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.FILL
@@ -241,24 +243,28 @@ class BlockOverlayService : Service() {
                 onShop = { launchShopUnlock() }
             )
 
+            // Intercept hardware and gesture Back presses so the user is returned to Home launcher
+            view.isFocusable = true
+            view.isFocusableInTouchMode = true
+            view.requestFocus()
+            view.setOnKeyListener { _, keyCode, event ->
+                if (keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
+                    exitToHomeScreen()
+                    true
+                } else {
+                    false
+                }
+            }
+
             windowManager?.addView(view, params)
             overlayView = view
             isOverlayShowing = true
             currentOverlayPackageName = currentPackageName
-            Log.d(TAG, "Overlay successfully attached for $currentPackageName")
+            Log.d(TAG, "Modal lock overlay successfully attached for $currentPackageName")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to attach WindowManager overlay, falling back to LockScreenActivity", e)
+            Log.e(TAG, "Failed to attach WindowManager overlay, kicking to home", e)
             isOverlayShowing = false
-            // Direct activity fallback
-            try {
-                val actIntent = Intent(this, LockScreenActivity::class.java).apply {
-                    putExtra("PACKAGE_NAME", currentPackageName)
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                }
-                startActivity(actIntent)
-            } catch (err: Exception) {
-                Log.e(TAG, "Failed to launch fallback LockScreenActivity", err)
-            }
+            exitToHomeScreen()
         }
     }
 

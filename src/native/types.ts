@@ -29,6 +29,8 @@ export interface IAppBlockerDriver {
   unlockUntil?(epochMs: number): boolean;
   isCurrentlyUnlocked?(): boolean;
   isAppInstalled?(packageName: string): Promise<boolean>;
+  getPackageTodayUsageMs?(packageName: string): number;
+  getTotalTodayUsageMs?(): number;
   simulateBlockEvent?(packageName: string): void;
 }
 

@@ -5,10 +5,10 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
-import android.content.Context
 import android.content.BroadcastReceiver
-import android.content.IntentFilter
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Color
 import android.os.Build
 import android.os.Handler
@@ -18,6 +18,7 @@ import android.provider.Settings
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import java.util.Locale
 
 class AppMonitorService : Service() {
 
@@ -27,13 +28,10 @@ class AppMonitorService : Service() {
     private val restrictedPackages = mutableSetOf<String>()
     private var lastWasUnlocked = false
 
-    // This is the next local midnight, not "start of day + 24h".  Its value changes
-    // correctly on 23/25-hour DST days and when the device timezone changes.
     private var dailyResetTimestamp = BlockPolicyController.getTodayEndEpoch()
-    private var lastRestrictedPackage: String? = null
-    private var awayFromRestrictedSince: Long = 0L
     private var screenOn = true
     private var screenReceiverRegistered = false
+
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             screenOn = intent.action != Intent.ACTION_SCREEN_OFF
@@ -68,7 +66,7 @@ class AppMonitorService : Service() {
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setColor(Color.parseColor("#E53935"))
+            .setColor(Color.parseColor("#0A84FF"))
             .setContentIntent(getOpenArisePendingIntent())
             .setSmallIcon(getAppNotificationIcon())
 
@@ -83,7 +81,7 @@ class AppMonitorService : Service() {
             builder.setContentTitle("[ SYSTEM: FOCUS SHIELD ACTIVE ]")
             builder.setContentText(
                 if (count > 0) {
-                    "[ NOTICE: $count target apps quarantined under System protocol ]"
+                    "[ NOTICE: $count apps protected under System protocol ]"
                 } else {
                     "[ NOTICE: Discipline protocol engaged ]"
                 }
@@ -100,13 +98,13 @@ class AppMonitorService : Service() {
     }
 
     private fun normalizePackage(packageName: String?): String? {
-        val normalized = packageName?.trim()?.lowercase(java.util.Locale.ROOT)
+        val normalized = packageName?.trim()?.lowercase(Locale.ROOT)
         return normalized?.takeIf { it.isNotEmpty() && it != "null" }
     }
 
     private fun normalizePackages(packages: Collection<String>): Set<String> {
         return packages.mapNotNull { normalizePackage(it) }
-            .filter { it != packageName.lowercase(java.util.Locale.ROOT) }
+            .filter { it != packageName.lowercase(Locale.ROOT) }
             .toSet()
     }
 
@@ -115,52 +113,49 @@ class AppMonitorService : Service() {
         return clean in restrictedPackages
     }
 
+    /**
+     * Rock-Solid Enforcement Loop:
+     * Evaluates foreground state every 300ms without artificial dismissal timers or race conditions.
+     */
     private val monitorRunnable = object : Runnable {
         override fun run() {
             if (!isMonitoring || !screenOn) return
 
             val now = System.currentTimeMillis()
 
-            // Re-evaluate the calendar boundary every pass.  Comparing DAY_OF_YEAR
-            // misses year boundaries and does not account for DST length changes.
+            // 1. Midnight rollover check
             val nextReset = BlockPolicyController.getTodayEndEpoch(now)
             if (nextReset != dailyResetTimestamp) {
                 Log.i(tag, "Daily rollover detected ($dailyResetTimestamp -> $nextReset). Resetting policy state.")
                 dailyResetTimestamp = nextReset
                 BlockPolicyController.resetDailyState(this@AppMonitorService)
-                lastRestrictedPackage = null
-                awayFromRestrictedSince = 0L
                 dismissPresentation()
             }
 
-            // The persisted unlock window is checked before any presentation.  A
-            // stale in-memory value can never grant access after service recreation.
+            // 2. Active screen-time pass check
             val unlockTarget = BlockPolicyController.getUnlockUntil(this@AppMonitorService)
             val isUnlocked = now < unlockTarget
             if (isUnlocked != lastWasUnlocked) {
                 lastWasUnlocked = isUnlocked
                 updateNotification(isUnlocked, unlockTarget)
-                if (!isUnlocked) {
-                    lastRestrictedPackage = null
-                    awayFromRestrictedSince = 0L
+                if (isUnlocked) {
                     dismissPresentation()
                 }
             }
 
             if (isUnlocked) {
-                lastRestrictedPackage = null
-                awayFromRestrictedSince = 0L
                 dismissPresentation()
-                val remainingMs = unlockTarget - now
-                val nextDelay = if (remainingMs in 1..500) remainingMs else 250L
+                val remainingMs = (unlockTarget - now).coerceAtLeast(0L)
+                val nextDelay = if (remainingMs in 1L..1000L) remainingMs else 500L
                 handler.postDelayed(this, nextDelay)
                 return
             }
 
-            // UsageStats is the foreground source; policy evaluation itself always
-            // reads the persisted package budget and current usage.
+            // 3. Chronological Foreground Detection
             val fgPackage = UsageStatsHelper.getForegroundPackage(this@AppMonitorService)
+
             if (fgPackage != null && isPackageRestricted(fgPackage)) {
+                // User is inside a restricted app (e.g. Instagram, YouTube)
                 val policy = BlockPolicyController.evaluate(
                     this@AppMonitorService,
                     fgPackage,
@@ -168,51 +163,25 @@ class AppMonitorService : Service() {
                 )
 
                 if (policy.lockState == LockState.LOCKED) {
-                    awayFromRestrictedSince = 0L
-                    lastRestrictedPackage = fgPackage
+                    // Time limit reached or 0-budget: Enforce lock screen
                     presentLockScreen(fgPackage, policy.dailyLimitMs, policy.usageTodayMs)
                 } else {
-                    // A limit increase must remove an already-visible presentation on
-                    // the very next pass rather than waiting for a service restart.
-                    lastRestrictedPackage = null
-                    awayFromRestrictedSince = 0L
+                    // Still has remaining budget: Permit usage
                     dismissPresentation()
                 }
-            } else if (fgPackage != null) {
-                if (fgPackage.equals(packageName, ignoreCase = true)) {
-                    lastRestrictedPackage = null
-                    awayFromRestrictedSince = 0L
-                    dismissPresentation()
-                } else if (lastRestrictedPackage != null && fgPackage != lastRestrictedPackage) {
-                    // Give UsageStats a short settling window during an app switch.
-                    if (awayFromRestrictedSince == 0L) {
-                        awayFromRestrictedSince = now
-                    } else if (now - awayFromRestrictedSince > 150L) {
-                        dismissPresentation()
-                        lastRestrictedPackage = null
-                        awayFromRestrictedSince = 0L
-                    }
-                }
-            } else if (lastRestrictedPackage != null) {
-                // Home/launcher can be reported as null during a transition.
-                if (awayFromRestrictedSince == 0L) {
-                    awayFromRestrictedSince = now
-                } else if (now - awayFromRestrictedSince > 150L) {
-                    dismissPresentation()
-                    lastRestrictedPackage = null
-                    awayFromRestrictedSince = 0L
-                }
+            } else {
+                // User is on Launcher, ARISE, or an unrestricted app: Dismiss lock overlay
+                dismissPresentation()
             }
 
-            handler.postDelayed(this, 800L)
+            // Schedule next check (300ms for virtually instantaneous, lag-free lock enforcement)
+            handler.postDelayed(this, 300L)
         }
     }
 
     private fun presentLockScreen(pkg: String, budgetMs: Long, usedMs: Long) {
         val normalizedPackage = normalizePackage(pkg)
         if (normalizedPackage == null || !isPackageRestricted(normalizedPackage)) {
-            // Never create an overlay without an explicitly scoped, currently
-            // restricted package.
             dismissPresentation()
             return
         }
@@ -224,44 +193,38 @@ class AppMonitorService : Service() {
         }
 
         if (hasOverlay) {
-            // Only one presentation mechanism may be visible at a time.
-            if (LockScreenActivity.isShowingFor(normalizedPackage)) return
-            LockScreenActivity.finishIfShowing()
-            if (!BlockOverlayService.isShowingFor(normalizedPackage)) {
-                val overlayIntent = Intent(this, BlockOverlayService::class.java).apply {
-                    putExtra("PACKAGE_NAME", normalizedPackage)
-                    putExtra("BUDGET_MS", budgetMs)
-                    putExtra("USED_MS", usedMs)
-                }
-                try {
-                    // Sending the package on every scope change lets the service
-                    // rebuild the title/icon instead of retaining the old app.
-                    startService(overlayIntent)
-                } catch (e: Exception) {
-                    Log.e(tag, "Error starting BlockOverlayService, falling back to activity", e)
-                    launchLockActivity(normalizedPackage)
-                }
+            // If the overlay is already actively covering this package, keep it up without flicker
+            if (BlockOverlayService.isShowingFor(normalizedPackage)) {
+                return
+            }
+
+            val overlayIntent = Intent(this, BlockOverlayService::class.java).apply {
+                putExtra("PACKAGE_NAME", normalizedPackage)
+                putExtra("BUDGET_MS", budgetMs)
+                putExtra("USED_MS", usedMs)
+            }
+            try {
+                startService(overlayIntent)
+            } catch (e: Exception) {
+                Log.e(tag, "Error starting BlockOverlayService, kicking to home", e)
+                kickToHome(normalizedPackage)
             }
         } else {
-            stopOverlayService()
-            launchLockActivity(normalizedPackage)
+            // Overlay permission missing: immediately kick user out to Home screen
+            Log.w(tag, "Overlay permission missing, kicking to home for $normalizedPackage")
+            kickToHome(normalizedPackage)
         }
     }
 
-    private fun launchLockActivity(pkg: String) {
-        val normalizedPackage = normalizePackage(pkg) ?: return
-        if (LockScreenActivity.isShowingFor(normalizedPackage)) return
-
-        val actIntent = Intent(this, LockScreenActivity::class.java).apply {
-            putExtra("PACKAGE_NAME", normalizedPackage)
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                Intent.FLAG_ACTIVITY_SINGLE_TOP or
-                Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
+    private fun kickToHome(pkg: String) {
         try {
-            startActivity(actIntent)
+            val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+                addCategory(Intent.CATEGORY_HOME)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
+            }
+            startActivity(homeIntent)
         } catch (e: Exception) {
-            Log.e(tag, "Failed to start LockScreenActivity", e)
+            Log.e(tag, "Failed kicking to home", e)
         }
     }
 
@@ -272,8 +235,9 @@ class AppMonitorService : Service() {
     }
 
     private fun dismissPresentation() {
-        stopOverlayService()
-        LockScreenActivity.finishIfShowing()
+        if (BlockOverlayService.isOverlayShowing) {
+            stopOverlayService()
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -281,16 +245,21 @@ class AppMonitorService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        ContextCompat.registerReceiver(this, screenReceiver, IntentFilter().apply {
-            addAction(Intent.ACTION_SCREEN_OFF)
-            addAction(Intent.ACTION_SCREEN_ON)
-        }, ContextCompat.RECEIVER_NOT_EXPORTED)
+
+        ContextCompat.registerReceiver(
+            this,
+            screenReceiver,
+            IntentFilter().apply {
+                addAction(Intent.ACTION_SCREEN_OFF)
+                addAction(Intent.ACTION_SCREEN_ON)
+            },
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
         screenReceiverRegistered = true
 
-        // Load all persisted policy inputs before the first monitor pass.  This
-        // prevents a restart from briefly using the zero/default budget.
         BlockPolicyController.loadPersistedState(this)
         dailyResetTimestamp = BlockPolicyController.getTodayEndEpoch()
+
         try {
             val prefs = getSharedPreferences(BlockPolicyController.PREFS_NAME, Context.MODE_PRIVATE)
             val savedPackages = prefs.getStringSet("saved_restricted_packages", null)
@@ -338,12 +307,9 @@ class AppMonitorService : Service() {
             BlockPolicyController.invalidateAll()
             shouldReevaluate = true
             if (normalizedPackages.isEmpty()) {
-                lastRestrictedPackage = null
                 dismissPresentation()
             }
         } else if (restrictedPackages.isEmpty()) {
-            // A sticky restart can deliver a null intent.  Restore the scope before
-            // beginning enforcement instead of running an unscoped monitor.
             try {
                 val savedPackages = getSharedPreferences(BlockPolicyController.PREFS_NAME, Context.MODE_PRIVATE)
                     .getStringSet("saved_restricted_packages", null)
@@ -360,8 +326,6 @@ class AppMonitorService : Service() {
                 updateNotification(lastWasUnlocked, requestedUnlockUntil)
                 shouldReevaluate = true
                 Log.d(tag, "Applied screen-time pass until: $requestedUnlockUntil")
-            } else {
-                Log.e(tag, "Rejected unlock update because it could not be persisted")
             }
         }
 
@@ -375,8 +339,6 @@ class AppMonitorService : Service() {
             handler.post(monitorRunnable)
         }
 
-        // Sticky is safe here because on a null restart intent the persisted scope
-        // and budget are loaded before monitoring begins.
         return START_STICKY
     }
 
@@ -408,9 +370,8 @@ class AppMonitorService : Service() {
             }
             screenReceiverRegistered = false
         }
-        // A killed/replaced monitor must not leave a presentation behind that could
-        // be mistaken for an active policy or block a newly scoped package.
         dismissPresentation()
+        UsageStatsHelper.clearForegroundCache()
         super.onDestroy()
     }
 

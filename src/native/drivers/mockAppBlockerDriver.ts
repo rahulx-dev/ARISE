@@ -84,4 +84,12 @@ export class MockAppBlockerDriver implements IAppBlockerDriver {
   isCurrentlyUnlocked(): boolean {
     return false;
   }
+
+  getPackageTodayUsageMs(_packageName: string): number {
+    return 15 * 60 * 1000;
+  }
+
+  getTotalTodayUsageMs(): number {
+    return 45 * 60 * 1000;
+  }
 }

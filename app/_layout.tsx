@@ -157,7 +157,9 @@ function RootLayout() {
           .map((r: { packageName: string }) => r.packageName);
         const settingsRec = await db.select().from(settings).limit(1);
         const dailyBudget =
-          settingsRec.length > 0 ? settingsRec[0].dailyBudgetMinutes : 0;
+          settingsRec.length > 0 && typeof settingsRec[0]?.dailyBudgetMinutes === 'number'
+            ? settingsRec[0].dailyBudgetMinutes
+            : 30;
         appBlockerService.setAppBudget?.(null, dailyBudget);
         if (activeBlocked.length > 0) {
           appBlockerService.startMonitoring(activeBlocked);
