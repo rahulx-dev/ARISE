@@ -239,7 +239,8 @@ object BlockPolicyController {
                 } catch (e: Exception) {
                     Log.e(TAG, "Unable to persist default budget", e)
                 }
-            activePolicies.clear()
+                activePolicies.clear()
+            }
         }
 
         // Immediately sync ground-truth usage for affected packages
