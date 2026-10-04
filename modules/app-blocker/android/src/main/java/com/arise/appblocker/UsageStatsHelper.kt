@@ -185,6 +185,23 @@ object UsageStatsHelper {
         }.timeInMillis
     }
 
+    fun getSystemUsageTodayMs(context: Context, packageName: String): Long {
+        if (!hasUsagePermission(context)) return 0L
+        val manager =
+            context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager ?: return 0L
+        val startOfDay = getTodayStartEpoch()
+        val now = System.currentTimeMillis()
+        val cleanPkg = packageName.trim().lowercase(Locale.ROOT)
+        return try {
+            val aggregated = manager.queryAndAggregateUsageStats(startOfDay, now)
+            val stats = aggregated[cleanPkg] ?: aggregated[packageName]
+            stats?.totalTimeInForeground?.coerceAtLeast(0L) ?: 0L
+        } catch (error: Exception) {
+            Log.w(TAG, "Unable to query system usage for $packageName", error)
+            0L
+        }
+    }
+
     fun getPackageTodayUsageMs(context: Context, packageName: String): Long {
         return BlockPolicyController.getUsageForPackage(context, packageName)
     }

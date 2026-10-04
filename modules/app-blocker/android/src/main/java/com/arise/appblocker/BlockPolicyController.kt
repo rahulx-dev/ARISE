@@ -66,11 +66,26 @@ object BlockPolicyController {
 
     fun getUsageForPackage(context: Context, packageName: String): Long {
         val normalizedPackage = normalizePackageName(packageName) ?: return 0L
-        return packageUsageTodayMs[normalizedPackage] ?: run {
+
+        // 1. Get system-recorded foreground usage today from UsageStatsManager (official Android OS ground truth)
+        val systemUsage = UsageStatsHelper.getSystemUsageTodayMs(context, normalizedPackage)
+
+        // 2. Get local live tracked usage (which includes sub-second foreground ticks)
+        val localUsage = packageUsageTodayMs[normalizedPackage] ?: run {
             val saved = preferences(context).getLong(usageKey(normalizedPackage), 0L).coerceAtLeast(0L)
             packageUsageTodayMs[normalizedPackage] = saved
             saved
         }
+
+        // 3. True usage is the maximum of system usage stats and local live usage
+        val trueUsage = maxOf(systemUsage, localUsage)
+        if (trueUsage != localUsage) {
+            packageUsageTodayMs[normalizedPackage] = trueUsage
+            try {
+                preferences(context).edit().putLong(usageKey(normalizedPackage), trueUsage).apply()
+            } catch (_: Exception) {}
+        }
+        return trueUsage
     }
 
     fun addTrackedUsage(context: Context, packageName: String, deltaMs: Long): Long {
@@ -224,8 +239,21 @@ object BlockPolicyController {
                 } catch (e: Exception) {
                     Log.e(TAG, "Unable to persist default budget", e)
                 }
-                activePolicies.clear()
-            }
+            activePolicies.clear()
+        }
+
+        // Immediately sync ground-truth usage for affected packages
+        if (context != null) {
+            try {
+                if (normalizedPackage != null) {
+                    getUsageForPackage(context, normalizedPackage)
+                } else {
+                    val savedPackages = preferences(context).getStringSet("saved_restricted_packages", null)
+                    savedPackages?.forEach { pkg ->
+                        getUsageForPackage(context, pkg)
+                    }
+                }
+            } catch (_: Exception) {}
         }
 
         Log.i(TAG, "Updated budget for ${normalizedPackage ?: "global"} -> ${safeMinutes}m ($ms ms)")

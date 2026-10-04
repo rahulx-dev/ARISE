@@ -92,9 +92,9 @@ class AppMonitorService : Service() {
             .setSubText("MONARCH PROTOCOL")
 
         if (unlocked && targetEpoch > System.currentTimeMillis()) {
-            val title = "⚡ Access Granted • Screen-Time Active"
+            val title = "Access Granted • Screen-Time Active"
             val summary = "Focus shield temporarily bypassed. Countdown is running."
-            val bigDetails = "⏱️ Temporary screen time active.\nShield re-engages automatically when countdown expires.\nExecute your tasks before the lockout."
+            val bigDetails = "Temporary screen time active.\nShield re-engages automatically when countdown expires.\nExecute your tasks before the lockout."
 
             builder.setContentTitle(title)
                 .setContentText(summary)
@@ -104,12 +104,12 @@ class AppMonitorService : Service() {
                 .setWhen(targetEpoch)
         } else {
             val count = restrictedPackages.size
-            val title = if (count > 0) "🛡️ Focus Shield Active • $count Apps Locked" else "🛡️ Focus Shield Active • Ready"
+            val title = if (count > 0) "Focus Shield Active • $count Apps Locked" else "Focus Shield Active • Ready"
             val summary = if (count > 0) "$count restricted apps locked under Monarch Protocol" else "Discipline protocol engaged. Screen time managed."
             val bigDetails = if (count > 0) {
-                "🔒 Hard Kiosk Shield Engaged\n$count apps protected. Time limits enforced.\nComplete push-ups or claim an emergency pass in ARISE to unlock."
+                "Hard Kiosk Shield Engaged\n$count apps protected. Time limits enforced.\nComplete push-ups or claim an emergency pass in ARISE to unlock."
             } else {
-                "⚡ Monarch Shield Armed\nNo apps currently restricted. Configure locked apps in ARISE to enforce focus."
+                "Monarch Shield Armed\nNo apps currently restricted. Configure locked apps in ARISE to enforce focus."
             }
 
             builder.setContentTitle(title)

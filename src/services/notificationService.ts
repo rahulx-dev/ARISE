@@ -39,43 +39,43 @@ export interface AppNotification {
 
 export const MONARCH_MOTIVATIONS = [
   {
-    title: '👑 [SHADOW MONARCH DIRECTIVE]',
+    title: '[SHADOW MONARCH DIRECTIVE]',
     message: '"I will protect my realm, even if the entire world opposes me." — Stand up and execute your reps, Hunter.',
   },
   {
-    title: '⚡ [SYSTEM MOTIVATION // POWER GAP]',
+    title: '[SYSTEM MOTIVATION // POWER GAP]',
     message: '"The difference between an E-Rank weakling and a National-Level hunter is daily discipline." Put the phone down and train.',
   },
   {
-    title: '🗡️ [S-RANK MENTALITY]',
+    title: '[S-RANK MENTALITY]',
     message: '"Pain is temporary. Quitting is forever. Every pushup summons another shadow soldier to your army."',
   },
   {
-    title: '🌌 [THE MONARCH COMMANDS]',
+    title: '[THE MONARCH COMMANDS]',
     message: '"Weakness is an illusion. Rise beyond your mortal limits and claim today\'s victory. ARISE!"',
   },
   {
-    title: '🔥 [DISCIPLINE PROTOCOL]',
+    title: '[DISCIPLINE PROTOCOL]',
     message: '"Motivation gets you started. Unforgiving consistency makes you a King." Log your workout now.',
   },
   {
-    title: '🛡️ [IRON WILL DIRECTIVE]',
+    title: '[IRON WILL DIRECTIVE]',
     message: '"The dungeon gate does not care about your excuses. Only strength will see you through the rift."',
   },
   {
-    title: '⚔️ [SOVEREIGN AWAKENING]',
+    title: '[SOVEREIGN AWAKENING]',
     message: '"Every rep builds your core. Every minute of focus expands your mana. Level up right now."',
   },
   {
-    title: '💎 [DIMENSIONAL RAID PROTOCOL]',
+    title: '[DIMENSIONAL RAID PROTOCOL]',
     message: '"High-tier loot is reserved for hunters who sweat in silence." Conquer your daily training block.',
   },
   {
-    title: '💀 [PENALTY ZONE WARNING]',
+    title: '[PENALTY ZONE WARNING]',
     message: '"Those who neglect daily directives shall face the centipedes of the wasteland." Get your training done!',
   },
   {
-    title: '🎯 [PRECISION FOCUS]',
+    title: '[PRECISION FOCUS]',
     message: '"Social media algorithms steal your life. Reclaim your focus, conquer your screen time, and Arise."',
   },
 ];
@@ -139,7 +139,7 @@ class NotificationService {
       // 1. Morning Awakening (7:30 AM)
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: '⚔️ [SYSTEM DIRECTIVE // MORNING AWAKENING]',
+          title: '[SYSTEM DIRECTIVE // MORNING AWAKENING]',
           body: 'Rise, Hunter! 3 New daily quests have spawned. Begin your morning training protocol.',
           color: '#0A84FF',
           sound: true,
@@ -157,7 +157,7 @@ class NotificationService {
       // 2. Midday Focus & Mana Shield (2:00 PM)
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: '🛡️ [MONARCH PROTOCOL // FOCUS SHIELD]',
+          title: '[MONARCH PROTOCOL // FOCUS SHIELD]',
           body: 'Digital distractions drain your mana. Step away from doomscrolling and claim your daily focus XP.',
           color: '#00D2EE',
           sound: true,
@@ -194,7 +194,7 @@ class NotificationService {
       // 4. Evening Urgent Deadline (8:00 PM - 4 Hours to Midnight)
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: '⚠️ [SYSTEM ALERT // 4 HOURS TO MIDNIGHT]',
+          title: '[SYSTEM ALERT // 4 HOURS TO MIDNIGHT]',
           body: 'Only 4 hours remain before quest reset! Complete your daily workout or face the Penalty Zone.',
           color: '#EA580C',
           sound: true,
@@ -212,7 +212,7 @@ class NotificationService {
       // 5. Night Final Streak Savior (10:30 PM)
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: '🔥 [STREAK SHIELD // FINAL CALL]',
+          title: '[STREAK SHIELD // FINAL CALL]',
           body: 'Do not let your hunter streak die! Final 90 minutes to register reps and claim daily coins.',
           color: '#FF2E54',
           sound: true,
@@ -352,17 +352,17 @@ class NotificationService {
       if (existing.length === 0) {
         await this.createNotification(
           'SYSTEM',
-          '⚡ MONARCH SYSTEM AWAKENING',
+          'MONARCH SYSTEM AWAKENING',
           'Welcome to ARISE. The System has calibrated your player vessel. Execute daily quests to ascend.'
         );
         await this.createNotification(
           'MOTIVATION',
-          '👑 [SHADOW MONARCH DIRECTIVE]',
+          '[SHADOW MONARCH DIRECTIVE]',
           '"The difference between an E-Rank weakling and a National-Level hunter is daily discipline." — Stand up and execute.'
         );
         await this.createNotification(
           'QUEST',
-          '⚔️ DAILY QUESTS MATERIALIZED',
+          'DAILY QUESTS MATERIALIZED',
           '3 New daily physical training trials are active in your sector. Complete them before midnight reset.'
         );
       }
