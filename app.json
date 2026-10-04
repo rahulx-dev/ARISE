@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "light",
     "scheme": "arise",
     "platforms": [
       "android",
@@ -95,5 +95,8 @@
       }
     },
     "owner": "rahulxdev"
+  },
+  "react-native-google-mobile-ads": {
+    "android_app_id": "ca-app-pub-3502968689589307~2344226726"
   }
 }

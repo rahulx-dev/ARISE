@@ -35,7 +35,9 @@ class AppMonitorService : Service() {
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             screenOn = intent.action != Intent.ACTION_SCREEN_OFF
-            if (screenOn && isMonitoring) {
+            if (!screenOn) {
+                dismissPresentation()
+            } else if (isMonitoring) {
                 handler.removeCallbacks(monitorRunnable)
                 handler.post(monitorRunnable)
             }
@@ -238,6 +240,24 @@ class AppMonitorService : Service() {
         if (BlockOverlayService.isOverlayShowing) {
             stopOverlayService()
         }
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        // START_STICKY is the primary recovery mechanism. Re-queueing the
+        // service also helps OEMs that remove the task before killing services.
+        if (isMonitoring && screenOn) {
+            try {
+                val restartIntent = Intent(applicationContext, AppMonitorService::class.java)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    applicationContext.startForegroundService(restartIntent)
+                } else {
+                    applicationContext.startService(restartIntent)
+                }
+            } catch (error: Exception) {
+                Log.w(tag, "Unable to re-queue monitor after task removal", error)
+            }
+        }
+        super.onTaskRemoved(rootIntent)
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

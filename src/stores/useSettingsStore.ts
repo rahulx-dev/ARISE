@@ -1,4 +1,4 @@
-﻿import { create } from 'zustand';
+import { create } from 'zustand';
 import { db } from '../database/client';
 import { settings, userProfile } from '../database/schema';
 import { eq } from 'drizzle-orm';
@@ -69,7 +69,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         ];
         const savedTheme: ThemeMode = validThemes.includes(s.theme as ThemeMode)
           ? (s.theme as ThemeMode)
-          : 'system';
+          : 'light';
 
         const persistedBudget = Number(s.dailyBudgetMinutes);
         const safeBudget = Number.isFinite(persistedBudget)

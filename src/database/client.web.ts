@@ -52,7 +52,7 @@ const initialMockState: Record<string, any[]> = {
       notificationsEnabled: 0,
       onboardingCompleted: 0,
       dailyBudgetMinutes: 30,
-      theme: "dark",
+      theme: "light",
     },
   ],
 };

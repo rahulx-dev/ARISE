@@ -134,7 +134,7 @@ export const settings = sqliteTable("settings", {
   notificationsEnabled: integer("notifications_enabled").notNull().default(0),
   onboardingCompleted: integer("onboarding_completed").notNull().default(0),
   dailyBudgetMinutes: integer("daily_budget_minutes").notNull().default(30),
-  theme: text("theme").notNull().default("system"), // 'dark' | 'light' | 'system'
+  theme: text("theme").notNull().default("light"), // 'dark' | 'light' | 'system'
   bgMusicEnabled: integer("bg_music_enabled").notNull().default(0),
   bgMusicVolume: real("bg_music_volume").notNull().default(0.5),
   focusMusicTrack: text("focus_music_track").notNull().default("deep_focus"),
