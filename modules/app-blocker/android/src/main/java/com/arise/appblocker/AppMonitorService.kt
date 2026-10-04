@@ -10,6 +10,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Color
+import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -67,33 +68,67 @@ class AppMonitorService : Service() {
         return PendingIntent.getActivity(this, 0, launchIntent, flags)
     }
 
+    private fun getOpenSettingsPendingIntent(): PendingIntent {
+        val launchIntent = Intent(Intent.ACTION_VIEW, Uri.parse("arise://settings/apps")).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        } else {
+            PendingIntent.FLAG_UPDATE_CURRENT
+        }
+        return PendingIntent.getActivity(this, 1, launchIntent, flags)
+    }
+
     private fun buildNotification(unlocked: Boolean, targetEpoch: Long): Notification {
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setColor(Color.parseColor("#0A84FF"))
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setContentIntent(getOpenArisePendingIntent())
             .setSmallIcon(getAppNotificationIcon())
+            .setSubText("MONARCH PROTOCOL")
 
         if (unlocked && targetEpoch > System.currentTimeMillis()) {
-            builder.setContentTitle("[ SYSTEM: ACCESS GRANTED ]")
-            builder.setContentText("[ NOTICE: Focus shield bypassed. Screen time active. ]")
-            builder.setUsesChronometer(true)
-            builder.setChronometerCountDown(true)
-            builder.setWhen(targetEpoch)
+            val title = "⚡ Access Granted • Screen-Time Active"
+            val summary = "Focus shield temporarily bypassed. Countdown is running."
+            val bigDetails = "⏱️ Temporary screen time active.\nShield re-engages automatically when countdown expires.\nExecute your tasks before the lockout."
+
+            builder.setContentTitle(title)
+                .setContentText(summary)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(bigDetails).setSummaryText("SCREEN PASS"))
+                .setUsesChronometer(true)
+                .setChronometerCountDown(true)
+                .setWhen(targetEpoch)
         } else {
             val count = restrictedPackages.size
-            builder.setContentTitle("[ SYSTEM: FOCUS SHIELD ACTIVE ]")
-            builder.setContentText(
-                if (count > 0) {
-                    "[ NOTICE: $count apps protected under System protocol ]"
-                } else {
-                    "[ NOTICE: Discipline protocol engaged ]"
-                }
-            )
-            builder.setUsesChronometer(false)
+            val title = if (count > 0) "🛡️ Focus Shield Active • $count Apps Locked" else "🛡️ Focus Shield Active • Ready"
+            val summary = if (count > 0) "$count restricted apps locked under Monarch Protocol" else "Discipline protocol engaged. Screen time managed."
+            val bigDetails = if (count > 0) {
+                "🔒 Hard Kiosk Shield Engaged\n$count apps protected. Time limits enforced.\nComplete push-ups or claim an emergency pass in ARISE to unlock."
+            } else {
+                "⚡ Monarch Shield Armed\nNo apps currently restricted. Configure locked apps in ARISE to enforce focus."
+            }
+
+            builder.setContentTitle(title)
+                .setContentText(summary)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(bigDetails).setSummaryText(if (count > 0) "$count PROTECTED" else "ARMED"))
+                .setUsesChronometer(false)
         }
+
+        // Quick Action Buttons
+        builder.addAction(
+            android.R.drawable.ic_menu_preferences,
+            "Locked Apps",
+            getOpenSettingsPendingIntent()
+        )
+        builder.addAction(
+            android.R.drawable.ic_media_play,
+            "Open ARISE",
+            getOpenArisePendingIntent()
+        )
 
         return builder.build()
     }
