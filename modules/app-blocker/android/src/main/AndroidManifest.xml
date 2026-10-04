@@ -31,6 +31,7 @@
             android:exported="false"
             android:launchMode="singleTask"
             android:excludeFromRecents="true"
+            android:resizeableActivity="false"
             android:screenOrientation="portrait"
             android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
             android:showOnLockScreen="true"

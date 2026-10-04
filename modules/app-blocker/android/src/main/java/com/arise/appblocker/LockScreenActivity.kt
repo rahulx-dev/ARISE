@@ -127,8 +127,8 @@ class LockScreenActivity : Activity() {
         }
     }
 
-    override fun onPause() {
-        super.onPause()
+    override fun onStop() {
+        super.onStop()
         isActivityShowing = false
     }
 
@@ -247,6 +247,9 @@ class LockScreenActivity : Activity() {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
             }
             startActivity(startMain)
+        } catch (_: Exception) {}
+        try {
+            stopService(Intent(this, BlockOverlayService::class.java))
         } catch (_: Exception) {}
         finish()
     }

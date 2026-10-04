@@ -107,15 +107,27 @@ object BlockPolicyController {
                 packageBudgetsMs[packageName] = budget.coerceAtLeast(0L)
             }
 
-            packageUsageTodayMs.clear()
-            for ((key, value) in prefs.all) {
-                if (!key.startsWith(USAGE_PREFIX)) continue
-                val packageName = normalizePackageName(key.removePrefix(USAGE_PREFIX)) ?: continue
-                val usage = when (value) {
-                    is Number -> value.toLong()
-                    else -> continue
+            currentDailyResetEpochMs = getTodayEndEpoch(now)
+            val savedReset = prefs.getLong(DAILY_RESET_KEY, 0L)
+            if (savedReset != currentDailyResetEpochMs) {
+                // A new day has started: wipe stale usage from memory and prefs
+                packageUsageTodayMs.clear()
+                val editor = prefs.edit()
+                prefs.all.keys
+                    .filter { it.startsWith(USAGE_PREFIX) }
+                    .forEach { editor.remove(it) }
+                editor.putLong(DAILY_RESET_KEY, currentDailyResetEpochMs).apply()
+            } else {
+                packageUsageTodayMs.clear()
+                for ((key, value) in prefs.all) {
+                    if (!key.startsWith(USAGE_PREFIX)) continue
+                    val packageName = normalizePackageName(key.removePrefix(USAGE_PREFIX)) ?: continue
+                    val usage = when (value) {
+                        is Number -> value.toLong()
+                        else -> continue
+                    }
+                    packageUsageTodayMs[packageName] = usage.coerceAtLeast(0L)
                 }
-                packageUsageTodayMs[packageName] = usage.coerceAtLeast(0L)
             }
 
             val savedUnlock = prefs.getLong(UNLOCKED_UNTIL_KEY, 0L)
@@ -129,10 +141,6 @@ object BlockPolicyController {
             }
 
             activePolicies.clear()
-            currentDailyResetEpochMs = getTodayEndEpoch(now)
-            if (prefs.getLong(DAILY_RESET_KEY, 0L) != currentDailyResetEpochMs) {
-                prefs.edit().putLong(DAILY_RESET_KEY, currentDailyResetEpochMs).apply()
-            }
         }
     }
 
@@ -237,20 +245,19 @@ object BlockPolicyController {
         activePolicies.clear()
     }
 
-    private fun ensureCurrentDailyState() {
+    private fun ensureCurrentDailyState(context: Context? = null) {
         val nextReset = getTodayEndEpoch()
         if (nextReset == currentDailyResetEpochMs) return
         synchronized(policyLock) {
             if (nextReset != currentDailyResetEpochMs) {
-                activePolicies.clear()
-                currentDailyResetEpochMs = nextReset
+                resetDailyState(context)
             }
         }
     }
 
     fun evaluate(context: Context, packageName: String, isForeground: Boolean): BlockedAppPolicy {
         val normalizedPackage = normalizePackageName(packageName) ?: packageName.trim().lowercase(java.util.Locale.ROOT)
-        ensureCurrentDailyState()
+        ensureCurrentDailyState(context)
 
         val now = System.currentTimeMillis()
         val limitMs = getBudgetForPackage(context, normalizedPackage)

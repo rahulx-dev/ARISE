@@ -232,9 +232,18 @@ class AppMonitorService : Service() {
                 // User is on Launcher, ARISE, or an unrestricted app
                 val isOurApp = fgPackage == packageName
                 val isLauncher = UsageStatsHelper.isSystemLauncherOrUi(this@AppMonitorService, fgPackage)
-                val isUnrestricted = !isPackageRestricted(fgPackage)
+                val isUnrestricted = !isPackageRestricted(fgPackage) && !isOurApp
 
-                if (isOurApp || isLauncher || isUnrestricted) {
+                if (isOurApp) {
+                    // If LockScreenActivity is actively displayed, DO NOT dismiss!
+                    // It is actively blocking the restricted package.
+                    if (!LockScreenActivity.isActivityShowing) {
+                        // User opened the main ARISE app (dashboard, quests, shop, workout).
+                        // Clean up any lingering overlay view so user can interact with ARISE cleanly.
+                        stopOverlayService()
+                    }
+                } else if (isLauncher || isUnrestricted) {
+                    // User navigated away to Home screen launcher or an unrestricted app (e.g. Phone, WhatsApp)
                     dismissPresentation()
                 }
             }
