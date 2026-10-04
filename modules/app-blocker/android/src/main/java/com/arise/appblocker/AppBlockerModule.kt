@@ -438,19 +438,27 @@ class AppBlockerModule : Module() {
         }
     }
 
-    private fun drawableToBase64(drawable: Drawable): String? {
+    private fun drawableToBase64(drawable: Drawable?): String? {
+        if (drawable == null) return null
         return try {
-            val width = 48
-            val height = 48
+            val width = when {
+                drawable.intrinsicWidth > 0 -> Math.min(Math.max(drawable.intrinsicWidth, 72), 128)
+                else -> 96
+            }
+            val height = when {
+                drawable.intrinsicHeight > 0 -> Math.min(Math.max(drawable.intrinsicHeight, 72), 128)
+                else -> 96
+            }
             val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
-            drawable.setBounds(0, 0, width, height)
+            drawable.setBounds(0, 0, canvas.width, canvas.height)
             drawable.draw(canvas)
             val outputStream = ByteArrayOutputStream()
-            bitmap.compress(Bitmap.CompressFormat.PNG, 75, outputStream)
+            bitmap.compress(Bitmap.CompressFormat.PNG, 85, outputStream)
             val byteArray = outputStream.toByteArray()
             "data:image/png;base64," + Base64.encodeToString(byteArray, Base64.NO_WRAP)
         } catch (e: Exception) {
+            Log.e(TAG, "Error encoding icon drawable: ${e.message}")
             null
         }
     }

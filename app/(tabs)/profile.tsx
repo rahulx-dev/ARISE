@@ -38,6 +38,7 @@ import { useSettingsStore } from '../../src/stores/useSettingsStore';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTheme } from '../../src/hooks/useTheme';
 import { getRankForLevel } from '../../src/constants/ranks';
+import { getRequiredXP } from '../../src/services/xpService';
 import { db } from '../../src/database/client';
 import { exerciseSession, achievement } from '../../src/database/schema';
 import { LanguageSelectorModal } from '../../src/components/ui/LanguageSelectorModal';
@@ -97,11 +98,23 @@ export default function WarriorProfileTab() {
     fetchStats();
   }, [loadProfile]);
 
-  const level = profile?.level || 12;
+  const level = profile?.level ?? 1;
+  const currentXP = profile?.currentXP ?? 0;
+  const xpNeeded = Math.max(1, getRequiredXP(level));
+  const xpPercent = Math.min(
+    100,
+    Math.round((currentXP / Math.max(1, xpNeeded)) * 100)
+  );
   const displayName = profile?.displayName || 'Hunter';
   const currentRank = getRankForLevel(level);
   const avatarIcon = profile?.avatarIcon || 'pfp_01';
   const profileImageUri = profile?.profileImageUri;
+
+  const strength = profile?.strength ?? 10;
+  const discipline = profile?.discipline ?? 10;
+  const focus = profile?.focus ?? 10;
+  const health = profile?.health ?? 10;
+  const knowledge = profile?.knowledge ?? 10;
 
 
   const handleExportBackup = async () => {
@@ -228,7 +241,7 @@ export default function WarriorProfileTab() {
               <Text
                 style={[styles.xpFraction, { color: colors.textPrimary }]}
               >
-                380 / 500 XP (76%)
+                {currentXP} / {xpNeeded} XP ({xpPercent}%)
               </Text>
             </View>
             <View
@@ -237,7 +250,15 @@ export default function WarriorProfileTab() {
                 { backgroundColor: isDark ? '#1A1C28' : '#F3F4F6' },
               ]}
             >
-              <View style={[styles.xpFill, { width: '76%' }]} />
+              <View
+                style={[
+                  styles.xpFill,
+                  {
+                    width: `${Math.max(currentXP > 0 ? 5 : 0, xpPercent)}%`,
+                    backgroundColor: colors.primary || '#0A84FF',
+                  },
+                ]}
+              />
             </View>
           </View>
         </TouchableOpacity>
@@ -261,7 +282,7 @@ export default function WarriorProfileTab() {
                 STR
               </Text>
               <Text style={[styles.attributeVal, { color: '#EF4444' }]}>
-                80
+                {strength}
               </Text>
             </View>
 
@@ -278,7 +299,7 @@ export default function WarriorProfileTab() {
                 DIS
               </Text>
               <Text style={[styles.attributeVal, { color: '#10B981' }]}>
-                95
+                {discipline}
               </Text>
             </View>
 
@@ -295,7 +316,7 @@ export default function WarriorProfileTab() {
                 FOC
               </Text>
               <Text style={[styles.attributeVal, { color: '#0EA5E9' }]}>
-                78
+                {focus}
               </Text>
             </View>
 
@@ -312,7 +333,7 @@ export default function WarriorProfileTab() {
                 HLT
               </Text>
               <Text style={[styles.attributeVal, { color: '#A855F7' }]}>
-                70
+                {health}
               </Text>
             </View>
 
@@ -329,7 +350,7 @@ export default function WarriorProfileTab() {
                 INT
               </Text>
               <Text style={[styles.attributeVal, { color: '#6366F1' }]}>
-                65
+                {knowledge}
               </Text>
             </View>
           </View>

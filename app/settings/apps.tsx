@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -612,10 +612,12 @@ export default function LockedAppsScreen() {
                     activeOpacity={0.7}
                   >
                     {/* App Icon */}
-                    {item.appIconBase64 ? (
+                    {item.appIconBase64 && item.appIconBase64.trim() ? (
                       <Image
                         source={{
-                          uri: `data:image/png;base64,${item.appIconBase64}`,
+                          uri: item.appIconBase64.startsWith('data:')
+                            ? item.appIconBase64
+                            : `data:image/png;base64,${item.appIconBase64}`,
                         }}
                         style={styles.appIconImg}
                         resizeMode="contain"
