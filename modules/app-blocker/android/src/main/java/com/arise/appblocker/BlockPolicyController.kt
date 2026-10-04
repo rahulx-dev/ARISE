@@ -35,10 +35,11 @@ object BlockPolicyController {
     private const val MAX_UNLOCK_WINDOW_MS = 30 * 60 * 1000L // Up to 30 min passes
 
     // Default to 30 minutes if unconfigured
-    private const val FALLBACK_DEFAULT_BUDGET_MS = 30 * 60 * 1000L
+    private const val USAGE_PREFIX = "usage_today_"
 
     private val policyLock = Any()
     private val packageBudgetsMs = ConcurrentHashMap<String, Long>()
+    private val packageUsageTodayMs = ConcurrentHashMap<String, Long>()
     private val activePolicies = ConcurrentHashMap<String, BlockedAppPolicy>()
 
     @Volatile
@@ -60,6 +61,28 @@ object BlockPolicyController {
     }
 
     private fun budgetKey(packageName: String): String = BUDGET_PREFIX + packageName
+    private fun usageKey(packageName: String): String = USAGE_PREFIX + packageName
+
+    fun getUsageForPackage(context: Context, packageName: String): Long {
+        val normalizedPackage = normalizePackageName(packageName) ?: return 0L
+        return packageUsageTodayMs[normalizedPackage] ?: run {
+            val saved = preferences(context).getLong(usageKey(normalizedPackage), 0L).coerceAtLeast(0L)
+            packageUsageTodayMs[normalizedPackage] = saved
+            saved
+        }
+    }
+
+    fun addTrackedUsage(context: Context, packageName: String, deltaMs: Long): Long {
+        if (deltaMs <= 0L) return getUsageForPackage(context, packageName)
+        val normalizedPackage = normalizePackageName(packageName) ?: return 0L
+        val current = getUsageForPackage(context, normalizedPackage)
+        val updated = (current + deltaMs).coerceAtLeast(0L)
+        packageUsageTodayMs[normalizedPackage] = updated
+        try {
+            preferences(context).edit().putLong(usageKey(normalizedPackage), updated).apply()
+        } catch (_: Exception) {}
+        return updated
+    }
 
     fun loadPersistedState(context: Context) {
         val prefs = preferences(context)
@@ -81,6 +104,17 @@ object BlockPolicyController {
                     else -> continue
                 }
                 packageBudgetsMs[packageName] = budget.coerceAtLeast(0L)
+            }
+
+            packageUsageTodayMs.clear()
+            for ((key, value) in prefs.all) {
+                if (!key.startsWith(USAGE_PREFIX)) continue
+                val packageName = normalizePackageName(key.removePrefix(USAGE_PREFIX)) ?: continue
+                val usage = when (value) {
+                    is Number -> value.toLong()
+                    else -> continue
+                }
+                packageUsageTodayMs[packageName] = usage.coerceAtLeast(0L)
             }
 
             val savedUnlock = prefs.getLong(UNLOCKED_UNTIL_KEY, 0L)
@@ -219,7 +253,7 @@ object BlockPolicyController {
 
         val now = System.currentTimeMillis()
         val limitMs = getBudgetForPackage(context, normalizedPackage)
-        val usageMs = UsageStatsHelper.getPackageTodayUsageMs(context, normalizedPackage)
+        val usageMs = getUsageForPackage(context, normalizedPackage)
         val remainingMs = (limitMs - usageMs).coerceAtLeast(0L)
         val isPassActive = now < getUnlockUntil(context)
 
@@ -301,11 +335,16 @@ object BlockPolicyController {
         val nextReset = getTodayEndEpoch()
         synchronized(policyLock) {
             activePolicies.clear()
+            packageUsageTodayMs.clear()
             currentDailyResetEpochMs = nextReset
         }
         if (context != null) {
             try {
-                preferences(context).edit().putLong(DAILY_RESET_KEY, nextReset).apply()
+                val editor = preferences(context).edit()
+                preferences(context).all.keys
+                    .filter { it.startsWith(USAGE_PREFIX) }
+                    .forEach { editor.remove(it) }
+                editor.putLong(DAILY_RESET_KEY, nextReset).apply()
             } catch (_: Exception) {}
         }
     }

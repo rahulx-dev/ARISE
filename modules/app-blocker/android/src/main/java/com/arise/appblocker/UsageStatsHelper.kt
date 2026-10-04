@@ -186,41 +186,7 @@ object UsageStatsHelper {
     }
 
     fun getPackageTodayUsageMs(context: Context, packageName: String): Long {
-        val manager =
-            context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager ?: return 0L
-        val startOfDay = getTodayStartEpoch()
-        val now = System.currentTimeMillis()
-        val maxPossibleMs = (now - startOfDay).coerceAtLeast(0L)
-        var usageMs = 0L
-
-        try {
-            usageMs = manager.queryAndAggregateUsageStats(startOfDay, now)[packageName]
-                ?.totalTimeInForeground
-                ?.coerceAtLeast(0L)
-                ?: 0L
-        } catch (error: Exception) {
-            Log.w(TAG, "Unable to read aggregate usage for $packageName", error)
-        }
-
-        if (usageMs == 0L) {
-            try {
-                usageMs = manager.queryUsageStats(
-                    UsageStatsManager.INTERVAL_DAILY,
-                    startOfDay,
-                    now
-                ).firstOrNull { it.packageName == packageName }
-                    ?.totalTimeInForeground
-                    ?.coerceAtLeast(0L)
-                    ?: 0L
-            } catch (error: Exception) {
-                Log.w(TAG, "Unable to read daily usage for $packageName", error)
-            }
-        }
-
-        if (packageName == activeSessionPackage && activeSessionStartTime > 0L) {
-            usageMs += (now - activeSessionStartTime).coerceAtLeast(0L)
-        }
-        return usageMs.coerceIn(0L, maxPossibleMs)
+        return BlockPolicyController.getUsageForPackage(context, packageName)
     }
 
     fun getTotalTodayUsageMs(context: Context): Long {

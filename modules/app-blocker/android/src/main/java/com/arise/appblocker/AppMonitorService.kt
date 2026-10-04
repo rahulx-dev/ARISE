@@ -31,13 +31,17 @@ class AppMonitorService : Service() {
     private var dailyResetTimestamp = BlockPolicyController.getTodayEndEpoch()
     private var screenOn = true
     private var screenReceiverRegistered = false
+    private var lastTickTime: Long = 0L
 
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             screenOn = intent.action != Intent.ACTION_SCREEN_OFF
             if (!screenOn) {
+                lastTickTime = 0L
+                UsageStatsHelper.clearForegroundCache()
                 dismissPresentation()
             } else if (isMonitoring) {
+                lastTickTime = System.currentTimeMillis()
                 handler.removeCallbacks(monitorRunnable)
                 handler.post(monitorRunnable)
             }
@@ -125,6 +129,14 @@ class AppMonitorService : Service() {
 
             val now = System.currentTimeMillis()
 
+            // Calculate live active tick delta (safely bounded to avoid sleep jumps)
+            val tickDeltaMs = if (lastTickTime > 0L && screenOn) {
+                (now - lastTickTime).coerceIn(0L, 2000L)
+            } else {
+                0L
+            }
+            lastTickTime = now
+
             // 1. Midnight rollover check
             val nextReset = BlockPolicyController.getTodayEndEpoch(now)
             if (nextReset != dailyResetTimestamp) {
@@ -157,7 +169,17 @@ class AppMonitorService : Service() {
             val fgPackage = UsageStatsHelper.getForegroundPackage(this@AppMonitorService)
 
             if (fgPackage != null && isPackageRestricted(fgPackage)) {
-                // User is inside a restricted app (e.g. Instagram, YouTube)
+                // If not locked yet and actively in foreground, accumulate active screen time
+                val currentPolicy = BlockPolicyController.evaluate(
+                    this@AppMonitorService,
+                    fgPackage,
+                    isForeground = true
+                )
+
+                if (currentPolicy.lockState != LockState.LOCKED && tickDeltaMs > 0L) {
+                    BlockPolicyController.addTrackedUsage(this@AppMonitorService, fgPackage, tickDeltaMs)
+                }
+
                 val policy = BlockPolicyController.evaluate(
                     this@AppMonitorService,
                     fgPackage,
@@ -165,15 +187,21 @@ class AppMonitorService : Service() {
                 )
 
                 if (policy.lockState == LockState.LOCKED) {
-                    // Time limit reached or 0-budget: Enforce lock screen
+                    // Time limit reached or 0-budget: Enforce hard kiosk lock screen
                     presentLockScreen(fgPackage, policy.dailyLimitMs, policy.usageTodayMs)
                 } else {
                     // Still has remaining budget: Permit usage
                     dismissPresentation()
                 }
-            } else {
-                // User is on Launcher, ARISE, or an unrestricted app: Dismiss lock overlay
-                dismissPresentation()
+            } else if (fgPackage != null) {
+                // User is on Launcher, ARISE, or an unrestricted app
+                val isOurApp = fgPackage == packageName
+                val isLauncher = UsageStatsHelper.isSystemLauncherOrUi(this@AppMonitorService, fgPackage)
+                val isUnrestricted = !isPackageRestricted(fgPackage)
+
+                if (isOurApp || isLauncher || isUnrestricted) {
+                    dismissPresentation()
+                }
             }
 
             // Schedule next check (300ms for virtually instantaneous, lag-free lock enforcement)
@@ -188,18 +216,33 @@ class AppMonitorService : Service() {
             return
         }
 
+        // 1. Launch LockScreenActivity (Hard Activity Kiosk with 100% Back button interception)
+        if (!LockScreenActivity.isShowingFor(normalizedPackage)) {
+            try {
+                val lockIntent = Intent(this, LockScreenActivity::class.java).apply {
+                    putExtra("PACKAGE_NAME", normalizedPackage)
+                    putExtra("BUDGET_MS", budgetMs)
+                    putExtra("USED_MS", usedMs)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                        Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                }
+                startActivity(lockIntent)
+                Log.d(tag, "LockScreenActivity launched for $normalizedPackage")
+            } catch (e: Exception) {
+                Log.e(tag, "Error starting LockScreenActivity", e)
+            }
+        }
+
+        // 2. Also attach BlockOverlayService as backup shield if overlay permission is granted
         val hasOverlay = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             Settings.canDrawOverlays(this)
         } else {
             true
         }
 
-        if (hasOverlay) {
-            // If the overlay is already actively covering this package, keep it up without flicker
-            if (BlockOverlayService.isShowingFor(normalizedPackage)) {
-                return
-            }
-
+        if (hasOverlay && !BlockOverlayService.isShowingFor(normalizedPackage)) {
             val overlayIntent = Intent(this, BlockOverlayService::class.java).apply {
                 putExtra("PACKAGE_NAME", normalizedPackage)
                 putExtra("BUDGET_MS", budgetMs)
@@ -208,13 +251,8 @@ class AppMonitorService : Service() {
             try {
                 startService(overlayIntent)
             } catch (e: Exception) {
-                Log.e(tag, "Error starting BlockOverlayService, kicking to home", e)
-                kickToHome(normalizedPackage)
+                Log.e(tag, "Error starting BlockOverlayService", e)
             }
-        } else {
-            // Overlay permission missing: immediately kick user out to Home screen
-            Log.w(tag, "Overlay permission missing, kicking to home for $normalizedPackage")
-            kickToHome(normalizedPackage)
         }
     }
 
@@ -239,6 +277,9 @@ class AppMonitorService : Service() {
     private fun dismissPresentation() {
         if (BlockOverlayService.isOverlayShowing) {
             stopOverlayService()
+        }
+        if (LockScreenActivity.isActivityShowing) {
+            LockScreenActivity.finishIfShowing()
         }
     }
 

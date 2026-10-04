@@ -56,6 +56,18 @@ class LockScreenActivity : Activity() {
             or View.SYSTEM_UI_FLAG_FULLSCREEN
         )
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            try {
+                onBackInvokedDispatcher.registerOnBackInvokedCallback(
+                    android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT
+                ) {
+                    exitToHomeScreen()
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("LockScreenActivity", "Error registering onBackInvokedDispatcher", e)
+            }
+        }
+
         currentPackageName = normalizePackage(intent?.getStringExtra("PACKAGE_NAME"))
         if (currentPackageName == null) {
             // A sticky/recreated activity without an explicit package is never a
@@ -128,6 +140,14 @@ class LockScreenActivity : Activity() {
 
     override fun onBackPressed() {
         exitToHomeScreen()
+    }
+
+    override fun onKeyDown(keyCode: Int, event: android.view.KeyEvent?): Boolean {
+        if (keyCode == android.view.KeyEvent.KEYCODE_BACK) {
+            exitToHomeScreen()
+            return true
+        }
+        return super.onKeyDown(keyCode, event)
     }
 
     private fun isEmergencyBailoutAvailable(): Boolean {
