@@ -270,7 +270,7 @@ export default function ShopScreen() {
     if (isUnlocked) {
       // Equip directly
       await inventoryRepository.equipItem(item.avatarIcon, 'AVATAR');
-      await userRepository.updateProfile({ avatarIcon: item.avatarIcon });
+      await userRepository.updateProfile({ avatarIcon: item.avatarIcon, profileImageUri: null });
       setEquippedAvatar(item.avatarIcon);
       await loadProfile();
       sound.play('quest_complete');
@@ -296,7 +296,7 @@ export default function ShopScreen() {
       await inventoryRepository.unlockItem(item.id, 'AVATAR');
       await inventoryRepository.unlockItem(`avatar_${item.avatarIcon}`, 'AVATAR');
       await inventoryRepository.equipItem(item.avatarIcon, 'AVATAR');
-      await userRepository.updateProfile({ avatarIcon: item.avatarIcon });
+      await userRepository.updateProfile({ avatarIcon: item.avatarIcon, profileImageUri: null });
       setUnlockedItemIds((prev) => [...prev, item.id, item.avatarIcon, `avatar_${item.avatarIcon}`]);
       setEquippedAvatar(item.avatarIcon);
       await loadProfile();

@@ -87,12 +87,8 @@ export default function WarriorProfileTab() {
 
   useFocusEffect(
     useCallback(() => {
-      const now = Date.now();
-      if (now - lastFocusLoadRef.current > 10000) {
-        lastFocusLoadRef.current = now;
-        loadProfile();
-        fetchStats();
-      }
+      loadProfile();
+      fetchStats();
     }, [loadProfile])
   );
 
@@ -105,6 +101,7 @@ export default function WarriorProfileTab() {
   const displayName = profile?.displayName || 'Hunter';
   const currentRank = getRankForLevel(level);
   const avatarIcon = profile?.avatarIcon || 'pfp_01';
+  const profileImageUri = profile?.profileImageUri;
 
 
   const handleExportBackup = async () => {
@@ -174,7 +171,11 @@ export default function WarriorProfileTab() {
         >
           <View style={styles.avatarRow}>
             <View style={styles.avatarWrap}>
-              <PlayerAvatar iconId={avatarIcon} size={72} />
+              <PlayerAvatar
+                iconId={avatarIcon}
+                profileImageUri={profileImageUri}
+                size={72}
+              />
               <View
                 style={[
                   styles.crownPill,

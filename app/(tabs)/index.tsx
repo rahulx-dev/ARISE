@@ -88,7 +88,8 @@ export default function HomeDashboard() {
   const currentXP = profile?.currentXP ?? 0;
   const streak = profile?.currentStreak ?? 0;
   const coins = profile?.coins ?? 0;
-  const avatarIcon = profile?.avatarIcon || 'user';
+  const avatarIcon = profile?.avatarIcon || 'pfp_01';
+  const profileImageUri = profile?.profileImageUri;
 
   const rank = getRankForLevel(level);
   const xpNeeded = Math.max(1, getRequiredXP(level));
@@ -101,7 +102,7 @@ export default function HomeDashboard() {
   const totalQuests = dailyQuests?.length ?? 0;
 
   const quote = getDailyQuote();
-  const avatarSrc = getAvatarSource(avatarIcon);
+  const avatarSrc = getAvatarSource(avatarIcon, profileImageUri);
 
   if (loading) {
     return (

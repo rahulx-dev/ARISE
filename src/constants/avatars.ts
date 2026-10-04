@@ -46,8 +46,31 @@ export const ALL_AVATARS: AvatarItem[] = [
   { id: 'pfp_39', name: 'Autumn', source: require('../../assets/img/pfp_39.jpg') },
 ];
 
-export function getAvatarSource(iconId: string | null | undefined): any {
-  if (!iconId) return ALL_AVATARS[0].source;
-  const match = ALL_AVATARS.find((a) => a.id === iconId);
+export function getAvatarSource(
+  iconId: string | null | undefined,
+  profileImageUri?: string | null
+): any {
+  // 1. If explicit profileImageUri provided
+  if (profileImageUri && typeof profileImageUri === 'string' && profileImageUri.trim().length > 0) {
+    return { uri: profileImageUri };
+  }
+  // 2. If iconId itself is a local file or remote URI
+  if (
+    typeof iconId === 'string' &&
+    (iconId.startsWith('file:') ||
+      iconId.startsWith('content:') ||
+      iconId.startsWith('http://') ||
+      iconId.startsWith('https://') ||
+      iconId.startsWith('data:'))
+  ) {
+    return { uri: iconId };
+  }
+  // 3. Fallback for 'user' or 'custom' without URI
+  if (!iconId || iconId === 'user' || iconId === 'custom') {
+    return ALL_AVATARS[0].source;
+  }
+  // 4. Normal avatar matching (supporting pfp_*, img_pfp_*, avatar_pfp_*)
+  const cleanId = iconId.replace('img_', '').replace('avatar_', '');
+  const match = ALL_AVATARS.find((a) => a.id === iconId || a.id === cleanId);
   return match ? match.source : ALL_AVATARS[0].source;
 }

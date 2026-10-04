@@ -70,6 +70,7 @@ import { cloudSyncService } from '../../src/services/cloudSyncService';
 import { useLanguageStore } from '../../src/services/i18n';
 import { Globe } from 'phosphor-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
 import { fontFamilies } from '../../src/theme/typography';
 
@@ -397,8 +398,30 @@ export default function OnboardingScreen() {
         quality: 0.85,
       });
       if (!result.canceled && result.assets[0]?.uri) {
+        let permanentUri = result.assets[0].uri;
+        try {
+          const baseDir = (FileSystem as any).documentDirectory || '';
+          if (baseDir) {
+            const avatarDir = `${baseDir}avatars/`;
+            if ((FileSystem as any).getInfoAsync && (FileSystem as any).makeDirectoryAsync) {
+              const dirInfo = await (FileSystem as any).getInfoAsync(avatarDir);
+              if (!dirInfo.exists) {
+                await (FileSystem as any).makeDirectoryAsync(avatarDir, { intermediates: true });
+              }
+              const filename = `avatar_${Date.now()}.jpg`;
+              const targetPath = `${avatarDir}${filename}`;
+              if ((FileSystem as any).copyAsync) {
+                await (FileSystem as any).copyAsync({ from: result.assets[0].uri, to: targetPath });
+                permanentUri = targetPath;
+              }
+            }
+          }
+        } catch (copyErr) {
+          console.warn('Failed to copy onboarding photo locally, using direct uri:', copyErr);
+        }
+
         haptics.success();
-        setCustomPhotoUri(result.assets[0].uri);
+        setCustomPhotoUri(permanentUri);
         setSelectedAvatar('custom');
       }
     } catch (e) {

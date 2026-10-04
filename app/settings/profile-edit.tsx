@@ -24,6 +24,7 @@ import {
   Save,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { useSettingsStore } from '../../src/stores/useSettingsStore';
@@ -108,6 +109,30 @@ export default function ProfileEditScreen() {
     return list;
   }, [unlockedItemIds, profile?.avatarIcon]);
 
+  const persistAvatarLocally = async (tempUri: string): Promise<string> => {
+    try {
+      const baseDir = (FileSystem as any).documentDirectory || '';
+      if (baseDir) {
+        const avatarDir = `${baseDir}avatars/`;
+        if ((FileSystem as any).getInfoAsync && (FileSystem as any).makeDirectoryAsync) {
+          const dirInfo = await (FileSystem as any).getInfoAsync(avatarDir);
+          if (!dirInfo.exists) {
+            await (FileSystem as any).makeDirectoryAsync(avatarDir, { intermediates: true });
+          }
+          const filename = `avatar_${Date.now()}.jpg`;
+          const targetPath = `${avatarDir}${filename}`;
+          if ((FileSystem as any).copyAsync) {
+            await (FileSystem as any).copyAsync({ from: tempUri, to: targetPath });
+            return targetPath;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to copy avatar to permanent storage, using direct uri:', e);
+    }
+    return tempUri;
+  };
+
   const handleCaptureCameraAvatar = async () => {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) {
@@ -123,7 +148,8 @@ export default function ProfileEditScreen() {
     });
 
     if (!result.canceled && result.assets[0]?.uri) {
-      setCustomPhotoUri(result.assets[0].uri);
+      const permanentUri = await persistAvatarLocally(result.assets[0].uri);
+      setCustomPhotoUri(permanentUri);
       setSelectedAvatar('custom');
       haptics.light();
     }
@@ -138,7 +164,8 @@ export default function ProfileEditScreen() {
     });
 
     if (!result.canceled && result.assets[0]?.uri) {
-      setCustomPhotoUri(result.assets[0].uri);
+      const permanentUri = await persistAvatarLocally(result.assets[0].uri);
+      setCustomPhotoUri(permanentUri);
       setSelectedAvatar('custom');
       haptics.light();
     }
@@ -149,14 +176,17 @@ export default function ProfileEditScreen() {
     haptics.heavy();
 
     try {
+      const isCustom = selectedAvatar === 'custom' && !!customPhotoUri;
       await updateProfile({
         displayName: displayName.trim() || 'Warrior',
         bio: bio.trim(),
-        avatarIcon: selectedAvatar,
-        profileImageUri: customPhotoUri,
+        avatarIcon: isCustom ? 'custom' : selectedAvatar,
+        profileImageUri: isCustom ? customPhotoUri : null,
         workoutGoal,
         dailyFocusGoal,
       });
+
+      await usePlayerStore.getState().loadProfile();
 
       haptics.success();
       showIOSAlert('Profile Saved!', 'Your Hunter Identity has been successfully updated.');
@@ -188,11 +218,12 @@ export default function ProfileEditScreen() {
           <GlassCard variant="glow" style={styles.avatarSectionCard}>
             <View style={styles.avatarRow}>
               <View style={[styles.avatarWrap, { backgroundColor: colors.surfaceLight, borderColor: colors.primary }]}>
-                {customPhotoUri && selectedAvatar === 'custom' ? (
-                  <Image source={{ uri: customPhotoUri }} style={styles.avatarImg} />
-                ) : (
-                  <PlayerAvatar iconId={selectedAvatar} size={64} glow={false} />
-                )}
+                <PlayerAvatar
+                  iconId={selectedAvatar}
+                  profileImageUri={selectedAvatar === 'custom' ? customPhotoUri : null}
+                  size={64}
+                  glow={false}
+                />
               </View>
 
               <View style={styles.avatarActionCol}>
