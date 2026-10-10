@@ -69,10 +69,15 @@ export const leaderboardService = {
 
     if (isSupabaseConfigured() && supabase) {
       try {
-        const { data: hunters, error: huntersErr } = await supabase
-          .from('crystal_leaderboard')
-          .select('*')
-          .limit(100);
+        let query = supabase.from('crystal_leaderboard').select('*');
+        if (category === 'streak') {
+          query = query.order('streak', { ascending: false });
+        } else if (category === 'reps') {
+          query = query.order('total_reps', { ascending: false });
+        } else {
+          query = query.order('total_xp', { ascending: false });
+        }
+        const { data: hunters, error: huntersErr } = await query.limit(100);
 
         if (!huntersErr && hunters && hunters.length > 0) {
           totalRegisteredHunters = Math.max(totalRegisteredHunters, hunters.length);

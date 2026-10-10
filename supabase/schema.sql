@@ -36,7 +36,6 @@ CREATE INDEX IF NOT EXISTS idx_coin_ledger_user ON public.coin_ledger (user_id);
 CREATE TABLE IF NOT EXISTS public.user_wallets (
     user_id TEXT PRIMARY KEY,
     display_name TEXT DEFAULT 'Warrior',
-    avatar_icon TEXT DEFAULT 'img_pfp_01',
     rank_code TEXT DEFAULT 'E',
     level INTEGER NOT NULL DEFAULT 1,
     streak INTEGER NOT NULL DEFAULT 0,
@@ -373,7 +372,6 @@ BEGIN
     INSERT INTO public.user_wallets (
         user_id,
         display_name,
-        avatar_icon,
         rank_code,
         level,
         streak,
@@ -384,7 +382,6 @@ BEGIN
     ) VALUES (
         v_user_id,
         v_clean_name,
-        v_clean_avatar,
         v_clean_rank,
         v_clean_level,
         v_clean_streak,
@@ -395,7 +392,6 @@ BEGIN
     )
     ON CONFLICT (user_id) DO UPDATE SET
         display_name = v_clean_name,
-        avatar_icon = v_clean_avatar,
         rank_code = v_clean_rank,
         level = GREATEST(user_wallets.level, v_clean_level),
         streak = GREATEST(user_wallets.streak, v_clean_streak),
@@ -640,7 +636,6 @@ BEGIN
     INSERT INTO public.user_wallets (
         user_id,
         display_name,
-        avatar_icon,
         rank_code,
         level,
         streak,
@@ -652,7 +647,6 @@ BEGIN
     ) VALUES (
         v_user_id,
         v_clean_name,
-        v_clean_avatar,
         v_clean_rank,
         v_clean_level,
         v_clean_streak,
@@ -664,7 +658,6 @@ BEGIN
     )
     ON CONFLICT (user_id) DO UPDATE SET
         display_name = v_clean_name,
-        avatar_icon = v_clean_avatar,
         rank_code = v_clean_rank,
         level = GREATEST(user_wallets.level, v_clean_level),
         streak = GREATEST(user_wallets.streak, v_clean_streak),

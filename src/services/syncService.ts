@@ -80,7 +80,6 @@ class SyncService {
 
         const call1 = await supabase.rpc("sync_hunter_profile_secure", {
           p_display_name: userName,
-          p_avatar_icon: profile.avatarIcon || "img_pfp_01",
           p_level: profile.level || 1,
           p_rank_code: rankInfo.rankCode,
           p_title: rankInfo.title,
@@ -95,10 +94,9 @@ class SyncService {
           (call1.error.message?.includes("schema cache") ||
             (call1.error as any).code === "PGRST202")
         ) {
-          // Fallback to legacy 8-parameter signature in case Supabase schema cache hasn't reloaded
+          // Fallback to legacy signature in case Supabase schema cache hasn't reloaded
           const call2 = await supabase.rpc("sync_hunter_profile_secure", {
             p_display_name: userName,
-            p_avatar_icon: profile.avatarIcon || "img_pfp_01",
             p_rank_code: rankInfo.rankCode,
             p_level: profile.level || 1,
             p_streak: profile.currentStreak || 0,

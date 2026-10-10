@@ -127,19 +127,22 @@ export default function LockedAppsScreen() {
   const toggleAppRestriction = async (item: AppItem) => {
     haptics.medium();
     const newStatus = !item.isRestricted;
-    let nextRestrictedPackages: string[] = [];
+    const nextRestrictedPackages = allApps
+      .map((app) =>
+        app.packageName === item.packageName
+          ? { ...app, isRestricted: newStatus }
+          : app
+      )
+      .filter((app) => app.isRestricted)
+      .map((app) => app.packageName);
 
     // Optimistic UI update
     setAllApps((prev) => {
-      const nextApps = prev.map((a) =>
+      return prev.map((a) =>
         a.packageName === item.packageName
           ? { ...a, isRestricted: newStatus }
           : a
       );
-      nextRestrictedPackages = nextApps
-        .filter((a) => a.isRestricted)
-        .map((a) => a.packageName);
-      return nextApps;
     });
 
     try {
@@ -187,8 +190,7 @@ export default function LockedAppsScreen() {
     const parsed = parseInt(customMinutesInput, 10);
     if (!isNaN(parsed) && parsed >= 0) {
       haptics.success();
-      updateSetting("dailyBudgetMinutes", parsed);
-      appBlockerService.setAppBudget?.(null, parsed);
+      applyDailyBudget(parsed);
       setShowCustomTimeModal(false);
       setCustomMinutesInput("");
     } else {
@@ -200,6 +202,14 @@ export default function LockedAppsScreen() {
   const isCustomSelected = ![0, 15, 30, 45, 60, 120].includes(
     dailyBudgetMinutes
   );
+
+  const applyDailyBudget = (minutes: number) => {
+    updateSetting("dailyBudgetMinutes", minutes);
+    appBlockerService.setAppBudget?.(null, minutes);
+    appBlockerService.setRestrictedPackages(
+      allApps.filter((app) => app.isRestricted).map((app) => app.packageName)
+    );
+  };
 
   return (
     <SafeAreaView
@@ -378,8 +388,7 @@ export default function LockedAppsScreen() {
                   ]}
                   onPress={() => {
                     haptics.light();
-                    updateSetting("dailyBudgetMinutes", item.mins);
-                    appBlockerService.setAppBudget?.(null, item.mins);
+                    applyDailyBudget(item.mins);
                   }}
                   activeOpacity={0.8}
                 >
@@ -429,8 +438,7 @@ export default function LockedAppsScreen() {
                   ]}
                   onPress={() => {
                     haptics.light();
-                    updateSetting("dailyBudgetMinutes", item.mins);
-                    appBlockerService.setAppBudget?.(null, item.mins);
+                    applyDailyBudget(item.mins);
                   }}
                   activeOpacity={0.8}
                 >
@@ -1192,4 +1200,3 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
 });
-

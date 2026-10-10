@@ -224,6 +224,18 @@ class AppBlockerModule : Module() {
             val intent = Intent(context, AppMonitorService::class.java).apply {
                 putExtra("UPDATED_BUDGET_MINUTES", budgetMinutes)
                 if (packageName != null) putExtra("UPDATED_PACKAGE_NAME", packageName)
+                // A budget update can restart a service that was previously
+                // stopped. Carry the persisted restrictions so resetting the
+                // allowance cannot leave enforcement running without targets.
+                val savedPackages = context
+                    .getSharedPreferences(BlockPolicyController.PREFS_NAME, Context.MODE_PRIVATE)
+                    .getStringSet("saved_restricted_packages", null)
+                if (savedPackages != null) {
+                    putStringArrayListExtra(
+                        "RESTRICTED_PACKAGES",
+                        ArrayList(savedPackages)
+                    )
+                }
             }
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -440,26 +452,24 @@ class AppBlockerModule : Module() {
 
     private fun drawableToBase64(drawable: Drawable?): String? {
         if (drawable == null) return null
+        var bitmap: Bitmap? = null
         return try {
-            val width = when {
-                drawable.intrinsicWidth > 0 -> Math.min(Math.max(drawable.intrinsicWidth, 72), 128)
-                else -> 96
-            }
-            val height = when {
-                drawable.intrinsicHeight > 0 -> Math.min(Math.max(drawable.intrinsicHeight, 72), 128)
-                else -> 96
-            }
-            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            val size = 64
+            bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
             drawable.setBounds(0, 0, canvas.width, canvas.height)
             drawable.draw(canvas)
             val outputStream = ByteArrayOutputStream()
-            bitmap.compress(Bitmap.CompressFormat.PNG, 85, outputStream)
+            bitmap.compress(Bitmap.CompressFormat.PNG, 80, outputStream)
             val byteArray = outputStream.toByteArray()
             "data:image/png;base64," + Base64.encodeToString(byteArray, Base64.NO_WRAP)
         } catch (e: Exception) {
             Log.e(TAG, "Error encoding icon drawable: ${e.message}")
             null
+        } finally {
+            try {
+                bitmap?.recycle()
+            } catch (_: Exception) {}
         }
     }
 }

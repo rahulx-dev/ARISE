@@ -81,7 +81,6 @@ export const crystalRepository = {
             p_source_id: deterministicSourceId,
             p_description: description,
             p_user_name: profile.displayName || 'Warrior',
-            p_avatar_icon: profile.avatarIcon || 'img_pfp_01',
             p_rank_code: rankInfo.rankCode,
             p_level: profile.level || 1,
             p_streak: profile.currentStreak || 0,
