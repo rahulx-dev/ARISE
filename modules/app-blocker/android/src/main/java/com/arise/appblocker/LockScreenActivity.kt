@@ -58,8 +58,8 @@ class LockScreenActivity : Activity() {
 
         super.onCreate(savedInstanceState)
 
-        // Make window fullscreen, opaque solid black to prevent any pixel leak
-        window.setBackgroundDrawable(ColorDrawable(Color.parseColor("#020713")))
+        // Make window fullscreen, opaque solid light background matching the neumorphic lock screen
+        window.setBackgroundDrawable(ColorDrawable(Color.parseColor("#EEF1F6")))
         window.addFlags(
             WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
             WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
