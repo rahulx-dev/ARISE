@@ -1,7 +1,7 @@
 import { requireNativeModule, requireNativeViewManager } from 'expo-modules-core';
 import { NativeModules, Platform } from 'react-native';
 
-// Real-time CameraX native view with built-in ML Kit pose streaming
+// Real-time CameraX native view with built-in MediaPipe pose streaming
 export const PoseCameraView = Platform.OS === 'android'
   ? requireNativeViewManager('PoseDetector')
   : null;
@@ -20,53 +20,58 @@ try {
   PoseDetector = NativeModules.PoseDetector || null;
 }
 
+/**
+ * Standard MediaPipe 33 Pose Landmark indices
+ */
+export enum LandmarkIndex {
+  NOSE = 0,
+  LEFT_EYE_INNER = 1,
+  LEFT_EYE = 2,
+  LEFT_EYE_OUTER = 3,
+  RIGHT_EYE_INNER = 4,
+  RIGHT_EYE = 5,
+  RIGHT_EYE_OUTER = 6,
+  LEFT_EAR = 7,
+  RIGHT_EAR = 8,
+  MOUTH_LEFT = 9,
+  MOUTH_RIGHT = 10,
+  LEFT_SHOULDER = 11,
+  RIGHT_SHOULDER = 12,
+  LEFT_ELBOW = 13,
+  RIGHT_ELBOW = 14,
+  LEFT_WRIST = 15,
+  RIGHT_WRIST = 16,
+  LEFT_PINKY = 17,
+  RIGHT_PINKY = 18,
+  LEFT_INDEX = 19,
+  RIGHT_INDEX = 20,
+  LEFT_THUMB = 21,
+  RIGHT_THUMB = 22,
+  LEFT_HIP = 23,
+  RIGHT_HIP = 24,
+  LEFT_KNEE = 25,
+  RIGHT_KNEE = 26,
+  LEFT_ANKLE = 27,
+  RIGHT_ANKLE = 28,
+  LEFT_HEEL = 29,
+  RIGHT_HEEL = 30,
+  LEFT_FOOT_INDEX = 31,
+  RIGHT_FOOT_INDEX = 32,
+}
+
 export interface PoseLandmark {
-  x: number;
-  y: number;
-  z: number;
-  confidence: number;
-  type: number;
+  index: number;
+  x: number;          // Normalized 2D [0, 1]
+  y: number;          // Normalized 2D [0, 1]
+  z: number;          // Depth
+  visibility: number; // 0..1 confidence in landmark being visible
+  presence: number;   // 0..1 confidence in landmark being present
+  worldX?: number;    // Metric 3D x in meters (origin at hip center)
+  worldY?: number;    // Metric 3D y in meters
+  worldZ?: number;    // Metric 3D z in meters
   frameWidth?: number;
   frameHeight?: number;
 }
-
-export interface MoveNetKeypoint {
-  x: number;
-  y: number;
-  confidence: number;
-}
-
-export const ML_KIT_TO_MOVENET_MAP: Record<number, number | null> = {
-  0: 0,
-  1: null,
-  2: 1,
-  3: null,
-  4: null,
-  5: 2,
-  6: null,
-  7: 3,
-  8: 4,
-  9: null,
-  10: null,
-  11: 5,
-  12: 6,
-  13: 7,
-  14: 8,
-  15: 9,
-  16: 10,
-  17: null,
-  18: null,
-  19: null,
-  20: null,
-  21: null,
-  22: null,
-  23: 11,
-  24: 12,
-  25: 13,
-  26: 14,
-  27: 15,
-  28: 16
-};
 
 export async function initialize(): Promise<boolean> {
   if (Platform.OS !== 'android' || !PoseDetector) {
@@ -99,21 +104,4 @@ export function release(): void {
     return;
   }
   PoseDetector.release();
-}
-
-export function convertToMoveNetKeypoints(landmarks: PoseLandmark[]): MoveNetKeypoint[] {
-  const result: MoveNetKeypoint[] = Array.from({ length: 17 }, () => ({ x: 0, y: 0, confidence: 0 }));
-  
-  for (const landmark of landmarks) {
-    const moveNetIndex = ML_KIT_TO_MOVENET_MAP[landmark.type];
-    if (moveNetIndex !== undefined && moveNetIndex !== null) {
-      result[moveNetIndex] = {
-        x: landmark.x,
-        y: landmark.y,
-        confidence: landmark.confidence
-      };
-    }
-  }
-  
-  return result;
 }

@@ -1,56 +1,72 @@
 package com.arise.posedetector
 
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Matrix
+import android.os.SystemClock
 import android.util.Base64
 import android.util.Log
 import androidx.exifinterface.media.ExifInterface
-import com.google.android.gms.tasks.Tasks
-import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.pose.PoseDetection
-import com.google.mlkit.vision.pose.PoseDetector
-import com.google.mlkit.vision.pose.accurate.AccuratePoseDetectorOptions
+import com.google.mediapipe.framework.image.BitmapImageBuilder
+import com.google.mediapipe.tasks.core.BaseOptions
+import com.google.mediapipe.tasks.core.Delegate
+import com.google.mediapipe.tasks.vision.core.RunningMode
+import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarker
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import java.io.ByteArrayInputStream
 
 class PoseDetectorModule : Module() {
-    private var poseDetector: PoseDetector? = null
+    private var poseLandmarker: PoseLandmarker? = null
+    private var videoTimestampMs = 1L
 
     override fun definition() = ModuleDefinition {
         Name("PoseDetector")
 
         AsyncFunction("initialize") {
             try {
-                if (poseDetector == null) {
+                if (poseLandmarker == null) {
+                    val context = appContext.reactContext ?: return@AsyncFunction false
+                    val baseOptions = BaseOptions.builder()
+                        .setModelAssetPath("pose_landmarker_full.task")
+
                     try {
-                        val fastOptions = com.google.mlkit.vision.pose.defaults.PoseDetectorOptions.Builder()
-                            .setDetectorMode(com.google.mlkit.vision.pose.defaults.PoseDetectorOptions.STREAM_MODE)
+                        val gpuOptions = PoseLandmarker.PoseLandmarkerOptions.builder()
+                            .setBaseOptions(baseOptions.setDelegate(Delegate.GPU).build())
+                            .setRunningMode(RunningMode.VIDEO)
+                            .setMinPoseDetectionConfidence(0.5f)
+                            .setMinPosePresenceConfidence(0.5f)
+                            .setMinTrackingConfidence(0.5f)
+                            .setNumPoses(1)
                             .build()
-                        poseDetector = PoseDetection.getClient(fastOptions)
-                        Log.d("ARISE_POSE", "Fast Stream PoseDetector (BlazePose Base) initialized successfully")
-                    } catch (eFast: Throwable) {
-                        Log.w("ARISE_POSE", "Default PoseDetector unavailable, falling back to Accurate: ${eFast.message}")
-                        val accurateOptions = AccuratePoseDetectorOptions.Builder()
-                            .setDetectorMode(AccuratePoseDetectorOptions.STREAM_MODE)
+                        poseLandmarker = PoseLandmarker.createFromOptions(context, gpuOptions)
+                        Log.d("ARISE_POSE", "MediaPipe PoseLandmarker initialized with GPU delegate")
+                    } catch (eGpu: Throwable) {
+                        Log.w("ARISE_POSE", "GPU delegate failed (${eGpu.message}), falling back to CPU")
+                        val cpuOptions = PoseLandmarker.PoseLandmarkerOptions.builder()
+                            .setBaseOptions(BaseOptions.builder().setModelAssetPath("pose_landmarker_full.task").setDelegate(Delegate.CPU).build())
+                            .setRunningMode(RunningMode.VIDEO)
+                            .setMinPoseDetectionConfidence(0.5f)
+                            .setMinPosePresenceConfidence(0.5f)
+                            .setMinTrackingConfidence(0.5f)
+                            .setNumPoses(1)
                             .build()
-                        poseDetector = PoseDetection.getClient(accurateOptions)
-                        Log.d("ARISE_POSE", "Accurate PoseDetector fallback initialized successfully")
+                        poseLandmarker = PoseLandmarker.createFromOptions(context, cpuOptions)
+                        Log.d("ARISE_POSE", "MediaPipe PoseLandmarker initialized with CPU delegate")
                     }
                 }
                 return@AsyncFunction true
             } catch (e: Exception) {
-                Log.e("ARISE_POSE", "Error initializing PoseDetector", e)
+                Log.e("ARISE_POSE", "Error initializing MediaPipe PoseLandmarker", e)
                 return@AsyncFunction false
             }
         }
 
         AsyncFunction("processBase64Frame") { base64Image: String, facing: String? ->
             try {
-                val detector = poseDetector ?: throw IllegalStateException("PoseDetector not initialized")
-                
+                val detector = poseLandmarker ?: throw IllegalStateException("PoseLandmarker not initialized")
                 val decodedBytes = Base64.decode(base64Image, Base64.DEFAULT)
 
-                // Detect EXIF orientation from JPEG header
                 var exifRotation = -1
                 try {
                     val exif = ExifInterface(ByteArrayInputStream(decodedBytes))
@@ -69,8 +85,6 @@ class PoseDetectorModule : Module() {
                     Log.w("ARISE_POSE", "EXIF read error: ${e.message}")
                 }
 
-                // Dynamically downsample large bitmaps to ~480px max dimension.
-                // ML Kit Pose operates internally on 256x256, so downsampling eliminates 90% memory & GC pauses.
                 val boundsOptions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                 BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size, boundsOptions)
                 var sampleSize = 1
@@ -80,23 +94,18 @@ class PoseDetectorModule : Module() {
                 }
 
                 val decodeOptions = BitmapFactory.Options().apply {
-                    inPreferredConfig = android.graphics.Bitmap.Config.RGB_565
+                    inPreferredConfig = Bitmap.Config.ARGB_8888
                     inSampleSize = sampleSize
                 }
-                val bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size, decodeOptions)
+                val rawBitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size, decodeOptions)
                     ?: throw IllegalArgumentException("Failed to decode base64 string into bitmap")
-                
-                try {
-                    val rawW = bitmap.width.toFloat().coerceAtLeast(1f)
-                    val rawH = bitmap.height.toFloat().coerceAtLeast(1f)
 
+                try {
+                    val rawW = rawBitmap.width.toFloat().coerceAtLeast(1f)
+                    val rawH = rawBitmap.height.toFloat().coerceAtLeast(1f)
                     val isFront = (facing ?: "front") == "front"
-                    // Orientation Resolution:
-                    // 1. If rawW < rawH, the bitmap is ALREADY portrait upright (Expo Camera rotated pixels).
-                    //    Rotation MUST be 0 (or 180 if upside down). NEVER rotate by 90 or 270!
-                    // 2. If rawW > rawH, the bitmap is in raw landscape sensor orientation.
-                    //    We must rotate to portrait: Front camera default is 270, Back camera is 90.
-                    var rotation = if (rawW < rawH) {
+
+                    val rotation = if (rawW < rawH) {
                         if (exifRotation == 180) 180 else 0
                     } else {
                         if (exifRotation == 90 || exifRotation == 270) {
@@ -106,48 +115,59 @@ class PoseDetectorModule : Module() {
                         }
                     }
 
-                    var image = InputImage.fromBitmap(bitmap, rotation)
-                    var pose = Tasks.await(detector.process(image))
-                    
-                    // If 0 landmarks detected and image was landscape, attempt alternate orientation
-                    if (pose.allPoseLandmarks.size < 3 && rawW > rawH) {
-                        val fallbackRot = if (rotation == 270) 90 else 270
-                        try {
-                            val altImage = InputImage.fromBitmap(bitmap, fallbackRot)
-                            val altPose = Tasks.await(detector.process(altImage))
-                            if (altPose.allPoseLandmarks.size > pose.allPoseLandmarks.size) {
-                                pose = altPose
-                                rotation = fallbackRot
-                            }
-                        } catch (_: Exception) {}
+                    val finalBitmap = if (rotation != 0) {
+                        val matrix = Matrix().apply { postRotate(rotation.toFloat()) }
+                        val rotated = Bitmap.createBitmap(rawBitmap, 0, 0, rawBitmap.width, rawBitmap.height, matrix, true)
+                        if (rotated != rawBitmap) {
+                            rawBitmap.recycle()
+                        }
+                        rotated
+                    } else {
+                        rawBitmap
                     }
-                    
-                    val resultList = mutableListOf<Map<String, Any>>()
-                    
-                    // When rotated 90 or 270 degrees, ML Kit coordinates are in rotated coordinate space:
-                    val effectiveWidth = if (rotation == 90 || rotation == 270) rawH else rawW
-                    val effectiveHeight = if (rotation == 90 || rotation == 270) rawW else rawH
-                    
-                    for (landmark in pose.allPoseLandmarks) {
-                        val normX = (landmark.position.x / effectiveWidth).coerceIn(0f, 1f)
-                        val normY = (landmark.position.y / effectiveHeight).coerceIn(0f, 1f)
-                        val landmarkMap = mapOf(
-                            "x" to normX,
-                            "y" to normY,
-                            "z" to landmark.position3D.z,
-                            "confidence" to landmark.inFrameLikelihood,
-                            "type" to landmark.landmarkType,
-                            "frameWidth" to effectiveWidth,
-                            "frameHeight" to effectiveHeight
-                        )
-                        resultList.add(landmarkMap)
-                    }
-                    
-                    return@AsyncFunction resultList
-                } finally {
+
                     try {
-                        bitmap.recycle()
-                    } catch (_: Exception) {}
+                        val mpImage = BitmapImageBuilder(finalBitmap).build()
+                        val result = detector.detectForVideo(mpImage, videoTimestampMs++)
+                        val resultList = mutableListOf<Map<String, Any>>()
+
+                        if (result.landmarks().isNotEmpty()) {
+                            val poseLandmarks = result.landmarks()[0]
+                            val worldLandmarks = if (result.worldLandmarks().isNotEmpty()) result.worldLandmarks()[0] else null
+
+                            for (i in poseLandmarks.indices) {
+                                val normLm = poseLandmarks[i]
+                                val worldLm = worldLandmarks?.getOrNull(i)
+
+                                val vis = if (normLm.visibility().isPresent) normLm.visibility().get().toDouble() else 0.8
+                                val pres = if (normLm.presence().isPresent) normLm.presence().get().toDouble() else 0.8
+
+                                val landmarkMap = mutableMapOf<String, Any>(
+                                    "index" to i,
+                                    "x" to normLm.x().toDouble().coerceIn(0.0, 1.0),
+                                    "y" to normLm.y().toDouble().coerceIn(0.0, 1.0),
+                                    "z" to normLm.z().toDouble(),
+                                    "visibility" to vis,
+                                    "presence" to pres,
+                                    "frameWidth" to finalBitmap.width.toDouble(),
+                                    "frameHeight" to finalBitmap.height.toDouble()
+                                )
+                                if (worldLm != null) {
+                                    landmarkMap["worldX"] = worldLm.x().toDouble()
+                                    landmarkMap["worldY"] = worldLm.y().toDouble()
+                                    landmarkMap["worldZ"] = worldLm.z().toDouble()
+                                }
+                                resultList.add(landmarkMap)
+                            }
+                        }
+
+                        return@AsyncFunction resultList
+                    } finally {
+                        finalBitmap.recycle()
+                    }
+                } catch (e: Exception) {
+                    Log.e("ARISE_POSE", "Error running pose detection", e)
+                    return@AsyncFunction emptyList<Map<String, Any>>()
                 }
             } catch (e: Exception) {
                 Log.e("ARISE_POSE", "Error processing frame", e)
@@ -159,9 +179,7 @@ class PoseDetectorModule : Module() {
             try {
                 val context = appContext.reactContext
                 val audioManager = context?.getSystemService(android.content.Context.AUDIO_SERVICE) as? android.media.AudioManager
-                audioManager?.let { am ->
-                    am.adjustStreamVolume(android.media.AudioManager.STREAM_SYSTEM, android.media.AudioManager.ADJUST_MUTE, 0)
-                }
+                audioManager?.adjustStreamVolume(android.media.AudioManager.STREAM_SYSTEM, android.media.AudioManager.ADJUST_MUTE, 0)
             } catch (e: Exception) {
                 Log.w("ARISE_POSE", "muteShutter failed: ${e.message}")
             }
@@ -172,9 +190,7 @@ class PoseDetectorModule : Module() {
             try {
                 val context = appContext.reactContext
                 val audioManager = context?.getSystemService(android.content.Context.AUDIO_SERVICE) as? android.media.AudioManager
-                audioManager?.let { am ->
-                    am.adjustStreamVolume(android.media.AudioManager.STREAM_SYSTEM, android.media.AudioManager.ADJUST_UNMUTE, 0)
-                }
+                audioManager?.adjustStreamVolume(android.media.AudioManager.STREAM_SYSTEM, android.media.AudioManager.ADJUST_UNMUTE, 0)
             } catch (e: Exception) {
                 Log.w("ARISE_POSE", "unmuteShutter failed: ${e.message}")
             }
@@ -183,11 +199,11 @@ class PoseDetectorModule : Module() {
 
         Function("release") {
             try {
-                poseDetector?.close()
-                poseDetector = null
-                Log.d("ARISE_POSE", "PoseDetector released")
+                poseLandmarker?.close()
+                poseLandmarker = null
+                Log.d("ARISE_POSE", "PoseLandmarker released")
             } catch (e: Exception) {
-                Log.e("ARISE_POSE", "Error releasing PoseDetector", e)
+                Log.e("ARISE_POSE", "Error releasing PoseLandmarker", e)
             }
         }
 
