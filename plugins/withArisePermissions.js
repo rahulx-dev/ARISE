@@ -23,7 +23,13 @@ module.exports = function withArisePermissions(config) {
       'android.permission.VIBRATE',
       'android.permission.QUERY_ALL_PACKAGES',
       'android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS',
+      'android.permission.ACCESS_FINE_LOCATION',
+      'android.permission.ACCESS_COARSE_LOCATION',
+      'android.permission.ACCESS_BACKGROUND_LOCATION',
+      'android.permission.FOREGROUND_SERVICE_LOCATION',
+      'android.permission.ACTIVITY_RECOGNITION',
     ];
+
 
     permissionsToAdd.forEach((perm) => {
       if (!androidManifest['uses-permission'].some((p) => p.$['android:name'] === perm)) {

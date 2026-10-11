@@ -10,6 +10,7 @@ import {
   Animated,
   Easing,
   Linking,
+  AppState,
 } from 'react-native';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -34,6 +35,8 @@ import {
 import { GlassCard } from '../../src/components/ios/GlassCard';
 import { GlassButton } from '../../src/components/ios/GlassButton';
 import { runningTrackerService, RunningStats } from '../../src/services/runningTrackerService';
+import * as NativeRunningTracker from '../../modules/running-tracker';
+
 import { userRepository } from '../../src/database/repositories/userRepository';
 import { coinService } from '../../src/services/coinService';
 import { questService } from '../../src/services/questService';
@@ -130,12 +133,35 @@ export default function RunningScreen() {
   }, [isRunning]);
 
   useEffect(() => {
+    try {
+      const currentNative = NativeRunningTracker.getStats();
+      if (currentNative && currentNative.isTracking) {
+        setIsRunning(true);
+        setIsPaused(currentNative.isPaused);
+        setStats(currentNative);
+      }
+    } catch {}
+
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        try {
+          const freshStats = NativeRunningTracker.getStats();
+          if (freshStats && freshStats.isTracking && mountedRef.current) {
+            setIsRunning(true);
+            setIsPaused(freshStats.isPaused);
+            setStats(freshStats);
+          }
+        } catch {}
+      }
+    });
+
     return () => {
+      sub.remove();
       mountedRef.current = false;
-      runningTrackerService.stopTracking();
       deactivateKeepAwake('running-trial').catch(() => {});
     };
   }, []);
+
 
   // Rewards formula:
   // XP: targetKm * 200

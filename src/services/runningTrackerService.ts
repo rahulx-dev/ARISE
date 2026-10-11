@@ -1,6 +1,8 @@
+import { Platform } from 'react-native';
 import * as Location from 'expo-location';
 import { Pedometer, Accelerometer } from 'expo-sensors';
 import { voiceCoach } from './voiceCoach';
+import * as NativeRunningTracker from '../../modules/running-tracker';
 
 export interface RunningStats {
   distanceKm: number;
@@ -14,9 +16,9 @@ export interface RunningStats {
   isPaused: boolean;
 }
 
-// Haversine formula to compute distance between two GPS coordinates in meters
+// Haversine formula to compute distance between two GPS coordinates in meters (fallback)
 function getDistanceInMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371000; // Radius of the Earth in meters
+  const R = 6371000;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
   const a =
@@ -30,6 +32,10 @@ function getDistanceInMeters(lat1: number, lon1: number, lat2: number, lon2: num
 }
 
 export class RunningTrackerService {
+  private nativeStatsSub: { remove: () => void } | null = null;
+  private nativeCompletionSub: { remove: () => void } | null = null;
+
+  // Fallback state
   private locationSubscription: Location.LocationSubscription | null = null;
   private pedometerSubscription: { remove: () => void } | null = null;
   private accelerometerSubscription: { remove: () => void } | null = null;
@@ -40,7 +46,6 @@ export class RunningTrackerService {
   private hardwareSteps = 0;
   private accelerometerSteps = 0;
   private lastStepTimestamp = 0;
-  private lastAccelMagnitude = 1.0;
   private isPeakSearching = true;
 
   private elapsedSeconds = 0;
@@ -57,25 +62,47 @@ export class RunningTrackerService {
   private onUpdateCallback: ((stats: RunningStats) => void) | null = null;
   private onCompletedCallback: (() => void) | null = null;
 
-  public async requestPermissions(): Promise<boolean> {
+  public async requestPermissions(): Promise<{ success: boolean; error?: string }> {
     try {
-      let { status: locStatus } = await Location.getForegroundPermissionsAsync();
-      if (locStatus !== 'granted') {
-        ({ status: locStatus } = await Location.requestForegroundPermissionsAsync());
+      // 1. Check if GPS / Location services are enabled at device level
+      const isDeviceLocationOn = await NativeRunningTracker.isLocationServiceEnabled().catch(() => true);
+      const isExpoLocationEnabled = await Location.hasServicesEnabledAsync().catch(() => true);
+
+      if (!isDeviceLocationOn && !isExpoLocationEnabled) {
+        return {
+          success: false,
+          error: 'GPS is disabled on your device. Please turn on Location in quick settings or device settings.',
+        };
       }
+
+      // 2. Check and request Foreground Location Permissions
+      let { status: fgStatus } = await Location.getForegroundPermissionsAsync();
+      if (fgStatus !== 'granted') {
+        const req = await Location.requestForegroundPermissionsAsync();
+        fgStatus = req.status;
+      }
+
+      if (fgStatus !== 'granted') {
+        return {
+          success: false,
+          error: 'Location permission is required to track distance and pace during running workouts.',
+        };
+      }
+
+      // 3. Optional sensors (Activity recognition & Pedometer)
       try {
         if (Pedometer.requestPermissionsAsync) {
           await Pedometer.requestPermissionsAsync();
         }
       } catch {}
 
-      if (locStatus !== 'granted' || !(await Location.hasServicesEnabledAsync())) {
-        return false;
-      }
-      return true;
-    } catch (e) {
+      return { success: true };
+    } catch (e: any) {
       console.warn('[RunningTracker] Permission request error:', e);
-      return false;
+      return {
+        success: false,
+        error: e?.message || 'Unable to verify location permissions.',
+      };
     }
   }
 
@@ -84,9 +111,9 @@ export class RunningTrackerService {
     onUpdate: (stats: RunningStats) => void,
     onCompleted: () => void
   ): Promise<{ success: boolean; error?: string }> {
-    const hasPermission = await this.requestPermissions();
-    if (!hasPermission) {
-      return { success: false, error: 'Location permission is required for running track.' };
+    const permResult = await this.requestPermissions();
+    if (!permResult.success) {
+      return { success: false, error: permResult.error };
     }
 
     this.stopTracking();
@@ -114,13 +141,51 @@ export class RunningTrackerService {
       voiceCoach.speak(`Shadow Sprint Trial initiated. Target: ${targetKm} kilometers. Begin running!`);
     } catch {}
 
-    // 1. Start GPS stream
+    // Prefer Native Android RunningService (Foreground Service with persistent lockscreen tracking)
+    if (Platform.OS === 'android') {
+      try {
+        const started = await NativeRunningTracker.startTracking(targetKm);
+        if (started) {
+          // Listen to live stats from native foreground service
+          this.nativeStatsSub = NativeRunningTracker.addStatsListener((stats) => {
+            this.handleStatsUpdate(stats);
+          });
+
+          this.nativeCompletionSub = NativeRunningTracker.addCompletionListener(() => {
+            this.handleTargetReached();
+          });
+
+          return { success: true };
+        }
+      } catch (err) {
+        console.warn('[RunningTracker] Native service start error, falling back to Expo Location:', err);
+      }
+    }
+
+    // Fallback: Start Expo Location tracking
+    return await this.startExpoFallbackTracking();
+  }
+
+  private handleStatsUpdate(stats: RunningStats): void {
+    this.totalDistanceMeters = stats.distanceKm * 1000;
+    this.currentSpeedKmh = stats.speedKmh;
+    this.elapsedSeconds = stats.elapsedSeconds;
+    this.isVehicleSpeed = stats.isVehicleSpeed;
+    this.isPaused = stats.isPaused;
+
+    this.checkProgress();
+    if (this.onUpdateCallback) {
+      this.onUpdateCallback(stats);
+    }
+  }
+
+  private async startExpoFallbackTracking(): Promise<{ success: boolean; error?: string }> {
     try {
       this.locationSubscription = await Location.watchPositionAsync(
         {
-          accuracy: Location.Accuracy.High,
-          distanceInterval: 2, // Update every 2 meters
-          timeInterval: 1000,  // Update every 1 second
+          accuracy: Location.Accuracy.BestForNavigation,
+          distanceInterval: 1,
+          timeInterval: 1000,
         },
         (loc) => {
           if (this.isPaused || !this.isTracking) return;
@@ -131,7 +196,7 @@ export class RunningTrackerService {
             !Number.isFinite(latitude) ||
             !Number.isFinite(longitude) ||
             !Number.isFinite(timestamp) ||
-            (accuracy != null && accuracy > 20)
+            (accuracy != null && accuracy > 18)
           ) {
             return;
           }
@@ -146,40 +211,27 @@ export class RunningTrackerService {
               longitude
             );
 
-            const timeDiffSec = Math.max(1, (timestamp - this.lastLocation.timestamp) / 1000);
+            const timeDiffSec = Math.max(0.5, (timestamp - this.lastLocation.timestamp) / 1000);
             const calculatedSpeedKmh = (distMeters / timeDiffSec) * 3.6;
 
             if (rawSpeedKmh <= 0) {
               rawSpeedKmh = calculatedSpeedKmh;
             }
 
-            // Reject impossible jumps and require multiple high-speed samples before
-            // flagging a vehicle. This avoids counting GPS spikes as distance.
-            const plausibleSpeedKmh = Math.min(60, Math.max(0, rawSpeedKmh));
-            this.speedEmaKmh = this.speedEmaKmh === 0
-              ? plausibleSpeedKmh
-              : this.speedEmaKmh * 0.25 + plausibleSpeedKmh * 0.75;
-            if (this.speedEmaKmh > 25) this.vehicleSamples += 1;
+            if (rawSpeedKmh > 30) this.vehicleSamples += 1;
             else this.vehicleSamples = Math.max(0, this.vehicleSamples - 1);
-            this.isVehicleSpeed = this.vehicleSamples >= 5;
+            this.isVehicleSpeed = this.vehicleSamples >= 4;
 
-            // Filter minor GPS noise/jitter
-            const isJitter = distMeters < 2.5 && timeDiffSec <= 2;
-            if (!this.isVehicleSpeed && !isJitter && distMeters < 100 && calculatedSpeedKmh < 30) {
+            // Filter minor GPS stationary drift
+            const isStationaryDrift = distMeters < 1.8 && rawSpeedKmh < 1.2;
+            const isPhysicallyPlausible = distMeters < 80 && calculatedSpeedKmh < 35;
+
+            if (!this.isVehicleSpeed && !isStationaryDrift && isPhysicallyPlausible) {
               this.totalDistanceMeters += distMeters;
             }
-            if (this.isVehicleSpeed) {
-              this.currentSpeedKmh = 0;
-              this.broadcast();
-              this.lastLocation = { lat: latitude, lon: longitude, timestamp };
-              return;
-            }
           }
 
-          if (!this.lastLocation) {
-            this.speedEmaKmh = Math.min(30, Math.max(0, rawSpeedKmh));
-          }
-          this.currentSpeedKmh = Math.max(0, Math.min(30, Math.round(this.speedEmaKmh * 10) / 10));
+          this.currentSpeedKmh = Math.max(0, Math.min(30, Math.round(rawSpeedKmh * 10) / 10));
           this.lastLocation = { lat: latitude, lon: longitude, timestamp };
 
           this.checkProgress();
@@ -189,10 +241,10 @@ export class RunningTrackerService {
     } catch (err) {
       console.warn('[RunningTracker] Location watch failed:', err);
       this.stopTracking();
-      return { success: false, error: 'Unable to start location tracking. Check that location services are enabled and try again.' };
+      return { success: false, error: 'Unable to start location tracking. Check location settings.' };
     }
 
-    // 2. Start Hardware Pedometer
+    // Step Detector Fallback
     try {
       const isPedometerAvailable = await Pedometer.isAvailableAsync();
       if (isPedometerAvailable) {
@@ -202,21 +254,15 @@ export class RunningTrackerService {
           this.broadcast();
         });
       }
-    } catch (pedErr) {
-      console.warn('[RunningTracker] Pedometer watch warning:', pedErr);
-    }
+    } catch {}
 
-    // 3. Accelerometer High-Accuracy Step Detector (Works on 100% of devices)
+    // Accelerometer Fallback
     try {
-      Accelerometer.setUpdateInterval(60); // ~16 updates per sec
+      Accelerometer.setUpdateInterval(60);
       this.accelerometerSubscription = Accelerometer.addListener(({ x, y, z }) => {
         if (this.isPaused || !this.isTracking) return;
-
-        // Compute 3D Acceleration magnitude (1.0 = normal 1g gravity)
         const magnitude = Math.sqrt(x * x + y * y + z * z);
         const now = Date.now();
-
-        // Step peak detection: Human running/jogging footfall impact creates a spike > 1.25g followed by a trough < 0.85g
         if (this.isPeakSearching) {
           if (magnitude > 1.25 && now - this.lastStepTimestamp > 260) {
             this.accelerometerSteps += 1;
@@ -229,14 +275,10 @@ export class RunningTrackerService {
             this.isPeakSearching = true;
           }
         }
-
-        this.lastAccelMagnitude = magnitude;
       });
-    } catch (accelErr) {
-      console.warn('[RunningTracker] Accelerometer step detection warning:', accelErr);
-    }
+    } catch {}
 
-    // 4. Start Timer Interval (1 second ticks)
+    // Timer Interval Fallback
     this.timerInterval = setInterval(() => {
       if (!this.isPaused && this.isTracking) {
         this.elapsedSeconds += 1;
@@ -250,18 +292,38 @@ export class RunningTrackerService {
 
   public pause(): void {
     this.isPaused = true;
+    if (Platform.OS === 'android') {
+      NativeRunningTracker.pauseTracking();
+    }
     this.broadcast();
   }
 
   public resume(): void {
     this.isPaused = false;
     this.lastLocation = null;
+    if (Platform.OS === 'android') {
+      NativeRunningTracker.resumeTracking();
+    }
     this.broadcast();
   }
 
   public stopTracking(): void {
     this.isTracking = false;
     this.isPaused = false;
+
+    if (Platform.OS === 'android') {
+      NativeRunningTracker.stopTracking().catch(() => {});
+    }
+
+    if (this.nativeStatsSub) {
+      this.nativeStatsSub.remove();
+      this.nativeStatsSub = null;
+    }
+
+    if (this.nativeCompletionSub) {
+      this.nativeCompletionSub.remove();
+      this.nativeCompletionSub = null;
+    }
 
     if (this.locationSubscription) {
       this.locationSubscription.remove();
@@ -290,6 +352,17 @@ export class RunningTrackerService {
     this.onCompletedCallback = null;
   }
 
+  private handleTargetReached(): void {
+    const cb = this.onCompletedCallback;
+    this.stopTracking();
+    try {
+      voiceCoach.speak(`Target reached! ${this.targetKm} kilometers completed. Quest Cleared!`);
+    } catch {}
+    if (cb) {
+      cb();
+    }
+  }
+
   private checkProgress(): void {
     const currentKm = this.totalDistanceMeters / 1000;
 
@@ -312,14 +385,7 @@ export class RunningTrackerService {
 
     // Target Reached!
     if (currentKm >= this.targetKm) {
-      const completedCallback = this.onCompletedCallback;
-      this.stopTracking();
-      try {
-        voiceCoach.speak(`Target reached! ${this.targetKm} kilometers completed. Quest Cleared!`);
-      } catch {}
-      if (completedCallback) {
-        completedCallback();
-      }
+      this.handleTargetReached();
     }
   }
 
@@ -337,10 +403,7 @@ export class RunningTrackerService {
     if (!this.onUpdateCallback) return;
 
     const km = Math.round((this.totalDistanceMeters / 1000) * 100) / 100;
-    const calories = Number.isFinite(km) ? Math.max(0, Math.min(5000, Math.round(km * 65))) : 0;
-
-    // Dynamic Step Resolution:
-    // Stride estimation = distance (meters) / 0.76 meters average running stride
+    const calories = Number.isFinite(km) ? Math.max(0, Math.min(5000, Math.round(km * 62))) : 0;
     const strideEstimatedSteps = Math.round(this.totalDistanceMeters / 0.76);
     const effectiveTotalSteps = Math.max(this.hardwareSteps, this.accelerometerSteps, strideEstimatedSteps);
 
