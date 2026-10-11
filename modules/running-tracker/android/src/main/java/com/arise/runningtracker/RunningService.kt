@@ -16,6 +16,7 @@ import android.hardware.SensorManager
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
+import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -23,6 +24,7 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
 import android.util.Log
+import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import java.util.Locale
 
@@ -165,7 +167,7 @@ class RunningService : Service(), LocationListener, SensorEventListener {
             Log.w(TAG, "WakeLock acquire note: ${e.message}")
         }
 
-        val notification = buildOngoingNotification("Starting run...", "Waiting for GPS fix...")
+        val notification = buildOngoingNotification()
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
@@ -403,42 +405,112 @@ class RunningService : Service(), LocationListener, SensorEventListener {
         }
     }
 
-    private fun buildOngoingNotification(title: String, content: String): Notification {
+    private fun buildOngoingNotification(): Notification {
         val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
-        val pendingIntent = PendingIntent.getActivity(
+        val contentPendingIntent = PendingIntent.getActivity(
             this,
             0,
             launchIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
         )
 
+        val distKm = totalDistanceMeters / 1000.0
+        val distFormatted = String.format(Locale.US, "%.2f", distKm)
+        val timeFormatted = formatTime(elapsedSeconds)
+        val progressPercent = Math.min(100, Math.max(0, ((distKm / Math.max(0.1, activeTargetKm)) * 100).toInt()))
+
+        // 1. Collapsed Custom View
+        val collapsedView = RemoteViews(packageName, R.layout.notification_running_collapsed).apply {
+            setTextViewText(R.id.tv_notif_distance, "$distFormatted KM")
+            setTextViewText(R.id.tv_notif_time, timeFormatted)
+            setTextViewText(R.id.tv_notif_pace, "$currentPaceFormatted /km")
+            setProgressBar(R.id.pb_notif_progress, 100, progressPercent, false)
+
+            if (isPaused) {
+                setTextViewText(R.id.tv_notif_status, "PAUSED")
+                setTextColor(R.id.tv_notif_status, Color.parseColor("#F59E0B"))
+                setInt(R.id.tv_notif_status, "setBackgroundResource", R.drawable.notif_badge_bg_paused)
+            } else {
+                setTextViewText(R.id.tv_notif_status, "LIVE")
+                setTextColor(R.id.tv_notif_status, Color.parseColor("#10B981"))
+                setInt(R.id.tv_notif_status, "setBackgroundResource", R.drawable.notif_badge_bg_active)
+            }
+        }
+
+        // 2. Expanded Custom View
+        val expandedView = RemoteViews(packageName, R.layout.notification_running_expanded).apply {
+            setTextViewText(R.id.tv_notif_exp_distance, distFormatted)
+            setTextViewText(R.id.tv_notif_exp_target, String.format(Locale.US, "TARGET: %.1f KM", activeTargetKm))
+            setTextViewText(R.id.tv_notif_exp_percent, "$progressPercent% COMPLETED")
+            setProgressBar(R.id.pb_notif_exp_progress, 100, progressPercent, false)
+
+            setTextViewText(R.id.tv_notif_exp_time, timeFormatted)
+            setTextViewText(R.id.tv_notif_exp_pace, currentPaceFormatted)
+            setTextViewText(R.id.tv_notif_exp_steps, String.format(Locale.US, "%,d", totalSteps))
+            setTextViewText(R.id.tv_notif_exp_calories, caloriesBurned.toString())
+
+            if (isPaused) {
+                setTextViewText(R.id.tv_notif_exp_status, "PAUSED")
+                setTextColor(R.id.tv_notif_exp_status, Color.parseColor("#F59E0B"))
+                setInt(R.id.tv_notif_exp_status, "setBackgroundResource", R.drawable.notif_badge_bg_paused)
+                setTextViewText(R.id.btn_notif_pause_resume, "▶ RESUME")
+            } else {
+                setTextViewText(R.id.tv_notif_exp_status, "RECORDING")
+                setTextColor(R.id.tv_notif_exp_status, Color.parseColor("#10B981"))
+                setInt(R.id.tv_notif_exp_status, "setBackgroundResource", R.drawable.notif_badge_bg_active)
+                setTextViewText(R.id.btn_notif_pause_resume, "⏸ PAUSE")
+            }
+        }
+
+        // 3. Interactive Intents
+        val toggleAction = if (isPaused) ACTION_RESUME else ACTION_PAUSE
+        val toggleIntent = Intent(this, RunningService::class.java).apply {
+            action = toggleAction
+        }
+        val togglePendingIntent = PendingIntent.getService(
+            this,
+            101,
+            toggleIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+        )
+        expandedView.setOnClickPendingIntent(R.id.btn_notif_pause_resume, togglePendingIntent)
+
+        val finishIntent = packageManager.getLaunchIntentForPackage(packageName) ?: Intent()
+        val finishPendingIntent = PendingIntent.getActivity(
+            this,
+            102,
+            finishIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+        )
+        expandedView.setOnClickPendingIntent(R.id.btn_notif_finish, finishPendingIntent)
+
+        // 4. Standard notification fallback & builder
         val iconRes = applicationInfo.icon.takeIf { it != 0 } ?: android.R.drawable.ic_menu_mylocation
+        val fallbackTitle = if (isPaused) "ARISE Run (Paused) • $distFormatted KM" else "ARISE Run • $distFormatted KM"
+        val fallbackContent = "Time: $timeFormatted | Pace: $currentPaceFormatted/km | Steps: $totalSteps"
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(title)
-            .setContentText(content)
             .setSmallIcon(iconRes)
+            .setContentTitle(fallbackTitle)
+            .setContentText(fallbackContent)
+            .setCustomContentView(collapsedView)
+            .setCustomBigContentView(expandedView)
+            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
             .setOngoing(true)
             .setOnlyAlertOnce(true)
-            .setContentIntent(pendingIntent)
+            .setContentIntent(contentPendingIntent)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_WORKOUT)
+            .addAction(
+                if (isPaused) android.R.drawable.ic_media_play else android.R.drawable.ic_media_pause,
+                if (isPaused) "Resume" else "Pause",
+                togglePendingIntent
+            )
             .build()
     }
 
     private fun updateNotification() {
-        val distKm = totalDistanceMeters / 1000.0
-        val distFormatted = String.format(Locale.US, "%.2f km", distKm)
-        val timeFormatted = formatTime(elapsedSeconds)
-
-        val title = if (isPaused) "ARISE Run (Paused)" else "ARISE Run // $distFormatted"
-        val content = if (isPaused) {
-            "Paused at $distFormatted • Time: $timeFormatted"
-        } else {
-            "Pace: $currentPaceFormatted/km • Speed: ${String.format(Locale.US, "%.1f", currentSpeedKmh)} km/h • $timeFormatted"
-        }
-
-        notificationManager?.notify(NOTIFICATION_ID, buildOngoingNotification(title, content))
+        notificationManager?.notify(NOTIFICATION_ID, buildOngoingNotification())
     }
 
     private fun formatTime(seconds: Long): String {
