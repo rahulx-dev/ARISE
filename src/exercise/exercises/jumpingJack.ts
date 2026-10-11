@@ -1,39 +1,36 @@
 /**
- * ARISE — Jumping Jack Exercise Configuration
+ * ARISE — Jumping Jack Exercise Configuration (MediaPipe 33 Landmark Standard)
  * 
- * Tracks jumping jacks using front camera.
- * Primary angle: arm spread (wrist → shoulder → hip)
+ * Tracks jumping jacks using front or rear camera.
+ * Primary angle: arm elevation (wrist → shoulder → hip)
  * 
- * Uses a different approach: measures the angle of arm raise.
- * OPEN state (arms up): shoulder-to-wrist angle > 150° from vertical
- * CLOSED state (arms down): shoulder-to-wrist angle < 60°
+ * UP state: arms raised high overhead (angle >= 140°)
+ * DOWN state: arms returned to sides (angle <= 60°)
  */
 
 import { ExerciseConfig } from '../repCounter';
-
-// MoveNet keypoint indices
-// 9: left_wrist, 5: left_shoulder, 11: left_hip
+import { LandmarkIndex } from '../../../modules/pose-detector';
 
 export const jumpingJackConfig: ExerciseConfig = {
   type: 'JUMPING_JACK',
   displayName: 'Jumping Jacks',
-  description: 'Perform jumping jacks with arms fully extended. Camera will track your movement.',
+  description: 'Perform jumping jacks with arms fully extended overhead. Camera tracks full body movement.',
   icon: 'star-three-points',
   
-  // Primary: wrist → shoulder → hip (arm raise angle)
-  // Arms UP = large angle (>140), Arms DOWN = small angle (<60)
-  primaryJoints: [9, 5, 11],
+  // Left side primary: wrist(15) → shoulder(11) → hip(23)
+  primaryJoints: [LandmarkIndex.LEFT_WRIST, LandmarkIndex.LEFT_SHOULDER, LandmarkIndex.LEFT_HIP],
+  secondaryJoints: [LandmarkIndex.RIGHT_WRIST, LandmarkIndex.RIGHT_SHOULDER, LandmarkIndex.RIGHT_HIP],
   
-  // Angle thresholds: Arms raised high (>135°), Arms returned to sides (<65°)
-  upThreshold: 135,      // Arms raised high overhead
-  downThreshold: 65,     // Arms returned to sides
+  // Angle thresholds
+  upThreshold: 140,      // Arms raised high overhead
+  downThreshold: 60,     // Arms returned to sides
   
   // Confidence
-  minConfidence: 0.35,
+  minConfidence: 0.45,
   
   // Timing
-  debounceMs: 300,       // Jumping jacks are fast
-  minHoldMs: 80,
+  debounceMs: 400,
+  minHoldMs: 60,
   
   // Targets
   defaultTarget: 20,
@@ -41,12 +38,12 @@ export const jumpingJackConfig: ExerciseConfig = {
   minTarget: 5,
   
   // Rewards
-  coinsPerRep: 1,        // Lower per rep since they're easier/faster
+  coinsPerRep: 1,
   xpPerRep: 3,
   
   // Stat
   statType: 'health',
   
   // Form feedback
-  formAngleMin: 100,     // "Raise arms higher" if between 100-140
+  formAngleMin: 110,
 };

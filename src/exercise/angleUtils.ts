@@ -286,3 +286,20 @@ export class PoseLandmarkFilter {
     this.filters.clear();
   }
 }
+
+/**
+ * Normalize keypoint coordinates from model output (0-1) to screen coordinates.
+ */
+export function normalizeKeypoints(
+  keypoints: Point[],
+  screenWidth: number,
+  screenHeight: number,
+  isFrontCamera: boolean = true
+): Point[] {
+  return keypoints.map((kp) => ({
+    ...kp,
+    x: isFrontCamera ? screenWidth - kp.x * screenWidth : kp.x * screenWidth,
+    y: kp.y * screenHeight,
+  }));
+}
+

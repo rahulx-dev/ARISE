@@ -1,39 +1,36 @@
 /**
- * ARISE — Sit-up Exercise Configuration
+ * ARISE — Sit-up Exercise Configuration (MediaPipe 33 Landmark Standard)
  * 
- * Tracks sit-ups using front camera.
+ * Tracks sit-ups using front or rear camera.
  * Primary angle: torso-thigh angle (shoulder → hip → knee)
  * 
- * UP state: torso close to thighs (angle < 70°)
- * DOWN state: torso flat/back (angle > 140°)
+ * UP state: sitting up (angle <= 70°)
+ * DOWN state: lying flat (angle >= 140°)
  */
 
 import { ExerciseConfig } from '../repCounter';
-
-// MoveNet keypoint indices (LEFT side)
-// 5: left_shoulder, 11: left_hip, 13: left_knee
+import { LandmarkIndex } from '../../../modules/pose-detector';
 
 export const situpConfig: ExerciseConfig = {
   type: 'SITUP',
   displayName: 'Sit-ups',
-  description: 'Perform sit-ups. Camera will track your torso movement.',
+  description: 'Perform sit-ups. Camera will track your torso and hip angle.',
   icon: 'human',
   
-  // Primary: shoulder → hip → knee (torso-thigh angle)
-  // NOTE: For sit-ups, UP means sitting UP (small angle), DOWN means lying DOWN (large angle)
-  // We swap the thresholds: upThreshold is the LARGE angle (lying flat), downThreshold is the SMALL angle (sitting up)
-  primaryJoints: [5, 11, 13],
+  // Left side primary: shoulder(11) → hip(23) → knee(25)
+  primaryJoints: [LandmarkIndex.LEFT_SHOULDER, LandmarkIndex.LEFT_HIP, LandmarkIndex.LEFT_KNEE],
+  secondaryJoints: [LandmarkIndex.RIGHT_SHOULDER, LandmarkIndex.RIGHT_HIP, LandmarkIndex.RIGHT_KNEE],
   
-  // Angle thresholds (reversed from push-up: high angle = lying down, low angle = sitting up)
-  upThreshold: 140,      // Lying flat
-  downThreshold: 70,     // Torso raised to thighs
+  // Angle thresholds
+  upThreshold: 140,      // Lying down flat
+  downThreshold: 70,     // Sitting up towards knees
   
   // Confidence
-  minConfidence: 0.3,
+  minConfidence: 0.50,
   
   // Timing
   debounceMs: 500,
-  minHoldMs: 150,
+  minHoldMs: 120,
   
   // Targets
   defaultTarget: 10,
@@ -48,6 +45,6 @@ export const situpConfig: ExerciseConfig = {
   statType: 'strength',
   
   // Form feedback
-  formAngleMin: 100,
+  formAngleMin: 95,
   formAlignmentThreshold: 30,
 };

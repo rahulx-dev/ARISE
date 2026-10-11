@@ -23,6 +23,8 @@ import {
   Square,
   Activity,
   FastForward,
+  Info,
+  CheckCircle2,
 } from 'lucide-react-native';
 import {
   EXERCISE_REGISTRY,
@@ -38,11 +40,11 @@ import {
 import {
   initialize as initPoseDetector,
   release as releasePoseDetector,
-  convertToMoveNetKeypoints,
   PoseLandmark,
-  MoveNetKeypoint,
+  LandmarkIndex,
   PoseCameraView,
 } from '../../modules/pose-detector';
+
 import { ExerciseErrorBoundary } from '../../src/components/exercise/ExerciseErrorBoundary';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useSound } from '../../src/hooks/useSound';
@@ -114,10 +116,11 @@ function ExerciseTrackerInner() {
 
   // Controlled UI states
   const [isBodyDetected, setIsBodyDetected] = useState<boolean>(false);
-  const [detectedKeypoints, setDetectedKeypoints] = useState<
-    MoveNetKeypoint[] | null
+  const [detectedLandmarks, setDetectedLandmarks] = useState<
+    PoseLandmark[] | null
   >(null);
-  const [formFeedback, setFormFeedback] = useState<string>('Good Form');
+  const [formFeedback, setFormFeedback] = useState<string>('Position your body in frame');
+  const [showPlacementGuide, setShowPlacementGuide] = useState<boolean>(true);
 
   // Exact Camera Dimensions for SVG scaling
   const [cameraDims, setCameraDims] = useState<{ width: number; height: number }>({
@@ -136,10 +139,10 @@ function ExerciseTrackerInner() {
   const isMountedRef = useRef<boolean>(true);
   const lastBodyDetectedRef = useRef<boolean>(false);
   const missedFramesRef = useRef<number>(0);
-  const smoothedKeypointsRef = useRef<MoveNetKeypoint[] | null>(null);
   const lastOverlayUpdateAtRef = useRef<number>(0);
   const hasAwardedRef = useRef<boolean>(false);
   const elapsedSecondsRef = useRef<number>(0);
+
 
   // Lifecycle Initialization & Cleanup
   useEffect(() => {
@@ -211,16 +214,16 @@ function ExerciseTrackerInner() {
     };
   }, []);
 
-  // Real-time pose event handler — called at 25-30 FPS by native CameraX PoseCameraView
+  // Real-time pose event handler — called at 15 FPS by native CameraX PoseCameraView
   const handlePoseDetected = (event: any) => {
     if (!isMountedRef.current || !isActive || isRestingRef.current) return;
 
     try {
       const rawLandmarks: PoseLandmark[] = event?.nativeEvent?.landmarks || [];
-      if (rawLandmarks.length < 5) {
+      if (!rawLandmarks || rawLandmarks.length < 33) {
         missedFramesRef.current += 1;
-        if (missedFramesRef.current >= 8) {
-          setDetectedKeypoints(null);
+        if (missedFramesRef.current >= 15) {
+          setDetectedLandmarks(null);
           if (lastBodyDetectedRef.current) {
             lastBodyDetectedRef.current = false;
             setIsBodyDetected(false);
@@ -229,85 +232,43 @@ function ExerciseTrackerInner() {
         return;
       }
 
-      const keypoints = convertToMoveNetKeypoints(rawLandmarks);
+      missedFramesRef.current = 0;
       const now = Date.now();
 
-      if (keypoints.length === 17) {
-        const validation = validateExercisePose(keypoints, config.type);
+      // Limit React SVG re-renders to 30 FPS for smooth UI animation
+      if (now - lastOverlayUpdateAtRef.current >= 33) {
+        lastOverlayUpdateAtRef.current = now;
+        setDetectedLandmarks(rawLandmarks);
+      }
 
-        if (validation.isFaceOnly || !validation.valid) {
-          missedFramesRef.current += 1;
-          if (missedFramesRef.current >= 6) {
-            setDetectedKeypoints(null);
-            if (lastBodyDetectedRef.current) {
-              lastBodyDetectedRef.current = false;
-              setIsBodyDetected(false);
-            }
-          }
-          if (validation.message && validation.message !== formFeedback) {
-            setFormFeedback(validation.message);
-          }
-        } else {
-          missedFramesRef.current = 0;
+      const nextState = processFrame(
+        repStateRef.current,
+        rawLandmarks,
+        config,
+        now
+      );
+      repStateRef.current = nextState;
 
-          // Adaptive Velocity-Sensitive Smoothing:
-          const prev = smoothedKeypointsRef.current;
-          const smoothed: MoveNetKeypoint[] = keypoints.map((pt, idx) => {
-            if (!prev || !prev[idx] || (pt.confidence ?? 0) < 0.25) return pt;
-            const dx = pt.x - prev[idx].x;
-            const dy = pt.y - prev[idx].y;
-            const movementDist = Math.hypot(dx, dy);
+      if (nextState.isBodyDetected !== lastBodyDetectedRef.current) {
+        lastBodyDetectedRef.current = nextState.isBodyDetected;
+        setIsBodyDetected(nextState.isBodyDetected);
+      }
 
-            const alpha =
-              movementDist > 0.02
-                ? 0.95
-                : movementDist < 0.005
-                ? 0.65
-                : 0.65 + ((movementDist - 0.005) / 0.015) * 0.3;
+      if (
+        nextState.feedback.message &&
+        nextState.feedback.message !== formFeedback
+      ) {
+        setFormFeedback(nextState.feedback.message);
+      }
 
-            return {
-              x: prev[idx].x * (1 - alpha) + pt.x * alpha,
-              y: prev[idx].y * (1 - alpha) + pt.y * alpha,
-              confidence: pt.confidence,
-            };
-          });
-          smoothedKeypointsRef.current = smoothed;
-          // Keep pose processing responsive while limiting React/SVG layout
-          // work to approximately 30 updates per second.
-          if (now - lastOverlayUpdateAtRef.current >= 33) {
-            lastOverlayUpdateAtRef.current = now;
-            setDetectedKeypoints(smoothed);
-          }
-
-          if (!lastBodyDetectedRef.current) {
-            lastBodyDetectedRef.current = true;
-            setIsBodyDetected(true);
-          }
-
-          const nextState = processFrame(
-            repStateRef.current,
-            smoothed,
-            config,
-            now
-          );
-          repStateRef.current = nextState;
-
-          if (
-            nextState.feedback.message &&
-            nextState.feedback.message !== formFeedback
-          ) {
-            setFormFeedback(nextState.feedback.message);
-          }
-
-          if (nextState.count > repsRef.current) {
-            handleCountRep(nextState.count);
-          }
-        }
+      if (nextState.count > repsRef.current) {
+        handleCountRep(nextState.count);
       }
     } catch (err) {
       if (__DEV__) console.warn('[ARISE TRACKER] Pose event note:', err);
     }
   };
+
 
   // AI rep counting
   const handleCountRep = (newCount: number) => {
@@ -461,10 +422,10 @@ function ExerciseTrackerInner() {
 
   // Skeleton helper: maps normalized [0, 1] landmark coordinates to exact camera container px
   const getPointPx = (idx: number) => {
-    if (!detectedKeypoints || cameraDims.width === 0 || cameraDims.height === 0)
+    if (!detectedLandmarks || cameraDims.width === 0 || cameraDims.height === 0)
       return null;
-    const pt = detectedKeypoints[idx];
-    if (!pt || (pt.confidence ?? 0) < 0.28) return null;
+    const pt = detectedLandmarks[idx];
+    if (!pt || (pt.visibility ?? 0) < 0.35) return null;
 
     const normX = facing === 'front' ? 1 - pt.x : pt.x;
     const normY = pt.y;
@@ -479,7 +440,7 @@ function ExerciseTrackerInner() {
       py > cameraDims.height + 20
     )
       return null;
-    return { x: px, y: py, conf: pt.confidence };
+    return { x: px, y: py, conf: pt.visibility };
   };
 
   const renderBone = (
@@ -493,7 +454,7 @@ function ExerciseTrackerInner() {
     if (!pA || !pB) return null;
 
     const boneDist = Math.hypot(pA.x - pB.x, pA.y - pB.y);
-    if (boneDist < 6 || boneDist > cameraDims.width * 0.95) return null;
+    if (boneDist < 4 || boneDist > cameraDims.width * 0.95) return null;
 
     return (
       <SvgLine
@@ -542,48 +503,67 @@ function ExerciseTrackerInner() {
           </View>
         )}
 
-        {/* Real Live AI Skeletal Tracking Overlay */}
-        {showSkeleton && detectedKeypoints && isBodyDetected && cameraDims.width > 0 && (
+        {/* Real Live MediaPipe 33-Landmark AI Skeletal Tracking Overlay */}
+        {showSkeleton && detectedLandmarks && isBodyDetected && cameraDims.width > 0 && (
           <Svg
             style={StyleSheet.absoluteFill}
             width={cameraDims.width}
             height={cameraDims.height}
           >
-            {/* Head / Neck */}
-            {renderBone(0, 5, '#00D2EE', 2.5)}
-            {renderBone(0, 6, '#00D2EE', 2.5)}
+            {/* Head / Face */}
+            {renderBone(0, 1, '#00D2EE', 2.0)}
+            {renderBone(1, 2, '#00D2EE', 2.0)}
+            {renderBone(2, 3, '#00D2EE', 2.0)}
+            {renderBone(0, 4, '#00D2EE', 2.0)}
+            {renderBone(4, 5, '#00D2EE', 2.0)}
+            {renderBone(5, 6, '#00D2EE', 2.0)}
+            {renderBone(9, 10, '#00D2EE', 2.0)}
 
             {/* Shoulders */}
-            {renderBone(5, 6, '#EF4444', 3.2)}
+            {renderBone(11, 12, '#EF4444', 3.2)}
 
-            {/* Left Arm (Shoulder -> Elbow -> Wrist) */}
-            {renderBone(5, 7, '#00D2EE', 2.8)}
-            {renderBone(7, 9, '#00D2EE', 2.8)}
+            {/* Left Arm: Shoulder(11) -> Elbow(13) -> Wrist(15) */}
+            {renderBone(11, 13, '#00D2EE', 2.8)}
+            {renderBone(13, 15, '#00D2EE', 2.8)}
+            {/* Left Hand */}
+            {renderBone(15, 17, '#00D2EE', 1.8)}
+            {renderBone(15, 19, '#00D2EE', 1.8)}
+            {renderBone(15, 21, '#00D2EE', 1.8)}
 
-            {/* Right Arm (Shoulder -> Elbow -> Wrist) */}
-            {renderBone(6, 8, '#00D2EE', 2.8)}
-            {renderBone(8, 10, '#00D2EE', 2.8)}
+            {/* Right Arm: Shoulder(12) -> Elbow(14) -> Wrist(16) */}
+            {renderBone(12, 14, '#00D2EE', 2.8)}
+            {renderBone(14, 16, '#00D2EE', 2.8)}
+            {/* Right Hand */}
+            {renderBone(16, 18, '#00D2EE', 1.8)}
+            {renderBone(16, 20, '#00D2EE', 1.8)}
+            {renderBone(16, 22, '#00D2EE', 1.8)}
 
-            {/* Torso Box (Shoulder -> Hip) */}
-            {renderBone(5, 11, '#EF4444', 2.6)}
-            {renderBone(6, 12, '#EF4444', 2.6)}
-            {renderBone(11, 12, '#EF4444', 3.0)}
+            {/* Torso Box: Shoulder -> Hip */}
+            {renderBone(11, 23, '#EF4444', 2.6)}
+            {renderBone(12, 24, '#EF4444', 2.6)}
+            {renderBone(23, 24, '#EF4444', 3.0)}
 
-            {/* Left Leg (Hip -> Knee -> Ankle) */}
-            {renderBone(11, 13, '#10B981', 2.8)}
-            {renderBone(13, 15, '#10B981', 2.8)}
+            {/* Left Leg: Hip(23) -> Knee(25) -> Ankle(27) */}
+            {renderBone(23, 25, '#10B981', 2.8)}
+            {renderBone(25, 27, '#10B981', 2.8)}
+            {renderBone(27, 29, '#10B981', 2.0)}
+            {renderBone(29, 31, '#10B981', 2.0)}
+            {renderBone(27, 31, '#10B981', 2.0)}
 
-            {/* Right Leg (Hip -> Knee -> Ankle) */}
-            {renderBone(12, 14, '#10B981', 2.8)}
-            {renderBone(14, 16, '#10B981', 2.8)}
+            {/* Right Leg: Hip(24) -> Knee(26) -> Ankle(28) */}
+            {renderBone(24, 26, '#10B981', 2.8)}
+            {renderBone(26, 28, '#10B981', 2.8)}
+            {renderBone(28, 30, '#10B981', 2.0)}
+            {renderBone(30, 32, '#10B981', 2.0)}
+            {renderBone(28, 32, '#10B981', 2.0)}
 
             {/* Precise Joint Marker Dots */}
-            {[0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].map((idx) => {
+            {[0, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28].map((idx) => {
               const p = getPointPx(idx);
               if (!p) return null;
 
-              const isLeg = idx >= 13;
-              const isHead = idx === 0;
+              const isLeg = idx >= 23;
+              const isHead = idx <= 10;
               const ringColor = isLeg
                 ? '#10B981'
                 : isHead
@@ -596,18 +576,19 @@ function ExerciseTrackerInner() {
                   <SvgCircle
                     cx={p.x}
                     cy={p.y}
-                    r={isHead ? 7 : 8}
+                    r={isHead ? 6 : 7}
                     fill="rgba(0, 0, 0, 0.4)"
                     stroke={ringColor}
                     strokeWidth={1.8}
                   />
                   {/* Core Solid Dot */}
-                  <SvgCircle cx={p.x} cy={p.y} r={3} fill="#FFFFFF" />
+                  <SvgCircle cx={p.x} cy={p.y} r={2.5} fill="#FFFFFF" />
                 </React.Fragment>
               );
             })}
           </Svg>
         )}
+
 
         {/* Viewfinder Alignment Corner Brackets (1:1 with reference) */}
         <View style={styles.alignmentGuideBox} pointerEvents="none">
@@ -761,14 +742,14 @@ function ExerciseTrackerInner() {
             <View
               style={[
                 styles.statusDot,
-                { backgroundColor: isBodyDetected ? '#10B981' : '#10B981' },
+                { backgroundColor: isBodyDetected ? '#10B981' : '#F59E0B' },
               ]}
             />
             <Text style={styles.statusBadgeText}>
               {isBodyDetected
                 ? formFeedback
-                : detectedKeypoints
-                ? 'Align position'
+                : detectedLandmarks
+                ? formFeedback
                 : 'Searching body...'}
             </Text>
           </View>
@@ -776,12 +757,77 @@ function ExerciseTrackerInner() {
           {/* Right: AI Tracking On Badge */}
           <View style={styles.statusBadgePill}>
             <Activity size={14} color="#FFFFFF" />
-            <Text style={styles.statusBadgeText}>AI Tracking On</Text>
+            <Text style={styles.statusBadgeText}>MediaPipe 3D</Text>
           </View>
         </View>
 
+        {/* CAMERA PLACEMENT & FORM GUIDE (Dismissible) */}
+        {showPlacementGuide && (
+          <View style={styles.guideCard}>
+            <View style={styles.guideHeaderRow}>
+              <View style={styles.guideTitleBadge}>
+                <Info size={16} color="#0A84FF" />
+                <Text style={styles.guideTitleText}>Camera Placement Guide</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => {
+                  haptics.light();
+                  setShowPlacementGuide(false);
+                }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={styles.guideCloseText}>Dismiss</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.guideExerciseName}>{config.displayName}</Text>
+            <View style={styles.guideTipsList}>
+              {validExerciseType === 'PUSHUP' ? (
+                <>
+                  <Text style={styles.guideTipText}>• Place phone on the floor ~2m (6ft) away pointing at your side profile.</Text>
+                  <Text style={styles.guideTipText}>• Full chest depth required (elbows bend to ~90°).</Text>
+                  <Text style={styles.guideTipText}>• Strict anti-cheat: partial reps and head bobs are rejected.</Text>
+                </>
+              ) : validExerciseType === 'SQUAT' ? (
+                <>
+                  <Text style={styles.guideTipText}>• Place phone at waist/chest height ~2.5m away.</Text>
+                  <Text style={styles.guideTipText}>• Hips, knees, and ankles must all be visible.</Text>
+                  <Text style={styles.guideTipText}>• Squat until thighs reach parallel (knee angle &lt;= 100°).</Text>
+                </>
+              ) : validExerciseType === 'PLANK' ? (
+                <>
+                  <Text style={styles.guideTipText}>• Place phone on the floor ~2m away facing your side.</Text>
+                  <Text style={styles.guideTipText}>• Keep body straight from shoulders to heels.</Text>
+                  <Text style={styles.guideTipText}>• Maintain position with core locked.</Text>
+                </>
+              ) : validExerciseType === 'SITUP' ? (
+                <>
+                  <Text style={styles.guideTipText}>• Place phone on the floor ~2m away from side of your mat.</Text>
+                  <Text style={styles.guideTipText}>• Sit all the way up towards your knees.</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.guideTipText}>• Stand ~2.5m away facing the camera directly.</Text>
+                  <Text style={styles.guideTipText}>• Extend arms overhead and return all the way to sides.</Text>
+                </>
+              )}
+            </View>
+            <TouchableOpacity
+              style={styles.guideGotItBtn}
+              onPress={() => {
+                haptics.light();
+                setShowPlacementGuide(false);
+              }}
+              activeOpacity={0.8}
+            >
+              <CheckCircle2 size={16} color="#FFFFFF" />
+              <Text style={styles.guideGotItBtnText}>Got It, Start Workout</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Spacer */}
         <View style={{ flex: 1 }} />
+
 
         {/* REST INTERVAL OVERLAY */}
         {isResting && (
@@ -1141,4 +1187,66 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: 0.5,
   },
+  guideCard: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    backgroundColor: 'rgba(17, 18, 24, 0.95)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(10, 132, 255, 0.4)',
+    padding: 16,
+  },
+  guideHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  guideTitleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  guideTitleText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0A84FF',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  guideCloseText: {
+    fontSize: 12,
+    color: '#8E8E93',
+    fontWeight: '600',
+  },
+  guideExerciseName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  guideTipsList: {
+    gap: 5,
+    marginBottom: 12,
+  },
+  guideTipText: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.85)',
+    lineHeight: 18,
+  },
+  guideGotItBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#0A84FF',
+    borderRadius: 10,
+    paddingVertical: 10,
+  },
+  guideGotItBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
 });
+

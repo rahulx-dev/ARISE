@@ -1,43 +1,40 @@
 /**
- * ARISE — Push-up Exercise Configuration
+ * ARISE — Push-up Exercise Configuration (MediaPipe 33 Landmark Standard)
  * 
- * Tracks push-ups using front camera.
+ * Tracks push-ups using front or rear camera.
  * Primary angle: elbow (shoulder → elbow → wrist)
  * Secondary (form): body alignment (shoulder → hip → ankle)
  * 
- * UP state: arms extended (elbow angle > 160°)
- * DOWN state: arms bent (elbow angle < 90°)
+ * UP state: arms fully extended (elbow angle >= 152°)
+ * DOWN state: arms bent at bottom (elbow angle <= 95°)
+ * Deadband hysteresis: 57° gap prevents threshold chatter.
  */
 
 import { ExerciseConfig } from '../repCounter';
-
-// MoveNet keypoint indices
-// Using LEFT side as primary (user's right in front camera mirror)
-// 5: left_shoulder, 7: left_elbow, 9: left_wrist
-// 5: left_shoulder, 11: left_hip, 15: left_ankle
+import { LandmarkIndex } from '../../../modules/pose-detector';
 
 export const pushupConfig: ExerciseConfig = {
   type: 'PUSHUP',
   displayName: 'Push-ups',
-  description: 'Complete push-ups with proper form. Camera will track your movement.',
+  description: 'Complete push-ups with proper form. Camera will track your arm and torso movement.',
   icon: 'dumbbell',
   
-  // Primary: shoulder → elbow → wrist (elbow angle)
-  primaryJoints: [5, 7, 9],
+  // Left side primary: shoulder(11) → elbow(13) → wrist(15)
+  primaryJoints: [LandmarkIndex.LEFT_SHOULDER, LandmarkIndex.LEFT_ELBOW, LandmarkIndex.LEFT_WRIST],
   
-  // Secondary: shoulder → hip → ankle (body alignment)
-  secondaryJoints: [5, 11, 15],
+  // Secondary (body alignment): shoulder(11) → hip(23) → ankle(27)
+  secondaryJoints: [LandmarkIndex.LEFT_SHOULDER, LandmarkIndex.LEFT_HIP, LandmarkIndex.LEFT_ANKLE],
   
-  // Angle thresholds
-  upThreshold: 145,      // Arms extended
-  downThreshold: 105,    // Arms bent (~90-105°)
+  // Angle thresholds with strict ROM requirements
+  upThreshold: 152,      // Arms extended back up
+  downThreshold: 95,      // Full chest depth (~90-95°)
   
-  // Confidence
-  minConfidence: 0.20,
+  // Confidence requirement for landmark visibility
+  minConfidence: 0.50,
   
-  // Timing
-  debounceMs: 300,       // Fast responsive rep debounce
-  minHoldMs: 0,          // Instant trigger on up movement
+  // Timing guards: 0.5s debounce lockout prevents double counts
+  debounceMs: 500,
+  minHoldMs: 60,
   
   // Targets
   defaultTarget: 10,
@@ -45,13 +42,13 @@ export const pushupConfig: ExerciseConfig = {
   minTarget: 1,
   
   // Rewards
-  coinsPerRep: 1,        // 1 rep = 1 coin
+  coinsPerRep: 1,
   xpPerRep: 5,
   
   // Stat
   statType: 'strength',
   
   // Form feedback
-  formAngleMin: 120,     // "Go lower" if between 120-155
+  formAngleMin: 115,     // Prompt "Go lower!" if between 115° and 145°
   formAlignmentThreshold: 25, // Max body alignment deviation
 };
