@@ -1,4 +1,4 @@
-﻿import { requireNativeModule } from 'expo-modules-core';
+import { requireNativeModule } from 'expo-modules-core';
 import { NativeModules, Platform } from 'react-native';
 
 let AppBlocker: any = null;
@@ -20,12 +20,18 @@ if (!AppBlocker) {
     stopMonitoring: () => {},
     setRestrictedPackages: (_restrictedPackages: string[]) => {},
     setAppBudget: (_packageName: string | null, _budgetMinutes: number) => {},
+    getAppBudget: (_packageName?: string | null) => 30,
     getInstalledApps: async () => [],
-     // A missing Android module must never look like a successful pass.  The UI
-     // can then keep the lock in place and surface the native setup problem.
-     temporaryUnlock: (_durationMs: number) => false,
-     unlockUntil: (_epochMs: number) => false,
+    isAppInstalled: async (_packageName: string) => false,
+    temporaryUnlock: (_durationMs: number) => false,
+    unlockUntil: (_epochMs: number) => false,
+    getUnlockUntil: () => 0,
     isCurrentlyUnlocked: () => false,
+    isEmergencyAvailable: () => true,
+    claimEmergencyBailout: (_packageName?: string | null) => false,
+    getPackageTodayUsageMs: (_packageName: string) => 0,
+    getTotalTodayUsageMs: () => 0,
+    showTestOverlay: (_targetPackage?: string) => false,
   };
 }
 
@@ -100,6 +106,17 @@ export function setAppBudget(packageName: string | null, budgetMinutes: number):
   }
 }
 
+export function getAppBudget(packageName?: string | null): number {
+  if (Platform.OS === 'android' && AppBlocker?.getAppBudget) {
+    try {
+      return AppBlocker.getAppBudget(packageName);
+    } catch {
+      return 30;
+    }
+  }
+  return 30;
+}
+
 export function temporaryUnlock(durationMs: number): boolean {
   if (Platform.OS === 'android' && AppBlocker?.temporaryUnlock) {
     try {
@@ -122,10 +139,43 @@ export function unlockUntil(epochMs: number): boolean {
   return false;
 }
 
+export function getUnlockUntil(): number {
+  if (Platform.OS === 'android' && AppBlocker?.getUnlockUntil) {
+    try {
+      return AppBlocker.getUnlockUntil();
+    } catch {
+      return 0;
+    }
+  }
+  return 0;
+}
+
 export function isCurrentlyUnlocked(): boolean {
   if (Platform.OS === 'android' && AppBlocker?.isCurrentlyUnlocked) {
     try {
       return AppBlocker.isCurrentlyUnlocked();
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
+
+export function isEmergencyAvailable(): boolean {
+  if (Platform.OS === 'android' && AppBlocker?.isEmergencyAvailable) {
+    try {
+      return AppBlocker.isEmergencyAvailable();
+    } catch {
+      return true;
+    }
+  }
+  return true;
+}
+
+export function claimEmergencyBailout(packageName?: string | null): boolean {
+  if (Platform.OS === 'android' && AppBlocker?.claimEmergencyBailout) {
+    try {
+      return AppBlocker.claimEmergencyBailout(packageName || null);
     } catch {
       return false;
     }
@@ -167,6 +217,15 @@ export async function getInstalledApps(): Promise<InstalledAppItem[]> {
   }
 }
 
+export async function isAppInstalled(packageName: string): Promise<boolean> {
+  if (Platform.OS !== 'android' || !AppBlocker?.isAppInstalled) return false;
+  try {
+    return await AppBlocker.isAppInstalled(packageName);
+  } catch {
+    return false;
+  }
+}
+
 export function showTestOverlay(targetPackage?: string): boolean {
   if (Platform.OS !== 'android' || !AppBlocker?.showTestOverlay) return false;
   try {
@@ -187,12 +246,16 @@ export default {
   stopMonitoring,
   setRestrictedPackages,
   setAppBudget,
+  getAppBudget,
   temporaryUnlock,
   unlockUntil,
+  getUnlockUntil,
   isCurrentlyUnlocked,
+  isEmergencyAvailable,
+  claimEmergencyBailout,
   getPackageTodayUsageMs,
   getTotalTodayUsageMs,
   showTestOverlay,
   getInstalledApps,
+  isAppInstalled,
 };
-

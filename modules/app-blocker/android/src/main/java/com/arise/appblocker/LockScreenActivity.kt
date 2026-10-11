@@ -3,18 +3,20 @@ package com.arise.appblocker
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.view.WindowManager
 import android.widget.Toast
-import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 
 class LockScreenActivity : Activity() {
 
+    private val TAG = "ARISE_LOCK_ACTIVITY"
     private var currentPackageName: String? = null
 
     companion object {
@@ -32,21 +34,43 @@ class LockScreenActivity : Activity() {
         fun finishIfShowing() {
             val instance = activeInstance ?: return
             instance.runOnUiThread {
-                if (!instance.isFinishing) instance.finish()
+                if (!instance.isFinishing) {
+                    instance.finish()
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                        instance.overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, 0, 0)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        instance.overridePendingTransition(0, 0)
+                    }
+                }
             }
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Enforce instant, leak-proof zero animation window transition
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, 0, 0)
+        } else {
+            @Suppress("DEPRECATION")
+            overridePendingTransition(0, 0)
+        }
+
         super.onCreate(savedInstanceState)
 
-        // Make window fullscreen & cover status/navigation bars
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        // Make window fullscreen, opaque solid black to prevent any pixel leak
+        window.setBackgroundDrawable(ColorDrawable(Color.parseColor("#020713")))
+        window.addFlags(
+            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+        )
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
             setTurnScreenOn(true)
         }
 
+        @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility = (
             View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
             or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
@@ -64,30 +88,17 @@ class LockScreenActivity : Activity() {
                     exitToHomeScreen()
                 }
             } catch (e: Exception) {
-                android.util.Log.w("LockScreenActivity", "Error registering onBackInvokedDispatcher", e)
+                Log.w(TAG, "Error registering onBackInvokedDispatcher", e)
             }
         }
 
         currentPackageName = normalizePackage(intent?.getStringExtra("PACKAGE_NAME"))
         if (currentPackageName == null) {
-            // A sticky/recreated activity without an explicit package is never a
-            // valid lock presentation.  Do not render an unscoped lock screen.
             finish()
             return
         }
 
-        val lockView = LockScreenViewFactory.buildLockView(
-            context = this,
-            packageName = currentPackageName,
-            isEmergencyAvailable = isEmergencyBailoutAvailable(),
-            onExitHome = { exitToHomeScreen() },
-            onLaunchPushups = { launchWorkoutUnlock() },
-            onWatchAd = { claimAdPass() },
-            onEmergencyPass = { claimEmergencyBailout() },
-            onShop = { launchShopUnlock() }
-        )
-
-        setContentView(lockView)
+        renderLockView()
         activeInstance = this
         isActivityShowing = true
     }
@@ -95,6 +106,13 @@ class LockScreenActivity : Activity() {
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
         setIntent(intent)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, 0, 0)
+        } else {
+            @Suppress("DEPRECATION")
+            overridePendingTransition(0, 0)
+        }
 
         val nextPackage = normalizePackage(intent?.getStringExtra("PACKAGE_NAME"))
         if (nextPackage == null) {
@@ -104,26 +122,30 @@ class LockScreenActivity : Activity() {
 
         if (nextPackage != currentPackageName) {
             currentPackageName = nextPackage
-            val lockView = LockScreenViewFactory.buildLockView(
-                context = this,
-                packageName = currentPackageName,
-                isEmergencyAvailable = isEmergencyBailoutAvailable(),
-                onExitHome = { exitToHomeScreen() },
-                onLaunchPushups = { launchWorkoutUnlock() },
-                onWatchAd = { claimAdPass() },
-                onEmergencyPass = { claimEmergencyBailout() },
-                onShop = { launchShopUnlock() }
-            )
-            setContentView(lockView)
+            renderLockView()
         }
         isActivityShowing = true
+    }
+
+    private fun renderLockView() {
+        val lockView = LockScreenViewFactory.buildLockView(
+            context = this,
+            packageName = currentPackageName,
+            isEmergencyAvailable = BlockPolicyController.isEmergencyAvailable(this),
+            onExitHome = { exitToHomeScreen() },
+            onLaunchPushups = { launchWorkoutUnlock() },
+            onWatchAd = { claimAdPass() },
+            onEmergencyPass = { claimEmergencyBailout() },
+            onShop = { launchShopUnlock() }
+        )
+        setContentView(lockView)
     }
 
     override fun onResume() {
         super.onResume()
         isActivityShowing = true
-        if (System.currentTimeMillis() < AppMonitorService.getUnlockUntil(this)) {
-            finish()
+        if (System.currentTimeMillis() < BlockPolicyController.getUnlockUntil(this)) {
+            finishWithNoAnimation()
         }
     }
 
@@ -150,27 +172,15 @@ class LockScreenActivity : Activity() {
         return super.onKeyDown(keyCode, event)
     }
 
-    private fun isEmergencyBailoutAvailable(): Boolean {
-        return try {
-            val prefs = getSharedPreferences("arise_blocker_prefs", Context.MODE_PRIVATE)
-            val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-            val lastDate = prefs.getString("last_emergency_bailout_date", "")
-            today != lastDate
-        } catch (_: Exception) {
-            true
-        }
-    }
-
     private fun claimEmergencyBailout() {
         try {
-            val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-            val unlockUntil = System.currentTimeMillis() + (5 * 60 * 1000L)
-            val persisted = AppMonitorService.setUnlockUntil(this, unlockUntil)
-            if (!persisted) {
-                Toast.makeText(this, "Unable to activate the emergency pass.", Toast.LENGTH_LONG).show()
+            val success = BlockPolicyController.claimEmergencyBailout(this, currentPackageName)
+            if (!success) {
+                Toast.makeText(this, "Emergency pass already claimed today.", Toast.LENGTH_SHORT).show()
                 return
             }
 
+            val unlockUntil = BlockPolicyController.getUnlockUntil(this)
             try {
                 val serviceIntent = Intent(this, AppMonitorService::class.java).apply {
                     putExtra("UNLOCKED_UNTIL_EPOCH", unlockUntil)
@@ -180,78 +190,103 @@ class LockScreenActivity : Activity() {
                 } else {
                     startService(serviceIntent)
                 }
-                getSharedPreferences("arise_blocker_prefs", Context.MODE_PRIVATE)
-                    .edit()
-                    .putString("last_emergency_bailout_date", today)
-                    .commit()
-            } catch (_: Exception) {
-                AppMonitorService.setUnlockUntil(this, 0L)
-                Toast.makeText(this, "Unable to activate the emergency pass.", Toast.LENGTH_LONG).show()
-                return
+            } catch (e: Exception) {
+                Log.w(TAG, "Notice sending emergency unlock to monitor service", e)
             }
 
-            Toast.makeText(this, "Emergency 5-Minute Pass Activated! Stay disciplined.", Toast.LENGTH_LONG).show()
-        } catch (_: Exception) {}
-        finish()
+            Toast.makeText(this, "Emergency 5-Minute Pass Activated. Counted in budget.", Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error executing emergency bailout", e)
+        }
+        finishWithNoAnimation()
     }
 
     private fun claimAdPass() {
         try {
             val adIntent = Intent(Intent.ACTION_VIEW, Uri.parse("arise://watch-ad-unlock")).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_NO_ANIMATION
             }
             startActivity(adIntent)
         } catch (_: Exception) {
             val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_NO_ANIMATION
             }
             if (launchIntent != null) startActivity(launchIntent)
         }
-        finish()
+        finishWithNoAnimation()
     }
 
     private fun launchWorkoutUnlock() {
         try {
             val workoutIntent = Intent(Intent.ACTION_VIEW, Uri.parse("arise://exercise/pushup?target=10&source=overlay")).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_NO_ANIMATION
             }
             startActivity(workoutIntent)
         } catch (_: Exception) {
             val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_NO_ANIMATION
             }
             if (launchIntent != null) startActivity(launchIntent)
         }
-        finish()
+        finishWithNoAnimation()
     }
 
     private fun launchShopUnlock() {
         try {
             val shopIntent = Intent(Intent.ACTION_VIEW, Uri.parse("arise://shop")).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_NO_ANIMATION
             }
             startActivity(shopIntent)
         } catch (_: Exception) {
             val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_NO_ANIMATION
             }
             if (launchIntent != null) startActivity(launchIntent)
         }
-        finish()
+        finishWithNoAnimation()
     }
 
     private fun exitToHomeScreen() {
         try {
             val startMain = Intent(Intent.ACTION_MAIN).apply {
                 addCategory(Intent.CATEGORY_HOME)
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED or
+                    Intent.FLAG_ACTIVITY_NO_ANIMATION
             }
             startActivity(startMain)
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            Log.e(TAG, "Error returning home", e)
+        }
         try {
             stopService(Intent(this, BlockOverlayService::class.java))
         } catch (_: Exception) {}
+        finishWithNoAnimation()
+    }
+
+    private fun finishWithNoAnimation() {
         finish()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, 0, 0)
+        } else {
+            @Suppress("DEPRECATION")
+            overridePendingTransition(0, 0)
+        }
     }
 
     private fun normalizePackage(packageName: String?): String? {

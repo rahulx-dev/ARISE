@@ -13,8 +13,6 @@ import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.Toast
-import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 
 class BlockOverlayService : Service() {
@@ -56,7 +54,7 @@ class BlockOverlayService : Service() {
             return START_NOT_STICKY
         }
 
-        // If package changed, tear down old overlay first
+        // If target package changed, tear down old overlay first
         if (currentPackageName != pkg) {
             removeExistingOverlay()
         }
@@ -73,26 +71,17 @@ class BlockOverlayService : Service() {
         return START_NOT_STICKY
     }
 
-    private fun isEmergencyBailoutAvailable(): Boolean {
-        return try {
-            val prefs = getSharedPreferences("arise_blocker_prefs", Context.MODE_PRIVATE)
-            val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-            val lastDate = prefs.getString("last_emergency_bailout_date", "")
-            today != lastDate
-        } catch (_: Exception) {
-            true
-        }
-    }
-
     private fun claimEmergencyBailout() {
         try {
-            val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-            val unlockUntil = System.currentTimeMillis() + (5 * 60 * 1000L)
-            if (!AppMonitorService.setUnlockUntil(this, unlockUntil)) {
-                Toast.makeText(this, "Unable to activate the emergency pass.", Toast.LENGTH_LONG).show()
+            val success = BlockPolicyController.claimEmergencyBailout(this, currentPackageName)
+            if (!success) {
+                Toast.makeText(this, "Emergency pass already claimed today.", Toast.LENGTH_SHORT).show()
+                removeExistingOverlay()
+                stopSelf()
                 return
             }
 
+            val unlockUntil = BlockPolicyController.getUnlockUntil(this)
             try {
                 val serviceIntent = Intent(this, AppMonitorService::class.java).apply {
                     putExtra("UNLOCKED_UNTIL_EPOCH", unlockUntil)
@@ -102,19 +91,14 @@ class BlockOverlayService : Service() {
                 } else {
                     startService(serviceIntent)
                 }
-                getSharedPreferences("arise_blocker_prefs", Context.MODE_PRIVATE)
-                    .edit()
-                    .putString("last_emergency_bailout_date", today)
-                    .commit()
             } catch (e: Exception) {
-                AppMonitorService.setUnlockUntil(this, 0L)
-                Log.e(TAG, "Unable to start monitor for emergency pass", e)
-                Toast.makeText(this, "Unable to activate the emergency pass.", Toast.LENGTH_LONG).show()
-                return
+                Log.w(TAG, "Notice sending emergency pass to monitor service", e)
             }
 
-            Toast.makeText(this, "Emergency 5-Minute Pass Activated! Stay disciplined.", Toast.LENGTH_LONG).show()
-        } catch (_: Exception) {}
+            Toast.makeText(this, "Emergency 5-Minute Pass Activated. Counted in budget.", Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error claiming emergency bailout in overlay", e)
+        }
         removeExistingOverlay()
         stopSelf()
     }
@@ -122,12 +106,17 @@ class BlockOverlayService : Service() {
     private fun claimAdPass() {
         try {
             val adIntent = Intent(Intent.ACTION_VIEW, Uri.parse("arise://watch-ad-unlock")).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_NO_ANIMATION
             }
             startActivity(adIntent)
         } catch (_: Exception) {
             val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_NO_ANIMATION
             }
             if (launchIntent != null) startActivity(launchIntent)
         }
@@ -138,12 +127,17 @@ class BlockOverlayService : Service() {
     private fun launchWorkoutUnlock() {
         try {
             val workoutIntent = Intent(Intent.ACTION_VIEW, Uri.parse("arise://exercise/pushup?target=10&source=overlay")).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_NO_ANIMATION
             }
             startActivity(workoutIntent)
         } catch (_: Exception) {
             val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_NO_ANIMATION
             }
             if (launchIntent != null) startActivity(launchIntent)
         }
@@ -154,12 +148,17 @@ class BlockOverlayService : Service() {
     private fun launchShopUnlock() {
         try {
             val shopIntent = Intent(Intent.ACTION_VIEW, Uri.parse("arise://shop")).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_NO_ANIMATION
             }
             startActivity(shopIntent)
         } catch (_: Exception) {
             val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_NO_ANIMATION
             }
             if (launchIntent != null) startActivity(launchIntent)
         }
@@ -171,11 +170,13 @@ class BlockOverlayService : Service() {
         try {
             val startMain = Intent(Intent.ACTION_MAIN).apply {
                 addCategory(Intent.CATEGORY_HOME)
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED or
+                    Intent.FLAG_ACTIVITY_NO_ANIMATION
             }
             startActivity(startMain)
         } catch (e: Exception) {
-            Log.e(TAG, "Error returning home", e)
+            Log.e(TAG, "Error returning home from overlay", e)
         }
         removeExistingOverlay()
         stopSelf()
@@ -195,7 +196,7 @@ class BlockOverlayService : Service() {
         }
         currentPackageName = scopedPackage
 
-        if (System.currentTimeMillis() < AppMonitorService.getUnlockUntil(this)) {
+        if (System.currentTimeMillis() < BlockPolicyController.getUnlockUntil(this)) {
             removeExistingOverlay()
             stopSelf()
             return
@@ -225,6 +226,7 @@ class BlockOverlayService : Service() {
             y = 0
             width = WindowManager.LayoutParams.MATCH_PARENT
             height = WindowManager.LayoutParams.MATCH_PARENT
+            windowAnimations = 0
             screenOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
@@ -235,13 +237,16 @@ class BlockOverlayService : Service() {
             val view = LockScreenViewFactory.buildLockView(
                 context = this,
                 packageName = currentPackageName,
-                isEmergencyAvailable = isEmergencyBailoutAvailable(),
+                isEmergencyAvailable = BlockPolicyController.isEmergencyAvailable(this),
                 onExitHome = { exitToHomeScreen() },
                 onLaunchPushups = { launchWorkoutUnlock() },
                 onWatchAd = { claimAdPass() },
                 onEmergencyPass = { claimEmergencyBailout() },
                 onShop = { launchShopUnlock() }
             )
+
+            // Intercept touches so nothing passes to background
+            view.setOnTouchListener { _, _ -> true }
 
             // Intercept hardware and gesture Back presses so the user is returned to Home launcher
             view.isFocusable = true

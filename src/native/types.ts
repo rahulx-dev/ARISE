@@ -23,14 +23,18 @@ export interface IAppBlockerDriver {
   startMonitoring(restrictedPackages: string[]): void;
   stopMonitoring(): void;
   setRestrictedPackages(restrictedPackages: string[]): void;
-  setAppBudget?(packageName: string | null, budgetMinutes: number): void;
+  setAppBudget(packageName: string | null, budgetMinutes: number): void;
+  getAppBudget?(packageName?: string | null): number;
   getInstalledApps(): Promise<InstalledAppItem[]>;
-  temporaryUnlock?(durationMs: number): boolean;
-  unlockUntil?(epochMs: number): boolean;
-  isCurrentlyUnlocked?(): boolean;
+  temporaryUnlock(durationMs: number): boolean;
+  unlockUntil(epochMs: number): boolean;
+  getUnlockUntil?(): number;
+  isCurrentlyUnlocked(): boolean;
+  isEmergencyAvailable?(): boolean;
+  claimEmergencyBailout?(packageName?: string | null): boolean;
   isAppInstalled?(packageName: string): Promise<boolean>;
-  getPackageTodayUsageMs?(packageName: string): number;
-  getTotalTodayUsageMs?(): number;
+  getPackageTodayUsageMs(packageName: string): number;
+  getTotalTodayUsageMs(): number;
   simulateBlockEvent?(packageName: string): void;
 }
 

@@ -3,11 +3,9 @@ package com.arise.appblocker
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Build
@@ -36,7 +34,7 @@ class AppBlockerModule : Module() {
             granted
         }
 
-        Function("hasOverlayPermission") { 
+        Function("hasOverlayPermission") {
             val context = appContext.reactContext ?: appContext.currentActivity
             val granted = if (context != null) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -48,6 +46,19 @@ class AppBlockerModule : Module() {
                 false
             }
             Log.d(TAG, "Overlay Permission: $granted")
+            granted
+        }
+
+        Function("hasBatteryOptimizationExemption") {
+            val context = appContext.reactContext ?: appContext.currentActivity
+            val granted = if (context != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+                val pkg = context.packageName ?: appContext.currentActivity?.packageName ?: "com.arise.app"
+                powerManager?.isIgnoringBatteryOptimizations(pkg) ?: false
+            } else {
+                true
+            }
+            Log.d(TAG, "Battery Optimization Exemption: $granted")
             granted
         }
 
@@ -104,19 +115,6 @@ class AppBlockerModule : Module() {
                 }
             }
             Unit
-        }
-
-        Function("hasBatteryOptimizationExemption") {
-            val context = appContext.reactContext ?: appContext.currentActivity
-            val granted = if (context != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
-                val pkg = context.packageName ?: appContext.currentActivity?.packageName ?: "com.arise.app"
-                powerManager?.isIgnoringBatteryOptimizations(pkg) ?: false
-            } else {
-                true
-            }
-            Log.d(TAG, "Battery Optimization Exemption: $granted")
-            granted
         }
 
         Function("requestBatteryOptimizationExemption") {
@@ -224,17 +222,11 @@ class AppBlockerModule : Module() {
             val intent = Intent(context, AppMonitorService::class.java).apply {
                 putExtra("UPDATED_BUDGET_MINUTES", budgetMinutes)
                 if (packageName != null) putExtra("UPDATED_PACKAGE_NAME", packageName)
-                // A budget update can restart a service that was previously
-                // stopped. Carry the persisted restrictions so resetting the
-                // allowance cannot leave enforcement running without targets.
                 val savedPackages = context
                     .getSharedPreferences(BlockPolicyController.PREFS_NAME, Context.MODE_PRIVATE)
                     .getStringSet("saved_restricted_packages", null)
                 if (savedPackages != null) {
-                    putStringArrayListExtra(
-                        "RESTRICTED_PACKAGES",
-                        ArrayList(savedPackages)
-                    )
+                    putStringArrayListExtra("RESTRICTED_PACKAGES", ArrayList(savedPackages))
                 }
             }
             try {
@@ -250,8 +242,20 @@ class AppBlockerModule : Module() {
             Unit
         }
 
+        Function("getAppBudget") { packageName: String? ->
+            val context = appContext.reactContext ?: appContext.currentActivity
+            if (context != null && packageName != null) {
+                val budgetMs = BlockPolicyController.getBudgetForPackage(context, packageName)
+                budgetMs.toDouble() / 60_000.0
+            } else if (context != null) {
+                BlockPolicyController.defaultBudgetMs.toDouble() / 60_000.0
+            } else {
+                30.0
+            }
+        }
+
         Function("temporaryUnlock") { durationMs: Double ->
-            val maxUnlockMs = 20 * 60 * 1000L
+            val maxUnlockMs = 30 * 60 * 1000L
             if (!durationMs.isFinite() || durationMs <= 0.0 || durationMs > maxUnlockMs) {
                 Log.w(TAG, "temporaryUnlock rejected invalid duration: $durationMs")
                 return@Function false
@@ -309,12 +313,55 @@ class AppBlockerModule : Module() {
             true
         }
 
+        Function("getUnlockUntil") {
+            val context = appContext.reactContext ?: appContext.currentActivity
+            if (context != null) {
+                BlockPolicyController.getUnlockUntil(context).toDouble()
+            } else {
+                0.0
+            }
+        }
+
         Function("isCurrentlyUnlocked") {
             val context = appContext.reactContext ?: appContext.currentActivity
             val unlockedUntil = AppMonitorService.getUnlockUntil(context)
             val isUnlocked = System.currentTimeMillis() < unlockedUntil
             Log.d(TAG, "isCurrentlyUnlocked: $isUnlocked")
             isUnlocked
+        }
+
+        Function("isEmergencyAvailable") {
+            val context = appContext.reactContext ?: appContext.currentActivity
+            if (context != null) {
+                BlockPolicyController.isEmergencyAvailable(context)
+            } else {
+                true
+            }
+        }
+
+        Function("claimEmergencyBailout") { packageName: String? ->
+            val context = appContext.reactContext ?: appContext.currentActivity
+            if (context == null) {
+                Log.e(TAG, "claimEmergencyBailout rejected: native context unavailable")
+                return@Function false
+            }
+            val success = BlockPolicyController.claimEmergencyBailout(context, packageName)
+            if (success) {
+                val unlockUntil = BlockPolicyController.getUnlockUntil(context)
+                val intent = Intent(context, AppMonitorService::class.java).apply {
+                    putExtra("UNLOCKED_UNTIL_EPOCH", unlockUntil)
+                }
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        context.startForegroundService(intent)
+                    } else {
+                        context.startService(intent)
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Notice sending emergency pass update to service", e)
+                }
+            }
+            success
         }
 
         Function("showTestOverlay") { targetPackage: String? ->
@@ -384,7 +431,6 @@ class AppBlockerModule : Module() {
             val coreSystemExclusions = setOf("android", "com.android.systemui", "com.android.settings")
 
             try {
-                // Tier 1: Query Category Launcher Activities (user-facing launchable apps)
                 val launcherIntent = Intent(Intent.ACTION_MAIN, null).apply {
                     addCategory(Intent.CATEGORY_LAUNCHER)
                 }
@@ -414,7 +460,6 @@ class AppBlockerModule : Module() {
                 Log.e(TAG, "Error querying launcher activities", e)
             }
 
-            // Tier 2: Also query all installed applications that have a launch intent (catches pre-installed YouTube, Chrome, etc.)
             try {
                 val installedList = pm.getInstalledApplications(PackageManager.GET_META_DATA)
                 for (appInfo in installedList) {

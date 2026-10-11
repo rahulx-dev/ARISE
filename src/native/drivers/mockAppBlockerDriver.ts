@@ -20,7 +20,9 @@ export class MockAppBlockerDriver implements IAppBlockerDriver {
   private restrictedPackages: string[] = [];
   private usagePermGranted: boolean = false;
   private overlayPermGranted: boolean = false;
-  private onBlockSimulatedCallback?: (pkg: string) => void;
+  private emergencyAvailable: boolean = true;
+  private unlockedUntilEpoch: number = 0;
+  private appBudgets: Record<string, number> = {};
 
   async hasUsagePermission(): Promise<boolean> {
     return this.usagePermGranted;
@@ -36,27 +38,27 @@ export class MockAppBlockerDriver implements IAppBlockerDriver {
 
   requestUsagePermission(): void {
     this.usagePermGranted = true;
-    console.log('⚡ [PREVIEW MODE] Simulated Usage Access Permission Granted');
+    console.log('[PREVIEW MODE] Simulated Usage Access Permission Granted');
   }
 
   requestOverlayPermission(): void {
     this.overlayPermGranted = true;
-    console.log('⚡ [PREVIEW MODE] Simulated Draw Over Other Apps Permission Granted');
+    console.log('[PREVIEW MODE] Simulated Draw Over Other Apps Permission Granted');
   }
 
   requestBatteryOptimizationExemption(): void {
-    console.log('⚡ [PREVIEW MODE] Simulated Battery Optimization Exemption Granted');
+    console.log('[PREVIEW MODE] Simulated Battery Optimization Exemption Granted');
   }
 
   startMonitoring(restrictedPackages: string[]): void {
     this.isMonitoring = true;
     this.restrictedPackages = [...restrictedPackages];
-    console.log(`⚡ [PREVIEW MODE] Monitoring ${restrictedPackages.length} apps in simulation`);
+    console.log(`[PREVIEW MODE] Monitoring ${restrictedPackages.length} apps in simulation`);
   }
 
   stopMonitoring(): void {
     this.isMonitoring = false;
-    console.log('⚡ [PREVIEW MODE] Monitoring paused in simulation');
+    console.log('[PREVIEW MODE] Monitoring paused in simulation');
   }
 
   setRestrictedPackages(restrictedPackages: string[]): void {
@@ -64,7 +66,23 @@ export class MockAppBlockerDriver implements IAppBlockerDriver {
   }
 
   setAppBudget(packageName: string | null, budgetMinutes: number): void {
-    console.log(`⚡ [PREVIEW MODE] setAppBudget for ${packageName || 'all'}: ${budgetMinutes}m`);
+    if (packageName) {
+      this.appBudgets[packageName] = budgetMinutes;
+    } else {
+      this.appBudgets['global'] = budgetMinutes;
+    }
+    console.log(`[PREVIEW MODE] setAppBudget for ${packageName || 'global'}: ${budgetMinutes}m`);
+  }
+
+  getAppBudget(packageName?: string | null): number {
+    if (packageName && this.appBudgets[packageName] !== undefined) {
+      return this.appBudgets[packageName];
+    }
+    return this.appBudgets['global'] ?? 30;
+  }
+
+  async isAppInstalled(packageName: string): Promise<boolean> {
+    return MOCK_INSTALLED_APPS.some((a) => a.packageName === packageName);
   }
 
   async getInstalledApps(): Promise<InstalledAppItem[]> {
@@ -72,17 +90,35 @@ export class MockAppBlockerDriver implements IAppBlockerDriver {
   }
 
   temporaryUnlock(durationMs: number): boolean {
-    console.log(`⚡ [PREVIEW MODE] temporaryUnlock for ${durationMs}ms`);
+    this.unlockedUntilEpoch = Date.now() + durationMs;
+    console.log(`[PREVIEW MODE] temporaryUnlock for ${durationMs}ms`);
     return true;
   }
 
   unlockUntil(epochMs: number): boolean {
-    console.log(`⚡ [PREVIEW MODE] unlockUntil ${epochMs}`);
+    this.unlockedUntilEpoch = epochMs;
+    console.log(`[PREVIEW MODE] unlockUntil ${epochMs}`);
     return true;
   }
 
+  getUnlockUntil(): number {
+    return this.unlockedUntilEpoch;
+  }
+
   isCurrentlyUnlocked(): boolean {
-    return false;
+    return Date.now() < this.unlockedUntilEpoch;
+  }
+
+  isEmergencyAvailable(): boolean {
+    return this.emergencyAvailable;
+  }
+
+  claimEmergencyBailout(packageName?: string | null): boolean {
+    if (!this.emergencyAvailable) return false;
+    this.emergencyAvailable = false;
+    this.unlockedUntilEpoch = Date.now() + 5 * 60 * 1000;
+    console.log(`[PREVIEW MODE] Emergency bailout claimed for ${packageName || 'app'}, 5 min added to budget`);
+    return true;
   }
 
   getPackageTodayUsageMs(_packageName: string): number {
@@ -91,5 +127,9 @@ export class MockAppBlockerDriver implements IAppBlockerDriver {
 
   getTotalTodayUsageMs(): number {
     return 45 * 60 * 1000;
+  }
+
+  simulateBlockEvent(packageName: string): void {
+    console.log(`[PREVIEW MODE] Simulating block overlay for ${packageName}`);
   }
 }

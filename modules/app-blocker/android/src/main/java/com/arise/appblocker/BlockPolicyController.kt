@@ -3,7 +3,10 @@ package com.arise.appblocker
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
+import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
 enum class LockState {
@@ -23,6 +26,14 @@ data class BlockedAppPolicy(
     val dailyResetTimestamp: Long
 )
 
+/**
+ * Hybrid Real-Time App Blocking Policy Engine:
+ * Combines Android OS Digital Wellbeing (UsageStatsManager) ground-truth baselines
+ * with an active sub-second session stopwatch.
+ * 
+ * Result: Apps lock IMMEDIATELY in real-time when the usage budget expires while
+ * actively running on screen — with ZERO need to close or restart the app.
+ */
 object BlockPolicyController {
 
     private const val TAG = "ARISE_POLICY_CTRL"
@@ -32,16 +43,30 @@ object BlockPolicyController {
     private const val BUDGET_PREFIX = "budget_"
     private const val UNLOCKED_UNTIL_KEY = "unlocked_until_epoch"
     private const val DAILY_RESET_KEY = "last_daily_reset_epoch"
-    private const val MAX_UNLOCK_WINDOW_MS = 30 * 60 * 1000L // Up to 30 min passes
+    private const val EMERGENCY_BAILOUT_DATE_KEY = "last_emergency_bailout_date"
+    private const val MAX_UNLOCK_WINDOW_MS = 30 * 60 * 1000L // Max 30 min pass duration
+    private const val EMERGENCY_DURATION_MS = 5 * 60 * 1000L // 5-minute emergency pass
 
     // Default to 30 minutes if unconfigured
     private const val FALLBACK_DEFAULT_BUDGET_MS = 30 * 60 * 1000L
     private const val USAGE_PREFIX = "usage_today_"
 
     private val policyLock = Any()
+    private val sessionLock = Any()
+
     private val packageBudgetsMs = ConcurrentHashMap<String, Long>()
     private val packageUsageTodayMs = ConcurrentHashMap<String, Long>()
     private val activePolicies = ConcurrentHashMap<String, BlockedAppPolicy>()
+
+    // Real-Time Active Session Stopwatch State
+    @Volatile
+    private var activeSessionPackage: String? = null
+
+    @Volatile
+    private var activeSessionStartTime: Long = 0L
+
+    @Volatile
+    private var activeSessionBaseUsage: Long = 0L
 
     @Volatile
     var defaultBudgetMs: Long = FALLBACK_DEFAULT_BUDGET_MS
@@ -56,28 +81,109 @@ object BlockPolicyController {
         return context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
 
-    private fun normalizePackageName(packageName: String?): String? {
-        val normalized = packageName?.trim()?.lowercase(java.util.Locale.ROOT)
+    private fun getTodayDateString(): String {
+        return SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(Date())
+    }
+
+    fun normalizePackageName(packageName: String?): String? {
+        val normalized = packageName?.trim()?.lowercase(Locale.ROOT)
         return normalized?.takeIf { it.isNotEmpty() && it != "null" }
     }
 
     private fun budgetKey(packageName: String): String = BUDGET_PREFIX + packageName
     private fun usageKey(packageName: String): String = USAGE_PREFIX + packageName
 
-    fun getUsageForPackage(context: Context, packageName: String): Long {
-        val normalizedPackage = normalizePackageName(packageName) ?: return 0L
+    // =========================================================================
+    // HYBRID REAL-TIME SESSION ENGINE
+    // =========================================================================
 
-        // 1. Get system-recorded foreground usage today from UsageStatsManager (official Android OS ground truth)
+    /**
+     * Called when a package is detected in the foreground.
+     * Initializes the live session stopwatch using Digital Wellbeing as the starting baseline.
+     */
+    fun onPackageForeground(context: Context, packageName: String) {
+        val normalized = normalizePackageName(packageName) ?: return
+        synchronized(sessionLock) {
+            if (normalized != activeSessionPackage) {
+                // Flush previous session if switching apps directly
+                flushActiveSession(context)
+
+                activeSessionPackage = normalized
+                activeSessionStartTime = System.currentTimeMillis()
+                // Seed base usage from Digital Wellbeing + local storage
+                activeSessionBaseUsage = getPersistedUsage(context, normalized)
+                Log.d(TAG, "Live stopwatch started for $normalized. Base usage: ${activeSessionBaseUsage / 1000}s")
+            }
+        }
+    }
+
+    /**
+     * Called when the user leaves the restricted app (goes to Home, ARISE, or another app),
+     * or when the screen turns off. Flushes elapsed time to disk and stops the stopwatch.
+     */
+    fun onPackageBackground(context: Context) {
+        synchronized(sessionLock) {
+            if (activeSessionPackage != null) {
+                flushActiveSession(context)
+            }
+        }
+    }
+
+    /**
+     * Flushes the current session delta into local memory and persistent storage.
+     */
+    private fun flushActiveSession(context: Context) {
+        val pkg = activeSessionPackage ?: return
+        val startTime = activeSessionStartTime
+        if (startTime > 0L) {
+            val durationMs = (System.currentTimeMillis() - startTime).coerceAtLeast(0L)
+            if (durationMs > 0L) {
+                val updated = activeSessionBaseUsage + durationMs
+                packageUsageTodayMs[pkg] = updated
+                try {
+                    preferences(context).edit().putLong(usageKey(pkg), updated).apply()
+                } catch (_: Exception) {}
+                Log.d(TAG, "Flushed live session for $pkg: +${durationMs / 1000}s (Total: ${updated / 1000}s)")
+            }
+        }
+        activeSessionPackage = null
+        activeSessionStartTime = 0L
+        activeSessionBaseUsage = 0L
+    }
+
+    /**
+     * Calculates the TRUE real-time usage for a package right at this millisecond.
+     * If the app is actively running on screen, returns:
+     *   Digital Wellbeing Baseline + Active Session Elapsed Time
+     * Otherwise returns the persisted total.
+     */
+    fun getLiveUsageForPackage(context: Context, packageName: String): Long {
+        val normalized = normalizePackageName(packageName) ?: return 0L
+        synchronized(sessionLock) {
+            if (normalized == activeSessionPackage && activeSessionStartTime > 0L) {
+                val liveSessionDelta = (System.currentTimeMillis() - activeSessionStartTime).coerceAtLeast(0L)
+                return activeSessionBaseUsage + liveSessionDelta
+            }
+        }
+        return getPersistedUsage(context, normalized)
+    }
+
+    /**
+     * Returns the ground-truth persisted usage for a package today:
+     * Maximum of Android OS Digital Wellbeing (UsageStatsManager) and local storage.
+     */
+    private fun getPersistedUsage(context: Context, normalizedPackage: String): Long {
+        // 1. Android Digital Wellbeing official OS ground truth
         val systemUsage = UsageStatsHelper.getSystemUsageTodayMs(context, normalizedPackage)
 
-        // 2. Get local live tracked usage (which includes sub-second foreground ticks)
+        // 2. Local live tracked usage (from previous sessions today)
         val localUsage = packageUsageTodayMs[normalizedPackage] ?: run {
             val saved = preferences(context).getLong(usageKey(normalizedPackage), 0L).coerceAtLeast(0L)
             packageUsageTodayMs[normalizedPackage] = saved
             saved
         }
 
-        // 3. True usage is the maximum of system usage stats and local live usage
+        // True baseline is maximum of system stats and local tracking
         val trueUsage = maxOf(systemUsage, localUsage)
         if (trueUsage != localUsage) {
             packageUsageTodayMs[normalizedPackage] = trueUsage
@@ -88,10 +194,17 @@ object BlockPolicyController {
         return trueUsage
     }
 
+    /**
+     * Public accessor: returns real-time live usage today.
+     */
+    fun getUsageForPackage(context: Context, packageName: String): Long {
+        return getLiveUsageForPackage(context, packageName)
+    }
+
     fun addTrackedUsage(context: Context, packageName: String, deltaMs: Long): Long {
-        if (deltaMs <= 0L) return getUsageForPackage(context, packageName)
+        if (deltaMs <= 0L) return getLiveUsageForPackage(context, packageName)
         val normalizedPackage = normalizePackageName(packageName) ?: return 0L
-        val current = getUsageForPackage(context, normalizedPackage)
+        val current = getLiveUsageForPackage(context, normalizedPackage)
         val updated = (current + deltaMs).coerceAtLeast(0L)
         packageUsageTodayMs[normalizedPackage] = updated
         try {
@@ -125,7 +238,7 @@ object BlockPolicyController {
             currentDailyResetEpochMs = getTodayEndEpoch(now)
             val savedReset = prefs.getLong(DAILY_RESET_KEY, 0L)
             if (savedReset != currentDailyResetEpochMs) {
-                // A new day has started: wipe stale usage from memory and prefs
+                // A new day has started: wipe stale daily usage
                 packageUsageTodayMs.clear()
                 val editor = prefs.edit()
                 prefs.all.keys
@@ -229,32 +342,13 @@ object BlockPolicyController {
                 activePolicies.remove(normalizedPackage)
             } else {
                 defaultBudgetMs = ms
-                packageBudgetsMs.clear()
                 try {
-                    val editor = prefs?.edit()?.putLong(DEFAULT_BUDGET_KEY, ms)
-                    prefs?.all?.keys
-                        ?.filter { it.startsWith(BUDGET_PREFIX) }
-                        ?.forEach { editor?.remove(it) }
-                    editor?.commit()
+                    prefs?.edit()?.putLong(DEFAULT_BUDGET_KEY, ms)?.commit()
                 } catch (e: Exception) {
                     Log.e(TAG, "Unable to persist default budget", e)
                 }
                 activePolicies.clear()
             }
-        }
-
-        // Immediately sync ground-truth usage for affected packages
-        if (context != null) {
-            try {
-                if (normalizedPackage != null) {
-                    getUsageForPackage(context, normalizedPackage)
-                } else {
-                    val savedPackages = preferences(context).getStringSet("saved_restricted_packages", null)
-                    savedPackages?.forEach { pkg ->
-                        getUsageForPackage(context, pkg)
-                    }
-                }
-            } catch (_: Exception) {}
         }
 
         Log.i(TAG, "Updated budget for ${normalizedPackage ?: "global"} -> ${safeMinutes}m ($ms ms)")
@@ -284,13 +378,19 @@ object BlockPolicyController {
         }
     }
 
+    /**
+     * Evaluates policy for a package in real-time.
+     * If the app is active in foreground, uses LIVE stopwatch usage so lock engages instantly
+     * without needing to restart the app.
+     */
     fun evaluate(context: Context, packageName: String, isForeground: Boolean): BlockedAppPolicy {
-        val normalizedPackage = normalizePackageName(packageName) ?: packageName.trim().lowercase(java.util.Locale.ROOT)
+        val normalizedPackage = normalizePackageName(packageName) ?: packageName.trim().lowercase(Locale.ROOT)
         ensureCurrentDailyState(context)
 
         val now = System.currentTimeMillis()
         val limitMs = getBudgetForPackage(context, normalizedPackage)
-        val usageMs = getUsageForPackage(context, normalizedPackage)
+        // LIVE REAL-TIME USAGE (Digital Wellbeing + Live Stopwatch)
+        val usageMs = getLiveUsageForPackage(context, normalizedPackage)
         val remainingMs = (limitMs - usageMs).coerceAtLeast(0L)
         val isPassActive = now < getUnlockUntil(context)
 
@@ -368,12 +468,74 @@ object BlockPolicyController {
         }
     }
 
+    fun isEmergencyAvailable(context: Context): Boolean {
+        return try {
+            val prefs = preferences(context)
+            val today = getTodayDateString()
+            val lastDate = prefs.getString(EMERGENCY_BAILOUT_DATE_KEY, "")
+            today != lastDate
+        } catch (_: Exception) {
+            true
+        }
+    }
+
+    /**
+     * Executes the once-per-day 5-minute emergency bailout unlock.
+     * Counts 5 minutes toward the daily usage budget.
+     */
+    fun claimEmergencyBailout(context: Context, packageName: String?): Boolean {
+        synchronized(policyLock) {
+            if (!isEmergencyAvailable(context)) {
+                Log.w(TAG, "Emergency bailout already claimed today")
+                return false
+            }
+
+            val today = getTodayDateString()
+            val now = System.currentTimeMillis()
+            val unlockUntil = now + EMERGENCY_DURATION_MS
+
+            // 1. Set the 5-minute temporary unlock pass
+            if (!setUnlockUntil(context, unlockUntil)) {
+                Log.e(TAG, "Failed setting unlock window for emergency pass")
+                return false
+            }
+
+            // 2. Count those 5 minutes toward the blocked app's daily budget!
+            val normalizedPackage = normalizePackageName(packageName)
+            if (normalizedPackage != null) {
+                addTrackedUsage(context, normalizedPackage, EMERGENCY_DURATION_MS)
+                synchronized(sessionLock) {
+                    if (activeSessionPackage == normalizedPackage) {
+                        activeSessionBaseUsage += EMERGENCY_DURATION_MS
+                    }
+                }
+                Log.i(TAG, "Emergency 5 min credited to $normalizedPackage usage today")
+            }
+
+            // 3. Persist today's bailout date so emergency pass cannot be reused today
+            try {
+                preferences(context).edit().putString(EMERGENCY_BAILOUT_DATE_KEY, today).commit()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed persisting emergency bailout date", e)
+            }
+
+            invalidateAll()
+            Log.i(TAG, "Emergency bailout granted successfully until $unlockUntil")
+            return true
+        }
+    }
+
     fun resetDailyState(context: Context? = null) {
         val nextReset = getTodayEndEpoch()
         synchronized(policyLock) {
             activePolicies.clear()
             packageUsageTodayMs.clear()
             currentDailyResetEpochMs = nextReset
+        }
+        synchronized(sessionLock) {
+            activeSessionPackage = null
+            activeSessionStartTime = 0L
+            activeSessionBaseUsage = 0L
         }
         if (context != null) {
             try {

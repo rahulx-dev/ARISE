@@ -32,17 +32,16 @@ class AppMonitorService : Service() {
     private var dailyResetTimestamp = BlockPolicyController.getTodayEndEpoch()
     private var screenOn = true
     private var screenReceiverRegistered = false
-    private var lastTickTime: Long = 0L
 
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             screenOn = intent.action != Intent.ACTION_SCREEN_OFF
             if (!screenOn) {
-                lastTickTime = 0L
+                // Pause live session stopwatch when screen turns off
+                BlockPolicyController.onPackageBackground(this@AppMonitorService)
                 UsageStatsHelper.clearForegroundCache()
                 dismissPresentation()
             } else if (isMonitoring) {
-                lastTickTime = System.currentTimeMillis()
                 handler.removeCallbacks(monitorRunnable)
                 handler.post(monitorRunnable)
             }
@@ -118,7 +117,7 @@ class AppMonitorService : Service() {
                 .setUsesChronometer(false)
         }
 
-        // Quick Action Buttons
+        // Action Buttons
         builder.addAction(
             android.R.drawable.ic_menu_preferences,
             "Locked Apps",
@@ -155,22 +154,15 @@ class AppMonitorService : Service() {
     }
 
     /**
-     * Rock-Solid Enforcement Loop:
-     * Evaluates foreground state every 300ms without artificial dismissal timers or race conditions.
+     * Rock-Solid Hybrid Real-Time Monitoring Loop:
+     * Evaluates foreground state every 300ms using Digital Wellbeing baseline + live session stopwatch.
+     * When budget is reached, locks the app instantly while running without requiring any app restart.
      */
     private val monitorRunnable = object : Runnable {
         override fun run() {
             if (!isMonitoring || !screenOn) return
 
             val now = System.currentTimeMillis()
-
-            // Calculate live active tick delta (safely bounded to avoid sleep jumps)
-            val tickDeltaMs = if (lastTickTime > 0L && screenOn) {
-                (now - lastTickTime).coerceIn(0L, 2000L)
-            } else {
-                0L
-            }
-            lastTickTime = now
 
             // 1. Midnight rollover check
             val nextReset = BlockPolicyController.getTodayEndEpoch(now)
@@ -204,17 +196,10 @@ class AppMonitorService : Service() {
             val fgPackage = UsageStatsHelper.getForegroundPackage(this@AppMonitorService)
 
             if (fgPackage != null && isPackageRestricted(fgPackage)) {
-                // If not locked yet and actively in foreground, accumulate active screen time
-                val currentPolicy = BlockPolicyController.evaluate(
-                    this@AppMonitorService,
-                    fgPackage,
-                    isForeground = true
-                )
+                // Signal active foreground session to live stopwatch engine
+                BlockPolicyController.onPackageForeground(this@AppMonitorService, fgPackage)
 
-                if (currentPolicy.lockState != LockState.LOCKED && tickDeltaMs > 0L) {
-                    BlockPolicyController.addTrackedUsage(this@AppMonitorService, fgPackage, tickDeltaMs)
-                }
-
+                // Evaluate real-time usage (Digital Wellbeing baseline + active stopwatch duration)
                 val policy = BlockPolicyController.evaluate(
                     this@AppMonitorService,
                     fgPackage,
@@ -222,33 +207,32 @@ class AppMonitorService : Service() {
                 )
 
                 if (policy.lockState == LockState.LOCKED) {
-                    // Time limit reached or 0-budget: Enforce hard kiosk lock screen
+                    // Time limit hit while running on screen: Lock immediately!
                     presentLockScreen(fgPackage, policy.dailyLimitMs, policy.usageTodayMs)
                 } else {
                     // Still has remaining budget: Permit usage
                     dismissPresentation()
                 }
-            } else if (fgPackage != null) {
-                // User is on Launcher, ARISE, or an unrestricted app
-                val isOurApp = fgPackage == packageName
-                val isLauncher = UsageStatsHelper.isSystemLauncherOrUi(this@AppMonitorService, fgPackage)
-                val isUnrestricted = !isPackageRestricted(fgPackage) && !isOurApp
+            } else {
+                // User navigated away from restricted app
+                BlockPolicyController.onPackageBackground(this@AppMonitorService)
 
-                if (isOurApp) {
-                    // If LockScreenActivity is actively displayed, DO NOT dismiss!
-                    // It is actively blocking the restricted package.
-                    if (!LockScreenActivity.isActivityShowing) {
-                        // User opened the main ARISE app (dashboard, quests, shop, workout).
-                        // Clean up any lingering overlay view so user can interact with ARISE cleanly.
-                        stopOverlayService()
+                if (fgPackage != null) {
+                    val isOurApp = fgPackage == packageName
+                    val isLauncher = UsageStatsHelper.isSystemLauncherOrUi(this@AppMonitorService, fgPackage)
+                    val isUnrestricted = !isPackageRestricted(fgPackage) && !isOurApp
+
+                    if (isOurApp) {
+                        if (!LockScreenActivity.isActivityShowing) {
+                            stopOverlayService()
+                        }
+                    } else if (isLauncher || isUnrestricted) {
+                        dismissPresentation()
                     }
-                } else if (isLauncher || isUnrestricted) {
-                    // User navigated away to Home screen launcher or an unrestricted app (e.g. Phone, WhatsApp)
-                    dismissPresentation()
                 }
             }
 
-            // Schedule next check (300ms for virtually instantaneous, lag-free lock enforcement)
+            // Schedule next real-time check (300ms)
             handler.postDelayed(this, 300L)
         }
     }
@@ -270,7 +254,8 @@ class AppMonitorService : Service() {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or
                         Intent.FLAG_ACTIVITY_SINGLE_TOP or
                         Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                        Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                        Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
+                        Intent.FLAG_ACTIVITY_NO_ANIMATION
                 }
                 startActivity(lockIntent)
                 Log.d(tag, "LockScreenActivity launched for $normalizedPackage")
@@ -300,18 +285,6 @@ class AppMonitorService : Service() {
         }
     }
 
-    private fun kickToHome(pkg: String) {
-        try {
-            val homeIntent = Intent(Intent.ACTION_MAIN).apply {
-                addCategory(Intent.CATEGORY_HOME)
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
-            }
-            startActivity(homeIntent)
-        } catch (e: Exception) {
-            Log.e(tag, "Failed kicking to home", e)
-        }
-    }
-
     private fun stopOverlayService() {
         try {
             stopService(Intent(this, BlockOverlayService::class.java))
@@ -328,8 +301,6 @@ class AppMonitorService : Service() {
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        // START_STICKY is the primary recovery mechanism. Re-queueing the
-        // service also helps OEMs that remove the task before killing services.
         if (isMonitoring && screenOn) {
             try {
                 val restartIntent = Intent(applicationContext, AppMonitorService::class.java)
@@ -467,6 +438,7 @@ class AppMonitorService : Service() {
     override fun onDestroy() {
         isMonitoring = false
         handler.removeCallbacks(monitorRunnable)
+        BlockPolicyController.onPackageBackground(this)
         if (screenReceiverRegistered) {
             try {
                 unregisterReceiver(screenReceiver)

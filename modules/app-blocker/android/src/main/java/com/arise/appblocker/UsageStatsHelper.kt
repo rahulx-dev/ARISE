@@ -14,13 +14,13 @@ import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Reads the same daily foreground totals exposed by Android Digital Wellbeing
- * and maintains only the small amount of state needed to make the current
- * session update immediately.
+ * High-performance foreground app detector and Digital Wellbeing stats accessor.
+ * Uses event-driven UsageEvents with a tight sliding window and caches launcher packages
+ * to eliminate expensive IPC overhead.
  */
 object UsageStatsHelper {
     private const val TAG = "ARISE_USAGE_HELPER"
-    private const val FOREGROUND_WINDOW_MS = 60_000L
+    private const val EVENT_WINDOW_MS = 5_000L // 5-second sliding event window
 
     private val knownLauncherPackages = ConcurrentHashMap.newKeySet<String>().apply {
         addAll(
@@ -36,7 +36,7 @@ object UsageStatsHelper {
                 "com.huawei.android.launcher",
                 "com.motorola.launcher3",
                 "com.transsion.hilauncher",
-                "com.transsion.XOSLauncher",
+                "com.transsion.xoslauncher",
                 "com.bbk.launcher2",
                 "com.vivo.launcher",
                 "com.nothing.launcher"
@@ -45,13 +45,13 @@ object UsageStatsHelper {
     }
 
     @Volatile
+    private var launcherCacheInitialized = false
+
+    @Volatile
     private var lastKnownForegroundPackage: String? = null
 
     @Volatile
-    private var activeSessionPackage: String? = null
-
-    @Volatile
-    private var activeSessionStartTime: Long = 0L
+    private var lastQueriedTimestamp: Long = 0L
 
     fun hasUsagePermission(context: Context): Boolean {
         val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as? AppOpsManager ?: return false
@@ -72,107 +72,139 @@ object UsageStatsHelper {
         return mode == AppOpsManager.MODE_ALLOWED
     }
 
-    fun isSystemLauncherOrUi(context: Context, packageName: String): Boolean {
-        val normalized = packageName.trim().lowercase(Locale.ROOT)
-        if (normalized == "android" || knownLauncherPackages.contains(normalized)) return true
-        if (normalized.contains("launcher") || normalized.contains("quickstep")) return true
-
-        return try {
+    private fun ensureLauncherCache(context: Context) {
+        if (launcherCacheInitialized) return
+        try {
             val homeIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
-            val homePackages = context.packageManager
-                .queryIntentActivities(homeIntent, PackageManager.MATCH_DEFAULT_ONLY)
-                .mapNotNull { it.activityInfo?.packageName?.lowercase(Locale.ROOT) }
-            knownLauncherPackages.addAll(homePackages)
-            normalized in homePackages
+            val flags = PackageManager.MATCH_DEFAULT_ONLY
+            val homeActivities = context.packageManager.queryIntentActivities(homeIntent, flags)
+            for (resolveInfo in homeActivities) {
+                val pkg = resolveInfo.activityInfo?.packageName?.trim()?.lowercase(Locale.ROOT)
+                if (!pkg.isNullOrEmpty()) {
+                    knownLauncherPackages.add(pkg)
+                }
+            }
+            launcherCacheInitialized = true
         } catch (error: Exception) {
-            Log.w(TAG, "Unable to resolve the device home launcher", error)
-            false
+            Log.w(TAG, "Unable to query default home launcher", error)
         }
     }
 
-    private fun setActivePackage(packageName: String?, eventTimestamp: Long) {
-        if (packageName == activeSessionPackage) return
-        activeSessionPackage = packageName
-        activeSessionStartTime = if (packageName == null) 0L else eventTimestamp
+    fun isSystemLauncherOrUi(context: Context, packageName: String): Boolean {
+        val normalized = packageName.trim().lowercase(Locale.ROOT)
+        if (normalized == "android" || knownLauncherPackages.contains(normalized)) return true
+        if (normalized.contains("launcher") || normalized.contains("quickstep")) {
+            knownLauncherPackages.add(normalized)
+            return true
+        }
+
+        ensureLauncherCache(context)
+        return knownLauncherPackages.contains(normalized)
     }
 
     /**
-     * Uses resume/foreground events only. Paused/stopped events are deliberately
-     * ignored because app-internal activity changes emit them between resumes.
+     * Determines the currently active foreground app package name.
+     * Evaluates UsageEvents chronologically over a tight sliding window to ensure
+     * virtually zero latency with minimal CPU & battery footprint.
      */
     fun getForegroundPackage(context: Context): String? {
+        if (!hasUsagePermission(context)) {
+            return lastKnownForegroundPackage
+        }
+
         val usageStatsManager =
             context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
                 ?: return lastKnownForegroundPackage
+
         val now = System.currentTimeMillis()
-        val windowStart = now - FOREGROUND_WINDOW_MS
+        val windowStart = if (lastQueriedTimestamp > 0L) {
+            (lastQueriedTimestamp - 1000L).coerceAtLeast(now - EVENT_WINDOW_MS)
+        } else {
+            now - EVENT_WINDOW_MS
+        }
+        lastQueriedTimestamp = now
+
         var latestEventTimestamp = 0L
         var latestPackage: String? = null
+        var isLatestBackgroundEvent = false
 
         try {
             val events = usageStatsManager.queryEvents(windowStart, now)
             val event = UsageEvents.Event()
             while (events.hasNextEvent()) {
                 events.getNextEvent(event)
-                if (event.eventType != UsageEvents.Event.ACTIVITY_RESUMED &&
-                    event.eventType != UsageEvents.Event.MOVE_TO_FOREGROUND
+                val type = event.eventType
+                if (type == UsageEvents.Event.ACTIVITY_RESUMED ||
+                    type == UsageEvents.Event.MOVE_TO_FOREGROUND
                 ) {
-                    continue
-                }
-                if (event.timeStamp >= latestEventTimestamp) {
-                    latestEventTimestamp = event.timeStamp
-                    latestPackage = event.packageName
+                    if (event.timeStamp >= latestEventTimestamp) {
+                        latestEventTimestamp = event.timeStamp
+                        latestPackage = event.packageName
+                        isLatestBackgroundEvent = false
+                    }
+                } else if (type == UsageEvents.Event.ACTIVITY_PAUSED ||
+                    type == UsageEvents.Event.ACTIVITY_STOPPED ||
+                    type == UsageEvents.Event.MOVE_TO_BACKGROUND
+                ) {
+                    if (event.packageName == latestPackage && event.timeStamp > latestEventTimestamp) {
+                        isLatestBackgroundEvent = true
+                    }
                 }
             }
         } catch (error: Exception) {
-            Log.w(TAG, "Unable to read recent usage events", error)
+            Log.w(TAG, "Error querying recent usage events", error)
         }
 
-        if (latestPackage != null) {
-            if (isSystemLauncherOrUi(context, latestPackage!!)) {
-                setActivePackage(null, now)
+        if (latestPackage != null && !isLatestBackgroundEvent) {
+            val clean = latestPackage.trim().lowercase(Locale.ROOT)
+            if (isSystemLauncherOrUi(context, clean)) {
                 lastKnownForegroundPackage = null
                 return null
             }
-            setActivePackage(latestPackage, latestEventTimestamp)
-            lastKnownForegroundPackage = latestPackage
-            return latestPackage
+            lastKnownForegroundPackage = clean
+            return clean
         }
 
-        // Some OEMs omit usage events while a video/article remains visible.
-        // INTERVAL_BEST can still provide a recent lastTimeUsed in that case.
+        // If the latest detected event for this package was a pause/stop/background transition
+        // and no subsequent resume event occurred, the app is no longer in foreground.
+        if (latestPackage != null && isLatestBackgroundEvent) {
+            val clean = latestPackage.trim().lowercase(Locale.ROOT)
+            if (clean == lastKnownForegroundPackage) {
+                lastKnownForegroundPackage = null
+                return null
+            }
+        }
+
+        // Secondary fallback for OEMs where UsageEvents can lag (e.g. video playback without resume events)
         try {
             val recentStats = usageStatsManager.queryUsageStats(
                 UsageStatsManager.INTERVAL_BEST,
-                windowStart,
+                now - EVENT_WINDOW_MS,
                 now
             )
-            val recentPackage = recentStats
-                .filter { it.lastTimeUsed in windowStart..now }
-                .maxByOrNull { it.lastTimeUsed }
-                ?.packageName
-            if (recentPackage != null) {
-                if (isSystemLauncherOrUi(context, recentPackage)) {
-                    setActivePackage(null, now)
+            val mostRecent = recentStats
+                ?.filter { it.lastTimeUsed in (now - EVENT_WINDOW_MS)..now }
+                ?.maxByOrNull { it.lastTimeUsed }
+
+            if (mostRecent != null) {
+                val clean = mostRecent.packageName.trim().lowercase(Locale.ROOT)
+                if (isSystemLauncherOrUi(context, clean)) {
                     lastKnownForegroundPackage = null
                     return null
                 }
-                setActivePackage(recentPackage, recentStats.first { it.packageName == recentPackage }.lastTimeUsed)
-                lastKnownForegroundPackage = recentPackage
-                return recentPackage
+                lastKnownForegroundPackage = clean
+                return clean
             }
         } catch (error: Exception) {
-            Log.w(TAG, "Unable to read best-interval usage stats", error)
+            Log.w(TAG, "Error reading best-interval stats", error)
         }
 
-        // No new signal is not evidence that the user left the app.
         return lastKnownForegroundPackage
     }
 
     fun clearForegroundCache() {
         lastKnownForegroundPackage = null
-        activeSessionPackage = null
-        activeSessionStartTime = 0L
+        lastQueriedTimestamp = 0L
     }
 
     private fun getTodayStartEpoch(now: Long = System.currentTimeMillis()): Long {
@@ -185,6 +217,9 @@ object UsageStatsHelper {
         }.timeInMillis
     }
 
+    /**
+     * Reads official Android OS Digital Wellbeing usage ground-truth for today.
+     */
     fun getSystemUsageTodayMs(context: Context, packageName: String): Long {
         if (!hasUsagePermission(context)) return 0L
         val manager =
@@ -197,13 +232,13 @@ object UsageStatsHelper {
             val stats = aggregated[cleanPkg] ?: aggregated[packageName]
             stats?.totalTimeInForeground?.coerceAtLeast(0L) ?: 0L
         } catch (error: Exception) {
-            Log.w(TAG, "Unable to query system usage for $packageName", error)
+            Log.w(TAG, "Unable to query Digital Wellbeing usage for $packageName", error)
             0L
         }
     }
 
     fun getPackageTodayUsageMs(context: Context, packageName: String): Long {
-        return BlockPolicyController.getUsageForPackage(context, packageName)
+        return BlockPolicyController.getLiveUsageForPackage(context, packageName)
     }
 
     fun getTotalTodayUsageMs(context: Context): Long {

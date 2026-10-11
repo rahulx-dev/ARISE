@@ -49,6 +49,7 @@ import { useSound } from '../../src/hooks/useSound';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { voiceCoach } from '../../src/services/voiceCoach';
 import { issueCompletionToken } from '../../src/services/completionGate';
+import { appBlockerService } from '../../src/native';
 
 function ExerciseTrackerInner() {
   useKeepAwake();
@@ -414,6 +415,12 @@ function ExerciseTrackerInner() {
 
     if (!voiceMuted) {
       voiceCoach.speakComplete(config.displayName, finalCoins);
+    }
+
+    if (source === 'overlay') {
+      try {
+        appBlockerService.temporaryUnlock(20 * 60 * 1000);
+      } catch {}
     }
 
     router.replace({
