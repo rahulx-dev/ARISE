@@ -616,6 +616,12 @@ DECLARE
     v_clean_xp INTEGER;
     v_clean_coins INTEGER;
     v_current_crystals INTEGER := 0;
+    v_ret_level INTEGER := 1;
+    v_ret_xp INTEGER := 0;
+    v_ret_streak INTEGER := 0;
+    v_ret_reps INTEGER := 0;
+    v_ret_coins INTEGER := 0;
+    v_ret_name TEXT := 'Warrior';
 BEGIN
     v_user_id := auth.uid()::text;
     IF v_user_id IS NULL OR length(trim(v_user_id)) = 0 THEN
@@ -665,7 +671,8 @@ BEGIN
         total_xp = GREATEST(user_wallets.total_xp, v_clean_xp),
         cloud_coins = v_clean_coins,
         last_synced_at = TIMEZONE('utc'::text, NOW())
-    RETURNING mana_crystals INTO v_current_crystals;
+    RETURNING mana_crystals, level, total_xp, streak, total_reps, cloud_coins, display_name
+    INTO v_current_crystals, v_ret_level, v_ret_xp, v_ret_streak, v_ret_reps, v_ret_coins, v_ret_name;
 
     -- Upsert crystal_leaderboard projection (Triggers Realtime for streak, reps, xp, crystals)
     INSERT INTO public.crystal_leaderboard (
@@ -709,6 +716,12 @@ BEGIN
         'success', true,
         'authoritative_crystals', v_current_crystals,
         'authoritative_mana_crystals', v_current_crystals,
+        'authoritative_level', v_ret_level,
+        'authoritative_xp', v_ret_xp,
+        'authoritative_streak', v_ret_streak,
+        'authoritative_reps', v_ret_reps,
+        'authoritative_coins', v_ret_coins,
+        'display_name', v_ret_name,
         'user_id', v_user_id
     );
 END;

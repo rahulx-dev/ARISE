@@ -127,15 +127,57 @@ class SyncService {
               syncRes.authoritative_crystals ??
               0,
           );
-          // Apply authoritative cloud crystal balance to local SQLite cache
+          const updates: Record<string, any> = {};
           if (typeof authCrystals === "number" && !isNaN(authCrystals)) {
+            updates.manaCrystals = authCrystals;
+          }
+
+          const authLevel = Number(syncRes.authoritative_level);
+          if (!isNaN(authLevel) && authLevel > (profile.level || 1)) {
+            updates.level = authLevel;
+          }
+
+          const authXP = Number(syncRes.authoritative_xp);
+          if (!isNaN(authXP) && authXP > (profile.totalXP || 0)) {
+            updates.totalXP = authXP;
+          }
+
+          const authStreak = Number(syncRes.authoritative_streak);
+          if (!isNaN(authStreak) && authStreak > (profile.currentStreak || 0)) {
+            updates.currentStreak = authStreak;
+          }
+
+          const authCoins = Number(syncRes.authoritative_coins);
+          if (!isNaN(authCoins) && authCoins > (profile.coins || 0)) {
+            updates.coins = authCoins;
+          }
+
+          if (
+            syncRes.display_name &&
+            typeof syncRes.display_name === "string" &&
+            syncRes.display_name !== "Warrior" &&
+            (!profile.displayName || profile.displayName === "Warrior")
+          ) {
+            updates.displayName = syncRes.display_name;
+          }
+
+          if (Object.keys(updates).length > 0) {
             await db
               .update(userProfile)
-              .set({ manaCrystals: authCrystals } as any)
+              .set(updates as any)
               .where(eq(userProfile.id, profile.id));
+
+            try {
+              const { usePlayerStore } = await import("../stores/usePlayerStore");
+              await usePlayerStore.getState().loadProfile();
+              const { achievementService } = await import("./achievementService");
+              await achievementService.evaluateAchievements();
+            } catch (storeErr) {
+              console.warn("[AutoSync] Store refresh note:", storeErr);
+            }
           }
           console.log(
-            "[AutoSync] Profile & authoritative crystals synchronized!",
+            "[AutoSync] Profile & authoritative stats synchronized!",
           );
         }
       }

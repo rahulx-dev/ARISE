@@ -279,7 +279,7 @@ class AchievementService {
         });
       }
 
-      // Trigger notification for each newly unlocked milestone
+      // Trigger notification for each newly unlocked milestone and sync to cloud
       for (const item of newlyUnlocked) {
         await notificationService.createNotification(
           "ACHIEVEMENT",
@@ -287,6 +287,14 @@ class AchievementService {
           `Congratulations! You achieved "${item.title}". +${item.rewardCoins} Coins`,
           item.id,
         );
+      }
+
+      if (newlyUnlocked.length > 0) {
+        import("./cloudSyncService")
+          .then(({ cloudSyncService }) => {
+            cloudSyncService.triggerAutoSync().catch(() => {});
+          })
+          .catch(() => {});
       }
 
       return results;

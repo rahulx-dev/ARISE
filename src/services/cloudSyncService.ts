@@ -4,6 +4,7 @@ import {
   achievement,
   quest,
   exerciseSession,
+  focusSession,
 } from '../database/schema';
 import { inventoryRepository, InventoryItem } from '../database/repositories/inventoryRepository';
 import { userRepository } from '../database/repositories/userRepository';
@@ -34,6 +35,7 @@ export interface HunterCloudBackup {
   achievements: any[];
   quests: any[];
   exerciseSessions: any[];
+  focusSessions?: any[];
   lastSyncedAt: string;
 }
 
@@ -148,6 +150,7 @@ export const cloudSyncService = {
       const achs = await db.select().from(achievement);
       const qsts = await db.select().from(quest);
       const sessions = await db.select().from(exerciseSession);
+      const focuses = await db.select().from(focusSession);
 
       const backup: HunterCloudBackup = {
         version: '1.0.0',
@@ -171,6 +174,7 @@ export const cloudSyncService = {
         achievements: achs || [],
         quests: qsts || [],
         exerciseSessions: sessions || [],
+        focusSessions: focuses || [],
         lastSyncedAt: new Date().toISOString(),
       };
 
@@ -297,7 +301,58 @@ export const cloudSyncService = {
         }
       }
 
-      // 2. Second attempt: Check local cloud cache if offline or testing
+      // 2. Second attempt: Check authoritative user_wallets on Supabase if remote cloud save not found
+      if (!backup && isSupabaseConfigured() && supabase) {
+        try {
+          const { data: authData } = await supabase.auth.getUser();
+          const userId = authData?.user?.id;
+          if (userId) {
+            const { data: wallet } = await supabase
+              .from('user_wallets')
+              .select('*')
+              .eq('user_id', userId)
+              .maybeSingle();
+
+            if (
+              wallet &&
+              ((wallet.level && wallet.level > 1) ||
+                (wallet.total_xp && wallet.total_xp > 0) ||
+                (wallet.cloud_coins && wallet.cloud_coins > 0) ||
+                (wallet.streak && wallet.streak > 0))
+            ) {
+              backup = {
+                version: '1.0.0',
+                email: cleanEmail,
+                displayName: wallet.display_name || 'Warrior',
+                avatarIcon: 'img_pfp_01',
+                level: wallet.level || 1,
+                currentXP: 0,
+                totalXP: wallet.total_xp || 0,
+                coins: wallet.cloud_coins || 0,
+                manaCrystals: wallet.mana_crystals || 0,
+                currentStreak: wallet.streak || 0,
+                longestStreak: wallet.streak || 0,
+                strength: 0,
+                discipline: 0,
+                focus: 0,
+                health: 0,
+                knowledge: 0,
+                unlockedInventory: [],
+                achievements: [],
+                quests: [],
+                exerciseSessions: [],
+                focusSessions: [],
+                lastSyncedAt: wallet.last_synced_at || new Date().toISOString(),
+              };
+              console.log('[CloudSync] Reconstructed progression from user_wallets for:', userId);
+            }
+          }
+        } catch (wErr) {
+          console.warn('[CloudSync] user_wallets lookup note:', wErr);
+        }
+      }
+
+      // 3. Third attempt: Check local cloud cache if offline or testing
       if (!backup) {
         this._ensureTable();
         try {
@@ -308,6 +363,28 @@ export const cloudSyncService = {
           if (res?.val) {
             backup = JSON.parse(res.val) as HunterCloudBackup;
             console.log('[CloudSync] Found cached cloud save for:', cleanEmail);
+          }
+        } catch {}
+      }
+
+      // 4. Merge highest authoritative stats from user_wallets if available
+      if (backup && isSupabaseConfigured() && supabase) {
+        try {
+          const { data: authData } = await supabase.auth.getUser();
+          const userId = authData?.user?.id;
+          if (userId) {
+            const { data: wallet } = await supabase
+              .from('user_wallets')
+              .select('*')
+              .eq('user_id', userId)
+              .maybeSingle();
+            if (wallet) {
+              if (wallet.level && wallet.level > (backup.level || 1)) backup.level = wallet.level;
+              if (wallet.total_xp && wallet.total_xp > (backup.totalXP || 0)) backup.totalXP = wallet.total_xp;
+              if (wallet.cloud_coins && wallet.cloud_coins > (backup.coins || 0)) backup.coins = wallet.cloud_coins;
+              if (wallet.streak && wallet.streak > (backup.currentStreak || 0)) backup.currentStreak = wallet.streak;
+              if (wallet.mana_crystals && wallet.mana_crystals > (backup.manaCrystals || 0)) backup.manaCrystals = wallet.mana_crystals;
+            }
           }
         } catch {}
       }
@@ -330,24 +407,26 @@ export const cloudSyncService = {
         };
       }
 
+      const now = new Date().toISOString();
+
       // 3. Atomically restore into SQLite tables
-      // A. Restore User Profile
+      // A. Restore User Profile (Level, XP, Coins, Streaks, Attributes)
+      const currentProfile = await userRepository.getProfile();
       await userRepository.updateProfile({
-        displayName: backup.displayName || 'Warrior',
-        avatarIcon: backup.avatarIcon || 'img_pfp_01',
-        profileImageUri: backup.profileImageUri || undefined,
-        level: backup.level || 1,
-        currentXP: backup.currentXP || 0,
-        totalXP: backup.totalXP || 0,
-        // Balances and redemption state are device/server-authoritative and must
-        // never be restored from an editable cloud backup.
-        currentStreak: backup.currentStreak || 0,
-        longestStreak: backup.longestStreak || 0,
-        strength: backup.strength || 0,
-        discipline: backup.discipline || 0,
-        focus: backup.focus || 0,
-        health: backup.health || 0,
-        knowledge: backup.knowledge || 0,
+        displayName: backup.displayName || currentProfile?.displayName || 'Warrior',
+        avatarIcon: backup.avatarIcon || currentProfile?.avatarIcon || 'img_pfp_01',
+        profileImageUri: backup.profileImageUri || currentProfile?.profileImageUri || undefined,
+        level: Math.max(currentProfile?.level || 1, backup.level || 1),
+        currentXP: Math.max(currentProfile?.currentXP || 0, backup.currentXP || 0),
+        totalXP: Math.max(currentProfile?.totalXP || 0, backup.totalXP || 0),
+        coins: Math.max(currentProfile?.coins || 0, backup.coins || 0),
+        currentStreak: Math.max(currentProfile?.currentStreak || 0, backup.currentStreak || 0),
+        longestStreak: Math.max(currentProfile?.longestStreak || 0, backup.longestStreak || 0),
+        strength: Math.max(currentProfile?.strength || 0, backup.strength || 0),
+        discipline: Math.max(currentProfile?.discipline || 0, backup.discipline || 0),
+        focus: Math.max(currentProfile?.focus || 0, backup.focus || 0),
+        health: Math.max(currentProfile?.health || 0, backup.health || 0),
+        knowledge: Math.max(currentProfile?.knowledge || 0, backup.knowledge || 0),
       });
 
       // B. Restore Unlocked Avatars & Inventory
@@ -362,24 +441,114 @@ export const cloudSyncService = {
         }
       }
 
-      // C. Restore Achievements
+      // C. Restore Achievements (Robust parameterized INSERT OR REPLACE preventing ID collisions)
       if (Array.isArray(backup.achievements) && backup.achievements.length > 0) {
         for (const ach of backup.achievements) {
+          const achId = ach?.achievementId || ach?.id;
+          if (!achId || typeof achId !== 'string') continue;
           try {
-            await db.insert(achievement).values(ach);
+            expoDb.runSync(
+              'INSERT OR REPLACE INTO achievement (achievement_id, title, description, icon, category, unlocked_at) VALUES (?, ?, ?, ?, ?, ?)',
+              [
+                achId,
+                ach.title || 'Achievement Unlocked',
+                ach.description || '',
+                ach.icon || 'trophy',
+                ach.category || 'ACHIEVEMENT',
+                ach.unlockedAt || now,
+              ]
+            );
+          } catch (achErr) {
+            console.warn('[CloudSync] Error restoring achievement:', achErr);
+          }
+        }
+      }
+
+      // D. Restore Exercise Sessions (Enables milestone metric counters)
+      if (Array.isArray(backup.exerciseSessions) && backup.exerciseSessions.length > 0) {
+        for (const s of backup.exerciseSessions) {
+          if (!s?.exerciseType) continue;
+          try {
+            expoDb.runSync(
+              'INSERT INTO exercise_session (exercise_type, target, completed_reps, duration_seconds, form_score, timestamp, quest_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+              [
+                s.exerciseType,
+                s.target || 10,
+                s.completedReps || 0,
+                s.durationSeconds || 60,
+                s.formScore || 100,
+                s.timestamp || now,
+                s.questId || null,
+              ]
+            );
           } catch {}
         }
+      }
+
+      // E. Restore Focus Sessions
+      if (Array.isArray(backup.focusSessions) && backup.focusSessions.length > 0) {
+        for (const f of backup.focusSessions) {
+          if (!f?.startTime) continue;
+          try {
+            expoDb.runSync(
+              'INSERT INTO focus_session (package_name, app_name, duration_ms, start_time, end_time, target_end_epoch, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+              [
+                f.packageName || 'focus',
+                f.appName || 'Deep Focus',
+                f.durationMs || 1500000,
+                f.startTime,
+                f.endTime || now,
+                f.targetEndEpoch || Date.now(),
+                f.status || 'COMPLETED',
+              ]
+            );
+          } catch {}
+        }
+      }
+
+      // F. Restore Quests
+      if (Array.isArray(backup.quests) && backup.quests.length > 0) {
+        for (const q of backup.quests) {
+          if (!q?.title) continue;
+          try {
+            expoDb.runSync(
+              'INSERT INTO quest (title, description, type, target, progress, completed, reward_coins, reward_xp, frequency, date, exercise_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+              [
+                q.title,
+                q.description || '',
+                q.type || 'EXERCISE',
+                q.target || 10,
+                q.progress || 0,
+                q.completed || 0,
+                q.rewardCoins || 100,
+                q.rewardXP || 250,
+                q.frequency || 'DAILY',
+                q.date || now.split('T')[0],
+                q.exerciseType || 'PUSHUP',
+              ]
+            );
+          } catch {}
+        }
+      }
+
+      // Refresh in-memory Zustand store and re-evaluate achievements immediately
+      try {
+        const { usePlayerStore } = await import('../stores/usePlayerStore');
+        await usePlayerStore.getState().loadProfile();
+        const { achievementService } = await import('./achievementService');
+        await achievementService.evaluateAchievements();
+      } catch (storeErr) {
+        console.warn('[CloudSync] Store refresh note:', storeErr);
       }
 
       // D. Mark Onboarding as Completed
       await setIsOnboardingCompletedSync(true);
 
-      const now = new Date().toISOString();
       await this.setLastSyncTime(now);
 
       return {
         restored: true,
-        message: `Welcome back, ${backup.displayName}! Restored progression and all unlocked avatars. Financial balances were preserved locally.`,
+        message: `Welcome back, ${backup.displayName}! Restored your Level ${backup.level || 1} progression, achievements, quests, and unlocked gear.`,
         backup,
       };
     } catch (err: any) {
