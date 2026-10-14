@@ -204,56 +204,60 @@ ALTER TABLE public.crystal_redemptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.payout_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cpx_postback_log ENABLE ROW LEVEL SECURITY;
 
+-- Clean up any legacy or dashboard-generated overly permissive policies automatically
+DO $$
+DECLARE
+    pol RECORD;
+BEGIN
+    FOR pol IN
+        SELECT schemaname, tablename, policyname
+        FROM pg_policies
+        WHERE schemaname = 'public'
+          AND tablename IN ('coin_ledger', 'crystal_redemptions', 'payout_requests', 'crystal_ledger', 'user_wallets', 'crystal_leaderboard', 'user_cloud_saves', 'cpx_postback_log')
+    LOOP
+        EXECUTE format('DROP POLICY IF EXISTS %I ON %I.%I', pol.policyname, pol.schemaname, pol.tablename);
+    END LOOP;
+END $$;
+
 -- 1. Crystal Ledger: Direct client modifications forbidden. Select allowed only for owner.
-DROP POLICY IF EXISTS "crystal_ledger_select_owner" ON public.crystal_ledger;
-DROP POLICY IF EXISTS "Public Access" ON public.crystal_ledger;
-DROP POLICY IF EXISTS "Allow all" ON public.crystal_ledger;
 CREATE POLICY "crystal_ledger_select_owner" ON public.crystal_ledger
 FOR SELECT USING (user_id = auth.uid()::text);
 
 -- 2. Coin Ledger: Select allowed for owner.
-DROP POLICY IF EXISTS "coin_ledger_select_owner" ON public.coin_ledger;
-DROP POLICY IF EXISTS "Public Access" ON public.coin_ledger;
-DROP POLICY IF EXISTS "Allow all" ON public.coin_ledger;
 CREATE POLICY "coin_ledger_select_owner" ON public.coin_ledger
 FOR SELECT USING (user_id = auth.uid()::text);
 
 -- 3. User Wallets: PRIVATE table. Direct public/anon updates to mana_crystals are forbidden.
 -- Users can read only their own wallet.
-DROP POLICY IF EXISTS "user_wallets_select_owner" ON public.user_wallets;
-DROP POLICY IF EXISTS "Public Access" ON public.user_wallets;
-DROP POLICY IF EXISTS "Allow all" ON public.user_wallets;
 CREATE POLICY "user_wallets_select_owner" ON public.user_wallets
 FOR SELECT USING (user_id = auth.uid()::text);
 
 -- 4. Crystal Leaderboard: PUBLIC read projection.
 -- Direct UPDATE/DELETE by client is forbidden. Updated solely via SECURITY DEFINER functions.
-DROP POLICY IF EXISTS "crystal_leaderboard_select_public" ON public.crystal_leaderboard;
-DROP POLICY IF EXISTS "Public Access" ON public.crystal_leaderboard;
-DROP POLICY IF EXISTS "Allow all" ON public.crystal_leaderboard;
 CREATE POLICY "crystal_leaderboard_select_public" ON public.crystal_leaderboard
-FOR SELECT USING (true);
+FOR SELECT USING (user_id IS NOT NULL);
 
 -- 5. Crystal Redemptions: Users can SELECT only their own requests. Direct UPDATE is forbidden.
-DROP POLICY IF EXISTS "crystal_redemptions_select_owner" ON public.crystal_redemptions;
-DROP POLICY IF EXISTS "Public Access" ON public.crystal_redemptions;
-DROP POLICY IF EXISTS "Allow all" ON public.crystal_redemptions;
 CREATE POLICY "crystal_redemptions_select_owner" ON public.crystal_redemptions
 FOR SELECT USING (user_id = auth.uid()::text);
 
 -- 6. Payout Requests: Users can SELECT only their own requests. Direct UPDATE is forbidden.
-DROP POLICY IF EXISTS "payout_requests_select_owner" ON public.payout_requests;
-DROP POLICY IF EXISTS "Public Access" ON public.payout_requests;
-DROP POLICY IF EXISTS "Allow all" ON public.payout_requests;
 CREATE POLICY "payout_requests_select_owner" ON public.payout_requests
 FOR SELECT USING (user_id = auth.uid()::text);
 
 -- 7. CPX Postback: Internal only.
-DROP POLICY IF EXISTS "cpx_postback_select_owner" ON public.cpx_postback_log;
-DROP POLICY IF EXISTS "Public Access" ON public.cpx_postback_log;
-DROP POLICY IF EXISTS "Allow all" ON public.cpx_postback_log;
 CREATE POLICY "cpx_postback_select_owner" ON public.cpx_postback_log
 FOR SELECT USING (user_id = auth.uid()::text);
+
+-- 8. User Cloud Saves: Owner read-write
+CREATE POLICY "user_cloud_saves_owner_rw" ON public.user_cloud_saves
+FOR ALL
+USING (lower(email) = lower(COALESCE(auth.jwt() ->> 'email', '')))
+WITH CHECK (lower(email) = lower(COALESCE(auth.jwt() ->> 'email', '')));
+
+-- Drop any obsolete legacy function overloads that cause duplicate warnings in Supabase Linter
+DROP FUNCTION IF EXISTS public.sync_hunter_profile_secure(TEXT, TEXT, TEXT, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, TEXT);
+DROP FUNCTION IF EXISTS public.sync_hunter_profile_secure(TEXT, TEXT, TEXT, TEXT, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER);
 
 
 -- ==============================================================================
@@ -279,6 +283,7 @@ CREATE OR REPLACE FUNCTION public.grant_crystals_secure(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
     v_user_id TEXT;
@@ -462,6 +467,7 @@ CREATE OR REPLACE FUNCTION public.request_redemption_secure(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
     v_user_id TEXT;
@@ -603,6 +609,7 @@ CREATE OR REPLACE FUNCTION public.sync_hunter_profile_secure(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
     v_user_id TEXT;
@@ -738,6 +745,7 @@ CREATE OR REPLACE FUNCTION public.get_hunter_leaderboard(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
     v_entries JSONB;
