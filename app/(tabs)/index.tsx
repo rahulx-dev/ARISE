@@ -43,6 +43,7 @@ import { NotificationSheet } from '../../src/components/notifications/Notificati
 import { fontFamilies } from '../../src/theme/typography';
 import { useTranslation } from '../../src/services/i18n';
 import { getRequiredXP } from '../../src/services/xpService';
+import { Icon3D } from '../../src/components/ui/Icon3D';
 
 const { width } = Dimensions.get('window');
 
@@ -122,7 +123,7 @@ export default function HomeDashboard() {
     <SafeAreaView
       style={[
         styles.container,
-        { backgroundColor: isDark ? '#000000' : '#F8FAFC' },
+        { backgroundColor: '#F6F4EF' },
       ]}
       edges={['top', 'left', 'right']}
     >
@@ -141,7 +142,7 @@ export default function HomeDashboard() {
             <View
               style={[
                 styles.avatarBox,
-                { borderColor: isDark ? '#1F263A' : '#E2E8F0' },
+                { borderColor: '#E8E4DC', backgroundColor: '#FFFFFF' },
               ]}
             >
               <Image source={avatarSrc} style={styles.avatarImg} />
@@ -150,7 +151,7 @@ export default function HomeDashboard() {
               <Text
                 style={[
                   styles.userNameText,
-                  { color: isDark ? '#FFFFFF' : '#0F172A' },
+                  { color: '#1A1A1A' },
                 ]}
               >
                 {displayName}
@@ -165,8 +166,8 @@ export default function HomeDashboard() {
               style={[
                 styles.circleIconBtn,
                 {
-                  backgroundColor: isDark ? '#141824' : '#FFFFFF',
-                  borderColor: isDark ? '#1F263A' : '#E2E8F0',
+                  backgroundColor: '#FFFFFF',
+                  borderColor: '#E8E4DC',
                 },
               ]}
               onPress={() => {
@@ -177,7 +178,7 @@ export default function HomeDashboard() {
             >
               <Bell
                 size={19}
-                color={isDark ? '#FFFFFF' : '#0F172A'}
+                color="#1A1A1A"
                 strokeWidth={2.2}
               />
               <View style={styles.redBadgeDot} />
@@ -187,8 +188,8 @@ export default function HomeDashboard() {
               style={[
                 styles.circleIconBtn,
                 {
-                  backgroundColor: isDark ? '#141824' : '#FFFFFF',
-                  borderColor: isDark ? '#1F263A' : '#E2E8F0',
+                  backgroundColor: '#FFFFFF',
+                  borderColor: '#E8E4DC',
                 },
               ]}
               onPress={() => {
@@ -199,7 +200,7 @@ export default function HomeDashboard() {
             >
               <Settings
                 size={19}
-                color={isDark ? '#FFFFFF' : '#0F172A'}
+                color="#1A1A1A"
                 strokeWidth={2.2}
               />
             </TouchableOpacity>
@@ -211,8 +212,8 @@ export default function HomeDashboard() {
           style={[
             styles.levelCard,
             {
-              backgroundColor: isDark ? '#0F121C' : '#FFFFFF',
-              borderColor: isDark ? '#181E2E' : '#E2E8F0',
+              backgroundColor: '#FFFFFF',
+              borderColor: '#E8E4DC',
             },
           ]}
         >
@@ -222,26 +223,18 @@ export default function HomeDashboard() {
                 style={[
                   styles.shieldCrownBox,
                   {
-                    backgroundColor: isDark
-                      ? 'rgba(10, 132, 255, 0.12)'
-                      : '#EFF6FF',
-                    borderColor: isDark
-                      ? 'rgba(10, 132, 255, 0.28)'
-                      : '#BFDBFE',
+                    backgroundColor: '#FFF8F0',
+                    borderColor: '#FBE8D0',
                   },
                 ]}
               >
-                <Crown
-                  size={20}
-                  color="#0A84FF"
-                  strokeWidth={2.4}
-                />
+                <Icon3D name="crown_gold" size={26} />
               </View>
               <View>
                 <Text
                   style={[
                     styles.levelTitle,
-                    { color: isDark ? '#FFFFFF' : '#0F172A' },
+                    { color: '#1A1A1A' },
                   ]}
                 >
                   {t('level', 'Level')} {level}
@@ -249,7 +242,7 @@ export default function HomeDashboard() {
                 <Text
                   style={[
                     styles.rankSubText,
-                    { color: isDark ? '#8E8E93' : '#64748B' },
+                    { color: '#6B7280' },
                   ]}
                 >
                   {rank.rankCode}-{t('rankHunter', 'Rank Hunter').replace('{0}-', '')}
@@ -261,7 +254,7 @@ export default function HomeDashboard() {
               <Text
                 style={[
                   styles.xpFractionText,
-                  { color: isDark ? '#8E8E93' : '#64748B' },
+                  { color: '#6B7280' },
                 ]}
               >
                 {currentXP} / {xpNeeded} XP
@@ -274,13 +267,13 @@ export default function HomeDashboard() {
           <View
             style={[
               styles.xpTrack,
-              { backgroundColor: isDark ? '#1A2030' : '#F1F5F9' },
+              { backgroundColor: '#F0ECE1' },
             ]}
           >
             <View
               style={[
                 styles.xpFill,
-                { width: `${Math.max(5, xpPercent)}%`, backgroundColor: '#0A84FF' },
+                { width: `${Math.max(5, xpPercent)}%`, backgroundColor: '#E53935' },
               ]}
             />
           </View>
@@ -293,23 +286,23 @@ export default function HomeDashboard() {
             style={[
               styles.metricGridCard,
               {
-                backgroundColor: isDark ? '#0F121C' : '#FFFFFF',
-                borderColor: isDark ? '#181E2E' : '#E2E8F0',
+                backgroundColor: '#FFFFFF',
+                borderColor: '#E8E4DC',
               },
             ]}
           >
             <View
               style={[
                 styles.metricCircleBadge,
-                { backgroundColor: isDark ? 'rgba(249, 115, 22, 0.15)' : '#FFF7ED' },
+                { backgroundColor: '#FFF8F0' },
               ]}
             >
-              <AnimatedStreakFlame size={22} />
+              <Icon3D name="flame_orange" size={24} />
             </View>
             <Text
               style={[
                 styles.metricBigNum,
-                { color: isDark ? '#FFFFFF' : '#0F172A' },
+                { color: '#1A1A1A' },
               ]}
             >
               {streak}
@@ -318,12 +311,12 @@ export default function HomeDashboard() {
               <Text
                 style={[
                   styles.metricLabel,
-                  { color: isDark ? '#8E8E93' : '#64748B' },
+                  { color: '#6B7280' },
                 ]}
               >
                 {t('dayStreak', 'Day Streak')}
               </Text>
-              <ChevronRight size={11} color={isDark ? '#8E8E93' : '#64748B'} />
+              <ChevronRight size={11} color="#6B7280" />
             </View>
           </View>
 
@@ -332,8 +325,8 @@ export default function HomeDashboard() {
             style={[
               styles.metricGridCard,
               {
-                backgroundColor: isDark ? '#0F121C' : '#FFFFFF',
-                borderColor: isDark ? '#181E2E' : '#E2E8F0',
+                backgroundColor: '#FFFFFF',
+                borderColor: '#E8E4DC',
               },
             ]}
             onPress={() => router.push('/tracking')}
@@ -342,15 +335,15 @@ export default function HomeDashboard() {
             <View
               style={[
                 styles.metricCircleBadge,
-                { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#ECFDF5' },
+                { backgroundColor: '#F0F9FF' },
               ]}
             >
-              <BarChart2 size={18} color="#10B981" strokeWidth={2.4} />
+              <Icon3D name="trophy_gold" size={24} />
             </View>
             <Text
               style={[
                 styles.metricBigNum,
-                { color: isDark ? '#FFFFFF' : '#0F172A' },
+                { color: '#1A1A1A' },
               ]}
             >
               125
@@ -359,12 +352,12 @@ export default function HomeDashboard() {
               <Text
                 style={[
                   styles.metricLabel,
-                  { color: isDark ? '#8E8E93' : '#64748B' },
+                  { color: '#6B7280' },
                 ]}
               >
                 {t('repsToday', 'Reps Today')}
               </Text>
-              <ChevronRight size={11} color={isDark ? '#8E8E93' : '#64748B'} />
+              <ChevronRight size={11} color="#6B7280" />
             </View>
           </TouchableOpacity>
 
@@ -373,8 +366,8 @@ export default function HomeDashboard() {
             style={[
               styles.metricGridCard,
               {
-                backgroundColor: isDark ? '#0F121C' : '#FFFFFF',
-                borderColor: isDark ? '#181E2E' : '#E2E8F0',
+                backgroundColor: '#FFFFFF',
+                borderColor: '#E8E4DC',
               },
             ]}
             onPress={() => router.push('/(tabs)/focus')}
@@ -383,15 +376,15 @@ export default function HomeDashboard() {
             <View
               style={[
                 styles.metricCircleBadge,
-                { backgroundColor: isDark ? 'rgba(10, 132, 255, 0.15)' : '#EFF6FF' },
+                { backgroundColor: '#FFFBF0' },
               ]}
             >
-              <Clock size={18} color="#0A84FF" strokeWidth={2.4} />
+              <Icon3D name="hourglass_amber" size={24} />
             </View>
             <Text
               style={[
                 styles.metricBigNum,
-                { color: isDark ? '#FFFFFF' : '#0F172A', fontSize: 16 },
+                { color: '#1A1A1A', fontSize: 16 },
               ]}
             >
               2h 30m
@@ -400,12 +393,12 @@ export default function HomeDashboard() {
               <Text
                 style={[
                   styles.metricLabel,
-                  { color: isDark ? '#8E8E93' : '#64748B' },
+                  { color: '#6B7280' },
                 ]}
               >
                 {t('focusTime', 'Focus Time')}
               </Text>
-              <ChevronRight size={11} color={isDark ? '#8E8E93' : '#64748B'} />
+              <ChevronRight size={11} color="#6B7280" />
             </View>
           </TouchableOpacity>
 
@@ -414,8 +407,8 @@ export default function HomeDashboard() {
             style={[
               styles.metricGridCard,
               {
-                backgroundColor: isDark ? '#0F121C' : '#FFFFFF',
-                borderColor: isDark ? '#181E2E' : '#E2E8F0',
+                backgroundColor: '#FFFFFF',
+                borderColor: '#E8E4DC',
               },
             ]}
             onPress={() => {
@@ -427,15 +420,15 @@ export default function HomeDashboard() {
             <View
               style={[
                 styles.metricCircleBadge,
-                { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEFCE8' },
+                { backgroundColor: '#FFFBEB' },
               ]}
             >
-              <Coins size={18} color="#F59E0B" strokeWidth={2.4} />
+              <Icon3D name="coin_gold" size={24} />
             </View>
             <Text
               style={[
                 styles.metricBigNum,
-                { color: isDark ? '#FFFFFF' : '#0F172A' },
+                { color: '#1A1A1A' },
               ]}
             >
               {coins.toLocaleString()}
@@ -444,12 +437,12 @@ export default function HomeDashboard() {
               <Text
                 style={[
                   styles.metricLabel,
-                  { color: isDark ? '#8E8E93' : '#64748B' },
+                  { color: '#6B7280' },
                 ]}
               >
                 {t('coins', 'Coins')}
               </Text>
-              <ChevronRight size={11} color={isDark ? '#8E8E93' : '#64748B'} />
+              <ChevronRight size={11} color="#6B7280" />
             </View>
           </TouchableOpacity>
         </View>
@@ -459,8 +452,8 @@ export default function HomeDashboard() {
           style={[
             styles.todayQuestsCard,
             {
-              backgroundColor: isDark ? '#0F121C' : '#FFFFFF',
-              borderColor: isDark ? '#181E2E' : '#E2E8F0',
+              backgroundColor: '#FFFFFF',
+              borderColor: '#E8E4DC',
             },
           ]}
         >
@@ -469,7 +462,7 @@ export default function HomeDashboard() {
             <Text
               style={[
                 styles.todayQuestsTitle,
-                { color: isDark ? '#FFFFFF' : '#0F172A' },
+                { color: '#1A1A1A' },
               ]}
             >
               {t('todaysQuests', "Today's Quests")}
@@ -477,7 +470,7 @@ export default function HomeDashboard() {
             <Text
               style={[
                 styles.todayQuestsCount,
-                { color: isDark ? '#8E8E93' : '#64748B' },
+                { color: '#6B7280' },
               ]}
             >
               {(dailyQuests || []).length > 0
@@ -539,33 +532,30 @@ export default function HomeDashboard() {
                   activeOpacity={0.75}
                 >
                   {isDone ? (
-                    <CheckCircle2 size={22} color="#10B981" />
+                    <Icon3D name="checkmark_green" size={20} />
                   ) : (
                     <Circle
-                      size={22}
-                      color={isDark ? '#374151' : '#D1D5DB'}
+                      size={20}
+                      color="#D1D5DB"
                       strokeWidth={2}
                     />
                   )}
                   {isFitness ? (
-                    <Dumbbell
+                    <Icon3D
+                      name="dumbbell_white"
                       size={18}
-                      color="#E53935"
-                      strokeWidth={2.4}
                       style={{ marginLeft: 4 }}
                     />
                   ) : isFocus ? (
-                    <Clock
+                    <Icon3D
+                      name="hourglass_amber"
                       size={18}
-                      color="#0A84FF"
-                      strokeWidth={2.4}
                       style={{ marginLeft: 4 }}
                     />
                   ) : (
-                    <Sparkles
+                    <Icon3D
+                      name="scroll_parchment"
                       size={18}
-                      color="#F59E0B"
-                      strokeWidth={2.4}
                       style={{ marginLeft: 4 }}
                     />
                   )}
@@ -574,8 +564,8 @@ export default function HomeDashboard() {
                       styles.questItemTitle,
                       {
                         color: isDone
-                          ? isDark ? '#8E8E93' : '#94A3B8'
-                          : isDark ? '#FFFFFF' : '#0F172A',
+                          ? '#9CA3AF'
+                          : '#1A1A1A',
                         textDecorationLine: isDone ? 'line-through' : 'none',
                       },
                     ]}
@@ -584,7 +574,7 @@ export default function HomeDashboard() {
                     {q.title}
                   </Text>
                   <View style={[styles.questBountyTag, isDone && { opacity: 0.7 }]}>
-                    <Coins size={14} color="#F59E0B" />
+                    <Icon3D name="coin_gold" size={14} />
                     <Text style={styles.questBountyText}>+{q.rewardCoins || 18}</Text>
                   </View>
                 </TouchableOpacity>
@@ -597,8 +587,8 @@ export default function HomeDashboard() {
             style={[
               styles.viewAllQuestsBtn,
               {
-                backgroundColor: isDark ? '#141824' : '#F1F5F9',
-                borderColor: isDark ? '#1F263A' : '#E2E8F0',
+                backgroundColor: '#F6F4EF',
+                borderColor: '#E8E4DC',
               },
             ]}
             onPress={() => {
@@ -610,14 +600,14 @@ export default function HomeDashboard() {
             <Text
               style={[
                 styles.viewAllQuestsBtnText,
-                { color: isDark ? '#FFFFFF' : '#0F172A' },
+                { color: '#1A1A1A' },
               ]}
             >
               {t('viewAllQuests', 'View All Quests')}
             </Text>
             <ChevronRight
               size={15}
-              color={isDark ? '#FFFFFF' : '#0F172A'}
+              color="#1A1A1A"
               strokeWidth={2.4}
             />
           </TouchableOpacity>
@@ -629,7 +619,7 @@ export default function HomeDashboard() {
             <Text
               style={[
                 styles.quickActionsTitle,
-                { color: isDark ? '#FFFFFF' : '#0F172A' },
+                { color: '#1A1A1A' },
               ]}
             >
               {t('quickActions', 'Quick Actions')}
@@ -642,14 +632,14 @@ export default function HomeDashboard() {
               <Text
                 style={[
                   styles.seeAllText,
-                  { color: isDark ? '#8E8E93' : '#64748B' },
+                  { color: '#6B7280' },
                 ]}
               >
                 {t('seeAll', 'See All')}
               </Text>
               <ChevronRight
                 size={13}
-                color={isDark ? '#8E8E93' : '#64748B'}
+                color="#6B7280"
               />
             </TouchableOpacity>
           </View>
@@ -664,8 +654,8 @@ export default function HomeDashboard() {
               style={[
                 styles.quickActionCard,
                 {
-                  backgroundColor: isDark ? '#181014' : '#FFF1F2',
-                  borderColor: isDark ? '#2E1820' : '#FFE4E6',
+                  backgroundColor: '#FFFFFF',
+                  borderColor: '#E8E4DC',
                 },
               ]}
               onPress={() => {
@@ -678,13 +668,11 @@ export default function HomeDashboard() {
                 style={[
                   styles.quickActionIconWrap,
                   {
-                    backgroundColor: isDark
-                      ? 'rgba(239, 68, 68, 0.2)'
-                      : '#FFE4E6',
+                    backgroundColor: '#FFF2F2',
                   },
                 ]}
               >
-                <Dumbbell size={20} color="#EF4444" strokeWidth={2.4} />
+                <Icon3D name="dumbbell_white" size={24} />
               </View>
               <View
                 style={{
@@ -696,20 +684,20 @@ export default function HomeDashboard() {
                 <Text
                   style={[
                     styles.quickActionCardTitle,
-                    { color: isDark ? '#FFFFFF' : '#0F172A' },
+                    { color: '#1A1A1A' },
                   ]}
                 >
                   {t('workout', 'Workout')}
                 </Text>
                 <ChevronRight
                   size={14}
-                  color={isDark ? '#8E8E93' : '#64748B'}
+                  color="#6B7280"
                 />
               </View>
               <Text
                 style={[
                   styles.quickActionCardSub,
-                  { color: isDark ? '#8E8E93' : '#64748B' },
+                  { color: '#6B7280' },
                 ]}
               >
                 {t('startSession', 'Start session')}
@@ -721,8 +709,8 @@ export default function HomeDashboard() {
               style={[
                 styles.quickActionCard,
                 {
-                  backgroundColor: isDark ? '#08171E' : '#F0FDF4',
-                  borderColor: isDark ? '#0E2E33' : '#DCFCE7',
+                  backgroundColor: '#FFFFFF',
+                  borderColor: '#E8E4DC',
                 },
               ]}
               onPress={() => {
@@ -735,13 +723,11 @@ export default function HomeDashboard() {
                 style={[
                   styles.quickActionIconWrap,
                   {
-                    backgroundColor: isDark
-                      ? 'rgba(16, 185, 129, 0.2)'
-                      : '#DCFCE7',
+                    backgroundColor: '#F0FDF4',
                   },
                 ]}
               >
-                <Footprints size={20} color="#10B981" strokeWidth={2.4} />
+                <Icon3D name="sneaker_blue" size={24} />
               </View>
               <View
                 style={{
@@ -753,20 +739,20 @@ export default function HomeDashboard() {
                 <Text
                   style={[
                     styles.quickActionCardTitle,
-                    { color: isDark ? '#FFFFFF' : '#0F172A' },
+                    { color: '#1A1A1A' },
                   ]}
                 >
                   {t('run', 'Run')}
                 </Text>
                 <ChevronRight
                   size={14}
-                  color={isDark ? '#8E8E93' : '#64748B'}
+                  color="#6B7280"
                 />
               </View>
               <Text
                 style={[
                   styles.quickActionCardSub,
-                  { color: isDark ? '#8E8E93' : '#64748B' },
+                  { color: '#6B7280' },
                 ]}
               >
                 {t('runSub', 'Outdoor GPS')}
@@ -778,8 +764,8 @@ export default function HomeDashboard() {
               style={[
                 styles.quickActionCard,
                 {
-                  backgroundColor: isDark ? '#0F1624' : '#EFF6FF',
-                  borderColor: isDark ? '#16243A' : '#DBEAFE',
+                  backgroundColor: '#FFFFFF',
+                  borderColor: '#E8E4DC',
                 },
               ]}
               onPress={() => {
@@ -792,13 +778,11 @@ export default function HomeDashboard() {
                 style={[
                   styles.quickActionIconWrap,
                   {
-                    backgroundColor: isDark
-                      ? 'rgba(10, 132, 255, 0.2)'
-                      : '#DBEAFE',
+                    backgroundColor: '#EFF6FF',
                   },
                 ]}
               >
-                <Clock size={20} color="#0A84FF" strokeWidth={2.4} />
+                <Icon3D name="hourglass_amber" size={24} />
               </View>
               <View
                 style={{
@@ -810,20 +794,20 @@ export default function HomeDashboard() {
                 <Text
                   style={[
                     styles.quickActionCardTitle,
-                    { color: isDark ? '#FFFFFF' : '#0F172A' },
+                    { color: '#1A1A1A' },
                   ]}
                 >
                   {t('focus', 'Focus')}
                 </Text>
                 <ChevronRight
                   size={14}
-                  color={isDark ? '#8E8E93' : '#64748B'}
+                  color="#6B7280"
                 />
               </View>
               <Text
                 style={[
                   styles.quickActionCardSub,
-                  { color: isDark ? '#8E8E93' : '#64748B' },
+                  { color: '#6B7280' },
                 ]}
               >
                 {t('stayInZone', 'Stay in zone')}
@@ -835,8 +819,8 @@ export default function HomeDashboard() {
               style={[
                 styles.quickActionCard,
                 {
-                  backgroundColor: isDark ? '#1A1610' : '#FEFCE8',
-                  borderColor: isDark ? '#332616' : '#FEF08A',
+                  backgroundColor: '#FFFFFF',
+                  borderColor: '#E8E4DC',
                 },
               ]}
               onPress={() => {
@@ -849,13 +833,11 @@ export default function HomeDashboard() {
                 style={[
                   styles.quickActionIconWrap,
                   {
-                    backgroundColor: isDark
-                      ? 'rgba(245, 158, 11, 0.2)'
-                      : '#FEF08A',
+                    backgroundColor: '#FDF4FF',
                   },
                 ]}
               >
-                <ShoppingBag size={20} color="#F59E0B" strokeWidth={2.4} />
+                <Icon3D name="cart_purple" size={24} />
               </View>
               <View
                 style={{
@@ -867,20 +849,20 @@ export default function HomeDashboard() {
                 <Text
                   style={[
                     styles.quickActionCardTitle,
-                    { color: isDark ? '#FFFFFF' : '#0F172A' },
+                    { color: '#1A1A1A' },
                   ]}
                 >
                   {t('shop', 'Shop')}
                 </Text>
                 <ChevronRight
                   size={14}
-                  color={isDark ? '#8E8E93' : '#64748B'}
+                  color="#6B7280"
                 />
               </View>
               <Text
                 style={[
                   styles.quickActionCardSub,
-                  { color: isDark ? '#8E8E93' : '#64748B' },
+                  { color: '#6B7280' },
                 ]}
               >
                 {t('upgradeUnlock', 'Spend coins')}

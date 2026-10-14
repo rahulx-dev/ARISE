@@ -16,6 +16,7 @@ import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   ChevronLeft,
+  ArrowLeft,
   Search,
   Lock,
   ShieldAlert,
@@ -34,6 +35,8 @@ import { useTheme } from "../../src/hooks/useTheme";
 import { showIOSAlert } from "../../src/components/ios/IOSAlertModal";
 import { useSettingsStore } from "../../src/stores/useSettingsStore";
 import { fontFamilies } from "../../src/theme/typography";
+import { NeumorphicCard, NeumorphicCircleButton } from "../../src/components/ui/NeumorphicCard";
+import { Icon3D } from "../../src/components/ui/Icon3D";
 
 interface AppItem {
   packageName: string;
@@ -213,56 +216,28 @@ export default function LockedAppsScreen() {
 
   return (
     <SafeAreaView
-      style={[styles.container, { backgroundColor: isDark ? "#0A0B10" : "#F8FAFC" }]}
+      style={[styles.container, { backgroundColor: colors.background }]}
       edges={["top", "left", "right"]}
     >
       {/* 1. Header Row (1:1 with reference) */}
       <View style={styles.topHeader}>
-        <TouchableOpacity
-          style={[
-            styles.backBtn,
-            { backgroundColor: isDark ? "#161822" : "#FFFFFF" },
-          ]}
+        <NeumorphicCircleButton
+          size={38}
           onPress={() => router.back()}
-          activeOpacity={0.75}
-        >
-          <ChevronLeft
-            size={22}
-            color={isDark ? "#FFFFFF" : "#0F172A"}
-            strokeWidth={2.5}
-          />
-        </TouchableOpacity>
+          icon={<ArrowLeft size={18} color={colors.textPrimary} strokeWidth={2.5} />}
+        />
 
         <View style={styles.headerCenterCol}>
-          <Text
-            style={[
-              styles.headerTitle,
-              { color: isDark ? "#FFFFFF" : "#0F172A" },
-            ]}
-          >
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
             Locked Apps
           </Text>
-          <Text
-            style={[
-              styles.headerSubtitle,
-              { color: isDark ? "#8E8E93" : "#64748B" },
-            ]}
-          >
+          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
             Focus Shield Protocol
           </Text>
         </View>
 
-        <View
-          style={[
-            styles.lockedBadgePill,
-            {
-              backgroundColor: isDark
-                ? "rgba(239, 68, 68, 0.15)"
-                : "#FFF1F2",
-            },
-          ]}
-        >
-          <Shield size={13} color="#EF4444" />
+        <View style={styles.lockedBadgePill}>
+          <Icon3D name="padlock_red" size={16} />
           <Text style={styles.lockedBadgeText}>
             {totalRestrictedCount} Locked
           </Text>
@@ -318,44 +293,17 @@ export default function LockedAppsScreen() {
           </View>
         )}
 
-        {/* 3. Daily Screen Time Allowance Card (1:1 with reference) */}
-        <View
-          style={[
-            styles.allowanceCard,
-            {
-              backgroundColor: isDark ? "#111218" : "#FFFFFF",
-              borderColor: isDark ? "#1C1E2A" : "#F1F5F9",
-            },
-          ]}
-        >
+        {/* 3. Daily Screen Time Allowance Card */}
+        <NeumorphicCard style={styles.allowanceCard}>
           <View style={styles.allowanceHeaderRow}>
-            <View
-              style={[
-                styles.clockIconCircle,
-                { backgroundColor: isDark ? "#1C1E2A" : "#F1F5F9" },
-              ]}
-            >
-              <Clock
-                size={18}
-                color={isDark ? "#8E8E93" : "#64748B"}
-                strokeWidth={2.2}
-              />
+            <View style={styles.clockIconCircle}>
+              <Icon3D name="clock_green" size={26} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text
-                style={[
-                  styles.allowanceTitle,
-                  { color: isDark ? "#FFFFFF" : "#0F172A" },
-                ]}
-              >
+              <Text style={[styles.allowanceTitle, { color: colors.textPrimary }]}>
                 Daily Screen Time Allowance
               </Text>
-              <Text
-                style={[
-                  styles.allowanceSubtitle,
-                  { color: isDark ? "#8E8E93" : "#64748B" },
-                ]}
-              >
+              <Text style={[styles.allowanceSubtitle, { color: colors.textSecondary }]}>
                 Free minutes per app before lockdown triggers.
               </Text>
             </View>
@@ -501,28 +449,20 @@ export default function LockedAppsScreen() {
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </NeumorphicCard>
 
-        {/* 4. Search Bar (1:1 with reference) */}
-        <View
-          style={[
-            styles.searchBarWrap,
-            {
-              backgroundColor: isDark ? "#111218" : "#F1F5F9",
-              borderColor: isDark ? "#1C1E2A" : "transparent",
-            },
-          ]}
-        >
-          <Search size={18} color={isDark ? "#8E8E93" : "#64748B"} />
+        {/* 4. Search Bar */}
+        <View style={styles.searchBarWrap}>
+          <Search size={18} color="#6B7280" />
           <TextInput
             style={[
               styles.searchInput,
-              { color: isDark ? "#FFFFFF" : "#0F172A" },
+              { color: colors.textPrimary },
             ]}
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholder="Search apps..."
-            placeholderTextColor={isDark ? "#8E8E93" : "#94A3B8"}
+            placeholder="Search installed apps..."
+            placeholderTextColor="#9CA3AF"
             autoCorrect={false}
           />
           {searchQuery.length > 0 && (
@@ -530,7 +470,7 @@ export default function LockedAppsScreen() {
               onPress={() => setSearchQuery("")}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <X size={16} color={isDark ? "#8E8E93" : "#64748B"} />
+              <X size={16} color="#6B7280" />
             </TouchableOpacity>
           )}
         </View>
@@ -540,7 +480,7 @@ export default function LockedAppsScreen() {
           <Text
             style={[
               styles.listSectionTitle,
-              { color: isDark ? "#FFFFFF" : "#0F172A" },
+              { color: colors.textPrimary },
             ]}
           >
             All Installed Apps ({filteredApps.length})
@@ -548,7 +488,7 @@ export default function LockedAppsScreen() {
           <Text
             style={[
               styles.listSectionSub,
-              { color: isDark ? "#8E8E93" : "#64748B" },
+              { color: colors.textSecondary },
             ]}
           >
             Tap to lock
@@ -558,31 +498,23 @@ export default function LockedAppsScreen() {
         {/* 6. Apps List Container */}
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#EF4444" />
+            <ActivityIndicator size="large" color="#E53935" />
             <Text
               style={[
                 styles.loadingText,
-                { color: isDark ? "#8E8E93" : "#64748B" },
+                { color: colors.textSecondary },
               ]}
             >
               Scanning installed apps...
             </Text>
           </View>
         ) : filteredApps.length === 0 ? (
-          <View
-            style={[
-              styles.emptyStateCard,
-              {
-                backgroundColor: isDark ? "#111218" : "#FFFFFF",
-                borderColor: isDark ? "#1C1E2A" : "#F1F5F9",
-              },
-            ]}
-          >
-            <Smartphone size={36} color={isDark ? "#8E8E93" : "#94A3B8"} />
+          <NeumorphicCard style={styles.emptyStateCard}>
+            <Smartphone size={36} color="#9CA3AF" />
             <Text
               style={[
                 styles.emptyStateTitle,
-                { color: isDark ? "#FFFFFF" : "#0F172A" },
+                { color: colors.textPrimary },
               ]}
             >
               {searchQuery ? "No matching apps found" : "No installed apps detected"}
@@ -590,24 +522,16 @@ export default function LockedAppsScreen() {
             <Text
               style={[
                 styles.emptyStateDesc,
-                { color: isDark ? "#8E8E93" : "#64748B" },
+                { color: colors.textSecondary },
               ]}
             >
               {searchQuery
                 ? "Try searching for a different package or app name."
                 : "Real installed applications from your device will appear here."}
             </Text>
-          </View>
+          </NeumorphicCard>
         ) : (
-          <View
-            style={[
-              styles.appsListCard,
-              {
-                backgroundColor: isDark ? "#111218" : "#FFFFFF",
-                borderColor: isDark ? "#1C1E2A" : "#F1F5F9",
-              },
-            ]}
-          >
+          <NeumorphicCard style={styles.appsListCard} padding={0}>
             {filteredApps.map((item, index) => {
               const isLocked = item.isRestricted;
               const isLast = index === filteredApps.length - 1;
@@ -720,7 +644,7 @@ export default function LockedAppsScreen() {
                 </View>
               );
             })}
-          </View>
+          </NeumorphicCard>
         )}
 
         <View style={{ height: 40 }} />
@@ -837,46 +761,42 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-  },
   headerCenterCol: {
     alignItems: "center",
     gap: 2,
   },
   headerTitle: {
-    fontFamily: fontFamilies.semiBold,
-    fontSize: 17,
-    fontWeight: "600",
+    fontFamily: fontFamilies.bold,
+    fontSize: 18,
+    color: '#1A1A1A',
     letterSpacing: -0.2,
   },
   headerSubtitle: {
-    fontFamily: fontFamilies.regular,
-    fontSize: 12,
-    fontWeight: "400",
+    fontFamily: fontFamilies.medium,
+    fontSize: 11,
+    color: '#6B7280',
+    letterSpacing: 0.5,
   },
   lockedBadgePill: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8E4DC',
+    shadowColor: '#1A1A1A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
   lockedBadgeText: {
-    fontFamily: fontFamilies.medium,
+    fontFamily: fontFamilies.bold,
     fontSize: 12,
-    fontWeight: "500",
-    color: "#EF4444",
+    color: "#E53935",
   },
 
   // 2. Permissions Required Banner
@@ -884,7 +804,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     borderRadius: 20,
-    borderWidth: 1.5,
+    borderWidth: 1,
+    borderColor: '#E8E4DC',
     padding: 16,
     gap: 12,
   },
@@ -897,9 +818,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   permTitle: {
-    fontFamily: fontFamilies.semiBold,
+    fontFamily: fontFamilies.bold,
     fontSize: 14.5,
-    fontWeight: "600",
   },
   permDesc: {
     fontFamily: fontFamilies.regular,
@@ -910,29 +830,22 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "#EF4444",
+    backgroundColor: "#E53935",
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: 12,
   },
   permGrantBtnText: {
-    fontFamily: fontFamilies.medium,
+    fontFamily: fontFamilies.bold,
     fontSize: 12,
-    fontWeight: "500",
     color: "#FFFFFF",
   },
 
   // 3. Daily Screen Time Allowance Card
   allowanceCard: {
-    borderRadius: 20,
-    borderWidth: 1,
+    borderRadius: 22,
     padding: 18,
     gap: 14,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 2,
   },
   allowanceHeaderRow: {
     flexDirection: "row",
@@ -940,16 +853,16 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   clockIconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F6F4EF',
     alignItems: "center",
     justifyContent: "center",
   },
   allowanceTitle: {
-    fontFamily: fontFamilies.semiBold,
+    fontFamily: fontFamilies.bold,
     fontSize: 15,
-    fontWeight: "600",
   },
   allowanceSubtitle: {
     fontFamily: fontFamilies.regular,
@@ -965,7 +878,9 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 44,
     borderRadius: 12,
-    borderWidth: 1.5,
+    borderWidth: 1,
+    borderColor: '#E8E4DC',
+    backgroundColor: '#FFFFFF',
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 4,
@@ -974,7 +889,9 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 44,
     borderRadius: 12,
-    borderWidth: 1.5,
+    borderWidth: 1,
+    borderColor: '#E8E4DC',
+    backgroundColor: '#FFFFFF',
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 6,
@@ -982,7 +899,6 @@ const styles = StyleSheet.create({
   allowancePillText: {
     fontFamily: fontFamilies.medium,
     fontSize: 12,
-    fontWeight: "500",
     textAlign: "center",
   },
 
@@ -991,16 +907,22 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    height: 44,
-    borderRadius: 12,
+    height: 46,
+    borderRadius: 14,
     borderWidth: 1,
+    borderColor: '#E8E4DC',
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 14,
+    shadowColor: '#1A1A1A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
   searchInput: {
     flex: 1,
-    fontFamily: fontFamilies.regular,
+    fontFamily: fontFamilies.medium,
     fontSize: 14,
-    fontWeight: "400",
   },
 
   // 5. Section Header
@@ -1012,26 +934,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   listSectionTitle: {
-    fontFamily: fontFamilies.semiBold,
+    fontFamily: fontFamilies.bold,
     fontSize: 15,
-    fontWeight: "600",
   },
   listSectionSub: {
-    fontFamily: fontFamilies.medium,
-    fontSize: 12,
-    fontWeight: "500",
+    fontFamily: fontFamilies.bold,
+    fontSize: 11,
+    letterSpacing: 0.8,
   },
 
   // 6. Apps List Card
   appsListCard: {
-    borderRadius: 18,
-    borderWidth: 1,
+    borderRadius: 22,
     overflow: "hidden",
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 2,
   },
   appRow: {
     flexDirection: "row",
@@ -1080,13 +995,12 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   lockStatusPillLocked: {
-    backgroundColor: "#EF4444",
+    backgroundColor: "#E53935",
   },
   lockStatusText: {
-    fontFamily: fontFamilies.medium,
+    fontFamily: fontFamilies.bold,
     fontSize: 11.5,
-    fontWeight: "500",
-    letterSpacing: 0.1,
+    letterSpacing: 0.2,
   },
   appRowDivider: {
     height: 1,
@@ -1102,31 +1016,28 @@ const styles = StyleSheet.create({
   loadingText: {
     fontFamily: fontFamilies.medium,
     fontSize: 13,
-    fontWeight: "500",
   },
   emptyStateCard: {
-    borderRadius: 18,
-    borderWidth: 1,
+    borderRadius: 22,
     padding: 30,
     alignItems: "center",
     gap: 10,
   },
   emptyStateTitle: {
-    fontFamily: fontFamilies.semiBold,
-    fontSize: 15.5,
-    fontWeight: "600",
+    fontFamily: fontFamilies.bold,
+    fontSize: 16,
   },
   emptyStateDesc: {
     fontFamily: fontFamilies.regular,
     fontSize: 12,
     textAlign: "center",
-    lineHeight: 17,
+    lineHeight: 18,
   },
 
   // Custom Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.65)",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
@@ -1134,15 +1045,17 @@ const styles = StyleSheet.create({
   customModalCard: {
     width: "100%",
     maxWidth: 360,
-    borderRadius: 20,
+    borderRadius: 22,
     borderWidth: 1,
+    borderColor: '#E8E4DC',
+    backgroundColor: '#FFFFFF',
     padding: 20,
     gap: 14,
-    shadowColor: "#000000",
+    shadowColor: "#1A1A1A",
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.1,
     shadowRadius: 16,
-    elevation: 10,
+    elevation: 8,
   },
   customModalHeader: {
     flexDirection: "row",
@@ -1150,23 +1063,23 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   customModalTitle: {
-    fontFamily: fontFamilies.semiBold,
-    fontSize: 16,
-    fontWeight: "600",
+    fontFamily: fontFamilies.bold,
+    fontSize: 17,
   },
   customModalDesc: {
     fontFamily: fontFamilies.regular,
     fontSize: 12.5,
-    lineHeight: 17,
+    lineHeight: 18,
   },
   customInput: {
-    height: 46,
+    height: 48,
     borderRadius: 12,
     borderWidth: 1,
+    borderColor: '#E8E4DC',
+    backgroundColor: '#F6F4EF',
     paddingHorizontal: 14,
     fontFamily: fontFamilies.medium,
     fontSize: 15,
-    fontWeight: "500",
   },
   customModalActions: {
     flexDirection: "row",
@@ -1175,28 +1088,28 @@ const styles = StyleSheet.create({
   },
   customCancelBtn: {
     flex: 1,
-    height: 42,
+    height: 44,
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: '#F3F4F6',
   },
   customCancelBtnText: {
     fontFamily: fontFamilies.medium,
     fontSize: 13,
-    fontWeight: "500",
+    color: '#6B7280',
   },
   customSaveBtn: {
     flex: 1,
-    height: 42,
+    height: 44,
     borderRadius: 12,
-    backgroundColor: "#EF4444",
+    backgroundColor: "#E53935",
     alignItems: "center",
     justifyContent: "center",
   },
   customSaveBtnText: {
-    fontFamily: fontFamilies.semiBold,
+    fontFamily: fontFamilies.bold,
     fontSize: 13,
-    fontWeight: "600",
     color: "#FFFFFF",
   },
 });

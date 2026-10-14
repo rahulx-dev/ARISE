@@ -44,6 +44,9 @@ import { AVATAR_IMAGES } from '../../src/components/profile/AvatarPicker';
 import { AriseBannerAd } from '../../src/components/ads/AriseBannerAd';
 import { supabase, isSupabaseConfigured } from '../../src/services/supabaseClient';
 import { AnimatedStreakFlame } from '../../src/components/ui/AnimatedStreakFlame';
+import { NeumorphicCard, NeumorphicCircleButton } from '../../src/components/ui/NeumorphicCard';
+import { Icon3D } from '../../src/components/ui/Icon3D';
+import { fontFamilies } from '../../src/theme/typography';
 
 const { width } = Dimensions.get('window');
 
@@ -154,27 +157,27 @@ export default function LeaderboardScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       {/* Top Header */}
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <TouchableOpacity
-          style={[styles.backBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+      <View style={styles.header}>
+        <NeumorphicCircleButton
+          size={40}
           onPress={() => {
             haptics.light();
             router.back();
           }}
-          activeOpacity={0.8}
+          accessibilityLabel="Back"
         >
-          <ArrowLeft size={19} color={colors.textPrimary} />
-        </TouchableOpacity>
+          <ArrowLeft size={18} color="#1A1A1A" weight="bold" />
+        </NeumorphicCircleButton>
 
         <View style={styles.headerCenter}>
-          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>HUNTER ASSOCIATION</Text>
-          <Text style={[styles.headerSub, { color: colors.textSecondary }]}>GLOBAL RANKINGS & TOURNAMENTS</Text>
+          <Text style={styles.headerTitle}>MONARCH HUB</Text>
+          <Text style={styles.headerSub}>GLOBAL RANKINGS & ARENAS</Text>
         </View>
 
         <View style={styles.activeTag}>
-          <Users size={12} color="#0A84FF" weight="bold" />
+          <Users size={12} color="#E53935" weight="bold" />
           <Text style={styles.activeTagText}>
             {totalHunters >= 1000 ? `${(totalHunters / 1000).toFixed(1)}k ACTIVE` : `${totalHunters} ACTIVE`}
           </Text>
@@ -182,7 +185,7 @@ export default function LeaderboardScreen() {
       </View>
 
       {/* Main Dual-Hub Segment Switcher */}
-      <View style={[styles.hubSegmentWrap, { backgroundColor: isDark ? '#0A0D15' : colors.surfaceLight, borderColor: colors.border }]}>
+      <View style={styles.hubSegmentWrap}>
         <TouchableOpacity
           style={[
             styles.hubSegmentBtn,
@@ -195,14 +198,13 @@ export default function LeaderboardScreen() {
           activeOpacity={0.85}
         >
           <Trophy
-            size={15}
-            color={activeHubTab === 'rankings' ? '#FFFFFF' : colors.textSecondary}
+            size={14}
+            color={activeHubTab === 'rankings' ? '#FFFFFF' : '#7A756D'}
             weight={activeHubTab === 'rankings' ? 'fill' : 'regular'}
           />
           <Text
             style={[
               styles.hubSegmentText,
-              { color: colors.textSecondary },
               activeHubTab === 'rankings' && styles.hubSegmentTextActive,
             ]}
           >
@@ -222,14 +224,13 @@ export default function LeaderboardScreen() {
           activeOpacity={0.85}
         >
           <Sword
-            size={15}
-            color={activeHubTab === 'tournaments' ? '#FFFFFF' : colors.textSecondary}
+            size={14}
+            color={activeHubTab === 'tournaments' ? '#FFFFFF' : '#7A756D'}
             weight={activeHubTab === 'tournaments' ? 'fill' : 'regular'}
           />
           <Text
             style={[
               styles.hubSegmentText,
-              { color: colors.textSecondary },
               activeHubTab === 'tournaments' && styles.hubSegmentTextActive,
             ]}
           >
@@ -249,13 +250,12 @@ export default function LeaderboardScreen() {
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
-            {/* Category Filter Pills (Sleek Obsidian Capsules) */}
+            {/* Category Filter Pills */}
             <View style={styles.categoryPillsRow}>
               <TouchableOpacity
                 style={[
                   styles.categoryPill,
-                  { backgroundColor: isDark ? '#0A0D15' : colors.surfaceLight, borderColor: colors.border },
-                  activeCategory === 'streak' && styles.categoryPillActiveStreak,
+                  activeCategory === 'streak' && styles.categoryPillActive,
                 ]}
                 onPress={() => {
                   haptics.light();
@@ -263,11 +263,10 @@ export default function LeaderboardScreen() {
                 }}
                 activeOpacity={0.85}
               >
-                <AnimatedStreakFlame size={16} />
+                <Icon3D name="flame_orange" size={16} />
                 <Text
                   style={[
                     styles.categoryPillText,
-                    { color: colors.textSecondary },
                     activeCategory === 'streak' && styles.categoryPillTextActive,
                   ]}
                 >
@@ -278,8 +277,7 @@ export default function LeaderboardScreen() {
               <TouchableOpacity
                 style={[
                   styles.categoryPill,
-                  { backgroundColor: isDark ? '#0A0D15' : colors.surfaceLight, borderColor: colors.border },
-                  activeCategory === 'power' && styles.categoryPillActivePower,
+                  activeCategory === 'power' && styles.categoryPillActive,
                 ]}
                 onPress={() => {
                   haptics.light();
@@ -287,15 +285,10 @@ export default function LeaderboardScreen() {
                 }}
                 activeOpacity={0.85}
               >
-                <Lightning
-                  size={14}
-                  color={activeCategory === 'power' ? '#FFFFFF' : '#0A84FF'}
-                  weight="fill"
-                />
+                <Icon3D name="lightning_gold" size={16} />
                 <Text
                   style={[
                     styles.categoryPillText,
-                    { color: colors.textSecondary },
                     activeCategory === 'power' && styles.categoryPillTextActive,
                   ]}
                 >
@@ -306,8 +299,7 @@ export default function LeaderboardScreen() {
               <TouchableOpacity
                 style={[
                   styles.categoryPill,
-                  { backgroundColor: isDark ? '#0A0D15' : colors.surfaceLight, borderColor: colors.border },
-                  activeCategory === 'reps' && styles.categoryPillActiveReps,
+                  activeCategory === 'reps' && styles.categoryPillActive,
                 ]}
                 onPress={() => {
                   haptics.light();
@@ -315,15 +307,10 @@ export default function LeaderboardScreen() {
                 }}
                 activeOpacity={0.85}
               >
-                <Barbell
-                  size={14}
-                  color={activeCategory === 'reps' ? '#FFFFFF' : '#F59E0B'}
-                  weight="fill"
-                />
+                <Icon3D name="dumbbell_white" size={16} />
                 <Text
                   style={[
                     styles.categoryPillText,
-                    { color: colors.textSecondary },
                     activeCategory === 'reps' && styles.categoryPillTextActive,
                   ]}
                 >
@@ -348,18 +335,18 @@ export default function LeaderboardScreen() {
                     </View>
                   </View>
 
-                  <Text style={[styles.podiumName, { color: colors.textPrimary }]} numberOfLines={1}>
+                  <Text style={styles.podiumName} numberOfLines={1}>
                     {topThree[1].name}
                   </Text>
                   <View style={styles.podiumStreakBadgeSilver}>
                     {activeCategory === 'reps' ? (
                       <>
-                        <Barbell size={11} color="#94A3B8" weight="fill" />
+                        <Barbell size={11} color="#7A756D" weight="fill" />
                         <Text style={styles.podiumStreakTextSilver}>{topThree[1].totalReps.toLocaleString()} reps</Text>
                       </>
                     ) : activeCategory === 'power' ? (
                       <>
-                        <Lightning size={11} color="#94A3B8" weight="fill" />
+                        <Lightning size={11} color="#7A756D" weight="fill" />
                         <Text style={styles.podiumStreakTextSilver}>{topThree[1].totalXP.toLocaleString()} XP</Text>
                       </>
                     ) : (
@@ -369,15 +356,15 @@ export default function LeaderboardScreen() {
                       </>
                     )}
                   </View>
-                  <View style={[styles.pedestalSilver, { backgroundColor: isDark ? '#0F1218' : colors.card, borderColor: colors.border }]}>
-                    <Medal size={20} color="#94A3B8" weight="fill" />
+                  <View style={styles.pedestalSilver}>
+                    <Icon3D name="trophy_gold" size={20} />
                     <Text style={styles.pedestalSubSilver}>LVL {topThree[1].level}</Text>
                   </View>
                 </View>
 
                 {/* 1st Place - Gold (Center Sovereign) */}
                 <View style={[styles.podiumColumn, styles.podiumFirst]}>
-                  <Crown size={24} color="#F59E0B" weight="fill" style={{ marginBottom: 4 }} />
+                  <Icon3D name="crown_gold" size={28} style={{ marginBottom: 4 }} />
                   <View style={styles.podiumAvatarWrapGold}>
                     <Image
                       source={getHunterAvatarSource(topThree[0], profile?.avatarIcon)}
@@ -389,20 +376,20 @@ export default function LeaderboardScreen() {
                     </View>
                   </View>
 
-                  <Text style={[styles.podiumNameGold, { color: colors.textPrimary }]} numberOfLines={1}>
+                  <Text style={styles.podiumNameGold} numberOfLines={1}>
                     {topThree[0].name}
                   </Text>
                   <View style={styles.podiumStreakBadgeGold}>
                     {activeCategory === 'reps' ? (
                       <>
-                        <Barbell size={11} color="#F59E0B" weight="fill" />
+                        <Barbell size={11} color="#E53935" weight="fill" />
                         <Text style={styles.podiumStreakTextGold}>
                           {topThree[0].totalReps.toLocaleString()} REPS
                         </Text>
                       </>
                     ) : activeCategory === 'power' ? (
                       <>
-                        <Lightning size={11} color="#F59E0B" weight="fill" />
+                        <Lightning size={11} color="#E53935" weight="fill" />
                         <Text style={styles.podiumStreakTextGold}>
                           {topThree[0].totalXP.toLocaleString()} XP
                         </Text>
@@ -416,8 +403,8 @@ export default function LeaderboardScreen() {
                       </>
                     )}
                   </View>
-                  <View style={[styles.pedestalGold, { backgroundColor: isDark ? '#161309' : colors.card, borderColor: isDark ? 'rgba(245, 158, 11, 0.4)' : colors.border }]}>
-                    <Trophy size={24} color="#F59E0B" weight="fill" />
+                  <View style={styles.pedestalGold}>
+                    <Icon3D name="trophy_gold" size={24} />
                     <Text style={styles.pedestalSubGold}>
                       LVL {topThree[0].level} • {topThree[0].rankCode}-RANK
                     </Text>
@@ -437,18 +424,18 @@ export default function LeaderboardScreen() {
                     </View>
                   </View>
 
-                  <Text style={[styles.podiumName, { color: colors.textPrimary }]} numberOfLines={1}>
+                  <Text style={styles.podiumName} numberOfLines={1}>
                     {topThree[2].name}
                   </Text>
                   <View style={styles.podiumStreakBadgeBronze}>
                     {activeCategory === 'reps' ? (
                       <>
-                        <Barbell size={11} color="#D97706" weight="fill" />
+                        <Barbell size={11} color="#7A756D" weight="fill" />
                         <Text style={styles.podiumStreakTextBronze}>{topThree[2].totalReps.toLocaleString()} reps</Text>
                       </>
                     ) : activeCategory === 'power' ? (
                       <>
-                        <Lightning size={11} color="#D97706" weight="fill" />
+                        <Lightning size={11} color="#7A756D" weight="fill" />
                         <Text style={styles.podiumStreakTextBronze}>{topThree[2].totalXP.toLocaleString()} XP</Text>
                       </>
                     ) : (
@@ -458,8 +445,8 @@ export default function LeaderboardScreen() {
                       </>
                     )}
                   </View>
-                  <View style={[styles.pedestalBronze, { backgroundColor: isDark ? '#120F0A' : colors.card, borderColor: colors.border }]}>
-                    <Medal size={20} color="#D97706" weight="fill" />
+                  <View style={styles.pedestalBronze}>
+                    <Icon3D name="trophy_gold" size={20} />
                     <Text style={styles.pedestalSubBronze}>LVL {topThree[2].level}</Text>
                   </View>
                 </View>
@@ -468,21 +455,21 @@ export default function LeaderboardScreen() {
 
             {/* REMAINDER LIST (#4 TO #50) */}
             <View style={styles.listSection}>
-              <Text style={[styles.listHeaderTitle, { color: colors.textSecondary }]}>RANKED CONTENDERS</Text>
+              <Text style={styles.listHeaderTitle}>RANKED CONTENDERS</Text>
 
-              <View style={[styles.groupedHunterList, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <NeumorphicCard style={styles.groupedHunterList} padding={0}>
                 {remainder.map((hunter, idx) => {
                   const isMe = hunter.isCurrentUser;
                   return (
                     <View key={hunter.id}>
-                      <View style={[styles.hunterRow, isMe && { backgroundColor: isDark ? 'rgba(10, 132, 255, 0.08)' : 'rgba(10, 132, 255, 0.12)' }]}>
+                      <View style={[styles.hunterRow, isMe && styles.hunterRowMe]}>
                         <View style={styles.rankNumCol}>
-                          <Text style={[styles.rankNumText, { color: colors.textSecondary }, isMe && { color: '#0A84FF' }]}>
+                          <Text style={[styles.rankNumText, isMe && { color: '#E53935' }]}>
                             #{hunter.rankPosition}
                           </Text>
                         </View>
 
-                        <View style={[styles.hunterAvatarWrap, { borderColor: colors.border }]}>
+                        <View style={styles.hunterAvatarWrap}>
                           <Image
                             source={getHunterAvatarSource(hunter, profile?.avatarIcon)}
                             style={styles.hunterAvatarImg}
@@ -495,8 +482,7 @@ export default function LeaderboardScreen() {
                             <Text
                               style={[
                                 styles.hunterName,
-                                { color: colors.textPrimary },
-                                isMe && { color: '#0A84FF', fontWeight: '600' },
+                                isMe && { color: '#E53935' },
                               ]}
                               numberOfLines={1}
                             >
@@ -505,20 +491,20 @@ export default function LeaderboardScreen() {
                             <View
                               style={[
                                 styles.miniRankBadge,
-                                { borderColor: hunter.rankColor || '#0A84FF' },
+                                { borderColor: hunter.rankColor || '#E53935' },
                               ]}
                             >
                               <Text
                                 style={[
                                   styles.miniRankText,
-                                  { color: hunter.rankColor || '#0A84FF' },
+                                  { color: hunter.rankColor || '#E53935' },
                                 ]}
                               >
                                 {hunter.rankCode}
                               </Text>
                             </View>
                           </View>
-                          <Text style={[styles.hunterTitleSub, { color: colors.textSecondary }]} numberOfLines={1}>
+                          <Text style={styles.hunterTitleSub} numberOfLines={1}>
                             {hunter.title} • LVL {hunter.level}
                           </Text>
                         </View>
@@ -527,15 +513,15 @@ export default function LeaderboardScreen() {
                         <View style={styles.rowStreakPill}>
                           {activeCategory === 'reps' ? (
                             <>
-                              <Barbell size={13} color="#F59E0B" weight="fill" />
-                              <Text style={[styles.rowStreakVal, { color: '#F59E0B' }]}>{hunter.totalReps.toLocaleString()}</Text>
-                              <Text style={[styles.rowStreakDaysLabel, { color: '#F59E0B' }]}>REPS</Text>
+                              <Barbell size={13} color="#E53935" weight="fill" />
+                              <Text style={[styles.rowStreakVal, { color: '#E53935' }]}>{hunter.totalReps.toLocaleString()}</Text>
+                              <Text style={[styles.rowStreakDaysLabel, { color: '#E53935' }]}>REPS</Text>
                             </>
                           ) : activeCategory === 'power' ? (
                             <>
-                              <Lightning size={13} color="#0A84FF" weight="fill" />
-                              <Text style={[styles.rowStreakVal, { color: '#0A84FF' }]}>{hunter.totalXP.toLocaleString()}</Text>
-                              <Text style={[styles.rowStreakDaysLabel, { color: '#0A84FF' }]}>XP</Text>
+                              <Lightning size={13} color="#E53935" weight="fill" />
+                              <Text style={[styles.rowStreakVal, { color: '#E53935' }]}>{hunter.totalXP.toLocaleString()}</Text>
+                              <Text style={[styles.rowStreakDaysLabel, { color: '#E53935' }]}>XP</Text>
                             </>
                           ) : (
                             <>
@@ -546,11 +532,11 @@ export default function LeaderboardScreen() {
                           )}
                         </View>
                       </View>
-                      {idx < remainder.length - 1 && <View style={[styles.rowDivider, { backgroundColor: colors.border }]} />}
+                      {idx < remainder.length - 1 && <View style={styles.rowDivider} />}
                     </View>
                   );
                 })}
-              </View>
+              </NeumorphicCard>
             </View>
 
             {/* Non-intrusive Sponsor Banner */}
@@ -561,14 +547,14 @@ export default function LeaderboardScreen() {
 
           {/* STICKY BOTTOM USER STANDING PIN */}
           {currentUser && (
-            <View style={[styles.stickyUserPin, { backgroundColor: colors.card, borderTopColor: '#0A84FF' }]}>
+            <View style={styles.stickyUserPin}>
               <View style={styles.stickyUserLeft}>
                 <View style={styles.stickyRankCircle}>
                   <Text style={styles.stickyRankNum}>#{currentUser.rankPosition}</Text>
                 </View>
                 <View style={{ gap: 2 }}>
-                  <Text style={[styles.stickyUserName, { color: colors.textPrimary }]}>YOUR STANDING</Text>
-                  <Text style={[styles.stickyUserSub, { color: colors.textSecondary }]}>
+                  <Text style={styles.stickyUserName}>YOUR STANDING</Text>
+                  <Text style={styles.stickyUserSub}>
                     {currentUser.rankCode}-Rank • Level {currentUser.level}
                   </Text>
                 </View>
@@ -578,15 +564,15 @@ export default function LeaderboardScreen() {
                 <View style={styles.stickyStreakPill}>
                   {activeCategory === 'reps' ? (
                     <>
-                      <Barbell size={15} color="#F59E0B" weight="fill" />
-                      <Text style={[styles.stickyStreakNum, { color: '#F59E0B' }]}>{currentUser.totalReps.toLocaleString()}</Text>
-                      <Text style={[styles.stickyStreakText, { color: '#F59E0B' }]}>REPS</Text>
+                      <Barbell size={15} color="#E53935" weight="fill" />
+                      <Text style={[styles.stickyStreakNum, { color: '#E53935' }]}>{currentUser.totalReps.toLocaleString()}</Text>
+                      <Text style={[styles.stickyStreakText, { color: '#E53935' }]}>REPS</Text>
                     </>
                   ) : activeCategory === 'power' ? (
                     <>
-                      <Lightning size={15} color="#0A84FF" weight="fill" />
-                      <Text style={[styles.stickyStreakNum, { color: '#0A84FF' }]}>{currentUser.totalXP.toLocaleString()}</Text>
-                      <Text style={[styles.stickyStreakText, { color: '#0A84FF' }]}>XP</Text>
+                      <Lightning size={15} color="#E53935" weight="fill" />
+                      <Text style={[styles.stickyStreakNum, { color: '#E53935' }]}>{currentUser.totalXP.toLocaleString()}</Text>
+                      <Text style={[styles.stickyStreakText, { color: '#E53935' }]}>XP</Text>
                     </>
                   ) : (
                     <>
@@ -613,31 +599,31 @@ export default function LeaderboardScreen() {
           showsVerticalScrollIndicator={false}
         >
           {tournaments.map((t) => (
-            <View key={t.id} style={[styles.tournamentCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <NeumorphicCard key={t.id} style={styles.tournamentCard} padding={18}>
               <View style={styles.tournTopRow}>
                 <View style={styles.tournStatusPill}>
-                  <Lightning size={12} color="#0A84FF" weight="fill" />
+                  <Icon3D name="swords_steel" size={16} />
                   <Text style={styles.tournStatusText}>ACTIVE RAID</Text>
                 </View>
                 <View style={styles.tournPrizePill}>
-                  <Coins size={13} color="#F59E0B" weight="fill" />
+                  <Icon3D name="coin_gold" size={16} />
                   <Text style={styles.tournPrizeText}>{t.prizePoolCoins.toLocaleString()} COINS</Text>
                 </View>
               </View>
 
-              <Text style={[styles.tournTitle, { color: colors.textPrimary }]}>{t.title}</Text>
-              <Text style={[styles.tournDesc, { color: colors.textSecondary }]}>{t.subtitle}</Text>
+              <Text style={styles.tournTitle}>{t.title}</Text>
+              <Text style={styles.tournDesc}>{t.subtitle}</Text>
 
               <TouchableOpacity
                 style={styles.tournJoinBtn}
                 onPress={() => handleJoinTournament(t.id)}
-                activeOpacity={0.85}
+                activeOpacity={0.88}
               >
                 <Text style={styles.tournJoinBtnText}>
                   {t.userJoined ? 'ENTER COMBAT ARENA' : 'REGISTER HUNTER BRACKET'}
                 </Text>
               </TouchableOpacity>
-            </View>
+            </NeumorphicCard>
           ))}
           <View style={{ height: 40 }} />
         </ScrollView>
@@ -647,73 +633,74 @@ export default function LeaderboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: {
+    flex: 1,
+    backgroundColor: '#F6F4EF',
+  },
 
   // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 18,
+    paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#121722',
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#101420',
-    borderWidth: 1,
-    borderColor: '#1C263B',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   headerCenter: {
     alignItems: 'center',
-    gap: 1,
   },
   headerTitle: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    letterSpacing: 0.8,
+    fontFamily: fontFamilies.bold,
+    color: '#1A1A1A',
+    letterSpacing: 1.5,
   },
   headerSub: {
-    fontSize: 9.5,
-    fontWeight: '700',
-    color: '#64748B',
-    letterSpacing: 0.5,
+    fontSize: 10,
+    fontFamily: fontFamilies.semiBold,
+    color: '#7A756D',
+    letterSpacing: 1,
+    marginTop: 2,
   },
   activeTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 100,
-    backgroundColor: 'rgba(10, 132, 255, 0.12)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(10, 132, 255, 0.3)',
+    borderColor: '#E8E4DC',
+    shadowColor: '#1A1A1A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
   activeTagText: {
-    fontSize: 9,
-    fontWeight: '600',
-    color: '#0A84FF',
+    fontSize: 9.5,
+    fontFamily: fontFamilies.bold,
+    color: '#E53935',
     letterSpacing: 0.5,
   },
 
   // Dual Hub Segment
   hubSegmentWrap: {
     flexDirection: 'row',
-    backgroundColor: '#0A0D15',
+    backgroundColor: '#FFFFFF',
     borderRadius: 100,
-    marginHorizontal: 16,
+    marginHorizontal: 20,
     marginVertical: 10,
-    padding: 3,
+    padding: 4,
     borderWidth: 1,
-    borderColor: '#161E2E',
+    borderColor: '#E8E4DC',
+    shadowColor: '#1A1A1A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
   hubSegmentBtn: {
     flex: 1,
@@ -721,17 +708,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 9,
+    paddingVertical: 10,
     borderRadius: 100,
   },
   hubSegmentBtnActive: {
-    backgroundColor: '#0A84FF',
+    backgroundColor: '#E53935',
+    shadowColor: '#E53935',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 3,
   },
   hubSegmentText: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#64748B',
-    letterSpacing: 0.5,
+    fontFamily: fontFamilies.bold,
+    color: '#7A756D',
+    letterSpacing: 0.8,
   },
   hubSegmentTextActive: {
     color: '#FFFFFF',
@@ -743,16 +735,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 12,
   },
-  loadingText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#64748B',
-    letterSpacing: 1.0,
-  },
 
   scrollContent: {
-    paddingHorizontal: 16,
-    gap: 14,
+    paddingHorizontal: 20,
+    gap: 16,
     paddingTop: 4,
   },
 
@@ -766,34 +752,35 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
-    paddingVertical: 9,
-    borderRadius: 100,
-    backgroundColor: '#0A0D15',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#161E2E',
+    borderColor: '#E8E4DC',
+    shadowColor: '#1A1A1A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  categoryPillActiveStreak: {
-    backgroundColor: '#EA580C',
-    borderColor: '#EA580C',
-  },
-  categoryPillActivePower: {
-    backgroundColor: '#0A84FF',
-    borderColor: '#0A84FF',
-  },
-  categoryPillActiveReps: {
-    backgroundColor: '#F59E0B',
-    borderColor: '#F59E0B',
+  categoryPillActive: {
+    backgroundColor: '#E53935',
+    borderColor: '#E53935',
+    shadowColor: '#E53935',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 3,
   },
   categoryPillText: {
     fontSize: 10,
-    fontWeight: '600',
-    color: '#8E9BB0',
-    letterSpacing: 0.3,
+    fontFamily: fontFamilies.bold,
+    color: '#7A756D',
+    letterSpacing: 0.5,
   },
   categoryPillTextActive: {
     color: '#FFFFFF',
-    fontWeight: '600',
   },
 
   // Podium
@@ -801,8 +788,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'center',
-    gap: 10,
-    paddingTop: 10,
+    gap: 12,
+    paddingTop: 14,
     paddingBottom: 4,
   },
   podiumColumn: {
@@ -816,22 +803,23 @@ const styles = StyleSheet.create({
 
   // Podium Avatars
   podiumAvatarWrapGold: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    borderWidth: 2.5,
-    borderColor: '#F59E0B',
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 3,
+    borderColor: '#E53935',
     position: 'relative',
     overflow: 'visible',
-    shadowColor: '#F59E0B',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
+    shadowColor: '#E53935',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 3,
   },
   podiumAvatarImgGold: {
     width: '100%',
     height: '100%',
-    borderRadius: 34,
+    borderRadius: 36,
   },
   podiumRankBadgeGold: {
     position: 'absolute',
@@ -840,38 +828,38 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#E53935',
     alignItems: 'center',
     justifyContent: 'center',
   },
   podiumRankTextGold: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#000000',
+    fontSize: 11,
+    fontFamily: fontFamilies.bold,
+    color: '#FFFFFF',
   },
 
   podiumAvatarWrapSilver: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     borderWidth: 2,
-    borderColor: '#94A3B8',
+    borderColor: '#B0BEC5',
     position: 'relative',
     overflow: 'visible',
   },
   podiumAvatarWrapBronze: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     borderWidth: 2,
-    borderColor: '#D97706',
+    borderColor: '#D7CCC8',
     position: 'relative',
     overflow: 'visible',
   },
   podiumAvatarImg: {
     width: '100%',
     height: '100%',
-    borderRadius: 28,
+    borderRadius: 29,
   },
   podiumRankBadgeSilver: {
     position: 'absolute',
@@ -880,14 +868,14 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: '#94A3B8',
+    backgroundColor: '#78909C',
     alignItems: 'center',
     justifyContent: 'center',
   },
   podiumRankTextSilver: {
     fontSize: 10,
-    fontWeight: '600',
-    color: '#000000',
+    fontFamily: fontFamilies.bold,
+    color: '#FFFFFF',
   },
   podiumRankBadgeBronze: {
     position: 'absolute',
@@ -896,26 +884,26 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: '#D97706',
+    backgroundColor: '#8D6E63',
     alignItems: 'center',
     justifyContent: 'center',
   },
   podiumRankTextBronze: {
     fontSize: 10,
-    fontWeight: '600',
+    fontFamily: fontFamilies.bold,
     color: '#FFFFFF',
   },
 
   podiumName: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontFamily: fontFamilies.bold,
+    color: '#1A1A1A',
     textAlign: 'center',
   },
   podiumNameGold: {
     fontSize: 13.5,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontFamily: fontFamilies.bold,
+    color: '#1A1A1A',
     textAlign: 'center',
   },
   podiumStreakBadgeGold: {
@@ -925,12 +913,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 100,
-    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    backgroundColor: '#FFF0F0',
   },
   podiumStreakTextGold: {
     fontSize: 9.5,
-    fontWeight: '600',
-    color: '#F59E0B',
+    fontFamily: fontFamilies.bold,
+    color: '#E53935',
   },
   podiumStreakBadgeSilver: {
     flexDirection: 'row',
@@ -939,12 +927,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 2.5,
     borderRadius: 100,
-    backgroundColor: 'rgba(148, 163, 184, 0.15)',
+    backgroundColor: '#F0F4F8',
   },
   podiumStreakTextSilver: {
     fontSize: 9,
-    fontWeight: '600',
-    color: '#94A3B8',
+    fontFamily: fontFamilies.semiBold,
+    color: '#7A756D',
   },
   podiumStreakBadgeBronze: {
     flexDirection: 'row',
@@ -953,116 +941,118 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 2.5,
     borderRadius: 100,
-    backgroundColor: 'rgba(217, 119, 6, 0.15)',
+    backgroundColor: '#EFEBE9',
   },
   podiumStreakTextBronze: {
     fontSize: 9,
-    fontWeight: '600',
-    color: '#D97706',
+    fontFamily: fontFamilies.semiBold,
+    color: '#7A756D',
   },
 
   // Pedestals
   pedestalGold: {
     width: '100%',
-    paddingVertical: 12,
+    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
-    borderRadius: 14,
-    backgroundColor: '#161309',
-    borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.4)',
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#E8E4DC',
+    shadowColor: '#1A1A1A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
   },
   pedestalSubGold: {
     fontSize: 10,
-    fontWeight: '600',
-    color: '#F59E0B',
+    fontFamily: fontFamilies.bold,
+    color: '#E53935',
     letterSpacing: 0.5,
   },
   pedestalSilver: {
     width: '100%',
-    paddingVertical: 10,
+    paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
-    borderRadius: 14,
-    backgroundColor: '#0F1218',
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#1E2536',
+    borderColor: '#E8E4DC',
   },
   pedestalSubSilver: {
     fontSize: 9.5,
-    fontWeight: '600',
-    color: '#94A3B8',
+    fontFamily: fontFamilies.semiBold,
+    color: '#7A756D',
   },
   pedestalBronze: {
     width: '100%',
-    paddingVertical: 10,
+    paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
-    borderRadius: 14,
-    backgroundColor: '#120F0A',
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#261C10',
+    borderColor: '#E8E4DC',
   },
   pedestalSubBronze: {
     fontSize: 9.5,
-    fontWeight: '600',
-    color: '#D97706',
+    fontFamily: fontFamilies.semiBold,
+    color: '#7A756D',
   },
 
   // Remainder List
   listSection: {
     gap: 8,
-    marginTop: 6,
+    marginTop: 8,
   },
   listHeaderTitle: {
     fontSize: 10.5,
-    fontWeight: '600',
-    color: '#8E9BB0',
-    letterSpacing: 0.8,
+    fontFamily: fontFamilies.bold,
+    color: '#7A756D',
+    letterSpacing: 1,
     paddingHorizontal: 4,
   },
   groupedHunterList: {
-    backgroundColor: '#0A0D15',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#161E2E',
+    width: '100%',
     overflow: 'hidden',
   },
   rowDivider: {
     height: 1,
-    backgroundColor: '#121824',
+    backgroundColor: '#E8E4DC',
     marginLeft: 74,
   },
   hunterRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 11,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     gap: 12,
   },
   hunterRowMe: {
-    backgroundColor: 'rgba(10, 132, 255, 0.08)',
+    backgroundColor: '#FFF5F5',
   },
   rankNumCol: {
-    width: 26,
+    width: 28,
     alignItems: 'center',
   },
   rankNumText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#64748B',
+    fontFamily: fontFamilies.bold,
+    color: '#7A756D',
     fontVariant: ['tabular-nums'],
   },
   hunterAvatarWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#1E283C',
+    borderColor: '#E8E4DC',
   },
   hunterAvatarImg: {
     width: '100%',
@@ -1070,23 +1060,23 @@ const styles = StyleSheet.create({
   },
   hunterName: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontFamily: fontFamilies.bold,
+    color: '#1A1A1A',
   },
   miniRankBadge: {
     paddingHorizontal: 5,
     paddingVertical: 1,
-    borderRadius: 4,
+    borderRadius: 6,
     borderWidth: 1,
   },
   miniRankText: {
     fontSize: 8.5,
-    fontWeight: '600',
+    fontFamily: fontFamilies.bold,
   },
   hunterTitleSub: {
     fontSize: 10.5,
-    color: '#64748B',
-    fontWeight: '600',
+    fontFamily: fontFamilies.medium,
+    color: '#7A756D',
   },
   rowStreakPill: {
     flexDirection: 'row',
@@ -1094,18 +1084,18 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 6,
-    backgroundColor: 'rgba(234, 88, 12, 0.12)',
+    borderRadius: 8,
+    backgroundColor: '#F6F4EF',
   },
   rowStreakVal: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#EA580C',
+    fontFamily: fontFamilies.bold,
+    color: '#E53935',
   },
   rowStreakDaysLabel: {
     fontSize: 8.5,
-    fontWeight: '600',
-    color: '#EA580C',
+    fontFamily: fontFamilies.bold,
+    color: '#E53935',
   },
 
   // Sticky Pin
@@ -1117,78 +1107,79 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    backgroundColor: '#0B0F19',
-    borderTopWidth: 1.5,
-    borderTopColor: '#0A84FF',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E8E4DC',
+    shadowColor: '#1A1A1A',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 6,
   },
   stickyUserLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
   },
   stickyRankCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#0A84FF',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#E53935',
     alignItems: 'center',
     justifyContent: 'center',
   },
   stickyRankNum: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: fontFamilies.bold,
     color: '#FFFFFF',
   },
   stickyUserName: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontFamily: fontFamilies.bold,
+    color: '#1A1A1A',
     letterSpacing: 0.5,
   },
   stickyUserSub: {
     fontSize: 10,
-    color: '#64748B',
-    fontWeight: '600',
+    fontFamily: fontFamilies.medium,
+    color: '#7A756D',
   },
   stickyUserRight: {
     alignItems: 'flex-end',
-    gap: 2,
+    gap: 3,
   },
   stickyStreakPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    backgroundColor: 'rgba(234, 88, 12, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: '#FFF0F0',
   },
   stickyStreakNum: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#EA580C',
+    fontFamily: fontFamilies.bold,
+    color: '#E53935',
   },
   stickyStreakText: {
     fontSize: 8.5,
-    fontWeight: '600',
-    color: '#EA580C',
+    fontFamily: fontFamilies.bold,
+    color: '#E53935',
   },
   gapInfoText: {
-    fontSize: 9,
-    fontWeight: '600',
-    color: '#0A84FF',
+    fontSize: 9.5,
+    fontFamily: fontFamilies.semiBold,
+    color: '#7A756D',
   },
 
   // Tournaments
   tournamentCard: {
-    backgroundColor: '#0A0D15',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#161E2E',
-    padding: 16,
-    gap: 10,
+    width: '100%',
+    gap: 12,
   },
   tournTopRow: {
     flexDirection: 'row',
@@ -1198,49 +1189,57 @@ const styles = StyleSheet.create({
   tournStatusPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    backgroundColor: 'rgba(10, 132, 255, 0.15)',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 100,
+    backgroundColor: '#FFF5F5',
+    borderWidth: 1,
+    borderColor: '#FFE5E5',
   },
   tournStatusText: {
-    fontSize: 9,
-    fontWeight: '600',
-    color: '#0A84FF',
+    fontSize: 9.5,
+    fontFamily: fontFamilies.bold,
+    color: '#E53935',
     letterSpacing: 0.5,
   },
   tournPrizePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
   },
   tournPrizeText: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#F59E0B',
+    fontFamily: fontFamilies.bold,
+    color: '#B45309',
   },
   tournTitle: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontFamily: fontFamilies.bold,
+    color: '#1A1A1A',
   },
   tournDesc: {
-    fontSize: 11,
-    color: '#64748B',
-    lineHeight: 15,
+    fontSize: 12,
+    fontFamily: fontFamilies.medium,
+    color: '#7A756D',
+    lineHeight: 17,
   },
   tournJoinBtn: {
-    backgroundColor: '#0A84FF',
-    paddingVertical: 11,
-    borderRadius: 10,
+    backgroundColor: '#E53935',
+    paddingVertical: 12,
+    borderRadius: 16,
     alignItems: 'center',
     marginTop: 4,
+    shadowColor: '#E53935',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   tournJoinBtnText: {
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 12,
+    fontFamily: fontFamilies.bold,
     color: '#FFFFFF',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
 });

@@ -1,69 +1,69 @@
 export const colors = {
-  // ARISE — Unified Royal Sapphire Pro Design System (Apple Pro / Linear Executive Tier)
+  // ARISE — Unified 1:1 Neumorphic Design System (Light Warm Off-White)
 
-  // Signature Primary Accent: Royal Sapphire Blue
-  primary: '#0A84FF',
-  primaryAzure: '#0A84FF',
-  primaryLight: '#389BFF',
-  primaryDark: '#0066CC',
-  primaryGlow: 'rgba(10, 132, 255, 0.2)',
+  // Signature Primary Accent: Lock Screen Red
+  primary: '#E53935',
+  primaryAzure: '#E53935',
+  primaryLight: '#FF5252',
+  primaryDark: '#C62828',
+  primaryGlow: 'rgba(229, 57, 53, 0.15)',
 
   // Supporting Subtle / Secondary
-  secondary: '#389BFF',
-  primaryPurple: '#0A84FF',
-  purpleLight: '#389BFF',
-  purpleDark: '#0066CC',
-  purpleGlow: 'rgba(10, 132, 255, 0.15)',
+  secondary: '#FF5252',
+  primaryPurple: '#7C4DFF',
+  purpleLight: '#9E77FF',
+  purpleDark: '#5E35B1',
+  purpleGlow: 'rgba(124, 77, 255, 0.15)',
 
   // Clean Functional Accents
-  success: '#10B981', // Discipline Emerald for completed checkmarks & positive streaks
-  successLight: '#34D399',
-  successDark: '#059669',
-  green: '#10B981',
-  neonGreen: '#10B981',
+  success: '#43A047',
+  successLight: '#66BB6A',
+  successDark: '#2E7D32',
+  green: '#43A047',
+  neonGreen: '#43A047',
 
-  tertiary: '#F59E0B', // Soft Gold for coins
+  tertiary: '#F59E0B', // Amber / Gold
   tertiaryDim: '#D97706',
   accentGold: '#F59E0B',
 
-  // Pure True OLED Black Background
-  background: '#000000',
-  backgroundElevated: '#08090C',
-  backgroundGradientTop: '#0B0C10',
-  backgroundGradientBottom: '#000000',
+  // Canvas & Background (Light Warm Off-White)
+  background: '#F6F4EF',
+  backgroundElevated: '#FFFFFF',
+  backgroundGradientTop: '#FFFFFF',
+  backgroundGradientBottom: '#EFECE4',
 
-  // Velvety Solid Dark Slate Charcoal Cards
-  card: '#111218',
-  surface: '#000000',
-  surfaceLight: '#111218',
-  surfaceElevated: '#161822',
-  surfaceBorder: '#1C1E2A',
-  border: '#1C1E2A',
-  borderGlow: 'rgba(10, 132, 255, 0.25)',
+  // Pure White Cards & Neumorphic Surfaces
+  card: '#FFFFFF',
+  surface: '#F6F4EF',
+  surfaceLight: '#FFFFFF',
+  surfaceElevated: '#FFFFFF',
+  surfaceBorder: '#E8E4DC',
+  border: '#E8E4DC',
+  borderGlow: 'rgba(229, 57, 53, 0.15)',
 
   // Crisp High-Contrast Typography
-  textPrimary: '#FFFFFF',
-  textSecondary: '#8E8E93',
-  textMuted: '#555866',
+  textPrimary: '#1A1A1A',
+  textSecondary: '#6B7280',
+  textMuted: '#9CA3AF',
 
   // Status Colors
-  accent: '#0A84FF',
-  danger: '#FF453A',
-  dangerGlow: 'rgba(255, 69, 58, 0.2)',
-  warning: '#FF9F0A',
+  accent: '#E53935',
+  danger: '#E53935',
+  dangerGlow: 'rgba(229, 57, 53, 0.18)',
+  warning: '#F59E0B',
 
   // RPG Attributes
   stats: {
-    strength: '#0A84FF',
-    discipline: '#0A84FF',
-    focus: '#389BFF',
-    health: '#10B981',
-    knowledge: '#389BFF',
+    strength: '#E53935',
+    discipline: '#43A047',
+    focus: '#7C4DFF',
+    health: '#F59E0B',
+    knowledge: '#2563EB',
   },
 
-  // Modal Backdrop
-  overlay: 'rgba(0, 0, 0, 0.85)',
-  glassCard: '#111218',
+  // Modal Backdrop & Overlays
+  overlay: 'rgba(26, 26, 26, 0.45)',
+  glassCard: '#FFFFFF',
 } as const;
 
 export type Colors = typeof colors;

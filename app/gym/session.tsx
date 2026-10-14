@@ -30,8 +30,9 @@ import {
 import { useGymStore } from '../../src/stores/useGymStore';
 import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
 import { WorkoutExerciseItem, WorkoutSetLog } from '../../src/types/gym';
-import { GlassCard } from '../../src/components/ios/GlassCard';
-import { GlassButton } from '../../src/components/ios/GlassButton';
+import { NeumorphicCard, NeumorphicCircleButton } from '../../src/components/ui/NeumorphicCard';
+import { Icon3D } from '../../src/components/ui/Icon3D';
+import { fontFamilies } from '../../src/theme/typography';
 import { useSound } from '../../src/hooks/useSound';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTheme } from '../../src/hooks/useTheme';
@@ -210,17 +211,21 @@ export default function ActiveGymSessionScreen() {
       <SafeAreaView style={styles.safeArea}>
         {/* Top Header Bar */}
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
-            <ArrowLeft size={20} color={colors.textPrimary} />
-          </TouchableOpacity>
+          <NeumorphicCircleButton
+            size={40}
+            onPress={() => router.back()}
+            accessibilityLabel="Back"
+          >
+            <ArrowLeft size={18} color="#1A1A1A" strokeWidth={2.5} />
+          </NeumorphicCircleButton>
 
           <View style={styles.headerCenter}>
             <Text style={[styles.headerDayTitle, { color: colors.textPrimary }]}>
               {todayWorkout?.dayName.toUpperCase() || 'GYM PROTOCOL'}
             </Text>
             <View style={styles.timerBadge}>
-              <View style={[styles.liveDot, { backgroundColor: colors.primary }]} />
-              <Text style={[styles.timerText, { color: colors.primary }]}>
+              <View style={[styles.liveDot, { backgroundColor: '#E53935' }]} />
+              <Text style={[styles.timerText, { color: '#E53935' }]}>
                 {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
               </Text>
             </View>
@@ -228,7 +233,8 @@ export default function ActiveGymSessionScreen() {
 
           <TouchableOpacity
             onPress={handleFinishWorkout}
-            style={[styles.finishBtn, { backgroundColor: colors.primary }]}
+            style={styles.finishBtn}
+            activeOpacity={0.85}
           >
             <Text style={styles.finishBtnText}>FINISH</Text>
           </TouchableOpacity>
@@ -240,7 +246,7 @@ export default function ActiveGymSessionScreen() {
             const completedSetList = sessionSets[ex.exerciseId] || [];
 
             return (
-              <GlassCard key={ex.id} variant="default" style={styles.exerciseCard}>
+              <NeumorphicCard key={ex.id} style={styles.exerciseCard}>
                 {/* Exercise Header */}
                 <View style={styles.exHeaderRow}>
                   <View style={{ flex: 1 }}>
@@ -337,21 +343,21 @@ export default function ActiveGymSessionScreen() {
                         style={[
                           styles.checkBtn,
                           isDone
-                            ? { backgroundColor: colors.primary, borderColor: colors.primary }
-                            : { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
+                            ? { backgroundColor: '#E53935', borderColor: '#E53935' }
+                            : { backgroundColor: '#F6F4EF', borderColor: '#E8E4DC' },
                         ]}
                         disabled={isDone}
                       >
                         <Check
                           size={16}
-                          color={isDone ? '#000' : colors.textMuted}
+                          color={isDone ? '#FFFFFF' : '#8E8E93'}
                           strokeWidth={isDone ? 3 : 2}
                         />
                       </TouchableOpacity>
                     </View>
                   );
                 })}
-              </GlassCard>
+              </NeumorphicCard>
             );
           })}
 
@@ -411,29 +417,29 @@ export default function ActiveGymSessionScreen() {
         {/* PR Celebration Modal */}
         <Modal visible={!!newPRModalData} transparent animationType="fade">
           <View style={styles.modalOverlay}>
-            <View style={[styles.prCard, { backgroundColor: colors.surface, borderColor: colors.accentGold }]}>
-              <View style={[styles.prTrophyCircle, { backgroundColor: 'rgba(255, 184, 0, 0.2)' }]}>
-                <Trophy size={48} color={colors.accentGold} />
+            <View style={[styles.prCard, { backgroundColor: '#FFFFFF', borderColor: '#E8E4DC' }]}>
+              <View style={[styles.prTrophyCircle, { backgroundColor: '#FFF5F5' }]}>
+                <Icon3D name="trophy_gold" size={54} />
               </View>
 
-              <Text style={[styles.prHeading, { color: colors.accentGold }]}>NEW PERSONAL RECORD!</Text>
-              <Text style={[styles.prExerciseName, { color: colors.textPrimary }]}>
+              <Text style={[styles.prHeading, { color: '#E53935' }]}>NEW PERSONAL RECORD!</Text>
+              <Text style={[styles.prExerciseName, { color: '#1A1A1A' }]}>
                 {newPRModalData?.name}
               </Text>
-              <Text style={[styles.prWeightText, { color: colors.primary }]}>
+              <Text style={[styles.prWeightText, { color: '#E53935' }]}>
                 {newPRModalData?.weight} KG LOGGED
               </Text>
-              <Text style={[styles.prSub, { color: colors.textSecondary }]}>
+              <Text style={[styles.prSub, { color: '#7A756D' }]}>
                 You surpassed your previous highest load. Iron discipline in action.
               </Text>
 
-              <GlassButton
-                title="CLAIM RECORD"
+              <TouchableOpacity
                 onPress={() => setNewPRModalData(null)}
-                variant="primary"
-                size="md"
-                style={{ width: '100%', marginTop: 8 }}
-              />
+                style={styles.prClaimBtn}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.prClaimBtnText}>CLAIM RECORD</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </Modal>
@@ -468,8 +474,8 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   headerDayTitle: {
+    fontFamily: fontFamilies.bold,
     fontSize: 12,
-    fontWeight: '600',
     letterSpacing: 1.2,
   },
   timerBadge: {
@@ -483,19 +489,20 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   timerText: {
+    fontFamily: fontFamilies.bold,
     fontSize: 13,
-    fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
   finishBtn: {
-    paddingHorizontal: 14,
+    backgroundColor: '#E53935',
+    paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 10,
+    borderRadius: 100,
   },
   finishBtnText: {
+    fontFamily: fontFamilies.bold,
     fontSize: 11,
-    fontWeight: '600',
-    color: '#000',
+    color: '#FFFFFF',
     letterSpacing: 1,
   },
   scrollContent: {
@@ -504,8 +511,9 @@ const styles = StyleSheet.create({
   },
   exerciseCard: {
     padding: 16,
-    borderRadius: 18,
+    borderRadius: 22,
     gap: 12,
+    marginBottom: 12,
   },
   exHeaderRow: {
     flexDirection: 'row',
@@ -513,18 +521,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   exOrderLabel: {
-    fontSize: 9,
-    fontWeight: '600',
-    letterSpacing: 1,
+    fontFamily: fontFamilies.bold,
+    fontSize: 9.5,
+    letterSpacing: 1.2,
   },
   exTitle: {
+    fontFamily: fontFamilies.bold,
     fontSize: 16,
-    fontWeight: '600',
     marginTop: 2,
   },
   exTargetText: {
+    fontFamily: fontFamilies.semiBold,
     fontSize: 11,
-    fontWeight: '700',
     marginTop: 2,
   },
   modeBadge: {
@@ -537,8 +545,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   modeBadgeText: {
+    fontFamily: fontFamilies.bold,
     fontSize: 10,
-    fontWeight: '600',
     letterSpacing: 0.5,
   },
   tableHeaderRow: {
@@ -548,8 +556,8 @@ const styles = StyleSheet.create({
     paddingTop: 4,
   },
   colHeader: {
+    fontFamily: fontFamilies.bold,
     fontSize: 9,
-    fontWeight: '600',
     letterSpacing: 0.8,
   },
   setRow: {
@@ -567,29 +575,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   setNumText: {
+    fontFamily: fontFamilies.bold,
     fontSize: 12,
-    fontWeight: '600',
   },
   inputCell: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#121212',
+    backgroundColor: '#F6F4EF',
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderWidth: 1,
-    borderColor: '#242424',
+    borderColor: '#E8E4DC',
   },
   tableInput: {
     flex: 1,
+    fontFamily: fontFamilies.bold,
     fontSize: 14,
-    fontWeight: '600',
     padding: 0,
   },
   inputUnit: {
+    fontFamily: fontFamilies.semiBold,
     fontSize: 10,
-    fontWeight: '700',
   },
   checkBtn: {
     width: 36,
@@ -670,7 +678,9 @@ const styles = StyleSheet.create({
     width: '100%',
     padding: 24,
     borderRadius: 24,
-    borderWidth: 2,
+    borderWidth: 1,
+    borderColor: '#E8E4DC',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     gap: 10,
   },
@@ -683,22 +693,39 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   prHeading: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontFamily: fontFamilies.bold,
+    fontSize: 13,
     letterSpacing: 1.5,
   },
   prExerciseName: {
+    fontFamily: fontFamilies.bold,
     fontSize: 20,
-    fontWeight: '600',
     textAlign: 'center',
   },
   prWeightText: {
+    fontFamily: fontFamilies.bold,
     fontSize: 18,
-    fontWeight: '600',
   },
   prSub: {
+    fontFamily: fontFamilies.medium,
     fontSize: 12,
     textAlign: 'center',
-    lineHeight: 16,
+    lineHeight: 18,
+  },
+  prClaimBtn: {
+    backgroundColor: '#E53935',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 100,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  prClaimBtnText: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 13,
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
   },
 });

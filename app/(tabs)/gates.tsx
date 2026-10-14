@@ -57,6 +57,7 @@ import { supabase, isSupabaseConfigured, getCloudUserId } from '../../src/servic
 import { AnimatedNumber } from '../../src/components/motion/AnimatedNumber';
 import { useScalePress, useShake } from '../../src/hooks/useMotion';
 import { motion } from '../../src/theme/motion';
+import { Icon3D } from '../../src/components/ui/Icon3D';
 
 const DUNGEON_IMAGES: Record<string, any> = {
   E: require('../../assets/dungeons/dungeon_e_goblin.jpg'),
@@ -291,12 +292,10 @@ function GateCardItem({
         style={[
           styles.dungeonGateCard,
           {
-            backgroundColor: isDark ? '#111319' : colors.card,
+            backgroundColor: '#FFFFFF',
             borderColor: isCompleted
-              ? colors.success
-              : isDark
-              ? '#1E212C'
-              : colors.border,
+              ? '#43A047'
+              : '#E8E4DC',
           },
         ]}
         onPress={handleCardPress}
@@ -313,17 +312,17 @@ function GateCardItem({
                 {gateItem.rankCode}-RANK
               </Text>
             </View>
-            <Text style={[styles.gateCardTitle, { color: colors.textPrimary }]} numberOfLines={1}>
+            <Text style={[styles.gateCardTitle, { color: '#1A1A1A' }]} numberOfLines={1}>
               {gateItem.title}
             </Text>
-            <Text style={[styles.gateCardThreat, { color: colors.textSecondary }]} numberOfLines={1}>
+            <Text style={[styles.gateCardThreat, { color: '#6B7280' }]} numberOfLines={1}>
               {gateItem.threatName}
             </Text>
           </View>
 
-          <View style={[styles.countdownPill, { backgroundColor: isDark ? '#161822' : colors.surfaceLight }]}>
-            <Clock size={11} color={isDark ? '#8E8E93' : colors.textSecondary} />
-            <Text style={[styles.countdownText, { color: isDark ? '#D1D5DB' : colors.textSecondary }]}>
+          <View style={[styles.countdownPill, { backgroundColor: '#F6F4EF' }]}>
+            <Clock size={11} color="#6B7280" />
+            <Text style={[styles.countdownText, { color: '#6B7280' }]}>
               {getRemainingTime(gateItem.expiresAt)}
             </Text>
           </View>
@@ -332,17 +331,17 @@ function GateCardItem({
         {/* Middle Stats Strip: Crystals & Inquests (Clean floating row) */}
         <View style={styles.bountyStatsRow}>
           <View style={styles.bountySubRow}>
-            <ManaCrystalIcon size={14} />
-            <Text style={[styles.bountyCrystalsVal, { color: isDark ? '#38BDF8' : '#0284C7' }]}>
+            <Icon3D name="crystal_cyan" size={15} />
+            <Text style={[styles.bountyCrystalsVal, { color: '#0284C7' }]}>
               {totalCrystalBounty} Crystals
             </Text>
           </View>
 
-          <View style={[styles.bountyDivider, { backgroundColor: isDark ? '#222634' : colors.border }]} />
+          <View style={[styles.bountyDivider, { backgroundColor: '#E8E4DC' }]} />
 
           <View style={styles.bountySubRow}>
-            <FileText size={12} color={colors.textSecondary} />
-            <Text style={[styles.inquestCountVal, { color: colors.textSecondary }]}>
+            <Icon3D name="scroll_parchment" size={14} />
+            <Text style={[styles.inquestCountVal, { color: '#6B7280' }]}>
               {completedMissions}/{gateItem.missions.length} Inquests
             </Text>
           </View>
@@ -351,13 +350,13 @@ function GateCardItem({
         {/* Footer: Required Level / Locked Badge & Action Button */}
         <View style={styles.gateCardFooterRow}>
           {isGateLocked ? (
-            <View style={[styles.gateLockTag, { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.12)' : '#FEF2F2', borderColor: isDark ? 'rgba(239, 68, 68, 0.25)' : '#FECACA', borderWidth: 1 }]}>
-              <Lock size={12} color="#EF4444" />
-              <Text style={[styles.gateLockTagText, { color: '#EF4444' }]}>Requires LVL {gateItem.requiredLevel}</Text>
+            <View style={[styles.gateLockTag, { backgroundColor: '#FFF2F2', borderColor: '#FFCDD2', borderWidth: 1 }]}>
+              <Icon3D name="padlock_red" size={13} />
+              <Text style={[styles.gateLockTagText, { color: '#E53935' }]}>Requires LVL {gateItem.requiredLevel}</Text>
             </View>
           ) : (
-            <View style={[styles.gateLevelTag, { backgroundColor: isDark ? '#1C1F2B' : colors.surfaceLight }]}>
-              <Text style={[styles.gateLevelTagText, { color: isDark ? '#9CA3AF' : colors.textSecondary }]}>
+            <View style={[styles.gateLevelTag, { backgroundColor: '#F6F4EF' }]}>
+              <Text style={[styles.gateLevelTagText, { color: '#6B7280' }]}>
                 Level {gateItem.requiredLevel}+
               </Text>
             </View>
@@ -369,19 +368,19 @@ function GateCardItem({
               isCompleted
                 ? styles.gateActionBtnCleared
                 : isGateLocked
-                ? (isDark ? styles.gateActionBtnLockedDark : styles.gateActionBtnLockedLight)
+                ? styles.gateActionBtnLockedLight
                 : styles.gateActionBtnEnterRed,
             ]}
           >
             {isCompleted ? (
               <>
-                <CheckCircle2 size={13} color="#FFFFFF" />
+                <Icon3D name="checkmark_green" size={14} />
                 <Text style={styles.gateActionBtnText}>Cleared</Text>
               </>
             ) : isGateLocked ? (
               <>
-                <Lock size={13} color={isDark ? '#8E8E93' : colors.textMuted} />
-                <Text style={[styles.gateActionBtnText, { color: isDark ? '#8E8E93' : colors.textMuted }]}>Locked</Text>
+                <Icon3D name="padlock_red" size={13} />
+                <Text style={[styles.gateActionBtnText, { color: '#9CA3AF' }]}>Locked</Text>
               </>
             ) : (
               <>
@@ -606,9 +605,9 @@ export default function DungeonScreen() {
   const userLevel = profile?.level || 1;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: '#F6F4EF' }]} edges={['top', 'left', 'right']}>
       {/* 1. TOP STATUS HEADER (Avatar + Tara + Rank | Crystals Pill + Gift Box) */}
-      <View style={[styles.topHeader, { backgroundColor: isDark ? 'transparent' : colors.card, borderBottomColor: isDark ? 'transparent' : colors.border }]}>
+      <View style={[styles.topHeader, { backgroundColor: '#F6F4EF', borderBottomColor: '#E8E4DC' }]}>
         {/* Left: Player Profile & Rank */}
         <TouchableOpacity
           style={styles.headerPlayerCol}
@@ -625,13 +624,13 @@ export default function DungeonScreen() {
               glow={false}
             />
             {/* Online Green Badge */}
-            <View style={[styles.avatarOnlineDot, { borderColor: isDark ? colors.background : '#FFFFFF' }]} />
+            <View style={[styles.avatarOnlineDot, { borderColor: '#FFFFFF' }]} />
           </View>
           <View style={{ marginLeft: 10, justifyContent: 'center' }}>
-            <Text style={[styles.hunterNameText, { color: colors.textPrimary }]} numberOfLines={1}>
+            <Text style={[styles.hunterNameText, { color: '#1A1A1A' }]} numberOfLines={1}>
               {profile?.displayName || 'Warrior'}
             </Text>
-            <Text style={[styles.hunterTitleSub, { color: colors.textSecondary }]}>
+            <Text style={[styles.hunterTitleSub, { color: '#6B7280' }]}>
               {currentRank.rankCode}-Rank Hunter • LVL {userLevel}
             </Text>
           </View>
@@ -643,8 +642,8 @@ export default function DungeonScreen() {
             style={[
               styles.crystalCapsule,
               {
-                backgroundColor: isDark ? '#141720' : colors.surfaceLight,
-                borderColor: isDark ? '#1F2433' : colors.border,
+                backgroundColor: '#FFFFFF',
+                borderColor: '#E8E4DC',
               },
             ]}
             onPress={() => {
@@ -653,10 +652,10 @@ export default function DungeonScreen() {
             }}
             activeOpacity={0.8}
           >
-            <ManaCrystalIcon size={16} />
+            <Icon3D name="crystal_cyan" size={16} />
             <AnimatedNumber
               value={manaCrystals}
-              style={[styles.crystalCountText, { color: colors.textPrimary }]}
+              style={[styles.crystalCountText, { color: '#1A1A1A' }]}
             />
           </TouchableOpacity>
 
@@ -664,8 +663,8 @@ export default function DungeonScreen() {
             style={[
               styles.giftBtn,
               {
-                backgroundColor: isDark ? '#141720' : colors.surfaceLight,
-                borderColor: isDark ? '#1F2433' : colors.border,
+                backgroundColor: '#FFFFFF',
+                borderColor: '#E8E4DC',
               },
             ]}
             onPress={() => {
@@ -674,17 +673,17 @@ export default function DungeonScreen() {
             }}
             activeOpacity={0.8}
           >
-            <Gift size={16} color={colors.textSecondary} />
+            <Icon3D name="gift_red" size={16} />
           </TouchableOpacity>
         </View>
       </View>
 
       {/* 2. SUB-HEADER DUAL TABS: [Gates] vs [Leaderboard] */}
-      <View style={[styles.tabSegmentWrap, { backgroundColor: isDark ? '#0D0E13' : colors.surfaceLight, borderColor: isDark ? '#1C1F2B' : colors.border }]}>
+      <View style={[styles.tabSegmentWrap, { backgroundColor: '#FFFFFF', borderColor: '#E8E4DC' }]}>
         <TouchableOpacity
           style={[
             styles.segmentBtn,
-            activeTab === 'gates' && (isDark ? styles.segmentBtnGatesActiveDark : styles.segmentBtnActiveLight),
+            activeTab === 'gates' && { backgroundColor: '#E53935' },
           ]}
           onPress={() => {
             haptics.light();
@@ -692,12 +691,12 @@ export default function DungeonScreen() {
           }}
           activeOpacity={0.85}
         >
-          <Swords size={16} color={activeTab === 'gates' ? (isDark ? '#EF4444' : colors.primary) : colors.textMuted} />
+          <Icon3D name="swords_steel" size={16} />
           <Text
             style={[
               styles.segmentBtnText,
               {
-                color: activeTab === 'gates' ? (isDark ? '#EF4444' : colors.primary) : colors.textSecondary,
+                color: activeTab === 'gates' ? '#FFFFFF' : '#6B7280',
               },
             ]}
           >
@@ -708,7 +707,7 @@ export default function DungeonScreen() {
         <TouchableOpacity
           style={[
             styles.segmentBtn,
-            activeTab === 'leaderboard' && (isDark ? styles.segmentBtnLbActiveDark : styles.segmentBtnActiveLight),
+            activeTab === 'leaderboard' && { backgroundColor: '#E53935' },
           ]}
           onPress={() => {
             haptics.light();
@@ -716,12 +715,12 @@ export default function DungeonScreen() {
           }}
           activeOpacity={0.85}
         >
-          <Trophy size={16} color={activeTab === 'leaderboard' ? (isDark ? '#F59E0B' : colors.primary) : colors.textMuted} />
+          <Icon3D name="trophy_gold" size={16} />
           <Text
             style={[
               styles.segmentBtnText,
               {
-                color: activeTab === 'leaderboard' ? (isDark ? '#F59E0B' : colors.primary) : colors.textSecondary,
+                color: activeTab === 'leaderboard' ? '#FFFFFF' : '#6B7280',
               },
             ]}
           >

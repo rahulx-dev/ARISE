@@ -25,7 +25,9 @@ import {
   SpeakerHigh,
   SpeakerSlash,
 } from 'phosphor-react-native';
-import { GlassCard } from '../../src/components/ios/GlassCard';
+import { NeumorphicCard, NeumorphicCircleButton } from '../../src/components/ui/NeumorphicCard';
+import { Icon3D } from '../../src/components/ui/Icon3D';
+import { fontFamilies } from '../../src/theme/typography';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { audioService, AUDIO_TRACKS } from '../../src/services/audioService';
 import { db } from '../../src/database/client';
@@ -340,76 +342,68 @@ export default function FocusModeScreen() {
   const currentTrack = AUDIO_TRACKS.find((t) => t.id === selectedTrackId) || AUDIO_TRACKS[0];
 
   return (
-    <View style={[styles.container, { backgroundColor: isDark ? '#090A0F' : '#F8F9FA' }]}>
+    <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         {/* Top Header */}
         <View style={styles.topHeader}>
-          <TouchableOpacity
-            style={[styles.circleBtn, { backgroundColor: isDark ? '#14151C' : '#FFFFFF', borderColor: colors.border }]}
+          <NeumorphicCircleButton
+            size={40}
             onPress={() => router.back()}
-            activeOpacity={0.8}
+            accessibilityLabel="Back"
           >
-            <CaretLeft size={20} color={colors.textPrimary} weight="bold" />
-          </TouchableOpacity>
+            <CaretLeft size={18} color="#1A1A1A" weight="bold" />
+          </NeumorphicCircleButton>
 
-          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Deep Focus</Text>
+          <View style={styles.headerTitleGroup}>
+            <Text style={styles.headerTitle}>FOCUS MODE</Text>
+            <Text style={styles.headerSubtitle}>DISCIPLINE TODAY</Text>
+          </View>
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             {/* Mute / Unmute Button */}
-            <TouchableOpacity
-              style={[
-                styles.circleBtn,
-                {
-                  backgroundColor: isMuted
-                    ? 'rgba(239, 68, 68, 0.12)'
-                    : isDark
-                    ? '#14151C'
-                    : '#FFFFFF',
-                  borderColor: isMuted ? 'rgba(239, 68, 68, 0.4)' : colors.border,
-                },
-              ]}
+            <NeumorphicCircleButton
+              size={40}
               onPress={toggleMute}
-              activeOpacity={0.8}
+              accessibilityLabel="Mute toggle"
             >
               {isMuted ? (
-                <SpeakerSlash size={19} color="#EF4444" weight="bold" />
+                <SpeakerSlash size={18} color="#E53935" weight="bold" />
               ) : (
-                <SpeakerHigh size={19} color={colors.primary} weight="duotone" />
+                <SpeakerHigh size={18} color="#1A1A1A" weight="duotone" />
               )}
-            </TouchableOpacity>
+            </NeumorphicCircleButton>
 
-            <TouchableOpacity
-              style={[styles.circleBtn, { backgroundColor: isDark ? '#14151C' : '#FFFFFF', borderColor: colors.border }]}
+            <NeumorphicCircleButton
+              size={40}
               onPress={() => setIsAudioSheetOpen(true)}
-              activeOpacity={0.8}
+              accessibilityLabel="Ambient sounds"
             >
-              <Headphones size={20} color={colors.secondary} weight="duotone" />
-            </TouchableOpacity>
+              <Headphones size={18} color="#1A1A1A" weight="duotone" />
+            </NeumorphicCircleButton>
           </View>
         </View>
 
         <View style={styles.mainContent}>
           {/* Mode Dropdown Badge */}
           <TouchableOpacity
-            style={[styles.modeBadge, { backgroundColor: isDark ? '#14151C' : '#FFFFFF', borderColor: colors.border }]}
+            style={styles.modeBadge}
             onPress={() => setIsPresetSheetOpen(true)}
             activeOpacity={0.8}
           >
-            <Text style={[styles.modeBadgeText, { color: colors.textPrimary }]}>
-              Session Length ({targetMinutes}m)
+            <Text style={styles.modeBadgeText}>
+              SESSION LENGTH ({targetMinutes}M)
             </Text>
-            <CaretDown size={14} color={colors.textMuted} weight="bold" />
+            <CaretDown size={14} color="#7A756D" weight="bold" />
           </TouchableOpacity>
 
-          {/* Sleek Minimalist Obsidian & Sapphire Focus Ring */}
+          {/* Neumorphic Focus Ring Composition */}
           <View style={styles.timerWrap}>
-            {/* Ambient Subtle Sapphire Backlight */}
+            {/* Ambient Red Backlight */}
             <View
               style={[
                 styles.focusBacklight,
                 {
-                  opacity: isActive ? 0.35 : 0.15,
-                  backgroundColor: '#0A84FF',
+                  opacity: isActive ? 0.25 : 0.08,
                 },
               ]}
             />
@@ -418,15 +412,25 @@ export default function FocusModeScreen() {
             <View>
               <Svg width={270} height={270} viewBox="0 0 270 270">
                 <Defs>
-                  <SvgLinearGradient id="sapphireGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <Stop offset="0%" stopColor="#389BFF" />
-                    <Stop offset="100%" stopColor="#0A84FF" />
+                  <SvgLinearGradient id="redGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <Stop offset="0%" stopColor="#FF4B4B" />
+                    <Stop offset="100%" stopColor="#E53935" />
                   </SvgLinearGradient>
                   <SvgLinearGradient id="trackGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <Stop offset="0%" stopColor={isDark ? '#121522' : '#E5E5EA'} />
-                    <Stop offset="100%" stopColor={isDark ? '#161928' : '#D1D1D6'} />
+                    <Stop offset="0%" stopColor="#E8E4DC" />
+                    <Stop offset="100%" stopColor="#EDE9E1" />
                   </SvgLinearGradient>
                 </Defs>
+
+                {/* Outer Neumorphic Border */}
+                <SvgCircle
+                  cx="135"
+                  cy="135"
+                  r={ringRadius + 14}
+                  stroke="#E8E4DC"
+                  strokeWidth="1.5"
+                  fill="none"
+                />
 
                 {/* Background Track */}
                 <SvgCircle
@@ -438,13 +442,13 @@ export default function FocusModeScreen() {
                   fill="none"
                 />
 
-                {/* Sapphire Active Progress Ring */}
+                {/* Red Active Progress Arc */}
                 {progressFraction > 0 && (
                   <SvgCircle
                     cx="135"
                     cy="135"
                     r={ringRadius}
-                    stroke="url(#sapphireGradient)"
+                    stroke="url(#redGradient)"
                     strokeWidth="10"
                     strokeDasharray={`${ringCircumference} ${ringCircumference}`}
                     strokeDashoffset={strokeDashoffset}
@@ -461,13 +465,13 @@ export default function FocusModeScreen() {
                       cx={headX}
                       cy={headY}
                       r={14}
-                      fill="rgba(10, 132, 255, 0.35)"
+                      fill="rgba(229, 57, 53, 0.3)"
                     />
                     <SvgCircle
                       cx={headX}
                       cy={headY}
                       r={9}
-                      fill="rgba(0, 242, 254, 0.7)"
+                      fill="rgba(255, 75, 75, 0.7)"
                     />
                     <SvgCircle
                       cx={headX}
@@ -480,19 +484,19 @@ export default function FocusModeScreen() {
               </Svg>
             </View>
 
-            {/* Layer 4: Center Digits & Status Pill */}
+            {/* Center Digits & Status Pill */}
             <View style={styles.timerCenterContent} pointerEvents="none">
-              <Text style={[styles.timerDigits, { color: colors.textPrimary }]}>
+              <Text style={styles.timerDigits}>
                 {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
               </Text>
               <View style={styles.statusPillWrap}>
                 <View
                   style={[
                     styles.statusDot,
-                    { backgroundColor: isActive ? '#10B981' : '#F59E0B' },
+                    { backgroundColor: isActive ? '#E53935' : '#D97706' },
                   ]}
                 />
-                <Text style={[styles.timerSubLabel, { color: colors.textMuted }]}>
+                <Text style={styles.timerSubLabel}>
                   {isActive ? 'SHIELD ACTIVE' : 'PAUSED'}
                 </Text>
               </View>
@@ -502,19 +506,19 @@ export default function FocusModeScreen() {
           {/* Controls Row */}
           <View style={styles.controlsRow}>
             {/* Reset */}
-            <TouchableOpacity
-              style={[styles.secondaryControlBtn, { backgroundColor: isDark ? '#14151C' : '#FFFFFF', borderColor: colors.border }]}
+            <NeumorphicCircleButton
+              size={54}
               onPress={handleReset}
-              activeOpacity={0.8}
+              accessibilityLabel="Reset timer"
             >
-              <ArrowCounterClockwise size={20} color={colors.textMuted} weight="bold" />
-            </TouchableOpacity>
+              <ArrowCounterClockwise size={20} color="#7A756D" weight="bold" />
+            </NeumorphicCircleButton>
 
-            {/* Play/Pause Button in Solid Titanium Azure */}
+            {/* Play/Pause Button in Solid ARISE Red */}
             <TouchableOpacity
-              style={[styles.primaryPlayBtn, { backgroundColor: '#0A84FF' }]}
+              style={styles.primaryPlayBtn}
               onPress={handleStartPause}
-              activeOpacity={0.85}
+              activeOpacity={0.88}
             >
               {isActive ? (
                 <Pause size={28} color="#FFFFFF" weight="fill" />
@@ -524,80 +528,74 @@ export default function FocusModeScreen() {
             </TouchableOpacity>
 
             {/* Add 5 Minutes */}
-            <TouchableOpacity
-              style={[styles.secondaryControlBtn, { backgroundColor: isDark ? '#14151C' : '#FFFFFF', borderColor: colors.border }]}
+            <NeumorphicCircleButton
+              size={54}
               onPress={handleAddFiveMinutes}
-              activeOpacity={0.8}
+              accessibilityLabel="Add 5 minutes"
             >
-              <Plus size={20} color={colors.textMuted} weight="bold" />
-            </TouchableOpacity>
+              <Plus size={20} color="#7A756D" weight="bold" />
+            </NeumorphicCircleButton>
           </View>
 
           {/* Bottom Stats Row */}
-          <GlassCard variant="default" style={styles.statsCard}>
+          <NeumorphicCard style={styles.statsCard} padding={14}>
             <View style={styles.statCol}>
-              <Text style={[styles.statVal, { color: colors.textPrimary }]}>
+              <Text style={styles.statVal}>
                 {todayStats.focusMinutes}m
               </Text>
-              <Text style={[styles.statLabel, { color: colors.textMuted }]}>TODAY</Text>
+              <Text style={styles.statLabel}>TODAY</Text>
             </View>
-            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+            <View style={styles.statDivider} />
             <View style={styles.statCol}>
-              <Text style={[styles.statVal, { color: colors.primary }]}>
+              <Text style={[styles.statVal, { color: '#E53935' }]}>
                 {todayStats.focusSessionsCount}
               </Text>
-              <Text style={[styles.statLabel, { color: colors.textMuted }]}>SESSIONS</Text>
+              <Text style={styles.statLabel}>SESSIONS</Text>
             </View>
-            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+            <View style={styles.statDivider} />
             <View style={styles.statCol}>
-              <Text style={[styles.statVal, { color: colors.success }]}>
+              <Text style={styles.statVal}>
                 {profile?.currentStreak || 0}d
               </Text>
-              <Text style={[styles.statLabel, { color: colors.textMuted }]}>STREAK</Text>
+              <Text style={styles.statLabel}>STREAK</Text>
             </View>
-          </GlassCard>
+          </NeumorphicCard>
         </View>
 
         {/* Audio Track Selector Sheet Modal */}
         <Modal visible={isAudioSheetOpen} transparent animationType="slide">
           <View style={styles.modalOverlay}>
-            <GlassCard variant="elevated" style={styles.modalSheet}>
+            <View style={styles.modalSheet}>
               <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Ambient Soundscapes</Text>
-                <TouchableOpacity onPress={() => setIsAudioSheetOpen(false)} style={styles.circleBtn}>
-                  <X size={18} color={colors.textSecondary} weight="bold" />
+                <Text style={styles.modalTitle}>Ambient Soundscapes</Text>
+                <TouchableOpacity onPress={() => setIsAudioSheetOpen(false)} style={styles.modalCloseBtn}>
+                  <X size={18} color="#1A1A1A" weight="bold" />
                 </TouchableOpacity>
               </View>
 
               {/* Quick Mute / Unmute Pill Banner */}
               <TouchableOpacity
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
-                  paddingVertical: 9,
-                  paddingHorizontal: 12,
-                  borderRadius: 8,
-                  backgroundColor: isMuted ? 'rgba(239, 68, 68, 0.12)' : 'rgba(2, 132, 199, 0.12)',
-                  borderWidth: 1,
-                  borderColor: isMuted ? '#EF4444' : '#0284C7',
-                  marginBottom: 8,
-                }}
+                style={[
+                  styles.audioBanner,
+                  {
+                    backgroundColor: isMuted ? '#FFF0F0' : '#F6F4EF',
+                    borderColor: isMuted ? '#E53935' : '#E8E4DC',
+                  },
+                ]}
                 onPress={toggleMute}
                 activeOpacity={0.8}
               >
                 {isMuted ? (
                   <>
-                    <SpeakerSlash size={16} color="#EF4444" weight="bold" />
-                    <Text style={{ fontSize: 11, fontWeight: '600', color: '#EF4444', letterSpacing: 0.5 }}>
+                    <SpeakerSlash size={16} color="#E53935" weight="bold" />
+                    <Text style={[styles.audioBannerText, { color: '#E53935' }]}>
                       AMBIENT AUDIO MUTED (TAP TO UNMUTE)
                     </Text>
                   </>
                 ) : (
                   <>
-                    <SpeakerHigh size={16} color="#0284C7" weight="bold" />
-                    <Text style={{ fontSize: 11, fontWeight: '600', color: '#0284C7', letterSpacing: 0.5 }}>
+                    <SpeakerHigh size={16} color="#1A1A1A" weight="bold" />
+                    <Text style={[styles.audioBannerText, { color: '#1A1A1A' }]}>
                       AMBIENT AUDIO PLAYING (TAP TO MUTE)
                     </Text>
                   </>
@@ -619,22 +617,16 @@ export default function FocusModeScreen() {
                       style={[
                         styles.trackCard,
                         {
-                          backgroundColor: isSelected
-                            ? isDark
-                              ? '#2E1065'
-                              : '#EDE9FE'
-                            : isDark
-                            ? '#14151C'
-                            : '#F9FAFB',
-                          borderColor: isSelected ? colors.secondary : colors.border,
+                          backgroundColor: isSelected ? '#FFF5F5' : '#FFFFFF',
+                          borderColor: isSelected ? '#E53935' : '#E8E4DC',
                         },
                       ]}
                     >
                       <View style={{ flex: 1, gap: 2 }}>
-                        <Text style={[styles.trackName, { color: isSelected ? '#FFFFFF' : colors.textPrimary }]}>
+                        <Text style={[styles.trackName, { color: isSelected ? '#E53935' : '#1A1A1A' }]}>
                           {t.name}
                         </Text>
-                        <Text style={[styles.trackCategory, { color: isSelected ? '#C4B5FD' : colors.textSecondary }]}>
+                        <Text style={styles.trackCategory}>
                           {t.category} • Offline WAV
                         </Text>
                       </View>
@@ -647,18 +639,18 @@ export default function FocusModeScreen() {
                   );
                 })}
               </ScrollView>
-            </GlassCard>
+            </View>
           </View>
         </Modal>
 
         {/* Duration Preset Selector Sheet */}
         <Modal visible={isPresetSheetOpen} transparent animationType="slide">
           <View style={styles.modalOverlay}>
-            <GlassCard variant="elevated" style={styles.modalSheet}>
+            <View style={styles.modalSheet}>
               <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Select Duration</Text>
-                <TouchableOpacity onPress={() => setIsPresetSheetOpen(false)} style={styles.circleBtn}>
-                  <X size={18} color={colors.textSecondary} weight="bold" />
+                <Text style={styles.modalTitle}>Select Duration</Text>
+                <TouchableOpacity onPress={() => setIsPresetSheetOpen(false)} style={styles.modalCloseBtn}>
+                  <X size={18} color="#1A1A1A" weight="bold" />
                 </TouchableOpacity>
               </View>
 
@@ -672,22 +664,22 @@ export default function FocusModeScreen() {
                       style={[
                         styles.presetCard,
                         {
-                          backgroundColor: isSelected ? '#0A84FF' : isDark ? '#14151C' : '#F3F4F6',
-                          borderColor: isSelected ? '#0A84FF' : colors.border,
+                          backgroundColor: isSelected ? '#E53935' : '#FFFFFF',
+                          borderColor: isSelected ? '#E53935' : '#E8E4DC',
                         },
                       ]}
                     >
-                      <Text style={[styles.presetNumber, { color: isSelected ? '#FFFFFF' : colors.textPrimary }]}>
+                      <Text style={[styles.presetNumber, { color: isSelected ? '#FFFFFF' : '#1A1A1A' }]}>
                         {mins}
                       </Text>
-                      <Text style={[styles.presetUnit, { color: isSelected ? '#FFFFFF' : colors.textMuted }]}>
+                      <Text style={[styles.presetUnit, { color: isSelected ? '#FFFFFF' : '#7A756D' }]}>
                         min
                       </Text>
                     </TouchableOpacity>
                   );
                 })}
               </View>
-            </GlassCard>
+            </View>
           </View>
         </Modal>
       </SafeAreaView>
@@ -696,8 +688,13 @@ export default function FocusModeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  safeArea: { flex: 1 },
+  container: {
+    flex: 1,
+    backgroundColor: '#F6F4EF',
+  },
+  safeArea: {
+    flex: 1,
+  },
   topHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -705,18 +702,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    letterSpacing: -0.3,
-  },
-  circleBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    borderWidth: 1,
+  headerTitleGroup: {
     alignItems: 'center',
-    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontSize: 14,
+    fontFamily: fontFamilies.bold,
+    color: '#1A1A1A',
+    letterSpacing: 1.5,
+  },
+  headerSubtitle: {
+    fontSize: 10,
+    fontFamily: fontFamilies.semiBold,
+    color: '#7A756D',
+    letterSpacing: 1,
+    marginTop: 2,
   },
   mainContent: {
     flex: 1,
@@ -730,13 +730,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 9,
     borderRadius: 100,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
+    borderColor: '#E8E4DC',
+    shadowColor: '#1A1A1A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
   modeBadgeText: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 11,
+    fontFamily: fontFamilies.bold,
+    color: '#1A1A1A',
+    letterSpacing: 0.8,
   },
   timerWrap: {
     width: 270,
@@ -748,12 +757,13 @@ const styles = StyleSheet.create({
   },
   focusBacklight: {
     position: 'absolute',
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    shadowColor: '#0A84FF',
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: '#E53935',
+    shadowColor: '#E53935',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
+    shadowOpacity: 0.4,
     shadowRadius: 36,
   },
   statusPillWrap: {
@@ -761,6 +771,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     marginTop: 4,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 100,
+    borderWidth: 1,
+    borderColor: '#E8E4DC',
   },
   statusDot: {
     width: 6,
@@ -770,54 +786,46 @@ const styles = StyleSheet.create({
   timerCenterContent: {
     position: 'absolute',
     alignItems: 'center',
-    gap: 4,
+    gap: 2,
   },
   timerDigits: {
     fontSize: 48,
-    fontWeight: '600',
+    fontFamily: fontFamilies.bold,
+    color: '#1A1A1A',
     letterSpacing: -1,
     fontVariant: ['tabular-nums'],
   },
   timerSubLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 1,
+    fontSize: 10,
+    fontFamily: fontFamilies.bold,
+    color: '#7A756D',
+    letterSpacing: 1.2,
   },
   controlsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 24,
+    gap: 28,
     marginVertical: 8,
   },
-  secondaryControlBtn: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   primaryPlayBtn: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 74,
+    height: 74,
+    borderRadius: 37,
+    backgroundColor: '#E53935',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#FF5500',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 6,
+    shadowColor: '#E53935',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.38,
+    shadowRadius: 14,
+    elevation: 7,
   },
   statsCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
     width: '100%',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 18,
   },
   statCol: {
     alignItems: 'center',
@@ -825,27 +833,38 @@ const styles = StyleSheet.create({
   },
   statVal: {
     fontSize: 17,
-    fontWeight: '600',
+    fontFamily: fontFamilies.bold,
+    color: '#1A1A1A',
   },
   statLabel: {
     fontSize: 9,
-    fontWeight: '600',
-    letterSpacing: 0.5,
+    fontFamily: fontFamilies.bold,
+    color: '#7A756D',
+    letterSpacing: 0.8,
   },
   statDivider: {
     width: 1,
     height: 24,
+    backgroundColor: '#E8E4DC',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.75)',
+    backgroundColor: 'rgba(26, 26, 26, 0.45)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderWidth: 1,
+    borderColor: '#E8E4DC',
+    padding: 22,
     gap: 16,
+    shadowColor: '#1A1A1A',
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 10,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -853,33 +872,60 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 17,
+    fontFamily: fontFamilies.bold,
+    color: '#1A1A1A',
+  },
+  modalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F6F4EF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  audioBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  audioBannerText: {
+    fontSize: 11,
+    fontFamily: fontFamilies.bold,
+    letterSpacing: 0.5,
   },
   trackCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 14,
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
   },
   trackName: {
     fontSize: 14,
-    fontWeight: '700',
+    fontFamily: fontFamilies.bold,
   },
   trackCategory: {
     fontSize: 11,
+    fontFamily: fontFamilies.medium,
+    color: '#7A756D',
+    marginTop: 2,
   },
   activeBadge: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 9,
     paddingVertical: 4,
-    borderRadius: 6,
-    backgroundColor: '#8B5CF6',
+    borderRadius: 8,
+    backgroundColor: '#E53935',
   },
   activeBadgeText: {
     fontSize: 9,
-    fontWeight: '600',
+    fontFamily: fontFamilies.bold,
     color: '#FFFFFF',
     letterSpacing: 0.5,
   },
@@ -891,18 +937,18 @@ const styles = StyleSheet.create({
   },
   presetCard: {
     flex: 1,
-    paddingVertical: 18,
-    borderRadius: 16,
+    paddingVertical: 16,
+    borderRadius: 18,
     borderWidth: 1,
     alignItems: 'center',
     gap: 2,
   },
   presetNumber: {
-    fontSize: 22,
-    fontWeight: '600',
+    fontSize: 20,
+    fontFamily: fontFamilies.bold,
   },
   presetUnit: {
     fontSize: 11,
-    fontWeight: '600',
+    fontFamily: fontFamilies.semiBold,
   },
 });

@@ -114,55 +114,52 @@ export const darkThemeColors: ThemeColors = {
   isDark: true,
 };
 
-/**
- * Crisp Clean Light Theme (Primary Default)
- */
 export const lightThemeColors: ThemeColors = {
   primary: '#E53935',
-  primaryLight: '#EF5350',
+  primaryLight: '#FF5252',
   primaryDark: '#C62828',
   primaryGlow: 'rgba(229, 57, 53, 0.15)',
-  tertiary: '#E9A23B',
+  tertiary: '#F59E0B',
 
-  primaryPurple: '#8B5CF6',
-  purpleGlow: 'rgba(139, 92, 246, 0.15)',
+  primaryPurple: '#7C4DFF',
+  purpleGlow: 'rgba(124, 77, 255, 0.15)',
 
-  background: '#F6F6F4',
+  background: '#F6F4EF',
   backgroundElevated: '#FFFFFF',
   backgroundGradientTop: '#FFFFFF',
-  backgroundGradientBottom: '#F2F3F5',
+  backgroundGradientBottom: '#EFECE4',
 
   card: '#FFFFFF',
-  surface: '#FFFFFF',
-  surfaceLight: '#F2F3F5',
+  surface: '#F6F4EF',
+  surfaceLight: '#FFFFFF',
   surfaceElevated: '#FFFFFF',
-  surfaceBorder: '#E4E6EA',
-  border: '#E4E6EA',
+  surfaceBorder: '#E8E4DC',
+  border: '#E8E4DC',
   borderGlow: 'rgba(229, 57, 53, 0.15)',
 
-  textPrimary: '#111318',
-  textSecondary: '#68707D',
-  textMuted: '#9298A3',
+  textPrimary: '#1A1A1A',
+  textSecondary: '#6B7280',
+  textMuted: '#9CA3AF',
 
   accent: '#E53935',
-  accentGold: '#E9A23B',
-  accentGlow: 'rgba(233, 162, 59, 0.2)',
-  secondary: '#EF5350',
+  accentGold: '#F59E0B',
+  accentGlow: 'rgba(245, 158, 11, 0.2)',
+  secondary: '#FF5252',
   danger: '#E53935',
   dangerGlow: 'rgba(229, 57, 53, 0.15)',
-  warning: '#E9A23B',
-  success: '#159A68',
-  neonGreen: '#159A68',
+  warning: '#F59E0B',
+  success: '#43A047',
+  neonGreen: '#43A047',
 
   stats: {
     strength: '#E53935',
-    discipline: '#159A68',
-    focus: '#3478F6',
-    health: '#E9A23B',
-    knowledge: '#8B5CF6',
+    discipline: '#43A047',
+    focus: '#7C4DFF',
+    health: '#F59E0B',
+    knowledge: '#2563EB',
   },
 
-  overlay: 'rgba(0, 0, 0, 0.45)',
+  overlay: 'rgba(26, 26, 26, 0.45)',
   glassCard: '#FFFFFF',
   isDark: false,
 };

@@ -6,25 +6,24 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Play,
   Pause,
   RotateCcw,
-  Sparkles,
   TreePine,
   CloudRain,
   Headphones,
   Music,
-  Shield,
   ShieldCheck,
-  Flame,
-  Check,
 } from 'lucide-react-native';
-import { useTheme } from '../../src/hooks/useTheme';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useSound } from '../../src/hooks/useSound';
+import { fontFamilies } from '../../src/theme/typography';
+import { NeumorphicCard, NeumorphicCircleButton } from '../../src/components/ui/NeumorphicCard';
+import { Icon3D } from '../../src/components/ui/Icon3D';
 
 const { width } = Dimensions.get('window');
 
@@ -38,7 +37,6 @@ const AMBIENT_SOUNDS = [
 ];
 
 export default function FocusTabScreen() {
-  const { colors, isDark } = useTheme();
   const haptics = useHaptics();
   const sound = useSound();
   const [selectedCategory, setSelectedCategory] = useState<typeof FOCUS_CATEGORIES[number]>('Study');
@@ -87,14 +85,18 @@ export default function FocusTabScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F6F4EF" />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.headerRow}>
-          <Text style={[styles.screenTitle, { color: colors.textPrimary }]}>Deep Focus</Text>
+          <View>
+            <Text style={styles.screenTitle}>DEEP FOCUS</Text>
+            <Text style={styles.screenSubtitle}>DISCIPLINE TODAY</Text>
+          </View>
           <View style={styles.shieldActiveBadge}>
-            <ShieldCheck size={14} color="#10B981" />
-            <Text style={styles.shieldActiveText}>Shield Active</Text>
+            <Icon3D name="shield_blue" size={18} />
+            <Text style={styles.shieldActiveText}>SHIELD ACTIVE</Text>
           </View>
         </View>
 
@@ -107,7 +109,7 @@ export default function FocusTabScreen() {
                 key={cat}
                 style={[
                   styles.categoryChip,
-                  { backgroundColor: isSelected ? colors.primary : colors.card, borderColor: isSelected ? colors.primary : colors.border },
+                  isSelected && styles.categoryChipActive,
                 ]}
                 onPress={() => {
                   haptics.light();
@@ -118,7 +120,7 @@ export default function FocusTabScreen() {
                 <Text
                   style={[
                     styles.categoryChipText,
-                    { color: isSelected ? '#FFFFFF' : colors.textSecondary },
+                    isSelected && styles.categoryChipTextActive,
                   ]}
                 >
                   {cat}
@@ -130,17 +132,17 @@ export default function FocusTabScreen() {
 
         {/* Giant Circular Focus Timer */}
         <View style={styles.timerCircleWrapper}>
-          <View style={[styles.timerOuterRing, { backgroundColor: colors.card, borderColor: colors.primary }]}>
+          <View style={styles.timerOuterRing}>
             <View style={styles.timerInnerDisk}>
-              <Text style={[styles.timerDigitsText, { color: colors.textPrimary }]}>{formatTime(minutes, seconds)}</Text>
-              <Text style={[styles.timerCategoryLabel, { color: colors.primary }]}>{selectedCategory.toUpperCase()} SPRINT</Text>
+              <Text style={styles.timerDigitsText}>{formatTime(minutes, seconds)}</Text>
+              <Text style={styles.timerCategoryLabel}>{selectedCategory.toUpperCase()} SPRINT</Text>
             </View>
           </View>
         </View>
 
         {/* Ambient Sounds Picker */}
-        <View style={styles.soundsSection}>
-          <Text style={[styles.sectionHeaderLabel, { color: colors.textSecondary }]}>AMBIENT SOUNDSCAPES</Text>
+        <NeumorphicCard style={styles.soundsSectionCard} padding={16}>
+          <Text style={styles.sectionHeaderLabel}>AMBIENT SOUNDSCAPES</Text>
           <View style={styles.soundsRow}>
             {AMBIENT_SOUNDS.map((item) => {
               const isSelected = selectedSound === item.id;
@@ -150,7 +152,7 @@ export default function FocusTabScreen() {
                   key={item.id}
                   style={[
                     styles.soundBtn,
-                    { backgroundColor: isSelected ? colors.primary : colors.card, borderColor: isSelected ? colors.primary : colors.border },
+                    isSelected && styles.soundBtnActive,
                   ]}
                   onPress={() => {
                     haptics.light();
@@ -158,11 +160,11 @@ export default function FocusTabScreen() {
                   }}
                   activeOpacity={0.8}
                 >
-                  <IconComp size={20} color={isSelected ? '#FFFFFF' : colors.textSecondary} />
+                  <IconComp size={18} color={isSelected ? '#FFFFFF' : '#1A1A1A'} />
                   <Text
                     style={[
                       styles.soundBtnText,
-                      { color: isSelected ? '#FFFFFF' : colors.textSecondary },
+                      isSelected && styles.soundBtnTextActive,
                     ]}
                   >
                     {item.name}
@@ -171,30 +173,30 @@ export default function FocusTabScreen() {
               );
             })}
           </View>
-        </View>
+        </NeumorphicCard>
 
         {/* Action Button */}
         <TouchableOpacity
           style={[styles.startFocusBtn, isActive && styles.startFocusBtnPause]}
           onPress={toggleTimer}
-          activeOpacity={0.85}
+          activeOpacity={0.88}
         >
           {isActive ? (
             <View style={styles.btnContentRow}>
               <Pause size={18} color="#FFFFFF" />
-              <Text style={styles.startFocusBtnText}>Pause Session</Text>
+              <Text style={styles.startFocusBtnText}>PAUSE SESSION</Text>
             </View>
           ) : (
             <View style={styles.btnContentRow}>
-              <Play size={18} color="#FFFFFF" />
-              <Text style={styles.startFocusBtnText}>Start Focus Shield</Text>
+              <Play size={18} color="#FFFFFF" fill="#FFFFFF" />
+              <Text style={styles.startFocusBtnText}>START FOCUS SHIELD</Text>
             </View>
           )}
         </TouchableOpacity>
 
         {isActive && (
           <TouchableOpacity style={styles.resetBtn} onPress={resetTimer} activeOpacity={0.8}>
-            <RotateCcw size={14} color="#6B7280" />
+            <RotateCcw size={14} color="#7A756D" />
             <Text style={styles.resetBtnText}>Reset Timer</Text>
           </TouchableOpacity>
         )}
@@ -206,34 +208,58 @@ export default function FocusTabScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FA' },
-  scrollContent: { padding: 20, gap: 20, alignItems: 'center' },
+  container: {
+    flex: 1,
+    backgroundColor: '#F6F4EF',
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 36,
+    gap: 18,
+    alignItems: 'center',
+  },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     width: '100%',
+    paddingVertical: 4,
   },
   screenTitle: {
-    fontSize: 26,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: 18,
+    fontFamily: fontFamilies.bold,
+    color: '#1A1A1A',
+    letterSpacing: 1.2,
+  },
+  screenSubtitle: {
+    fontSize: 10,
+    fontFamily: fontFamilies.semiBold,
+    color: '#7A756D',
+    letterSpacing: 1,
+    marginTop: 2,
   },
   shieldActiveBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 100,
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.25)',
+    borderColor: '#E8E4DC',
+    shadowColor: '#1A1A1A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
   shieldActiveText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#10B981',
+    fontSize: 10,
+    fontFamily: fontFamilies.bold,
+    color: '#1A1A1A',
+    letterSpacing: 0.8,
   },
   categoryRow: {
     flexDirection: 'row',
@@ -242,71 +268,83 @@ const styles = StyleSheet.create({
   },
   categoryChip: {
     flex: 1,
-    paddingVertical: 9,
-    borderRadius: 10,
+    paddingVertical: 10,
+    borderRadius: 14,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E8E4DC',
     alignItems: 'center',
+    shadowColor: '#1A1A1A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
   categoryChipActive: {
     backgroundColor: '#E53935',
     borderColor: '#E53935',
+    shadowColor: '#E53935',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 3,
   },
   categoryChipText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#6B7280',
+    fontFamily: fontFamilies.semiBold,
+    color: '#7A756D',
   },
   categoryChipTextActive: {
     color: '#FFFFFF',
+    fontFamily: fontFamilies.bold,
   },
   timerCircleWrapper: {
-    marginVertical: 14,
+    marginVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   timerOuterRing: {
-    width: width * 0.65,
-    height: width * 0.65,
-    borderRadius: (width * 0.65) / 2,
-    borderWidth: 6,
+    width: width * 0.68,
+    height: width * 0.68,
+    borderRadius: (width * 0.68) / 2,
+    borderWidth: 5,
     borderColor: '#E53935',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',
     shadowColor: '#E53935',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 4,
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    elevation: 5,
   },
   timerInnerDisk: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 4,
   },
   timerDigitsText: {
-    fontSize: 44,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: 48,
+    fontFamily: fontFamilies.bold,
+    color: '#1A1A1A',
     letterSpacing: -1,
+    fontVariant: ['tabular-nums'],
   },
   timerCategoryLabel: {
     fontSize: 11,
-    fontWeight: '600',
+    fontFamily: fontFamilies.bold,
     color: '#E53935',
-    letterSpacing: 1.2,
+    letterSpacing: 1.4,
   },
-  soundsSection: {
+  soundsSectionCard: {
     width: '100%',
-    gap: 10,
+    gap: 12,
   },
   sectionHeaderLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#6B7280',
-    letterSpacing: 0.6,
+    fontSize: 10,
+    fontFamily: fontFamilies.bold,
+    color: '#7A756D',
+    letterSpacing: 1,
   },
   soundsRow: {
     flexDirection: 'row',
@@ -315,10 +353,10 @@ const styles = StyleSheet.create({
   soundBtn: {
     flex: 1,
     paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    backgroundColor: '#F6F4EF',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E8E4DC',
     alignItems: 'center',
     gap: 6,
   },
@@ -328,28 +366,29 @@ const styles = StyleSheet.create({
   },
   soundBtnText: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#6B7280',
+    fontFamily: fontFamilies.semiBold,
+    color: '#7A756D',
   },
   soundBtnTextActive: {
     color: '#FFFFFF',
+    fontFamily: fontFamilies.bold,
   },
   startFocusBtn: {
     width: '100%',
     height: 52,
-    borderRadius: 14,
+    borderRadius: 22,
     backgroundColor: '#E53935',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 6,
     shadowColor: '#E53935',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    elevation: 6,
   },
   startFocusBtnPause: {
-    backgroundColor: '#111827',
+    backgroundColor: '#1A1A1A',
+    shadowColor: '#1A1A1A',
   },
   btnContentRow: {
     flexDirection: 'row',
@@ -357,27 +396,28 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   startFocusBtnText: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 14,
+    fontFamily: fontFamilies.bold,
     color: '#FFFFFF',
-    letterSpacing: 0.4,
+    letterSpacing: 0.8,
   },
   resetBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 6,
     paddingVertical: 6,
   },
   resetBtnText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#6B7280',
+    fontFamily: fontFamilies.bold,
+    color: '#7A756D',
   },
   mottoText: {
     fontSize: 11,
-    color: '#9CA3AF',
+    fontFamily: fontFamilies.medium,
+    color: '#7A756D',
     fontStyle: 'italic',
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: 4,
   },
 });

@@ -43,6 +43,8 @@ import { ALL_AVATARS } from '../../src/constants/avatars';
 import { AVATAR_ICONS } from '../../src/components/profile/AvatarPicker';
 import { AnimatedNumber } from '../../src/components/motion/AnimatedNumber';
 import { AnimatedStreakFlame } from '../../src/components/ui/AnimatedStreakFlame';
+import { Icon3D, Icon3DName } from '../../src/components/ui/Icon3D';
+import { NeumorphicCard, NeumorphicCircleButton } from '../../src/components/ui/NeumorphicCard';
 
 interface BoostItem {
   id: string;
@@ -51,7 +53,7 @@ interface BoostItem {
   cost: number;
   iconBg: string;
   iconColor: string;
-  icon: any;
+  icon3DName: Icon3DName;
 }
 
 interface AvatarItem {
@@ -147,7 +149,7 @@ export default function ShopScreen() {
       cost: 200,
       iconBg: isDark ? 'rgba(37, 99, 235, 0.2)' : '#DBEAFE',
       iconColor: '#2563EB',
-      icon: AnimatedStreakFlame,
+      icon3DName: 'ice_blue',
     },
     {
       id: 'double_xp',
@@ -156,7 +158,7 @@ export default function ShopScreen() {
       cost: 300,
       iconBg: isDark ? 'rgba(219, 39, 119, 0.2)' : '#FCE7F3',
       iconColor: '#DB2777',
-      icon: Zap,
+      icon3DName: 'lightning_gold',
     },
     {
       id: 'soul_pass',
@@ -165,7 +167,7 @@ export default function ShopScreen() {
       cost: 500,
       iconBg: isDark ? 'rgba(217, 119, 6, 0.2)' : '#FEF3C7',
       iconColor: '#D97706',
-      icon: Crown,
+      icon3DName: 'ticket_gold',
     },
     {
       id: 'focus_shield',
@@ -174,7 +176,7 @@ export default function ShopScreen() {
       cost: 400,
       iconBg: isDark ? 'rgba(124, 58, 237, 0.2)' : '#EDE9FE',
       iconColor: '#7C3AED',
-      icon: Shield,
+      icon3DName: 'safe_gray',
     },
   ];
 
@@ -358,55 +360,39 @@ export default function ShopScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       {/* 1. TOP HEADER (Back + Vault Shop + Coins | Crystals) */}
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+      <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <TouchableOpacity
-            style={[styles.backBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+          <NeumorphicCircleButton
+            size={40}
             onPress={() => {
               haptics.light();
               router.back();
             }}
-            activeOpacity={0.8}
-          >
-            <ArrowLeft size={20} color={colors.textPrimary} />
-          </TouchableOpacity>
+            icon={<ArrowLeft size={18} color={colors.textPrimary} strokeWidth={2.5} />}
+          />
           <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Vault Shop</Text>
         </View>
 
         <View style={styles.headerRightCurrencies}>
-          <View
-            style={[
-              styles.currencyBadge,
-              {
-                backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7',
-                borderColor: isDark ? 'rgba(245, 158, 11, 0.3)' : '#FDE68A',
-              },
-            ]}
-          >
-            <Coins size={15} color="#F59E0B" />
+          <View style={styles.currencyBadge}>
+            <Icon3D name="coin_gold" size={16} />
             <AnimatedNumber
               value={currentCoins}
-              style={[styles.currencyBadgeText, { color: isDark ? '#F59E0B' : '#92400E' }]}
+              style={[styles.currencyBadgeText, { color: colors.textPrimary }]}
             />
           </View>
           <TouchableOpacity
-            style={[
-              styles.currencyBadge,
-              {
-                backgroundColor: isDark ? 'rgba(0, 210, 238, 0.15)' : '#F0F9FF',
-                borderColor: isDark ? 'rgba(0, 210, 238, 0.3)' : '#E0F2FE',
-              },
-            ]}
+            style={styles.currencyBadge}
             onPress={() => {
               haptics.light();
               router.push('/redeem' as any);
             }}
             activeOpacity={0.8}
           >
-            <ManaCrystalIcon size={15} color="#00D2EE" secondaryColor="#0284C7" />
+            <Icon3D name="crystal_blue" size={16} />
             <AnimatedNumber
               value={manaCrystals}
-              style={[styles.currencyBadgeText, { color: isDark ? '#00D2EE' : '#0284C7' }]}
+              style={[styles.currencyBadgeText, { color: '#0284C7' }]}
             />
           </TouchableOpacity>
         </View>
@@ -423,8 +409,8 @@ export default function ShopScreen() {
               style={[
                 styles.filterPill,
                 {
-                  backgroundColor: isSelected ? '#E53935' : isDark ? colors.card : '#F3F4F6',
-                  borderColor: isSelected ? '#E53935' : colors.border,
+                  backgroundColor: isSelected ? '#E53935' : '#FFFFFF',
+                  borderColor: isSelected ? '#E53935' : '#E8E4DC',
                   borderWidth: 1,
                 },
               ]}
@@ -449,91 +435,53 @@ export default function ShopScreen() {
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Watch Ad Free Coins Banner */}
-        <TouchableOpacity
-          style={[
-            styles.freeCoinsCard,
-            {
-              backgroundColor: isDark ? 'rgba(229, 57, 53, 0.12)' : '#FFF1F2',
-              borderColor: isDark ? 'rgba(229, 57, 53, 0.3)' : '#FFE4E6',
-            },
-          ]}
-          onPress={handleWatchAd}
-          activeOpacity={0.85}
-        >
-          <View style={styles.freeCoinsLeft}>
-            <View
-              style={[
-                styles.freeCoinsIconWrap,
-                { backgroundColor: isDark ? 'rgba(229, 57, 53, 0.25)' : '#FFFFFF' },
-              ]}
-            >
-              <PlayCircle size={22} color="#E53935" />
-            </View>
-            <View>
-              <Text style={[styles.freeCoinsTitle, { color: colors.textPrimary }]}>Watch Sponsor Video</Text>
-            </View>
-          </View>
-          <View
-            style={[
-              styles.freeCoinsRewardBadge,
-              {
-                backgroundColor: isDark ? colors.card : '#FFFFFF',
-                borderColor: isDark ? 'rgba(245, 158, 11, 0.3)' : '#FDE68A',
-              },
-            ]}
+        <NeumorphicCard style={styles.freeCoinsCard}>
+          <TouchableOpacity
+            style={styles.freeCoinsCardInner}
+            onPress={handleWatchAd}
+            activeOpacity={0.85}
           >
-            <Coins size={13} color="#F59E0B" />
-            <Text style={[styles.freeCoinsRewardText, { color: isDark ? '#F59E0B' : '#D97706' }]}>+50 COINS</Text>
-          </View>
-        </TouchableOpacity>
+            <View style={styles.freeCoinsLeft}>
+              <View style={styles.freeCoinsIconWrap}>
+                <Icon3D name="play_amber" size={32} />
+              </View>
+              <View>
+                <Text style={styles.eyebrowTag}>SPONSOR PASS</Text>
+                <Text style={[styles.freeCoinsTitle, { color: colors.textPrimary }]}>Watch Video Stream</Text>
+              </View>
+            </View>
+            <View style={styles.freeCoinsRewardBadge}>
+              <Icon3D name="coin_gold" size={14} />
+              <Text style={styles.freeCoinsRewardText}>+50 COINS</Text>
+            </View>
+          </TouchableOpacity>
+        </NeumorphicCard>
 
         {/* ======================= SECTION 1: BOOSTS & POWER-UPS ======================= */}
         {(filter === 'all' || filter === 'boosts') && (
           <View style={styles.sectionWrap}>
             <Text style={[styles.sectionHeading, { color: colors.textPrimary }]}>Boosts & Power-ups</Text>
             <View style={styles.boostsGrid}>
-              {boostsList.map((item) => {
-                const IconComp = item.icon;
-                return (
-                  <View
-                    key={item.id}
-                    style={[
-                      styles.boostCard,
-                      { backgroundColor: colors.card, borderColor: colors.border },
-                    ]}
-                  >
-                    <View style={[styles.boostIconWrap, { backgroundColor: item.iconBg }]}>
-                      <IconComp size={24} color={item.iconColor} />
-                    </View>
-                    <View
-                      style={[
-                        styles.boostCostBadge,
-                        {
-                          backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7',
-                        },
-                      ]}
-                    >
-                      <Coins size={12} color="#F59E0B" />
-                      <Text
-                        style={[
-                          styles.boostCostText,
-                          { color: isDark ? '#F59E0B' : '#92400E' },
-                        ]}
-                      >
-                        {item.cost}
-                      </Text>
-                    </View>
-                    <Text style={[styles.boostName, { color: colors.textPrimary }]}>{item.name}</Text>
-                    <TouchableOpacity
-                      style={styles.boostBuyBtn}
-                      onPress={() => handleBuyBoost(item)}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={styles.boostBuyBtnText}>BUY</Text>
-                    </TouchableOpacity>
+              {boostsList.map((item) => (
+                <NeumorphicCard key={item.id} style={styles.boostCard}>
+                  <View style={styles.boostIconWrap}>
+                    <Icon3D name={item.icon3DName} size={44} />
                   </View>
-                );
-              })}
+                  <View style={styles.boostCostBadge}>
+                    <Icon3D name="coin_gold" size={13} />
+                    <Text style={styles.boostCostText}>{item.cost}</Text>
+                  </View>
+                  <Text style={[styles.boostName, { color: colors.textPrimary }]}>{item.name}</Text>
+                  <Text style={[styles.boostDesc, { color: colors.textSecondary }]}>{item.desc}</Text>
+                  <TouchableOpacity
+                    style={styles.boostBuyBtn}
+                    onPress={() => handleBuyBoost(item)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.boostBuyBtnText}>BUY</Text>
+                  </TouchableOpacity>
+                </NeumorphicCard>
+              ))}
             </View>
           </View>
         )}
@@ -551,24 +499,18 @@ export default function ShopScreen() {
                   profile?.avatarIcon === item.avatarIcon;
                 const isEquipped = equippedAvatar === item.avatarIcon || profile?.avatarIcon === item.avatarIcon;
                 return (
-                  <View
-                    key={item.id}
-                    style={[
-                      styles.avatarCard,
-                      { backgroundColor: colors.card, borderColor: colors.border },
-                    ]}
-                  >
+                  <NeumorphicCard key={item.id} style={styles.avatarCard}>
                     <View style={styles.avatarWrap}>
                       <PlayerAvatar iconId={item.avatarIcon} size={64} />
                       {isEquipped && (
-                        <View style={[styles.equippedCheckPill, { borderColor: colors.card }]}>
-                          <Check size={12} color="#FFFFFF" />
+                        <View style={styles.equippedCheckPill}>
+                          <Check size={12} color="#FFFFFF" strokeWidth={3} />
                         </View>
                       )}
                     </View>
                     <Text style={[styles.avatarName, { color: colors.textPrimary }]}>{item.name}</Text>
                     <View style={styles.avatarPriceRow}>
-                      <Coins size={13} color="#F59E0B" />
+                      <Icon3D name="coin_gold" size={13} />
                       <Text style={[styles.avatarPriceText, { color: colors.textSecondary }]}>
                         {isUnlocked ? 'Owned' : item.cost.toLocaleString()}
                       </Text>
@@ -578,13 +520,9 @@ export default function ShopScreen() {
                         styles.avatarActionBtn,
                         {
                           backgroundColor: isEquipped
-                            ? isDark
-                              ? 'rgba(255, 255, 255, 0.08)'
-                              : '#E5E7EB'
+                            ? '#E5E7EB'
                             : isUnlocked
-                            ? isDark
-                              ? '#0A84FF'
-                              : '#111827'
+                            ? '#111827'
                             : '#E53935',
                         },
                       ]}
@@ -605,7 +543,7 @@ export default function ShopScreen() {
                         {isEquipped ? 'EQUIPPED' : isUnlocked ? 'EQUIP' : 'BUY'}
                       </Text>
                     </TouchableOpacity>
-                  </View>
+                  </NeumorphicCard>
                 );
               })}
             </View>
@@ -626,27 +564,21 @@ export default function ShopScreen() {
                 activeOpacity={0.8}
               >
                 <Text style={styles.openVaultLinkText}>Open Vault</Text>
-                <ExternalLink size={12} color="#00D2EE" />
+                <ExternalLink size={12} color="#E53935" />
               </TouchableOpacity>
             </View>
             <View style={styles.vouchersList}>
               {vouchersList.map((voucher) => (
-                <View
-                  key={voucher.id}
-                  style={[
-                    styles.voucherCard,
-                    { backgroundColor: colors.card, borderColor: colors.border },
-                  ]}
-                >
+                <NeumorphicCard key={voucher.id} style={styles.voucherCard}>
                   <View style={styles.voucherLeft}>
-                    <View style={[styles.voucherIconCircle, { backgroundColor: voucher.providerColor + '18' }]}>
-                      <Gift size={22} color={voucher.providerColor} />
+                    <View style={styles.voucherIconCircle}>
+                      <Icon3D name="gift_capsule" size={36} />
                     </View>
                     <View style={{ gap: 4, flex: 1 }}>
                       <Text style={[styles.voucherTitle, { color: colors.textPrimary }]}>{voucher.name}</Text>
                       <View style={styles.voucherPricePill}>
-                        <ManaCrystalIcon size={13} color="#00D2EE" secondaryColor="#0284C7" />
-                        <Text style={[styles.voucherPriceText, { color: isDark ? '#00D2EE' : '#0284C7' }]}>
+                        <Icon3D name="crystal_blue" size={13} />
+                        <Text style={[styles.voucherPriceText, { color: '#0284C7' }]}>
                           {voucher.crystalsCost} Crystals
                         </Text>
                       </View>
@@ -660,7 +592,7 @@ export default function ShopScreen() {
                   >
                     <Text style={styles.voucherRedeemBtnText}>Redeem</Text>
                   </TouchableOpacity>
-                </View>
+                </NeumorphicCard>
               ))}
             </View>
           </View>
@@ -705,42 +637,41 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 12,
-    borderBottomWidth: 1,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
   headerTitle: {
     fontSize: 22,
-    fontFamily: fontFamilies.semiBold,
+    fontFamily: fontFamilies.bold,
+    letterSpacing: -0.3,
   },
   headerRightCurrencies: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
   currencyBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 16,
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
     borderWidth: 1,
+    borderColor: '#E8E4DC',
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#1A1A1A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
   currencyBadgeText: {
     fontSize: 13,
-    fontFamily: fontFamilies.semiBold,
+    fontFamily: fontFamilies.bold,
   },
 
   // Filter Pills
@@ -748,13 +679,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 20,
     gap: 8,
-    marginTop: 8,
-    marginBottom: 12,
+    marginTop: 6,
+    marginBottom: 14,
   },
   filterPill: {
     paddingHorizontal: 16,
     paddingVertical: 7,
-    borderRadius: 18,
+    borderRadius: 20,
+    shadowColor: '#1A1A1A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    elevation: 1,
   },
   filterPillText: {
     fontSize: 13,
@@ -769,12 +705,14 @@ const styles = StyleSheet.create({
 
   // Watch Ad Card
   freeCoinsCard: {
+    padding: 0,
+    overflow: 'hidden',
+  },
+  freeCoinsCardInner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
+    padding: 16,
   },
   freeCoinsLeft: {
     flexDirection: 'row',
@@ -782,32 +720,40 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   freeCoinsIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F6F4EF',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  freeCoinsTitle: {
-    fontSize: 14,
-    fontFamily: fontFamilies.semiBold,
+  eyebrowTag: {
+    fontSize: 10,
+    fontFamily: fontFamilies.bold,
+    color: '#E53935',
+    letterSpacing: 1.2,
+    marginBottom: 2,
   },
-  freeCoinsSub: {
-    fontSize: 11,
-    fontFamily: fontFamilies.medium,
+  freeCoinsTitle: {
+    fontSize: 15,
+    fontFamily: fontFamilies.bold,
   },
   freeCoinsRewardBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+    backgroundColor: '#FEF3C7',
     borderWidth: 1,
+    borderColor: '#FDE68A',
   },
   freeCoinsRewardText: {
     fontSize: 11,
-    fontFamily: fontFamilies.semiBold,
+    fontFamily: fontFamilies.bold,
+    color: '#92400E',
+    letterSpacing: 0.5,
   },
 
   // Section Wrap
@@ -844,21 +790,15 @@ const styles = StyleSheet.create({
   },
   boostCard: {
     width: '48%',
-    borderRadius: 16,
     padding: 14,
-    borderWidth: 1,
     gap: 6,
     alignItems: 'center',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
   },
   boostIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#F6F4EF',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,
@@ -868,16 +808,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 3,
     borderRadius: 10,
+    backgroundColor: '#FEF3C7',
   },
   boostCostText: {
     fontSize: 12,
-    fontFamily: fontFamilies.semiBold,
+    fontFamily: fontFamilies.bold,
+    color: '#92400E',
   },
   boostName: {
     fontSize: 14,
-    fontFamily: fontFamilies.semiBold,
+    fontFamily: fontFamilies.bold,
     textAlign: 'center',
   },
   boostDesc: {
@@ -889,15 +831,15 @@ const styles = StyleSheet.create({
   boostBuyBtn: {
     backgroundColor: '#E53935',
     width: '100%',
-    paddingVertical: 8,
-    borderRadius: 10,
+    paddingVertical: 9,
+    borderRadius: 12,
     alignItems: 'center',
     marginTop: 4,
   },
   boostBuyBtnText: {
     color: '#FFFFFF',
     fontSize: 12,
-    fontFamily: fontFamilies.semiBold,
+    fontFamily: fontFamilies.bold,
     letterSpacing: 0.5,
   },
 
@@ -909,16 +851,9 @@ const styles = StyleSheet.create({
   },
   avatarCard: {
     width: '48%',
-    borderRadius: 16,
     padding: 14,
-    borderWidth: 1,
     alignItems: 'center',
     gap: 6,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
   },
   avatarWrap: {
     position: 'relative',
@@ -935,10 +870,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
   avatarName: {
     fontSize: 13,
-    fontFamily: fontFamilies.semiBold,
+    fontFamily: fontFamilies.bold,
     textAlign: 'center',
   },
   avatarPriceRow: {
@@ -948,37 +884,30 @@ const styles = StyleSheet.create({
   },
   avatarPriceText: {
     fontSize: 12,
-    fontFamily: fontFamilies.semiBold,
+    fontFamily: fontFamilies.bold,
   },
   avatarActionBtn: {
     width: '100%',
-    paddingVertical: 8,
-    borderRadius: 10,
+    paddingVertical: 9,
+    borderRadius: 12,
     alignItems: 'center',
     marginTop: 4,
   },
   avatarActionBtnText: {
     fontSize: 12,
-    fontFamily: fontFamilies.semiBold,
+    fontFamily: fontFamilies.bold,
     letterSpacing: 0.5,
   },
 
   // Vouchers List
   vouchersList: {
-    gap: 10,
+    gap: 12,
   },
   voucherCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderRadius: 16,
     padding: 14,
-    borderWidth: 1,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
   },
   voucherLeft: {
     flexDirection: 'row',
@@ -987,15 +916,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   voucherIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#F6F4EF',
     alignItems: 'center',
     justifyContent: 'center',
   },
   voucherTitle: {
     fontSize: 14,
-    fontFamily: fontFamilies.semiBold,
+    fontFamily: fontFamilies.bold,
   },
   voucherSub: {
     fontSize: 11,
@@ -1009,39 +939,44 @@ const styles = StyleSheet.create({
   },
   voucherPriceText: {
     fontSize: 12,
-    fontFamily: fontFamilies.semiBold,
+    fontFamily: fontFamilies.bold,
   },
   voucherRedeemBtn: {
     backgroundColor: '#E53935',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: 12,
   },
   voucherRedeemBtnText: {
     color: '#FFFFFF',
     fontSize: 13,
-    fontFamily: fontFamilies.semiBold,
+    fontFamily: fontFamilies.bold,
   },
 
   // Modal Dialog
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
   },
   dialogCard: {
     width: '100%',
-    borderRadius: 20,
+    borderRadius: 22,
     padding: 24,
     gap: 12,
     alignItems: 'center',
     borderWidth: 1,
+    shadowColor: '#1A1A1A',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 8,
   },
   dialogTitle: {
     fontSize: 18,
-    fontFamily: fontFamilies.semiBold,
+    fontFamily: fontFamilies.bold,
     textAlign: 'center',
   },
   dialogMessage: {
@@ -1054,13 +989,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#E53935',
     width: '100%',
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: 14,
     alignItems: 'center',
     marginTop: 8,
   },
   dialogBtnText: {
     color: '#FFFFFF',
     fontSize: 14,
-    fontFamily: fontFamilies.semiBold,
+    fontFamily: fontFamilies.bold,
   },
 });

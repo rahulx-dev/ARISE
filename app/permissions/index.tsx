@@ -24,7 +24,8 @@ import {
   ExternalLink,
   Zap,
 } from 'lucide-react-native';
-import { GlassCard } from '../../src/components/ios/GlassCard';
+import { NeumorphicCard, NeumorphicCircleButton } from '../../src/components/ui/NeumorphicCard';
+import { Icon3D, Icon3DName } from '../../src/components/ui/Icon3D';
 import { ARISEModal } from '../../src/components/ui/ARISEModal';
 import { appBlockerService } from '../../src/native';
 import { useHaptics } from '../../src/hooks/useHaptics';
@@ -35,7 +36,7 @@ interface PendingPerm {
   id: 'usage' | 'overlay' | 'battery' | 'camera' | 'notif';
   title: string;
   explanation: string;
-  icon: any;
+  icon3DName: Icon3DName;
   action: () => Promise<void> | void;
 }
 
@@ -215,35 +216,35 @@ export default function PermissionsScreen() {
       id: 'usage',
       title: 'Usage Access (App Monitor)',
       explanation: 'ARISE detects when you open distraction apps in real-time so it can enforce your focus rules. No private messages or browsing history are ever accessed or sent anywhere.',
-      icon: Clock,
+      icon3DName: 'clock_green',
       action: triggerNativeUsage,
     },
     {
       id: 'overlay',
       title: 'Display Over Apps (Lock Shield)',
       explanation: 'ARISE displays the lock overlay on top of restricted apps when your time limit expires. This allows you to perform workouts to earn back your screen time.',
-      icon: Layers,
+      icon3DName: 'layers_purple',
       action: triggerNativeOverlay,
     },
     {
       id: 'battery',
       title: 'Background Shield (Unrestricted Battery)',
       explanation: 'Device makers (Xiaomi, Samsung, OnePlus, Vivo) aggressively freeze background services. Granting unrestricted battery exemption ensures ARISE continuously protects your screen time without being killed.',
-      icon: Zap,
+      icon3DName: 'battery_green',
       action: triggerNativeBattery,
     },
     {
       id: 'camera',
       title: 'Camera Access (AI Pose Tracker)',
       explanation: 'ARISE uses your phone camera for real-time on-device Google ML Kit body joint tracking. Camera frames are processed 100% in RAM and are never recorded or uploaded.',
-      icon: CameraIcon,
+      icon3DName: 'camera_dark',
       action: triggerNativeCamera,
     },
     {
       id: 'notif',
       title: 'Notifications (Session Alerts)',
       explanation: 'ARISE notifies you when your screen time passes expire, quest targets are achieved, or daily streaks are in danger of resetting.',
-      icon: Bell,
+      icon3DName: 'bell_gold',
       action: triggerNativeNotif,
     },
   ];
@@ -262,72 +263,57 @@ export default function PermissionsScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <SafeAreaView style={styles.safeArea}>
         {/* Top Header Bar */}
-        <View style={[styles.headerRow, { borderBottomColor: colors.border }]}>
-          <TouchableOpacity
-            style={[styles.backBtn, { backgroundColor: isDark ? 'rgba(39, 54, 71, 0.45)' : 'rgba(0, 0, 0, 0.04)', borderColor: colors.border }]}
+        <View style={styles.headerRow}>
+          <NeumorphicCircleButton
+            size={38}
             onPress={() => router.back()}
-            activeOpacity={0.8}
-          >
-            <ArrowLeft size={20} color={colors.textPrimary} />
-          </TouchableOpacity>
+            icon={<ArrowLeft size={18} color={colors.textPrimary} strokeWidth={2.5} />}
+          />
 
           <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Permissions Hub</Text>
 
-          <TouchableOpacity
-            style={[styles.backBtn, { backgroundColor: isDark ? 'rgba(39, 54, 71, 0.45)' : 'rgba(0, 0, 0, 0.04)', borderColor: colors.border }]}
+          <NeumorphicCircleButton
+            size={38}
             onPress={() => {
               haptics.light();
               checkAllPermissions();
             }}
-            activeOpacity={0.8}
-          >
-            <RefreshCw size={18} color={colors.primary} />
-          </TouchableOpacity>
+            icon={<RefreshCw size={17} color="#E53935" strokeWidth={2.5} />}
+          />
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {/* Status Overview Card */}
-          <GlassCard variant={allGranted ? 'glow' : 'elevated'} style={styles.overviewCard}>
+          <NeumorphicCard style={styles.overviewCard}>
             <View style={styles.overviewHeader}>
-              <Shield size={24} color={allGranted ? colors.primary : colors.secondary} />
+              <View style={styles.shieldWrap}>
+                <Icon3D name={allGranted ? 'checkmark_green' : 'padlock_red'} size={32} />
+              </View>
               <View style={{ flex: 1 }}>
+                <Text style={styles.eyebrowTag}>SYSTEM PROTOCOL</Text>
                 <Text style={[styles.overviewTitle, { color: colors.textPrimary }]}>
-                  {allGranted ? 'System Shield Fully Active' : 'System Protection Protocol'}
+                  {allGranted ? 'System Shield Fully Active' : 'System Protection Required'}
                 </Text>
-                <Text style={[styles.overviewSubtitle, { color: colors.textMuted }]}>
-                  100% Offline & Private on your device.
+                <Text style={[styles.overviewSubtitle, { color: colors.textSecondary }]}>
+                  100% Offline & Private on your device
                 </Text>
               </View>
             </View>
             <Text style={[styles.overviewDesc, { color: colors.textSecondary }]}>
               Android requires specific permissions to monitor app usage, enforce the screen-time lock, and detect body workouts. Tap any permission below to configure.
             </Text>
-          </GlassCard>
+          </NeumorphicCard>
 
           {/* Permissions List */}
           <View style={styles.permList}>
             {permissionList.map((item) => {
-              const IconComp = item.icon;
               const isGranted = getGrantedState(item.id);
 
               return (
-                <GlassCard key={item.id} variant="default" style={styles.permCard}>
+                <NeumorphicCard key={item.id} style={styles.permCard}>
                   <View style={styles.permCardHeader}>
-                    <View
-                      style={[
-                        styles.permIconWrap,
-                        {
-                          backgroundColor: isGranted
-                            ? isDark
-                              ? 'rgba(204, 255, 0, 0.15)'
-                              : 'rgba(16, 185, 129, 0.15)'
-                            : isDark
-                            ? 'rgba(255, 255, 255, 0.06)'
-                            : 'rgba(0, 0, 0, 0.04)',
-                        },
-                      ]}
-                    >
-                      <IconComp size={20} color={isGranted ? colors.primary : colors.textMuted} />
+                    <View style={styles.permIconWrap}>
+                      <Icon3D name={item.icon3DName} size={36} />
                     </View>
 
                     <View style={styles.permCardText}>
@@ -336,24 +322,16 @@ export default function PermissionsScreen() {
                         <View
                           style={[
                             styles.statusBadge,
-                            {
-                              backgroundColor: isGranted
-                                ? isDark
-                                  ? 'rgba(204, 255, 0, 0.15)'
-                                  : 'rgba(16, 185, 129, 0.15)'
-                                : isDark
-                                ? 'rgba(255, 180, 171, 0.15)'
-                                : 'rgba(220, 38, 38, 0.1)',
-                            },
+                            isGranted ? styles.statusBadgeGranted : styles.statusBadgeRequired,
                           ]}
                         >
                           <Text
                             style={[
                               styles.statusBadgeText,
-                              { color: isGranted ? colors.primary : colors.danger },
+                              { color: isGranted ? '#10B981' : '#E53935' },
                             ]}
                           >
-                            {isGranted ? 'GRANTED' : 'REQUIRED'}
+                            {isGranted ? 'ACTIVE' : 'REQUIRED'}
                           </Text>
                         </View>
                       </View>
@@ -363,15 +341,15 @@ export default function PermissionsScreen() {
 
                   {!isGranted && (
                     <TouchableOpacity
-                      style={[styles.grantBtn, { backgroundColor: colors.primary }]}
+                      style={styles.grantBtn}
                       onPress={() => requestWithExplanation(item)}
                       activeOpacity={0.8}
                     >
                       <Text style={styles.grantBtnText}>CONFIGURE PERMISSION</Text>
-                      <ExternalLink size={14} color="#000000" />
+                      <ExternalLink size={14} color="#FFFFFF" strokeWidth={2.5} />
                     </TouchableOpacity>
                   )}
-                </GlassCard>
+                </NeumorphicCard>
               );
             })}
           </View>
@@ -396,7 +374,7 @@ export default function PermissionsScreen() {
               </Text>
 
               <TouchableOpacity
-                style={[styles.modalActionBtn, { backgroundColor: colors.primary }]}
+                style={styles.modalActionBtn}
                 onPress={handleConfirmExplanation}
                 activeOpacity={0.85}
               >
@@ -418,60 +396,62 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
+    paddingVertical: 10,
   },
   headerTitle: {
-    fontFamily: fontFamilies.semiBold,
-    fontSize: 17,
-    fontWeight: '600',
+    fontFamily: fontFamilies.bold,
+    fontSize: 19,
     letterSpacing: -0.3,
-  },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: 12,
     gap: 16,
   },
   overviewCard: {
     padding: 18,
     borderRadius: 22,
-    gap: 10,
+    gap: 12,
   },
   overviewHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
+  shieldWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#F6F4EF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  eyebrowTag: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 10,
+    color: '#E53935',
+    letterSpacing: 1.2,
+    marginBottom: 2,
+  },
   overviewTitle: {
-    fontFamily: fontFamilies.semiBold,
-    fontSize: 15.5,
-    fontWeight: '600',
+    fontFamily: fontFamilies.bold,
+    fontSize: 16,
   },
   overviewSubtitle: {
-    fontFamily: fontFamilies.regular,
-    fontSize: 11,
-    fontWeight: '400',
+    fontFamily: fontFamilies.medium,
+    fontSize: 12,
   },
   overviewDesc: {
     fontFamily: fontFamilies.regular,
     fontSize: 12,
     lineHeight: 18,
-    fontWeight: '400',
   },
   permList: {
     gap: 12,
   },
   permCard: {
     padding: 16,
-    borderRadius: 20,
+    borderRadius: 22,
     gap: 14,
   },
   permCardHeader: {
@@ -479,9 +459,10 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   permIconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#F6F4EF',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -495,55 +476,65 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   permTitle: {
-    fontFamily: fontFamilies.semiBold,
-    fontSize: 13.5,
-    fontWeight: '600',
+    fontFamily: fontFamilies.bold,
+    fontSize: 14,
     flex: 1,
     marginRight: 8,
   },
   statusBadge: {
     paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingVertical: 4,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  statusBadgeGranted: {
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  statusBadgeRequired: {
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
   },
   statusBadgeText: {
-    fontFamily: fontFamilies.semiBold,
-    fontSize: 9.5,
-    fontWeight: '600',
-    letterSpacing: 0.3,
+    fontFamily: fontFamilies.bold,
+    fontSize: 10,
+    letterSpacing: 0.5,
   },
   permDesc: {
     fontFamily: fontFamilies.regular,
-    fontSize: 11,
+    fontSize: 11.5,
     lineHeight: 16,
-    fontWeight: '400',
   },
   grantBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 10,
+    paddingVertical: 11,
     borderRadius: 12,
+    backgroundColor: '#E53935',
   },
   grantBtnText: {
-    fontFamily: fontFamilies.medium,
-    fontSize: 11,
-    fontWeight: '500',
-    color: '#000000',
-    letterSpacing: 0.3,
+    fontFamily: fontFamilies.bold,
+    fontSize: 12,
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
   },
   modalActionBtn: {
     paddingVertical: 14,
     borderRadius: 14,
+    backgroundColor: '#E53935',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 4,
   },
   modalActionBtnText: {
-    fontFamily: fontFamilies.semiBold,
-    fontSize: 13.5,
-    fontWeight: '600',
-    color: '#000000',
+    fontFamily: fontFamilies.bold,
+    fontSize: 14,
+    color: '#FFFFFF',
   },
 });

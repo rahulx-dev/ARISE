@@ -46,6 +46,7 @@ import { useSound } from '../../src/hooks/useSound';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTheme } from '../../src/hooks/useTheme';
 import { AnimatedStreakFlame } from '../../src/components/ui/AnimatedStreakFlame';
+import { Icon3D } from '../../src/components/ui/Icon3D';
 
 const DISTANCE_PRESETS = [0.5, 1.0, 2.0, 3.0, 5.0, 10.0];
 
@@ -316,9 +317,9 @@ export default function RunningScreen() {
   const progressPercent = Math.min(100, Math.round((stats.distanceKm / targetDistanceKm) * 100));
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: '#F6F4EF' }]} edges={['top', 'left', 'right']}>
       {/* Top Header */}
-      <View style={[styles.header, { borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)' }]}>
+      <View style={[styles.header, { borderBottomColor: '#E8E4DC', backgroundColor: '#F6F4EF' }]}>
         <TouchableOpacity
           style={styles.backBtn}
           onPress={() => {
@@ -330,9 +331,9 @@ export default function RunningScreen() {
           }}
           activeOpacity={0.7}
         >
-          <CaretLeft size={22} color={colors.textPrimary} weight="bold" />
+          <CaretLeft size={22} color="#1A1A1A" weight="bold" />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>SHADOW SPRINT TRIAL</Text>
+        <Text style={[styles.headerTitle, { color: '#1A1A1A' }]}>SHADOW SPRINT TRIAL</Text>
         <View style={styles.headerRightPlaceholder} />
       </View>
 
@@ -341,44 +342,44 @@ export default function RunningScreen() {
           /* ======================= 1. SETUP / GOAL SELECTOR ======================= */
           <View style={{ gap: 20 }}>
             {/* Solo Leveling Objective Card */}
-            <GlassCard variant="glow" style={styles.goalCard}>
+            <View style={[styles.goalCard, { backgroundColor: '#FFFFFF', borderColor: '#E8E4DC' }]}>
               <View style={styles.systemTagBadge}>
                 <Text style={styles.systemTagText}>[ DAILY HUNTER TRIAL : RUNNING ]</Text>
               </View>
-              <Text style={[styles.goalTitle, { color: colors.textPrimary }]}>
+              <Text style={[styles.goalTitle, { color: '#1A1A1A' }]}>
                 CALIBRATE TARGET DISTANCE
               </Text>
-              <Text style={[styles.goalSub, { color: colors.textSecondary }]}>
-                Sprint or jog outdoors/indoors. Real-time GPS and step sensors will track your distance. Higher distance awards massive XP & Mana Crystals!
+              <Text style={[styles.goalSub, { color: '#6B7280' }]}>
+                Sprint or jog outdoors. Real-time GPS and step sensors will track your distance. Higher distance awards massive XP & Coins!
               </Text>
 
               {/* Big Distance Display */}
               <View style={styles.bigDistanceDisplay}>
                 <TouchableOpacity
-                  style={[styles.stepperBtn, { backgroundColor: isDark ? '#161926' : '#E2E8F0' }]}
+                  style={[styles.stepperBtn, { backgroundColor: '#F6F4EF', borderColor: '#E8E4DC', borderWidth: 1 }]}
                   onPress={() => {
                     haptics.light();
                     setTargetDistanceKm((prev) => Math.max(0.5, Math.round((prev - 0.5) * 10) / 10));
                   }}
                 >
-                  <Minus size={20} color={colors.textPrimary} weight="bold" />
+                  <Minus size={20} color="#1A1A1A" weight="bold" />
                 </TouchableOpacity>
 
                 <View style={{ alignItems: 'center' }}>
-                  <Text style={[styles.bigDistanceNumber, { color: colors.primary }]}>
+                  <Text style={[styles.bigDistanceNumber, { color: '#E53935' }]}>
                     {targetDistanceKm.toFixed(1)}
                   </Text>
-                  <Text style={[styles.bigDistanceUnit, { color: colors.textSecondary }]}>KILOMETERS</Text>
+                  <Text style={[styles.bigDistanceUnit, { color: '#6B7280' }]}>KILOMETERS</Text>
                 </View>
 
                 <TouchableOpacity
-                  style={[styles.stepperBtn, { backgroundColor: isDark ? '#161926' : '#E2E8F0' }]}
+                  style={[styles.stepperBtn, { backgroundColor: '#F6F4EF', borderColor: '#E8E4DC', borderWidth: 1 }]}
                   onPress={() => {
                     haptics.light();
                     setTargetDistanceKm((prev) => Math.min(20, Math.round((prev + 0.5) * 10) / 10));
                   }}
                 >
-                  <Plus size={20} color={colors.textPrimary} weight="bold" />
+                  <Plus size={20} color="#1A1A1A" weight="bold" />
                 </TouchableOpacity>
               </View>
 
@@ -392,8 +393,8 @@ export default function RunningScreen() {
                       style={[
                         styles.presetPill,
                         {
-                          backgroundColor: isSelected ? colors.primary : isDark ? '#111420' : '#F1F5F9',
-                          borderColor: isSelected ? colors.primary : colors.border,
+                          backgroundColor: isSelected ? '#E53935' : '#F6F4EF',
+                          borderColor: isSelected ? '#E53935' : '#E8E4DC',
                         },
                       ]}
                       onPress={() => {
@@ -405,7 +406,7 @@ export default function RunningScreen() {
                       <Text
                         style={[
                           styles.presetPillText,
-                          { color: isSelected ? '#FFFFFF' : colors.textSecondary },
+                          { color: isSelected ? '#FFFFFF' : '#6B7280' },
                         ]}
                       >
                         {preset}k
@@ -414,33 +415,45 @@ export default function RunningScreen() {
                   );
                 })}
               </View>
-            </GlassCard>
+            </View>
 
             {/* Projected Rewards Bounty Box */}
-            <GlassCard style={styles.rewardPreviewCard}>
-              <Text style={[styles.rewardPreviewLabel, { color: colors.textMuted }]}>
+            <View style={[styles.rewardPreviewCard, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A', borderWidth: 1 }]}>
+              <Text style={[styles.rewardPreviewLabel, { color: '#6B7280' }]}>
                 PROJECTED QUEST CLEAR REWARDS:
               </Text>
               <View style={styles.rewardsRow}>
                 <View style={styles.rewardItem}>
-                  <Sparkle size={18} color="#00D2EE" weight="fill" />
-                  <Text style={[styles.rewardVal, { color: '#00D2EE' }]}>+{calculatedXP} XP</Text>
+                  <Icon3D name="lightning_yellow" size={18} />
+                  <Text style={[styles.rewardVal, { color: '#D97706' }]}>+{calculatedXP} XP</Text>
                 </View>
                 <View style={styles.rewardItem}>
-                  <Coins size={18} color="#F59E0B" weight="duotone" />
-                  <Text style={[styles.rewardVal, { color: '#F59E0B' }]}>+{calculatedCoins} Coins</Text>
+                  <Icon3D name="coin_gold" size={18} />
+                  <Text style={[styles.rewardVal, { color: '#D97706' }]}>+{calculatedCoins} Coins</Text>
                 </View>
               </View>
-            </GlassCard>
+            </View>
 
             {/* Start Button */}
-            <GlassButton
-              title="INITIATE SPRINT TRIAL"
-              variant="primary"
-              size="lg"
+            <TouchableOpacity
+              style={[
+                styles.actionBtn,
+                {
+                  backgroundColor: '#E53935',
+                  height: 52,
+                  borderRadius: 18,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginTop: 10,
+                },
+              ]}
               onPress={handleStartRun}
-              style={{ marginTop: 10 }}
-            />
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.actionBtnText, { fontSize: 15, fontWeight: '700' }]}>
+                INITIATE SPRINT TRIAL
+              </Text>
+            </TouchableOpacity>
           </View>
         ) : (
           /* ======================= 2. LIVE RUNNING HUD ======================= */
@@ -448,7 +461,7 @@ export default function RunningScreen() {
             {/* Vehicle Anti-Cheat Warning Banner */}
             {stats.isVehicleSpeed && (
               <View style={styles.vehicleWarningBanner}>
-                <WarningCircle size={20} color="#FF1E44" weight="fill" />
+                <WarningCircle size={20} color="#E53935" weight="fill" />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.vehicleWarningTitle}>VEHICLE SPEED DETECTED!</Text>
                   <Text style={styles.vehicleWarningSub}>
@@ -458,27 +471,27 @@ export default function RunningScreen() {
               </View>
             )}
 
-            {/* Big Circular Holographic Telemetry HUD */}
+            {/* Big Circular Telemetry HUD */}
             <View style={styles.circleProgressContainer}>
               <Animated.View
                 style={[
                   styles.circlePulseRing,
                   {
                     transform: [{ scale: pulseAnim }],
-                    borderColor: isPaused ? '#F59E0B' : '#00D2EE',
+                    borderColor: isPaused ? '#F59E0B' : '#E53935',
                   },
                 ]}
               />
-              <View style={[styles.circleInnerCard, { backgroundColor: isDark ? '#080B14' : '#F8FAFC' }]}>
-                <Text style={[styles.liveDistanceNumber, { color: colors.textPrimary }]}>
+              <View style={[styles.circleInnerCard, { backgroundColor: '#FFFFFF', borderColor: '#E8E4DC', borderWidth: 1 }]}>
+                <Text style={[styles.liveDistanceNumber, { color: '#1A1A1A' }]}>
                   {stats.distanceKm.toFixed(2)}
                 </Text>
-                <Text style={[styles.liveDistanceSub, { color: colors.textSecondary }]}>
+                <Text style={[styles.liveDistanceSub, { color: '#6B7280' }]}>
                   / {targetDistanceKm.toFixed(1)} KM
                 </Text>
 
-                <View style={[styles.progressCapsule, { backgroundColor: isDark ? '#151824' : '#E2E8F0' }]}>
-                  <Text style={[styles.progressPercentText, { color: colors.primary }]}>
+                <View style={[styles.progressCapsule, { backgroundColor: '#FFF2F2' }]}>
+                  <Text style={[styles.progressPercentText, { color: '#E53935' }]}>
                     {progressPercent}% COMPLETED
                   </Text>
                 </View>
@@ -488,46 +501,46 @@ export default function RunningScreen() {
             {/* 3 Primary Telemetry Cards (Speed, Pace, Steps) */}
             <View style={styles.telemetryGrid}>
               {/* Speed */}
-              <GlassCard style={styles.telemetryCard}>
-                <Lightning size={18} color="#00D2EE" weight="duotone" />
-                <Text style={[styles.telemetryVal, { color: colors.textPrimary }]}>
+              <View style={[styles.telemetryCard, { backgroundColor: '#FFFFFF', borderColor: '#E8E4DC' }]}>
+                <Icon3D name="speedometer_red" size={24} />
+                <Text style={[styles.telemetryVal, { color: '#1A1A1A' }]}>
                   {stats.speedKmh.toFixed(1)}
                 </Text>
-                <Text style={[styles.telemetryUnit, { color: colors.textMuted }]}>KM/H SPEED</Text>
-              </GlassCard>
+                <Text style={[styles.telemetryUnit, { color: '#6B7280' }]}>KM/H SPEED</Text>
+              </View>
 
               {/* Pace */}
-              <GlassCard style={styles.telemetryCard}>
-                <Clock size={18} color="#0A84FF" weight="duotone" />
-                <Text style={[styles.telemetryVal, { color: colors.textPrimary }]}>
+              <View style={[styles.telemetryCard, { backgroundColor: '#FFFFFF', borderColor: '#E8E4DC' }]}>
+                <Icon3D name="stopwatch_silver" size={24} />
+                <Text style={[styles.telemetryVal, { color: '#1A1A1A' }]}>
                   {stats.paceMinKm}
                 </Text>
-                <Text style={[styles.telemetryUnit, { color: colors.textMuted }]}>PACE /KM</Text>
-              </GlassCard>
+                <Text style={[styles.telemetryUnit, { color: '#6B7280' }]}>PACE /KM</Text>
+              </View>
 
               {/* Steps */}
-              <GlassCard style={styles.telemetryCard}>
-                <Footprints size={18} color="#10B981" weight="duotone" />
-                <Text style={[styles.telemetryVal, { color: colors.textPrimary }]}>
+              <View style={[styles.telemetryCard, { backgroundColor: '#FFFFFF', borderColor: '#E8E4DC' }]}>
+                <Icon3D name="footprints_orange" size={24} />
+                <Text style={[styles.telemetryVal, { color: '#1A1A1A' }]}>
                   {stats.steps.toLocaleString()}
                 </Text>
-                <Text style={[styles.telemetryUnit, { color: colors.textMuted }]}>TOTAL STEPS</Text>
-              </GlassCard>
+                <Text style={[styles.telemetryUnit, { color: '#6B7280' }]}>TOTAL STEPS</Text>
+              </View>
             </View>
 
             {/* Secondary Stats Row (Time & Calories) */}
             <View style={styles.secondaryRow}>
-              <View style={[styles.secondaryPill, { backgroundColor: isDark ? '#0A0D15' : '#F1F5F9' }]}>
-                <Clock size={15} color="#8E8E93" />
-                <Text style={[styles.secondaryLabel, { color: colors.textSecondary }]}>TIME:</Text>
-                <Text style={[styles.secondaryVal, { color: colors.textPrimary }]}>
+              <View style={[styles.secondaryPill, { backgroundColor: '#FFFFFF', borderColor: '#E8E4DC', borderWidth: 1 }]}>
+                <Icon3D name="clock_green" size={16} />
+                <Text style={[styles.secondaryLabel, { color: '#6B7280' }]}>TIME:</Text>
+                <Text style={[styles.secondaryVal, { color: '#1A1A1A' }]}>
                   {formatTime(stats.elapsedSeconds)}
                 </Text>
               </View>
 
-              <View style={[styles.secondaryPill, { backgroundColor: isDark ? '#0A0D15' : '#F1F5F9' }]}>
-                <AnimatedStreakFlame size={16} />
-                <Text style={[styles.secondaryLabel, { color: colors.textSecondary }]}>BURN:</Text>
+              <View style={[styles.secondaryPill, { backgroundColor: '#FFFFFF', borderColor: '#E8E4DC', borderWidth: 1 }]}>
+                <Icon3D name="flame_orange" size={16} />
+                <Text style={[styles.secondaryLabel, { color: '#6B7280' }]}>BURN:</Text>
                 <Text style={[styles.secondaryVal, { color: '#F59E0B' }]}>
                   {stats.caloriesBurned} kcal
                 </Text>
@@ -539,7 +552,7 @@ export default function RunningScreen() {
               <TouchableOpacity
                 style={[
                   styles.actionBtn,
-                  { backgroundColor: isPaused ? '#0A84FF' : '#F59E0B' },
+                  { backgroundColor: isPaused ? '#2563EB' : '#F59E0B' },
                 ]}
                 onPress={handleTogglePause}
                 activeOpacity={0.8}
@@ -549,7 +562,7 @@ export default function RunningScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.actionBtn, { backgroundColor: '#FF1E44' }]}
+                style={[styles.actionBtn, { backgroundColor: '#E53935' }]}
                 onPress={handleAbortRun}
                 activeOpacity={0.8}
               >
@@ -565,47 +578,60 @@ export default function RunningScreen() {
       <Modal visible={showCompletionModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <SafeAreaView style={styles.modalSafe}>
-            <View style={[styles.modalCard, { backgroundColor: isDark ? '#060911' : '#0B1120', borderColor: '#00D2EE' }]}>
+            <View style={[styles.modalCard, { backgroundColor: '#FFFFFF', borderColor: '#E8E4DC' }]}>
               {/* Header Badge */}
               <View style={styles.modalTagBadge}>
                 <Text style={styles.modalTagText}>[ SYSTEM TRIAL COMPLETED ]</Text>
               </View>
 
               <View style={{ alignItems: 'center', marginVertical: 10 }}>
-                <Trophy size={56} color="#F59E0B" weight="duotone" />
-                <Text style={styles.modalSuccessTitle}>SHADOW SPRINT CLEARED!</Text>
-                <Text style={styles.modalSuccessSub}>
+                <Icon3D name="trophy_gold" size={64} />
+                <Text style={[styles.modalSuccessTitle, { color: '#1A1A1A' }]}>SHADOW SPRINT CLEARED!</Text>
+                <Text style={[styles.modalSuccessSub, { color: '#6B7280' }]}>
                   You have conquered the {targetDistanceKm} KM distance trial. Your physical vessel grows stronger!
                 </Text>
               </View>
 
               {/* Claimed Rewards Box */}
-              <View style={styles.modalRewardBox}>
-                <Text style={styles.modalRewardLabel}>REWARDS CREDITED TO YOUR VAULT:</Text>
+              <View style={[styles.modalRewardBox, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A', borderWidth: 1 }]}>
+                <Text style={[styles.modalRewardLabel, { color: '#6B7280' }]}>REWARDS CREDITED TO YOUR VAULT:</Text>
                 <View style={styles.modalRewardRow}>
                   <View style={styles.modalRewardBadge}>
-                    <Sparkle size={16} color="#00D2EE" weight="fill" />
-                    <Text style={styles.modalRewardValue}>+{earnedRewards.xp} XP</Text>
+                    <Icon3D name="lightning_yellow" size={16} />
+                    <Text style={[styles.modalRewardValue, { color: '#D97706' }]}>+{earnedRewards.xp} XP</Text>
                   </View>
                   <View style={styles.modalRewardBadge}>
-                    <Coins size={16} color="#F59E0B" weight="duotone" />
-                    <Text style={[styles.modalRewardValue, { color: '#F59E0B' }]}>
+                    <Icon3D name="coin_gold" size={16} />
+                    <Text style={[styles.modalRewardValue, { color: '#D97706' }]}>
                       +{earnedRewards.coins} Coins
                     </Text>
                   </View>
                 </View>
               </View>
 
-              <GlassButton
-                title="COLLECT REWARDS & RETURN"
-                variant="primary"
-                size="lg"
+              <TouchableOpacity
+                style={[
+                  styles.actionBtn,
+                  {
+                    backgroundColor: '#E53935',
+                    height: 52,
+                    borderRadius: 18,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    marginTop: 14,
+                  },
+                ]}
                 onPress={() => {
                   haptics.heavy();
                   setShowCompletionModal(false);
                   router.back();
                 }}
-              />
+                activeOpacity={0.85}
+              >
+                <Text style={[styles.actionBtnText, { fontSize: 15, fontWeight: '700' }]}>
+                  COLLECT REWARDS & RETURN
+                </Text>
+              </TouchableOpacity>
             </View>
           </SafeAreaView>
         </View>

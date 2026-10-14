@@ -11,24 +11,29 @@ export const scale = (size: number): number => {
 
 export const fontFamilies = {
   regular: Platform.select({
-    ios: 'System',
-    web: "'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif",
-    default: 'Inter_400Regular',
+    ios: 'PlusJakartaSans-Regular',
+    web: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif",
+    default: 'PlusJakartaSans-Regular',
   }),
   medium: Platform.select({
-    ios: 'System',
-    web: "'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif",
-    default: 'Inter_500Medium',
+    ios: 'PlusJakartaSans-Medium',
+    web: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif",
+    default: 'PlusJakartaSans-Medium',
   }),
   semiBold: Platform.select({
-    ios: 'System',
-    web: "'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif",
-    default: 'Inter_600SemiBold',
+    ios: 'PlusJakartaSans-SemiBold',
+    web: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif",
+    default: 'PlusJakartaSans-SemiBold',
   }),
   bold: Platform.select({
-    ios: 'System',
-    web: "'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif",
-    default: 'Inter_600SemiBold',
+    ios: 'PlusJakartaSans-Bold',
+    web: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif",
+    default: 'PlusJakartaSans-Bold',
+  }),
+  extraBold: Platform.select({
+    ios: 'PlusJakartaSans-ExtraBold',
+    web: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif",
+    default: 'PlusJakartaSans-ExtraBold',
   }),
 };
 
@@ -49,13 +54,14 @@ export const fontWeights = {
   regular: '400',
   medium: '500',
   semiBold: '600',
-  bold: '600',
+  bold: '700',
+  extraBold: '800',
 } as const;
 
 export const typography = {
   // Large Hero / Display Title
   display: {
-    fontFamily: fontFamilies.semiBold,
+    fontFamily: fontFamilies.bold,
     fontSize: 32,
     lineHeight: 38,
     color: colors.textPrimary,
@@ -63,7 +69,7 @@ export const typography = {
   } as TextStyle,
 
   displayLarge: {
-    fontFamily: fontFamilies.semiBold,
+    fontFamily: fontFamilies.extraBold,
     fontSize: 40,
     lineHeight: 46,
     color: colors.textPrimary,
@@ -72,7 +78,7 @@ export const typography = {
 
   // Section & Screen Headings
   h1: {
-    fontFamily: fontFamilies.semiBold,
+    fontFamily: fontFamilies.bold,
     fontSize: 24,
     lineHeight: 30,
     color: colors.textPrimary,
@@ -80,7 +86,7 @@ export const typography = {
   } as TextStyle,
 
   h2: {
-    fontFamily: fontFamilies.semiBold,
+    fontFamily: fontFamilies.bold,
     fontSize: 18,
     lineHeight: 24,
     color: colors.textPrimary,
@@ -110,22 +116,31 @@ export const typography = {
     color: colors.textSecondary,
   } as TextStyle,
 
-  // Captions & Overlines
+  // Lock Screen Eyebrow / Overlines
+  eyebrow: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 11,
+    lineHeight: 15,
+    color: colors.primary,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+  } as TextStyle,
+
   caption: {
     fontFamily: fontFamilies.semiBold,
     fontSize: 11,
     lineHeight: 15,
-    color: colors.textMuted,
-    letterSpacing: 0.6,
+    color: colors.textSecondary,
+    letterSpacing: 0.8,
     textTransform: 'uppercase',
   } as TextStyle,
 
   // Buttons & Interactive Labels
   button: {
-    fontFamily: fontFamilies.semiBold,
+    fontFamily: fontFamilies.bold,
     fontSize: 14.5,
     lineHeight: 19,
-    color: colors.background,
+    color: '#FFFFFF',
     letterSpacing: 0.2,
   } as TextStyle,
 
@@ -133,7 +148,7 @@ export const typography = {
     fontFamily: fontFamilies.semiBold,
     fontSize: 12.5,
     lineHeight: 16,
-    color: colors.background,
+    color: '#FFFFFF',
     letterSpacing: 0.1,
   } as TextStyle,
 
@@ -152,7 +167,7 @@ export const typography = {
     fontFamily: fontFamilies.bold,
     fontSize: 22,
     lineHeight: 28,
-    color: colors.accentGold,
+    color: colors.primary,
     fontVariant: ['tabular-nums'],
     letterSpacing: -0.2,
   } as TextStyle,

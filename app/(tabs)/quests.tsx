@@ -40,6 +40,7 @@ import { fontFamilies } from '../../src/theme/typography';
 import { EXERCISE_REGISTRY, ExerciseType } from '../../src/exercise';
 import { QuestData } from '../../src/services/questService';
 import { useTranslation } from '../../src/services/i18n';
+import { Icon3D } from '../../src/components/ui/Icon3D';
 
 type QuestTabFilter = 'ALL' | 'DAILY' | 'WEEKLY' | 'SPECIAL';
 
@@ -127,7 +128,7 @@ function QuestCardRow({
     <View
       style={[
         styles.horizontalQuestCard,
-        { backgroundColor: colors.card, borderColor: colors.border },
+        { backgroundColor: '#FFFFFF', borderColor: '#E8E4DC' },
         isDone && { opacity: 0.72 },
       ]}
     >
@@ -136,15 +137,13 @@ function QuestCardRow({
         style={[
           styles.questThumbBox,
           {
-            backgroundColor: isDark
-              ? '#1C1618'
-              : isRunning
-              ? '#EFF6FF'
+            backgroundColor: isRunning
+              ? '#F0FDF4'
               : isCameraTracked
-              ? '#FFF1F2'
+              ? '#FFF2F2'
               : isFocus
               ? '#EFF6FF'
-              : '#FEF3C7',
+              : '#FFFBEB',
           },
         ]}
       >
@@ -153,19 +152,19 @@ function QuestCardRow({
 
       {/* Middle: Title, Subtitle, Rewards */}
       <View style={styles.questMiddleCol}>
-        <Text style={[styles.questRowTitle, { color: colors.textPrimary }]} numberOfLines={1}>
+        <Text style={[styles.questRowTitle, { color: '#1A1A1A' }]} numberOfLines={1}>
           {q.title}
         </Text>
-        <Text style={[styles.questRowDesc, { color: colors.textSecondary }]} numberOfLines={1}>
+        <Text style={[styles.questRowDesc, { color: '#6B7280' }]} numberOfLines={1}>
           {q.description || (isRunning ? 'Outdoor GPS Run' : isCameraTracked ? `Target: ${q.target || 20} reps` : 'Daily protocol')}
         </Text>
         <View style={styles.rewardBadgesRow}>
-          <View style={[styles.bountyMiniPill, { backgroundColor: isDark ? '#1A1C28' : '#F3F4F6' }]}>
-            <Image source={APP_3D_ASSETS.goldCoin} style={{ width: 12, height: 12 }} />
+          <View style={[styles.bountyMiniPill, { backgroundColor: '#FFFBEB' }]}>
+            <Icon3D name="coin_gold" size={13} />
             <Text style={styles.bountyMiniCoinText}>+{q.rewardCoins || 18}</Text>
           </View>
-          <View style={[styles.bountyMiniPill, { backgroundColor: isDark ? '#1A1C28' : '#F3F4F6' }]}>
-            <Text style={[styles.bountyMiniXPText, { color: colors.textSecondary }]}>
+          <View style={[styles.bountyMiniPill, { backgroundColor: '#F6F4EF' }]}>
+            <Text style={[styles.bountyMiniXPText, { color: '#6B7280' }]}>
               +{q.rewardXP || 50} XP
             </Text>
           </View>
@@ -183,20 +182,20 @@ function QuestCardRow({
             style={[
               styles.completedPillMini,
               {
-                backgroundColor: isDark ? '#06281A' : '#ECFDF5',
-                borderColor: isDark ? '#0D4A32' : '#A7F3D0',
+                backgroundColor: '#ECFDF5',
+                borderColor: '#A7F3D0',
               },
               animatedCheckmarkStyle,
             ]}
           >
-            <Check size={12} color="#10B981" weight="bold" />
+            <Icon3D name="checkmark_green" size={14} />
             <Text style={styles.completedPillMiniText}>DONE</Text>
           </Animated.View>
         ) : (
           <AnimatedPressable
             style={[
               styles.startQuestPillBtn,
-              isRunning && { backgroundColor: '#0A84FF' },
+              isRunning && { backgroundColor: '#2563EB' },
               !isCameraTracked && !isFocus && !isRunning && styles.manualClaimBtn,
             ]}
             onPress={onAction}
@@ -359,51 +358,51 @@ export default function QuestsScreen() {
   const getCategoryIcon = (q: QuestData, isCamera: boolean, isFocus: boolean, isRunning?: boolean) => {
     const cat = (q.category || '').toUpperCase();
     if (isRunning) {
-      return <Footprints size={22} color="#0A84FF" weight="fill" />;
+      return <Icon3D name="sneaker_blue" size={24} />;
     }
     if (isCamera) {
-      return <Barbell size={22} color="#E53935" weight="fill" />;
+      return <Icon3D name="dumbbell_white" size={24} />;
     }
     if (isFocus) {
-      return <Brain size={22} color="#0A84FF" weight="fill" />;
+      return <Icon3D name="hourglass_amber" size={24} />;
     }
     if (cat === 'WELLNESS') {
-      return <Sparkle size={22} color="#F59E0B" weight="fill" />;
+      return <Icon3D name="crystal_cyan" size={24} />;
     }
     if (cat === 'DISCIPLINE') {
-      return <Target size={22} color="#A855F7" weight="fill" />;
+      return <Icon3D name="swords_steel" size={24} />;
     }
-    return <Lightning size={22} color="#10B981" weight="fill" />;
+    return <Icon3D name="scroll_parchment" size={24} />;
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: '#F6F4EF' }]} edges={['top', 'left', 'right']}>
       {/* 1. TOP HEADER */}
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <Text style={[styles.screenTitle, { color: colors.textPrimary }]}>{t('tabQuests', 'Quests')}</Text>
-        <View style={[styles.systemProtocolsPill, { backgroundColor: isDark ? '#1C1215' : '#FFF1F2', borderColor: isDark ? '#3E1C22' : '#FFE4E6' }]}>
-          <Lightning size={14} color="#E53935" weight="fill" />
+      <View style={[styles.header, { borderBottomColor: '#E8E4DC', backgroundColor: '#F6F4EF' }]}>
+        <Text style={[styles.screenTitle, { color: '#1A1A1A' }]}>{t('tabQuests', 'Quests')}</Text>
+        <View style={[styles.systemProtocolsPill, { backgroundColor: '#FFFFFF', borderColor: '#E8E4DC' }]}>
+          <Icon3D name="lightning_yellow" size={15} />
           <Text style={styles.systemProtocolsText}>System Protocols</Text>
         </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* 2. DAILY PROGRESS SUMMARY */}
-        <View style={[styles.progressSummaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={[styles.progressSummaryCard, { backgroundColor: '#FFFFFF', borderColor: '#E8E4DC' }]}>
           <View style={styles.progressSummaryHeader}>
             <View style={{ gap: 2 }}>
-              <Text style={[styles.progressSummaryTitle, { color: colors.textPrimary }]}>{t('dailySystemDirectives', 'Daily Objectives')}</Text>
-              <Text style={[styles.progressSummarySub, { color: colors.textSecondary }]}>
+              <Text style={[styles.progressSummaryTitle, { color: '#1A1A1A' }]}>{t('dailySystemDirectives', 'Daily Objectives')}</Text>
+              <Text style={[styles.progressSummarySub, { color: '#6B7280' }]}>
                 {completedDailyCount} of {totalDailyCount} protocols completed
               </Text>
             </View>
-            <View style={[styles.progressBadge, { backgroundColor: isDark ? '#1C1215' : '#FFF1F2' }]}>
+            <View style={[styles.progressBadge, { backgroundColor: '#FFF2F2' }]}>
               <Text style={styles.progressBadgeText}>
                 {totalDailyCount > 0 ? Math.round((completedDailyCount / totalDailyCount) * 100) : 0}%
               </Text>
             </View>
           </View>
-          <View style={[styles.progressTrack, { backgroundColor: isDark ? '#1D202C' : '#E5E7EB' }]}>
+          <View style={[styles.progressTrack, { backgroundColor: '#F0ECE1' }]}>
             <Animated.View style={[styles.progressFill, progressAnimatedStyle]} />
           </View>
         </View>
@@ -420,11 +419,9 @@ export default function QuestsScreen() {
                   {
                     backgroundColor: isSelected
                       ? '#E53935'
-                      : isDark
-                      ? '#12131A'
-                      : '#F3F4F6',
-                    borderColor: isDark ? '#1F222E' : 'transparent',
-                    borderWidth: isDark ? 1 : 0,
+                      : '#FFFFFF',
+                    borderColor: isSelected ? '#E53935' : '#E8E4DC',
+                    borderWidth: 1,
                   },
                 ]}
                 onPress={() => {
@@ -439,8 +436,6 @@ export default function QuestsScreen() {
                     {
                       color: isSelected
                         ? '#FFFFFF'
-                        : isDark
-                        ? '#8E8E93'
                         : '#6B7280',
                     },
                   ]}
@@ -466,8 +461,8 @@ export default function QuestsScreen() {
               style={[
                 styles.horizontalQuestCard,
                 {
-                  backgroundColor: isDark ? '#0C1324' : '#F0F7FF',
-                  borderColor: isDark ? '#1C2E52' : '#BAE6FD',
+                  backgroundColor: '#FFFFFF',
+                  borderColor: '#E8E4DC',
                 },
               ]}
               onPress={() => {
@@ -480,27 +475,27 @@ export default function QuestsScreen() {
               <View
                 style={[
                   styles.questThumbBox,
-                  { backgroundColor: isDark ? '#122648' : '#DBEAFE' },
+                  { backgroundColor: '#F0FDF4' },
                 ]}
               >
-                <Footprints size={22} color="#0A84FF" weight="fill" />
+                <Icon3D name="sneaker_blue" size={24} />
               </View>
 
               {/* Middle: Title, Subtitle, Rewards */}
               <View style={styles.questMiddleCol}>
-                <Text style={[styles.questRowTitle, { color: colors.textPrimary }]} numberOfLines={1}>
+                <Text style={[styles.questRowTitle, { color: '#1A1A1A' }]} numberOfLines={1}>
                   {t('shadowSprint', 'Shadow Sprint GPS Trial')}
                 </Text>
-                <Text style={[styles.questRowDesc, { color: colors.textSecondary }]} numberOfLines={1}>
+                <Text style={[styles.questRowDesc, { color: '#6B7280' }]} numberOfLines={1}>
                   {t('sprintDesc', 'Live outdoor distance tracking with pace telemetry.')}
                 </Text>
                 <View style={styles.rewardBadgesRow}>
-                  <View style={[styles.bountyMiniPill, { backgroundColor: isDark ? '#1A1C28' : '#FFFFFF' }]}>
-                    <Image source={APP_3D_ASSETS.goldCoin} style={{ width: 12, height: 12 }} />
+                  <View style={[styles.bountyMiniPill, { backgroundColor: '#FFFBEB' }]}>
+                    <Icon3D name="coin_gold" size={13} />
                     <Text style={styles.bountyMiniCoinText}>+50</Text>
                   </View>
-                  <View style={[styles.bountyMiniPill, { backgroundColor: isDark ? '#1A1C28' : '#FFFFFF' }]}>
-                    <Text style={[styles.bountyMiniXPText, { color: colors.textSecondary }]}>
+                  <View style={[styles.bountyMiniPill, { backgroundColor: '#F6F4EF' }]}>
+                    <Text style={[styles.bountyMiniXPText, { color: '#6B7280' }]}>
                       +200 XP
                     </Text>
                   </View>
@@ -509,10 +504,10 @@ export default function QuestsScreen() {
 
               {/* Right: Rank Tag & Action Button */}
               <View style={styles.questRightCol}>
-                <View style={[styles.rankBadgeMini, { backgroundColor: 'rgba(10, 132, 255, 0.15)' }]}>
-                  <Text style={[styles.rankBadgeMiniText, { color: '#0A84FF' }]}>B-RANK</Text>
+                <View style={[styles.rankBadgeMini, { backgroundColor: 'rgba(37, 99, 235, 0.12)' }]}>
+                  <Text style={[styles.rankBadgeMiniText, { color: '#2563EB' }]}>B-RANK</Text>
                 </View>
-                <View style={[styles.startQuestPillBtn, { backgroundColor: '#0A84FF' }]}>
+                <View style={[styles.startQuestPillBtn, { backgroundColor: '#2563EB' }]}>
                   <Text style={styles.startQuestPillBtnText}>{t('startRun', 'START RUN')}</Text>
                 </View>
               </View>
@@ -579,7 +574,7 @@ export default function QuestsScreen() {
         <View style={styles.penaltyBannerBottom}>
           <View style={styles.penaltyHeaderRow}>
             <View style={styles.penaltyTag}>
-              <ShieldWarning size={16} color="#FFFFFF" weight="fill" />
+              <Icon3D name="shield_blue" size={18} />
               <Text style={styles.penaltyTagText}>PENALTY ZONE</Text>
             </View>
             <Text style={styles.penaltyCountdownText}>Daily reset in {penaltyTimeLeft}</Text>
@@ -824,15 +819,17 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   penaltyBannerBottom: {
-    backgroundColor: '#E53935',
-    borderRadius: 18,
+    backgroundColor: '#FFF2F2',
+    borderColor: '#FFCDD2',
+    borderWidth: 1,
+    borderRadius: 20,
     padding: 16,
     gap: 6,
-    shadowColor: '#E53935',
+    shadowColor: '#1A1A1A',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
     marginTop: 6,
   },
   penaltyHeaderRow: {
@@ -846,23 +843,24 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   penaltyTagText: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#E53935',
+    letterSpacing: 0.8,
+  },
+  penaltyCountdownText: {
     fontFamily: fontFamilies.semiBold,
     fontSize: 12,
     fontWeight: '600',
-    color: '#FFFFFF',
-    letterSpacing: 0.4,
-  },
-  penaltyCountdownText: {
-    fontFamily: fontFamilies.medium,
-    fontSize: 11.5,
-    fontWeight: '500',
-    color: '#FFFFFF',
+    color: '#E53935',
     fontVariant: ['tabular-nums'],
   },
   penaltyDesc: {
     fontFamily: fontFamilies.regular,
-    fontSize: 11.5,
-    color: 'rgba(255, 255, 255, 0.95)',
+    fontSize: 12,
+    color: '#6B7280',
     fontWeight: '400',
+    lineHeight: 17,
   },
 });
