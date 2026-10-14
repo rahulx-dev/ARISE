@@ -39,4 +39,5 @@ export {
   ThemeMode,
   ThemeColors,
 } from './themeEngine';
+export { useTheme } from '../hooks/useTheme';
 

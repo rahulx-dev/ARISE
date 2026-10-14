@@ -515,8 +515,8 @@ class QuestService {
 
       return unique.map((r: any) => ({
         id: r.id,
-        title: r.title,
-        description: r.description,
+        title: r.title || 'Hunter Protocol',
+        description: r.description || '',
         category: r.category,
         exerciseType: r.exerciseType,
         target: r.target,
@@ -548,15 +548,16 @@ class QuestService {
 
       const seen = new Set<string>();
       const unique = rows.filter((r: any) => {
-        if (seen.has(r.title)) return false;
-        seen.add(r.title);
+        const t = r.title || 'Weekly Protocol';
+        if (seen.has(t)) return false;
+        seen.add(t);
         return true;
       });
 
       return unique.map((r: any) => ({
         id: r.id,
-        title: r.title,
-        description: r.description,
+        title: r.title || 'Weekly Protocol',
+        description: r.description || '',
         category: r.category,
         exerciseType: r.exerciseType,
         target: r.target,

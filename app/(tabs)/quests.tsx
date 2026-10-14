@@ -154,7 +154,7 @@ function QuestCardRow({
       {/* Middle: Title, Subtitle, Rewards */}
       <View style={styles.questMiddleCol}>
         <Text style={[styles.questRowTitle, { color: colors.textPrimary }]} numberOfLines={1}>
-          {q.title}
+          {q?.title || 'Hunter Protocol'}
         </Text>
         <Text style={[styles.questRowDesc, { color: colors.textSecondary }]} numberOfLines={1}>
           {q.description || (isRunning ? 'Outdoor GPS Run' : isCameraTracked ? `Target: ${q.target || 20} reps` : 'Daily protocol')}
