@@ -33,8 +33,6 @@ import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { ManaCrystalIcon } from '../../src/components/ui/ManaCrystalIcon';
 import { fontFamilies } from '../../src/theme/typography';
 import { APP_3D_ASSETS } from '../../src/constants/assets';
-import { NeumorphicCircleButton } from '../../src/components/ui/NeumorphicCard';
-import { Icon3D } from '../../src/components/ui/Icon3D';
 
 const DUNGEON_IMAGES: Record<string, any> = {
   E: require('../../assets/dungeons/dungeon_e_goblin.jpg'),
@@ -210,13 +208,13 @@ export default function GateDetailsScreen() {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <NeumorphicCircleButton
-            size={40}
+          <TouchableOpacity
+            style={[styles.backBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
             onPress={() => router.back()}
-            accessibilityLabel="Back"
+            activeOpacity={0.8}
           >
-            <ArrowLeft size={18} color="#1A1A1A" strokeWidth={2.5} />
-          </NeumorphicCircleButton>
+            <ArrowLeft size={18} color={colors.textPrimary} />
+          </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>GATE PROTOCOL</Text>
           <View style={{ width: 40 }} />
         </View>
@@ -345,16 +343,16 @@ export default function GateDetailsScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       {/* 1. TOP NAVIGATION BAR */}
       <View style={styles.header}>
-        <NeumorphicCircleButton
-          size={40}
+        <TouchableOpacity
+          style={[styles.backBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
           onPress={() => {
             haptics.light();
             router.back();
           }}
-          accessibilityLabel="Back"
+          activeOpacity={0.8}
         >
-          <ArrowLeft size={18} color="#1A1A1A" strokeWidth={2.5} />
-        </NeumorphicCircleButton>
+          <ArrowLeft size={18} color={colors.textPrimary} />
+        </TouchableOpacity>
 
         <View style={styles.headerCenter}>
           <Text style={styles.headerTag}>DIMENSIONAL RAID PROTOCOL</Text>
@@ -404,7 +402,7 @@ export default function GateDetailsScreen() {
         <View style={[styles.bountyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           {/* Column 1: Gross Bounty Pool */}
           <View style={styles.bountyCol}>
-            <Icon3D name="coin_gold" size={24} />
+            <Image source={APP_3D_ASSETS.goldCoin} style={{ width: 24, height: 24 }} />
             <View style={styles.bountyTextCol}>
               <Text style={[styles.bountyLabel, { color: colors.textSecondary }]}>BOUNTY POOL</Text>
               <Text style={[styles.bountyValINR, { color: '#F59E0B' }]}>₹{totalGrossPayout} INR</Text>
@@ -415,7 +413,7 @@ export default function GateDetailsScreen() {
 
           {/* Column 2: Hunter Share (20%) */}
           <View style={styles.bountyCol}>
-            <Icon3D name="crystal_cyan" size={22} />
+            <Image source={APP_3D_ASSETS.manaCrystal} style={{ width: 22, height: 22 }} />
             <View style={styles.bountyTextCol}>
               <Text style={[styles.bountyLabel, { color: colors.textSecondary }]}>HUNTER SHARE (20%)</Text>
               <Text style={[styles.bountyValCrystals, { color: '#0A84FF' }]}>+{totalCrystals.toLocaleString()}</Text>
@@ -426,7 +424,7 @@ export default function GateDetailsScreen() {
 
           {/* Column 3: System XP */}
           <View style={styles.bountyCol}>
-            <Icon3D name="lightning_gold" size={20} />
+            <Zap size={20} color="#EF4444" fill="#EF4444" />
             <View style={styles.bountyTextCol}>
               <Text style={[styles.bountyLabel, { color: colors.textSecondary }]}>SYSTEM XP</Text>
               <Text style={[styles.bountyValXP, { color: '#EF4444' }]}>+{totalXP.toLocaleString()}</Text>
@@ -437,7 +435,7 @@ export default function GateDetailsScreen() {
         {/* 4. SECTION HEADER (SURVEY RECON DIRECTIVES) */}
         <View style={styles.sectionHeaderRow}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Icon3D name="swords_crossed" size={20} />
+            <Swords size={18} color="#EF4444" />
             <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
               SURVEY RECON DIRECTIVES ({completedMissionsCount}/{gate.missions.length})
             </Text>
@@ -494,11 +492,11 @@ export default function GateDetailsScreen() {
                   {/* Left: Rewards Badges */}
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <View style={[styles.rewardBadgePill, { backgroundColor: isDark ? '#141E2D' : '#EFF6FF' }]}>
-                      <Icon3D name="crystal_cyan" size={13} />
+                      <ManaCrystalIcon size={13} color="#0284C7" secondaryColor="#0284C7" />
                       <Text style={styles.crystalRewardText}>+{mission.hunterCrystals}</Text>
                     </View>
                     <View style={[styles.rewardBadgePill, { backgroundColor: isDark ? '#261218' : '#FFF1F2' }]}>
-                      <Icon3D name="lightning_gold" size={13} />
+                      <Zap size={13} color="#EF4444" fill="#EF4444" />
                       <Text style={styles.xpRewardText}>+{mission.xpReward} XP</Text>
                     </View>
                   </View>
@@ -506,12 +504,12 @@ export default function GateDetailsScreen() {
                   {/* Right: CTA Button */}
                   {isConquered ? (
                     <View style={[styles.conqueredPill, { backgroundColor: isDark ? '#06281A' : '#ECFDF5', borderColor: isDark ? '#0D4A32' : '#A7F3D0' }]}>
-                      <Icon3D name="checkmark_green" size={13} />
+                      <Check size={12} color="#10B981" />
                       <Text style={styles.conqueredPillText}>CLEARED</Text>
                     </View>
                   ) : isLocked ? (
                     <View style={[styles.lockedPill, { backgroundColor: isDark ? '#1E202C' : '#F3F4F6' }]}>
-                      <Icon3D name="padlock_locked" size={13} />
+                      <Lock size={12} color="#8E8E93" />
                       <Text style={styles.lockedPillText}>LOCKED</Text>
                     </View>
                   ) : (
@@ -644,18 +642,18 @@ export default function GateDetailsScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
                   {clearedReward.crystals > 0 ? (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Icon3D name="crystal_cyan" size={18} />
+                      <ManaCrystalIcon size={18} color="#00D2EE" secondaryColor="#0284C7" />
                       <Text style={styles.victoryRewardVal}>+{clearedReward.crystals.toLocaleString()} Crystals</Text>
                     </View>
                   ) : (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Icon3D name="coin_gold" size={18} />
+                      <Image source={APP_3D_ASSETS.goldCoin} style={{ width: 18, height: 18 }} />
                       <Text style={[styles.victoryRewardVal, { color: '#F59E0B' }]}>+{clearedReward.coins.toLocaleString()} Coins</Text>
                     </View>
                   )}
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Icon3D name="lightning_gold" size={16} />
-                    <Text style={[styles.victoryRewardVal, { color: '#E53935' }]}>+{clearedReward.xp} XP</Text>
+                    <Zap size={16} color="#E11D48" />
+                    <Text style={[styles.victoryRewardVal, { color: '#E11D48' }]}>+{clearedReward.xp} XP</Text>
                   </View>
                 </View>
               </View>
@@ -1037,23 +1035,23 @@ const styles = StyleSheet.create({
     color: '#EF4444',
   },
   startInquestBtn: {
-    backgroundColor: '#E53935',
+    backgroundColor: '#EF4444',
     paddingHorizontal: 16,
     paddingVertical: 8.5,
     borderRadius: 100,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    shadowColor: '#E53935',
+    shadowColor: '#EF4444',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 2,
   },
   startInquestBtnText: {
-    fontFamily: fontFamilies.bold,
+    fontFamily: fontFamilies.semiBold,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.1,
   },
@@ -1230,7 +1228,7 @@ const styles = StyleSheet.create({
     color: '#EF4444',
   },
   confirmBtn: {
-    backgroundColor: '#E53935',
+    backgroundColor: '#EF4444',
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
@@ -1241,9 +1239,9 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   confirmBtnText: {
-    fontFamily: fontFamilies.bold,
+    fontFamily: fontFamilies.medium,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '500',
     color: '#FFFFFF',
     letterSpacing: 0.4,
   },
@@ -1299,7 +1297,7 @@ const styles = StyleSheet.create({
     color: '#00D2EE',
   },
   victoryConfirmBtn: {
-    backgroundColor: '#E53935',
+    backgroundColor: '#0284C7',
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
@@ -1307,9 +1305,9 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   victoryConfirmBtnText: {
-    fontFamily: fontFamilies.bold,
+    fontFamily: fontFamilies.medium,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '500',
     color: '#FFFFFF',
     letterSpacing: 0.4,
   },

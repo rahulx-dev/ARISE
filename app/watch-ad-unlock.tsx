@@ -10,16 +10,13 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft } from 'lucide-react-native';
+import { ShieldCheck, Video, ArrowLeft, Zap, Sparkles, CheckCircle2 } from 'lucide-react-native';
 import { adMobService } from '../src/services/adMobService';
 import { coinService } from '../src/services/coinService';
 import { appBlockerService } from '../src/native';
 import { usePlayerStore } from '../src/stores/usePlayerStore';
 import { useHaptics } from '../src/hooks/useHaptics';
 import { useSound } from '../src/hooks/useSound';
-import { fontFamilies } from '../src/theme/typography';
-import { NeumorphicCard, NeumorphicCircleButton } from '../src/components/ui/NeumorphicCard';
-import { Icon3D } from '../src/components/ui/Icon3D';
 
 const { width } = Dimensions.get('window');
 
@@ -116,69 +113,65 @@ export default function WatchAdUnlockScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F6F4EF" />
+      <StatusBar barStyle="light-content" backgroundColor="#02040A" />
 
       {/* Header */}
       <View style={styles.header}>
-        <NeumorphicCircleButton
-          size={38}
+        <TouchableOpacity
+          style={styles.backBtn}
           onPress={() => router.replace('/(tabs)')}
-          icon={<ArrowLeft size={18} color="#1A1A1A" strokeWidth={2.5} />}
-        />
-        <View style={styles.headerCenterCol}>
-          <Text style={styles.headerEyebrow}>UNRESTRICTED ACCESS</Text>
-          <Text style={styles.headerTitle}>SPONSOR PASS (+15 MINS)</Text>
-        </View>
-        <View style={{ width: 38 }} />
+          activeOpacity={0.8}
+        >
+          <ArrowLeft size={20} color="#FFFFFF" />
+        </TouchableOpacity>
+        <Text style={styles.headerTag}>[ SYSTEM // SPONSOR PROTOCOL ]</Text>
+        <View style={{ width: 40 }} />
       </View>
 
       <View style={styles.content}>
         {status === 'LOADING' && (
-          <NeumorphicCard style={styles.card}>
+          <View style={styles.card}>
             <View style={styles.iconCircle}>
-              <Icon3D name="play_amber" size={54} />
+              <Video size={36} color="#00D2EE" />
             </View>
-            <Text style={styles.eyebrowTag}>SPONSOR STREAM</Text>
-            <Text style={styles.title}>Connecting to Stream</Text>
+            <Text style={styles.title}>CONNECTING TO SPONSOR MAINFRAME</Text>
             <Text style={styles.subtitle}>
-              Calibrating verified sponsor video stream to grant your temporary 15-minute screen time pass...
+              Calibrating verified sponsor video stream to unlock your 15-minute screen pass...
             </Text>
-            <ActivityIndicator size="large" color="#E53935" style={{ marginTop: 14 }} />
-          </NeumorphicCard>
+            <ActivityIndicator size="large" color="#0A84FF" style={{ marginTop: 14 }} />
+          </View>
         )}
 
         {status === 'SHOWING' && (
-          <NeumorphicCard style={styles.card}>
-            <View style={styles.iconCircle}>
-              <Icon3D name="play_amber" size={54} />
+          <View style={styles.card}>
+            <View style={[styles.iconCircle, { borderColor: '#0A84FF' }]}>
+              <Zap size={36} color="#0A84FF" />
             </View>
-            <Text style={styles.eyebrowTag}>SESSION ACTIVE</Text>
-            <Text style={styles.title}>Sponsor Video In Progress</Text>
+            <Text style={styles.title}>SPONSOR VIDEO IN PROGRESS</Text>
             <Text style={styles.subtitle}>
-              Watch the full sponsor video to claim your temporary 15-minute pass and +25 Gold Coins.
+              Watch the full video to claim your temporary 15-minute screen pass and +25 Gold Coins.
             </Text>
-          </NeumorphicCard>
+          </View>
         )}
 
         {status === 'REWARDED' && (
-          <NeumorphicCard style={styles.card}>
-            <View style={styles.iconCircle}>
-              <Icon3D name="checkmark_green" size={54} />
+          <View style={[styles.card, { borderColor: '#10B981' }]}>
+            <View style={[styles.iconCircle, { borderColor: '#10B981', backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
+              <CheckCircle2 size={42} color="#10B981" />
             </View>
-            <Text style={styles.eyebrowTag}>VERIFIED UNLOCK</Text>
-            <Text style={[styles.title, { color: '#10B981' }]}>15-Minute Pass Granted!</Text>
+            <Text style={[styles.title, { color: '#10B981' }]}>ACCESS GRANTED</Text>
             <Text style={styles.subtitle}>
-              Sponsor protocol verified! Your restricted apps are unlocked for the next 15 minutes.
+              Sponsor protocol verified! Your locked apps are unlocked for the next 15 minutes.
             </Text>
 
             <View style={styles.bountyRow}>
               <View style={styles.bountyPill}>
-                <Icon3D name="coin_gold" size={16} />
-                <Text style={styles.bountyText}>+{earnedCoins} COINS</Text>
+                <Sparkles size={14} color="#F59E0B" />
+                <Text style={styles.bountyText}>+{earnedCoins} COINS ADDED</Text>
               </View>
-              <View style={[styles.bountyPill, { borderColor: '#A7F3D0', backgroundColor: '#ECFDF5' }]}>
-                <Icon3D name="ticket_gold" size={16} />
-                <Text style={[styles.bountyText, { color: '#047857' }]}>15M PASS ACTIVE</Text>
+              <View style={[styles.bountyPill, { borderColor: '#00D2EE' }]}>
+                <ShieldCheck size={14} color="#00D2EE" />
+                <Text style={[styles.bountyText, { color: '#00D2EE' }]}>15M PASS ACTIVE</Text>
               </View>
             </View>
 
@@ -187,30 +180,30 @@ export default function WatchAdUnlockScreen() {
               onPress={handleFinishAndReturn}
               activeOpacity={0.85}
             >
-              <Text style={styles.actionBtnText}>PROCEED TO APPS</Text>
+              <Text style={styles.actionBtnText}>PROCEED TO SYSTEM</Text>
             </TouchableOpacity>
-          </NeumorphicCard>
+          </View>
         )}
 
         {status === 'FAILED' && (
-          <NeumorphicCard style={styles.card}>
-            <View style={styles.iconCircle}>
-              <Icon3D name="safe_gray" size={54} />
+          <View style={[styles.card, { borderColor: '#F59E0B' }]}>
+            <View style={[styles.iconCircle, { borderColor: '#F59E0B', backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
+              <ShieldCheck size={40} color="#F59E0B" />
             </View>
-            <Text style={styles.eyebrowTag}>BUFFERING STREAM</Text>
-            <Text style={styles.title}>Sponsor Stream Calibrating</Text>
+            <Text style={[styles.title, { color: '#F59E0B' }]}>SPONSOR NETWORK CALIBRATING</Text>
             <Text style={styles.subtitle}>
-              No sponsor video stream is available at this moment. You can still do 10 pushups to unlock immediately.
+              No sponsor video is available right now. Please return home and try again later.
             </Text>
 
             <TouchableOpacity
-              style={styles.actionBtn}
+              style={[styles.actionBtn, { backgroundColor: '#F59E0B' }]}
               onPress={handleFinishAndReturn}
               activeOpacity={0.85}
             >
-              <Text style={styles.actionBtnText}>RETURN TO DASHBOARD</Text>
+              <Text style={[styles.actionBtnText, { color: '#000000' }]}>RETURN TO HOME</Text>
             </TouchableOpacity>
-          </NeumorphicCard>
+
+          </View>
         )}
       </View>
     </SafeAreaView>
@@ -220,30 +213,32 @@ export default function WatchAdUnlockScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F6F4EF',
+    backgroundColor: '#02040A',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1E293B',
   },
-  headerCenterCol: {
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#0A0E1A',
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 2,
   },
-  headerEyebrow: {
-    fontFamily: fontFamilies.bold,
-    fontSize: 10,
-    color: '#E53935',
-    letterSpacing: 1.2,
-  },
-  headerTitle: {
-    fontFamily: fontFamilies.bold,
-    fontSize: 15,
-    color: '#1A1A1A',
-    letterSpacing: -0.2,
+  headerTag: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#00D2EE',
+    letterSpacing: 1.5,
   },
   content: {
     flex: 1,
@@ -253,76 +248,87 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '100%',
-    maxWidth: 380,
-    borderRadius: 24,
+    maxWidth: 400,
+    backgroundColor: '#0A0E1A',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#1E293B',
     padding: 24,
     alignItems: 'center',
-    gap: 12,
+    gap: 14,
+    shadowColor: '#00D2EE',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 10,
   },
   iconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#F6F4EF',
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: 'rgba(0, 210, 238, 0.1)',
+    borderWidth: 1.5,
+    borderColor: '#00D2EE',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 4,
-  },
-  eyebrowTag: {
-    fontFamily: fontFamilies.bold,
-    fontSize: 11,
-    color: '#E53935',
-    letterSpacing: 1.2,
   },
   title: {
-    fontFamily: fontFamilies.bold,
-    fontSize: 20,
-    color: '#1A1A1A',
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    letterSpacing: 0.8,
     textAlign: 'center',
   },
   subtitle: {
-    fontFamily: fontFamilies.regular,
     fontSize: 13,
-    color: '#6B7280',
+    color: '#94A3B8',
     textAlign: 'center',
-    lineHeight: 20,
-    paddingHorizontal: 8,
+    lineHeight: 19,
   },
   bountyRow: {
     flexDirection: 'row',
     gap: 10,
-    marginTop: 8,
+    marginTop: 6,
   },
   bountyPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingVertical: 6,
     borderRadius: 20,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: '#F59E0B',
   },
   bountyText: {
-    fontFamily: fontFamilies.bold,
-    fontSize: 12,
-    color: '#92400E',
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#F59E0B',
     letterSpacing: 0.5,
   },
   actionBtn: {
     width: '100%',
     paddingVertical: 14,
-    borderRadius: 14,
-    backgroundColor: '#E53935',
+    borderRadius: 12,
+    backgroundColor: '#0A84FF',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 12,
+    marginTop: 8,
   },
   actionBtnText: {
-    fontFamily: fontFamilies.bold,
     fontSize: 13,
+    fontWeight: '600',
     color: '#FFFFFF',
-    letterSpacing: 0.8,
+    letterSpacing: 1,
+  },
+  cancelBtn: {
+    paddingVertical: 8,
+  },
+  cancelBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748B',
+    letterSpacing: 0.5,
   },
 });

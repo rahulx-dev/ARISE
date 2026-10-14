@@ -39,9 +39,8 @@ import { useHaptics } from '../../src/hooks/useHaptics';
 import { useSound } from '../../src/hooks/useSound';
 import { useTheme } from '../../src/hooks/useTheme';
 import { fontFamilies } from '../../src/theme/typography';
+import { APP_3D_ASSETS } from '../../src/constants/assets';
 import { AnimatedNumber } from '../../src/components/motion/AnimatedNumber';
-import { NeumorphicCard, NeumorphicCircleButton } from '../../src/components/ui/NeumorphicCard';
-import { Icon3D } from '../../src/components/ui/Icon3D';
 
 const CRYSTALS_PER_INR = 10; // 10 Mana Crystals = ₹1.00 INR
 const MIN_CASHOUT_INR = 25;
@@ -68,10 +67,12 @@ export default function RedeemScreen() {
   const sound = useSound();
   const { colors, isDark } = useTheme();
 
-  // Active theme accents: 1:1 ARISE Lock Screen Design Language (Red #E53935)
-  const activeAccent = '#E53935';
-  const activeAccentBg = '#FFF5F5';
-  const activeAccentBorder = '#E53935';
+  // Active theme accents:
+  // In Dark mode: Coral / Crimson Red (#EF4444) matches dark mode screenshot 1:1
+  // In Light mode: Royal Electric Blue (#0A84FF) matches light mode screenshot 1:1
+  const activeAccent = isDark ? '#EF4444' : '#0A84FF';
+  const activeAccentBg = isDark ? 'rgba(239, 68, 68, 0.12)' : '#F0F7FF';
+  const activeAccentBorder = isDark ? '#EF4444' : '#0A84FF';
 
   const profile = usePlayerStore((s) => s.profile);
   const loadProfile = usePlayerStore((s) => s.loadProfile);
@@ -332,38 +333,52 @@ export default function RedeemScreen() {
       ]}
       edges={['top', 'bottom']}
     >
-      {/* 1. TOP HEADER */}
+      {/* 1. TOP HEADER (1:1 with Screenshot) */}
       <View style={styles.header}>
-        <NeumorphicCircleButton
-          size={40}
+        <TouchableOpacity
+          style={[
+            styles.backBtn,
+            {
+              backgroundColor: isDark ? '#161822' : colors.card,
+              borderColor: isDark ? '#232738' : colors.border,
+            },
+          ]}
           onPress={() => {
             haptics.light();
             router.back();
           }}
-          accessibilityLabel="Back"
+          activeOpacity={0.8}
         >
-          <ArrowLeft size={18} color="#1A1A1A" strokeWidth={2.5} />
-        </NeumorphicCircleButton>
+          <ArrowLeft size={19} color={colors.textPrimary} />
+        </TouchableOpacity>
 
         <View style={styles.headerCenter}>
-          <Text style={styles.headerProtocol}>
+          <Text style={[styles.headerProtocol, { color: isDark ? '#71788E' : colors.textSecondary }]}>
             MONETIZATION PROTOCOL
           </Text>
-          <Text style={styles.headerTitle}>MANA CRYSTAL VAULT</Text>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Mana Crystal Vault</Text>
         </View>
 
-        <View style={styles.crystalCapsule}>
-          <Icon3D name="crystal_cyan" size={20} />
+        <View
+          style={[
+            styles.crystalCapsule,
+            {
+              backgroundColor: isDark ? '#161822' : colors.card,
+              borderColor: isDark ? '#232738' : colors.border,
+            },
+          ]}
+        >
+          <Image source={APP_3D_ASSETS.manaCrystal} style={{ width: 17, height: 17 }} resizeMode="contain" />
           <AnimatedNumber
             value={manaBalance}
-            style={styles.crystalCapsuleCount}
+            style={[styles.crystalCapsuleCount, { color: isDark ? '#38BDF8' : '#0A84FF' }]}
           />
         </View>
       </View>
 
       {/* 2. DUAL SEGMENT TABS ([Cashout Vault] vs [History]) */}
       <View style={styles.tabContainer}>
-        <View style={[styles.tabSegmentWrap, { backgroundColor: isDark ? '#13151F' : '#EAE7E0' }]}>
+        <View style={[styles.tabSegmentWrap, { backgroundColor: isDark ? '#13151F' : '#F1F3F9' }]}>
           <TouchableOpacity
             style={[
               styles.tabSegmentBtn,
@@ -380,13 +395,13 @@ export default function RedeemScreen() {
           >
             <Zap
               size={15}
-              color={activeTab === 'redeem' ? '#FFFFFF' : isDark ? '#71788E' : '#7A756D'}
+              color={activeTab === 'redeem' ? '#FFFFFF' : isDark ? '#71788E' : colors.textSecondary}
               fill={activeTab === 'redeem' ? '#FFFFFF' : 'none'}
             />
             <Text
               style={[
                 styles.tabSegmentText,
-                { color: activeTab === 'redeem' ? '#FFFFFF' : isDark ? '#71788E' : '#7A756D' },
+                { color: activeTab === 'redeem' ? '#FFFFFF' : isDark ? '#71788E' : colors.textSecondary },
               ]}
             >
               Cashout Vault
@@ -409,12 +424,12 @@ export default function RedeemScreen() {
           >
             <Clock
               size={15}
-              color={activeTab === 'history' ? '#FFFFFF' : isDark ? '#71788E' : '#7A756D'}
+              color={activeTab === 'history' ? '#FFFFFF' : isDark ? '#71788E' : colors.textSecondary}
             />
             <Text
               style={[
                 styles.tabSegmentText,
-                { color: activeTab === 'history' ? '#FFFFFF' : isDark ? '#71788E' : '#7A756D' },
+                { color: activeTab === 'history' ? '#FFFFFF' : isDark ? '#71788E' : colors.textSecondary },
               ]}
             >
               History ({historyList.length})
@@ -431,8 +446,8 @@ export default function RedeemScreen() {
               style={[
                 styles.heroFrostCard,
                 {
-                  backgroundColor: isDark ? '#0F121C' : '#FFFFFF',
-                  borderColor: isDark ? '#1C2130' : '#E8E4DC',
+                  backgroundColor: isDark ? '#0F121C' : '#F0F9FF',
+                  borderColor: isDark ? '#1C2130' : '#E0F2FE',
                 },
               ]}
             >
@@ -444,9 +459,9 @@ export default function RedeemScreen() {
               />
               <LinearGradient
                 colors={[
-                  isDark ? 'rgba(15, 18, 28, 0.98)' : 'rgba(255, 255, 255, 0.95)',
-                  isDark ? 'rgba(15, 18, 28, 0.82)' : 'rgba(255, 255, 255, 0.82)',
-                  isDark ? 'rgba(15, 18, 28, 0.15)' : 'rgba(255, 255, 255, 0.15)',
+                  isDark ? 'rgba(15, 18, 28, 0.98)' : 'rgba(240, 249, 255, 0.95)',
+                  isDark ? 'rgba(15, 18, 28, 0.82)' : 'rgba(240, 249, 255, 0.75)',
+                  isDark ? 'rgba(15, 18, 28, 0.15)' : 'rgba(240, 249, 255, 0.15)',
                 ]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
@@ -455,12 +470,16 @@ export default function RedeemScreen() {
 
               {/* Main Total Crystals Balance Content */}
               <View style={styles.heroMainRow}>
-                <Icon3D name="crystal_cyan" size={44} />
+                <Image
+                  source={APP_3D_ASSETS.manaCrystal}
+                  style={styles.hero3DCrystal}
+                  resizeMode="contain"
+                />
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.heroLabel, { color: '#7A756D' }]}>
+                  <Text style={[styles.heroLabel, { color: isDark ? '#71788E' : colors.textSecondary }]}>
                     TOTAL MANA CRYSTALS
                   </Text>
-                  <Text style={[styles.heroBigCount, { color: '#1A1A1A' }]}>
+                  <Text style={[styles.heroBigCount, { color: isDark ? '#FFFFFF' : '#0A84FF' }]}>
                     {manaBalance.toLocaleString()}
                   </Text>
                 </View>
@@ -469,17 +488,17 @@ export default function RedeemScreen() {
               <View
                 style={[
                   styles.heroDivider,
-                  { backgroundColor: '#E8E4DC' },
+                  { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#E0F2FE' },
                 ]}
               />
 
               {/* Bottom Exchange Rate Row */}
               <View style={styles.heroFooterRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.rateLabel, { color: '#7A756D' }]}>
+                  <Text style={[styles.rateLabel, { color: isDark ? '#71788E' : colors.textSecondary }]}>
                     EXCHANGE RATE
                   </Text>
-                  <Text style={[styles.rateValue, { color: '#1A1A1A' }]}>
+                  <Text style={[styles.rateValue, { color: colors.textPrimary }]}>
                     10 Crystals = ₹1.00 INR
                   </Text>
                 </View>
@@ -487,15 +506,15 @@ export default function RedeemScreen() {
                 <View
                   style={[
                     styles.heroVerticalLine,
-                    { backgroundColor: '#E8E4DC' },
+                    { backgroundColor: isDark ? '#1C2130' : 'rgba(224, 242, 254, 0.6)' },
                   ]}
                 />
 
                 <View style={{ flex: 1, paddingLeft: 12 }}>
-                  <Text style={[styles.rateLabel, { color: '#7A756D' }]}>
+                  <Text style={[styles.rateLabel, { color: isDark ? '#71788E' : colors.textSecondary }]}>
                     ESTIMATED VALUE
                   </Text>
-                  <Text style={[styles.rateValue, { color: '#E53935' }]}>
+                  <Text style={[styles.rateValue, { color: isDark ? '#00D2EE' : '#0A84FF' }]}>
                     ₹{(manaBalance / CRYSTALS_PER_INR).toFixed(2)} INR
                   </Text>
                 </View>
@@ -632,7 +651,7 @@ export default function RedeemScreen() {
                 activeOpacity={0.8}
               >
                 <View style={[styles.gwIconWrap, { backgroundColor: isDark ? '#1A1D29' : '#F1F5F9' }]}>
-                  <Icon3D name="coin_gold" size={22} />
+                  <Image source={APP_3D_ASSETS.goldCoin} style={{ width: 22, height: 22 }} resizeMode="contain" />
                 </View>
 
                 <View style={{ flex: 1 }}>
@@ -686,7 +705,11 @@ export default function RedeemScreen() {
                       ₹{tier.inr}
                     </Text>
                     <View style={styles.tierCrystalRow}>
-                      <Icon3D name="crystal_cyan" size={11} />
+                      <Image
+                        source={APP_3D_ASSETS.manaCrystal}
+                        style={{ width: 11, height: 11 }}
+                        resizeMode="contain"
+                      />
                       <Text
                         style={[
                           styles.tierCostText,
@@ -737,7 +760,7 @@ export default function RedeemScreen() {
                     },
                   ]}
                 >
-                  <Icon3D name="crystal_cyan" size={13} />
+                  <Image source={APP_3D_ASSETS.manaCrystal} style={{ width: 13, height: 13 }} resizeMode="contain" />
                   <Text style={styles.customCrystalPillText}>
                     {crystalsRequired.toLocaleString()} Crystals
                   </Text>
@@ -932,7 +955,7 @@ export default function RedeemScreen() {
               ]}
             >
               <LinearGradient
-                colors={['#E53935', '#C62828']}
+                colors={['#EF4444', '#DC2626']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.submitBtnGradient}
@@ -941,7 +964,11 @@ export default function RedeemScreen() {
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
                   <>
-                    <Icon3D name="crystal_cyan" size={22} />
+                    <Image
+                      source={APP_3D_ASSETS.manaCrystal}
+                      style={{ width: 22, height: 22 }}
+                      resizeMode="contain"
+                    />
                     <Text style={styles.submitBtnText}>
                       {activeMethod === 'COINS'
                         ? `Convert for ${crystalsRequired.toLocaleString()} Crystals`
@@ -1030,7 +1057,11 @@ export default function RedeemScreen() {
                       </View>
                       <View style={{ alignItems: 'flex-end' }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                          <Icon3D name="crystal_cyan" size={13} />
+                          <Image
+                            source={APP_3D_ASSETS.manaCrystal}
+                            style={{ width: 13, height: 13 }}
+                            resizeMode="contain"
+                          />
                           <Text style={[styles.historySpentText, { color: isDark ? '#38BDF8' : '#0A84FF' }]}>
                             -{item.crystalsSpent}
                           </Text>
@@ -1257,21 +1288,18 @@ const styles = StyleSheet.create({
   },
   headerProtocol: {
     fontSize: 9.5,
-    fontFamily: fontFamilies.bold,
+    fontFamily: fontFamilies.semiBold,
     letterSpacing: 1.2,
-    color: '#8E8E93',
   },
   headerTitle: {
     fontSize: 17,
-    fontFamily: fontFamilies.bold,
+    fontFamily: fontFamilies.semiBold,
     marginTop: 1,
-    color: '#1A1A1A',
   },
   headerSub: {
     fontSize: 11,
     fontFamily: fontFamilies.medium,
     marginTop: 1,
-    color: '#8E8E93',
   },
   crystalCapsule: {
     flexDirection: 'row',
@@ -1281,13 +1309,10 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 100,
     borderWidth: 1,
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E8E4DC',
   },
   crystalCapsuleCount: {
     fontSize: 13,
-    fontFamily: fontFamilies.bold,
-    color: '#1A1A1A',
+    fontFamily: fontFamilies.semiBold,
   },
 
   // Dual Segment Tabs
@@ -1313,7 +1338,7 @@ const styles = StyleSheet.create({
   tabSegmentBtnActive: {},
   tabSegmentText: {
     fontSize: 13,
-    fontFamily: fontFamilies.bold,
+    fontFamily: fontFamilies.semiBold,
   },
 
   scrollContent: {
@@ -1391,14 +1416,12 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 15,
-    fontFamily: fontFamilies.bold,
-    color: '#1A1A1A',
+    fontFamily: fontFamilies.semiBold,
   },
   sectionSubtitle: {
     fontSize: 11.5,
     fontFamily: fontFamilies.medium,
     marginTop: 2,
-    color: '#8E8E93',
   },
 
   // Gateway Stacked List Rows (1:1 with dark mode screenshot)
@@ -1423,13 +1446,11 @@ const styles = StyleSheet.create({
   },
   gwTitle: {
     fontSize: 14,
-    fontFamily: fontFamilies.bold,
-    color: '#1A1A1A',
+    fontFamily: fontFamilies.semiBold,
   },
   gwSub: {
     fontSize: 11,
     fontFamily: fontFamilies.medium,
-    color: '#8E8E93',
   },
   gwRightAction: {
     flexDirection: 'row',
@@ -1489,7 +1510,7 @@ const styles = StyleSheet.create({
   },
   tierInrNum: {
     fontSize: 14,
-    fontFamily: fontFamilies.bold,
+    fontFamily: fontFamilies.semiBold,
   },
   tierCrystalRow: {
     flexDirection: 'row',
@@ -1498,23 +1519,20 @@ const styles = StyleSheet.create({
   },
   tierCostText: {
     fontSize: 10,
-    fontFamily: fontFamilies.bold,
+    fontFamily: fontFamilies.semiBold,
   },
 
   // Custom Amount Card
   customCard: {
-    borderRadius: 20,
+    borderRadius: 14,
     borderWidth: 1,
-    padding: 14,
+    padding: 12,
     marginBottom: 16,
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E8E4DC',
   },
   customCardLabel: {
     fontSize: 11,
-    fontFamily: fontFamilies.bold,
+    fontFamily: fontFamilies.medium,
     marginBottom: 6,
-    color: '#8E8E93',
   },
   customCardRow: {
     flexDirection: 'row',
@@ -1528,16 +1546,14 @@ const styles = StyleSheet.create({
   },
   rupeeSign: {
     fontSize: 16,
-    fontFamily: fontFamilies.bold,
+    fontFamily: fontFamilies.semiBold,
     marginRight: 6,
-    color: '#E53935',
   },
   customInputField: {
     fontSize: 16,
-    fontFamily: fontFamilies.bold,
+    fontFamily: fontFamilies.semiBold,
     flex: 1,
     paddingVertical: 2,
-    color: '#1A1A1A',
   },
   customCrystalPill: {
     flexDirection: 'row',
@@ -1546,24 +1562,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 11,
     paddingVertical: 5,
     borderRadius: 20,
-    backgroundColor: '#FFF5F5',
-    borderColor: '#FED7D7',
   },
   customCrystalPillText: {
     fontSize: 12,
-    fontFamily: fontFamilies.bold,
-    color: '#E53935',
+    fontFamily: fontFamilies.semiBold,
+    color: '#00D2EE',
   },
 
   // Form Card
   formCard: {
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
     padding: 14,
     gap: 12,
     marginBottom: 18,
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E8E4DC',
   },
   formGroup: {
     gap: 6,
@@ -1575,8 +1587,7 @@ const styles = StyleSheet.create({
   },
   formLabel: {
     fontSize: 11,
-    fontFamily: fontFamilies.bold,
-    color: '#8E8E93',
+    fontFamily: fontFamilies.medium,
   },
   vpaBadge: {
     flexDirection: 'row',
@@ -1606,18 +1617,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    borderRadius: 12,
+    borderRadius: 10,
     borderWidth: 1,
     paddingHorizontal: 12,
-    backgroundColor: '#F6F4EF',
-    borderColor: '#E8E4DC',
   },
   textInput: {
     flex: 1,
     fontSize: 13,
     fontFamily: fontFamilies.medium,
     paddingVertical: 9,
-    color: '#1A1A1A',
   },
   chipsScroll: {
     flexDirection: 'row',
@@ -1629,8 +1637,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    backgroundColor: '#F6F4EF',
-    borderColor: '#E8E4DC',
   },
   chipPillText: {
     fontSize: 11,
@@ -1643,7 +1649,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: 12,
     elevation: 3,
-    shadowColor: '#E53935',
+    shadowColor: '#EF4444',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
@@ -1658,7 +1664,7 @@ const styles = StyleSheet.create({
   },
   submitBtnText: {
     fontSize: 15,
-    fontFamily: fontFamilies.bold,
+    fontFamily: fontFamilies.semiBold,
     color: '#FFFFFF',
     letterSpacing: 0.3,
   },
@@ -1675,7 +1681,6 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     fontFamily: fontFamilies.medium,
     textAlign: 'center',
-    color: '#8E8E93',
   },
 
   // History Tab Styles
@@ -1689,9 +1694,8 @@ const styles = StyleSheet.create({
   },
   emptyHistoryTitle: {
     fontSize: 14,
-    fontFamily: fontFamilies.bold,
+    fontFamily: fontFamilies.semiBold,
     marginTop: 12,
-    color: '#1A1A1A',
   },
   emptyHistorySub: {
     fontSize: 12,
@@ -1699,14 +1703,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 6,
     lineHeight: 18,
-    color: '#8E8E93',
   },
   historyCard: {
-    borderRadius: 20,
+    borderRadius: 12,
     borderWidth: 1,
     padding: 14,
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E8E4DC',
   },
   historyCardTop: {
     flexDirection: 'row',
@@ -1718,12 +1719,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
-    backgroundColor: '#F6F4EF',
   },
   historyMethodText: {
     fontSize: 11,
     fontFamily: fontFamilies.semiBold,
-    color: '#7A756D',
   },
   statusBadge: {
     paddingHorizontal: 8,
@@ -1741,7 +1740,7 @@ const styles = StyleSheet.create({
   },
   statusBadgeText: {
     fontSize: 10,
-    fontFamily: fontFamilies.bold,
+    fontFamily: fontFamilies.semiBold,
     letterSpacing: 0.5,
   },
   historyMainRow: {
@@ -1751,26 +1750,22 @@ const styles = StyleSheet.create({
   },
   historyInrText: {
     fontSize: 18,
-    fontFamily: fontFamilies.bold,
-    color: '#1A1A1A',
+    fontFamily: fontFamilies.semiBold,
   },
   historyDestText: {
     fontSize: 11,
     fontFamily: fontFamilies.medium,
     marginTop: 2,
     maxWidth: 180,
-    color: '#8E8E93',
   },
   historySpentText: {
     fontSize: 13,
-    fontFamily: fontFamilies.bold,
-    color: '#E53935',
+    fontFamily: fontFamilies.semiBold,
   },
   historyDateText: {
     fontSize: 10,
     fontFamily: fontFamilies.medium,
     marginTop: 2,
-    color: '#8E8E93',
   },
 
   // Modal Styles
@@ -1784,11 +1779,9 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   securityCard: {
-    borderRadius: 22,
+    borderRadius: 18,
     borderWidth: 1.5,
     padding: 20,
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E8E4DC',
   },
   securityHeaderRow: {
     flexDirection: 'row',
@@ -1800,23 +1793,20 @@ const styles = StyleSheet.create({
   },
   securityTag: {
     fontSize: 9,
-    fontFamily: fontFamilies.bold,
-    letterSpacing: 1.2,
+    fontFamily: fontFamilies.semiBold,
+    letterSpacing: 1,
   },
   securityTitle: {
     fontSize: 15,
-    fontFamily: fontFamilies.bold,
+    fontFamily: fontFamilies.semiBold,
     letterSpacing: 0.5,
-    color: '#1A1A1A',
   },
   securitySummaryBox: {
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
     padding: 12,
     gap: 8,
     marginBottom: 14,
-    backgroundColor: '#F6F4EF',
-    borderColor: '#E8E4DC',
   },
   securitySummaryRow: {
     flexDirection: 'row',
@@ -1825,31 +1815,27 @@ const styles = StyleSheet.create({
   },
   securitySummaryLabel: {
     fontSize: 11,
-    fontFamily: fontFamilies.bold,
-    color: '#8E8E93',
+    fontFamily: fontFamilies.semiBold,
   },
   securitySummaryVal: {
     fontSize: 12,
-    fontFamily: fontFamilies.bold,
+    fontFamily: fontFamilies.semiBold,
     maxWidth: '65%',
   },
   securityNoticeBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
-    borderRadius: 12,
+    borderRadius: 10,
     borderWidth: 1,
     padding: 10,
     marginBottom: 14,
-    backgroundColor: '#FFF5F5',
-    borderColor: '#FED7D7',
   },
   securityNoticeText: {
     flex: 1,
     fontSize: 10,
     lineHeight: 15,
-    fontFamily: fontFamilies.medium,
-    color: '#C53030',
+    fontFamily: fontFamilies.semiBold,
   },
   agreementRow: {
     flexDirection: 'row',
@@ -1861,9 +1847,9 @@ const styles = StyleSheet.create({
   checkboxBox: {
     width: 20,
     height: 20,
-    borderRadius: 6,
+    borderRadius: 4,
     borderWidth: 1.5,
-    borderColor: '#7A756D',
+    borderColor: '#71788E',
     backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1874,7 +1860,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: fontFamilies.medium,
     lineHeight: 16,
-    color: '#7A756D',
   },
   securityBtnRow: {
     flexDirection: 'row',
@@ -1885,16 +1870,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#F6F4EF',
-    borderWidth: 1,
-    borderColor: '#E8E4DC',
+    borderRadius: 10,
   },
   securityCancelBtnText: {
     fontSize: 12,
-    fontFamily: fontFamilies.bold,
+    fontFamily: fontFamilies.semiBold,
     letterSpacing: 0.5,
-    color: '#7A756D',
   },
   securityConfirmBtn: {
     flex: 2,
@@ -1903,24 +1884,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#E53935',
+    borderRadius: 10,
   },
   securityConfirmBtnDisabled: {
     opacity: 0.6,
   },
   securityConfirmBtnText: {
     fontSize: 12,
-    fontFamily: fontFamilies.bold,
+    fontFamily: fontFamilies.semiBold,
     color: '#FFFFFF',
     letterSpacing: 0.5,
   },
   modalCard: {
-    borderRadius: 22,
+    borderRadius: 16,
     borderWidth: 1.5,
     padding: 20,
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E8E4DC',
   },
   modalTagRow: {
     flexDirection: 'row',
@@ -1930,7 +1908,7 @@ const styles = StyleSheet.create({
   },
   modalTagText: {
     fontSize: 11,
-    fontFamily: fontFamilies.bold,
+    fontFamily: fontFamilies.semiBold,
     letterSpacing: 1,
   },
   modalSub: {
@@ -1938,19 +1916,16 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.medium,
     lineHeight: 20,
     marginBottom: 20,
-    color: '#7A756D',
   },
   modalConfirmBtn: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#E53935',
+    borderRadius: 10,
   },
   modalConfirmBtnText: {
     fontSize: 13,
-    fontFamily: fontFamilies.bold,
+    fontFamily: fontFamilies.semiBold,
     letterSpacing: 0.5,
-    color: '#FFFFFF',
   },
 });

@@ -49,7 +49,6 @@ import { backupService } from '../../src/services/backupService';
 import { useTranslation, SUPPORTED_LANGUAGES } from '../../src/services/i18n';
 import { ThemeMode } from '../../src/theme/themeEngine';
 import { fontFamilies } from '../../src/theme/typography';
-import { Icon3D } from '../../src/components/ui/Icon3D';
 
 export default function WarriorProfileTab() {
   const profile = usePlayerStore((s) => s.profile);
@@ -142,7 +141,7 @@ export default function WarriorProfileTab() {
 
   return (
     <SafeAreaView
-      style={[styles.container, { backgroundColor: '#F6F4EF' }]}
+      style={[styles.container, { backgroundColor: colors.background }]}
       edges={['top', 'left', 'right']}
     >
       <ScrollView
@@ -151,15 +150,15 @@ export default function WarriorProfileTab() {
       >
         {/* Top Action Bar */}
         <View style={styles.topBarRow}>
-          <Text style={[styles.screenHeaderTitle, { color: '#1A1A1A' }]}>
+          <Text style={[styles.screenHeaderTitle, { color: colors.textPrimary }]}>
             WARRIOR PROFILE
           </Text>
           <TouchableOpacity
             style={[
               styles.settingsBtn,
               {
-                backgroundColor: '#FFFFFF',
-                borderColor: '#E8E4DC',
+                backgroundColor: isDark ? '#1C1E2A' : '#F1F5F9',
+                borderColor: colors.border,
               },
             ]}
             onPress={() => {
@@ -168,7 +167,7 @@ export default function WarriorProfileTab() {
             }}
             activeOpacity={0.7}
           >
-            <Settings size={18} color="#1A1A1A" />
+            <Settings size={18} color={colors.textPrimary} />
           </TouchableOpacity>
         </View>
 
@@ -176,7 +175,7 @@ export default function WarriorProfileTab() {
         <TouchableOpacity
           style={[
             styles.profileCard,
-            { backgroundColor: '#FFFFFF', borderColor: '#E8E4DC' },
+            { backgroundColor: colors.card, borderColor: colors.border },
           ]}
           onPress={() => {
             haptics.light();
@@ -194,16 +193,16 @@ export default function WarriorProfileTab() {
               <View
                 style={[
                   styles.crownPill,
-                  { backgroundColor: '#FFFBEB' },
+                  { backgroundColor: isDark ? '#1A1C28' : '#FFFFFF' },
                 ]}
               >
-                <Icon3D name="crown_gold" size={14} />
+                <Crown size={14} color="#F59E0B" />
               </View>
             </View>
             <View style={{ flex: 1, gap: 4 }}>
               <View style={styles.nameRow}>
                 <Text
-                  style={[styles.displayName, { color: '#1A1A1A' }]}
+                  style={[styles.displayName, { color: colors.textPrimary }]}
                   numberOfLines={1}
                 >
                   {displayName}
@@ -212,16 +211,16 @@ export default function WarriorProfileTab() {
                   style={[
                     styles.editBadge,
                     {
-                      backgroundColor: '#F6F4EF',
-                      borderColor: '#E8E4DC',
+                      backgroundColor: isDark ? '#1C1E2A' : '#F1F5F9',
+                      borderColor: colors.border,
                     },
                   ]}
                 >
-                  <Edit3 size={12} color="#6B7280" />
+                  <Edit3 size={12} color={colors.textSecondary} />
                   <Text
                     style={[
                       styles.editBadgeText,
-                      { color: '#6B7280' },
+                      { color: colors.textSecondary },
                     ]}
                   >
                     Edit
@@ -237,11 +236,11 @@ export default function WarriorProfileTab() {
           {/* XP Progress Bar */}
           <View style={styles.xpWrap}>
             <View style={styles.xpLabelRow}>
-              <Text style={[styles.xpLabel, { color: '#6B7280' }]}>
+              <Text style={[styles.xpLabel, { color: colors.textSecondary }]}>
                 XP Progress
               </Text>
               <Text
-                style={[styles.xpFraction, { color: '#1A1A1A' }]}
+                style={[styles.xpFraction, { color: colors.textPrimary }]}
               >
                 {currentXP} / {xpNeeded} XP ({xpPercent}%)
               </Text>
@@ -249,7 +248,7 @@ export default function WarriorProfileTab() {
             <View
               style={[
                 styles.xpTrack,
-                { backgroundColor: '#F0ECE1' },
+                { backgroundColor: isDark ? '#1A1C28' : '#F3F4F6' },
               ]}
             >
               <View
@@ -257,7 +256,7 @@ export default function WarriorProfileTab() {
                   styles.xpFill,
                   {
                     width: `${Math.max(currentXP > 0 ? 5 : 0, xpPercent)}%`,
-                    backgroundColor: '#E53935',
+                    backgroundColor: colors.primary || '#0A84FF',
                   },
                 ]}
               />
@@ -267,7 +266,7 @@ export default function WarriorProfileTab() {
 
         {/* ================= 2. ATTRIBUTES SECTION ================= */}
         <View style={styles.sectionWrap}>
-          <Text style={[styles.sectionHeading, { color: '#1A1A1A' }]}>
+          <Text style={[styles.sectionHeading, { color: colors.textPrimary }]}>
             Attributes
           </Text>
           <View style={styles.attributesRow}>
@@ -275,15 +274,15 @@ export default function WarriorProfileTab() {
               style={[
                 styles.attributeBadge,
                 {
-                  backgroundColor: '#FFF2F2',
-                  borderColor: '#FFCDD2',
+                  backgroundColor: isDark ? '#2D1414' : '#FEE2E2',
+                  borderColor: isDark ? '#4C1D24' : '#FECACA',
                 },
               ]}
             >
-              <Text style={[styles.attributeCode, { color: '#E53935' }]}>
+              <Text style={[styles.attributeCode, { color: '#EF4444' }]}>
                 STR
               </Text>
-              <Text style={[styles.attributeVal, { color: '#E53935' }]}>
+              <Text style={[styles.attributeVal, { color: '#EF4444' }]}>
                 {strength}
               </Text>
             </View>
@@ -292,15 +291,15 @@ export default function WarriorProfileTab() {
               style={[
                 styles.attributeBadge,
                 {
-                  backgroundColor: '#F0FDF4',
-                  borderColor: '#BBF7D0',
+                  backgroundColor: isDark ? '#0F2E22' : '#D1FAE5',
+                  borderColor: isDark ? '#134E39' : '#A7F3D0',
                 },
               ]}
             >
-              <Text style={[styles.attributeCode, { color: '#16A34A' }]}>
+              <Text style={[styles.attributeCode, { color: '#10B981' }]}>
                 DIS
               </Text>
-              <Text style={[styles.attributeVal, { color: '#16A34A' }]}>
+              <Text style={[styles.attributeVal, { color: '#10B981' }]}>
                 {discipline}
               </Text>
             </View>
@@ -309,15 +308,15 @@ export default function WarriorProfileTab() {
               style={[
                 styles.attributeBadge,
                 {
-                  backgroundColor: '#EFF6FF',
-                  borderColor: '#BFDBFE',
+                  backgroundColor: isDark ? '#0C2B44' : '#E0F2FE',
+                  borderColor: isDark ? '#0C4A6E' : '#BAE6FD',
                 },
               ]}
             >
-              <Text style={[styles.attributeCode, { color: '#2563EB' }]}>
+              <Text style={[styles.attributeCode, { color: '#0EA5E9' }]}>
                 FOC
               </Text>
-              <Text style={[styles.attributeVal, { color: '#2563EB' }]}>
+              <Text style={[styles.attributeVal, { color: '#0EA5E9' }]}>
                 {focus}
               </Text>
             </View>
@@ -326,15 +325,15 @@ export default function WarriorProfileTab() {
               style={[
                 styles.attributeBadge,
                 {
-                  backgroundColor: '#FFFBEB',
-                  borderColor: '#FDE68A',
+                  backgroundColor: isDark ? '#26123D' : '#EDE9FE',
+                  borderColor: isDark ? '#4A1D75' : '#DDD6FE',
                 },
               ]}
             >
-              <Text style={[styles.attributeCode, { color: '#D97706' }]}>
+              <Text style={[styles.attributeCode, { color: '#A855F7' }]}>
                 HLT
               </Text>
-              <Text style={[styles.attributeVal, { color: '#D97706' }]}>
+              <Text style={[styles.attributeVal, { color: '#A855F7' }]}>
                 {health}
               </Text>
             </View>
@@ -343,15 +342,15 @@ export default function WarriorProfileTab() {
               style={[
                 styles.attributeBadge,
                 {
-                  backgroundColor: '#F5F3FF',
-                  borderColor: '#DDD6FE',
+                  backgroundColor: isDark ? '#1E1B4B' : '#EEF2FF',
+                  borderColor: isDark ? '#312E81' : '#E0E7FF',
                 },
               ]}
             >
-              <Text style={[styles.attributeCode, { color: '#7C3AED' }]}>
+              <Text style={[styles.attributeCode, { color: '#6366F1' }]}>
                 INT
               </Text>
-              <Text style={[styles.attributeVal, { color: '#7C3AED' }]}>
+              <Text style={[styles.attributeVal, { color: '#6366F1' }]}>
                 {knowledge}
               </Text>
             </View>
@@ -362,7 +361,7 @@ export default function WarriorProfileTab() {
         <View style={styles.sectionWrap}>
           <View style={styles.sectionHeaderBetween}>
             <Text
-              style={[styles.sectionHeading, { color: '#1A1A1A' }]}
+              style={[styles.sectionHeading, { color: colors.textPrimary }]}
             >
               Transformation Journey
             </Text>
@@ -386,7 +385,7 @@ export default function WarriorProfileTab() {
             <TouchableOpacity
               style={[
                 styles.transformCard,
-                { backgroundColor: '#FFFFFF', borderColor: '#E8E4DC' },
+                { backgroundColor: colors.card, borderColor: colors.border },
               ]}
               onPress={() => {
                 haptics.light();
@@ -397,15 +396,15 @@ export default function WarriorProfileTab() {
               <View
                 style={[
                   styles.transformPlaceholder,
-                  { backgroundColor: '#F6F4EF' },
+                  { backgroundColor: isDark ? '#1A1C28' : '#F3F4F6' },
                 ]}
               >
-                <Icon3D name="dumbbell_white" size={28} />
+                <Text style={styles.transformPlaceholderEmoji}>💪</Text>
               </View>
               <Text
                 style={[
                   styles.transformCardTitle,
-                  { color: '#1A1A1A' },
+                  { color: colors.textPrimary },
                 ]}
               >
                 Before
@@ -413,7 +412,7 @@ export default function WarriorProfileTab() {
               <Text
                 style={[
                   styles.transformCardSub,
-                  { color: '#6B7280' },
+                  { color: colors.textSecondary },
                 ]}
               >
                 Day 1 • 78 kg
@@ -424,7 +423,7 @@ export default function WarriorProfileTab() {
             <TouchableOpacity
               style={[
                 styles.transformCard,
-                { backgroundColor: '#FFFFFF', borderColor: '#E8E4DC' },
+                { backgroundColor: colors.card, borderColor: colors.border },
               ]}
               onPress={() => {
                 haptics.light();
@@ -435,15 +434,15 @@ export default function WarriorProfileTab() {
               <View
                 style={[
                   styles.transformPlaceholder,
-                  { backgroundColor: '#FFF8F0' },
+                  { backgroundColor: isDark ? '#2D1414' : '#FEF2F2' },
                 ]}
               >
-                <Icon3D name="flame_orange" size={28} />
+                <Text style={styles.transformPlaceholderEmoji}>🔥</Text>
               </View>
               <Text
                 style={[
                   styles.transformCardTitle,
-                  { color: '#1A1A1A' },
+                  { color: colors.textPrimary },
                 ]}
               >
                 After
@@ -451,7 +450,7 @@ export default function WarriorProfileTab() {
               <Text
                 style={[
                   styles.transformCardSub,
-                  { color: '#6B7280' },
+                  { color: colors.textSecondary },
                 ]}
               >
                 Day 45 • 72 kg
@@ -462,7 +461,7 @@ export default function WarriorProfileTab() {
             <TouchableOpacity
               style={[
                 styles.addPhotoCard,
-                { backgroundColor: '#FFFFFF', borderColor: '#E8E4DC' },
+                { backgroundColor: colors.card, borderColor: colors.border },
               ]}
               onPress={() => {
                 haptics.light();
@@ -473,15 +472,15 @@ export default function WarriorProfileTab() {
               <View
                 style={[
                   styles.addPhotoCircle,
-                  { backgroundColor: '#F6F4EF' },
+                  { backgroundColor: isDark ? '#1A1C28' : '#E5E7EB' },
                 ]}
               >
-                <Plus size={20} color="#6B7280" />
+                <Plus size={20} color={colors.textSecondary} />
               </View>
               <Text
                 style={[
                   styles.addPhotoText,
-                  { color: '#6B7280' },
+                  { color: colors.textSecondary },
                 ]}
               >
                 Add Photo
@@ -492,14 +491,14 @@ export default function WarriorProfileTab() {
 
         {/* ================= 4. SETTINGS & PREFERENCES ================= */}
         <View style={styles.sectionWrap}>
-          <Text style={[styles.sectionHeading, { color: '#1A1A1A' }]}>
+          <Text style={[styles.sectionHeading, { color: colors.textPrimary }]}>
             {t('generalSettings', 'Preferences')}
           </Text>
 
           <View
             style={[
               styles.settingsGroupCard,
-              { backgroundColor: '#FFFFFF', borderColor: '#E8E4DC' },
+              { backgroundColor: colors.card, borderColor: colors.border },
             ]}
           >
             {/* Voice Coach */}
@@ -508,7 +507,7 @@ export default function WarriorProfileTab() {
                 <View
                   style={[
                     styles.settingsIconWrap,
-                    { backgroundColor: '#FFF2F2' },
+                    { backgroundColor: isDark ? '#2D1414' : '#FEE2E2' },
                   ]}
                 >
                   <Mic size={18} color="#E53935" />
@@ -516,7 +515,7 @@ export default function WarriorProfileTab() {
                 <Text
                   style={[
                     styles.settingsRowTitle,
-                    { color: '#1A1A1A' },
+                    { color: colors.textPrimary },
                   ]}
                 >
                   {t('voiceCoach', 'Voice Coach')}
@@ -529,19 +528,21 @@ export default function WarriorProfileTab() {
                   setVoiceCoachActive(v);
                 }}
                 trackColor={{
-                  false: '#E5E7EB',
-                  true: '#FFCDD2',
+                  false: isDark ? '#2A2D3D' : '#E5E7EB',
+                  true: isDark ? '#3A3F55' : '#D1D5DB',
                 }}
                 thumbColor={
                   voiceCoachActive
-                    ? '#E53935'
+                    ? '#0A84FF'
+                    : isDark
+                    ? '#6B7280'
                     : '#FFFFFF'
                 }
-                ios_backgroundColor="#E5E7EB"
+                ios_backgroundColor={isDark ? '#2A2D3D' : '#E5E7EB'}
               />
             </View>
 
-            <View style={[styles.divider, { backgroundColor: '#E8E4DC' }]} />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
             {/* Theme */}
             <TouchableOpacity
@@ -556,27 +557,27 @@ export default function WarriorProfileTab() {
                 <View
                   style={[
                     styles.settingsIconWrap,
-                    { backgroundColor: '#FFFBEB' },
+                    { backgroundColor: isDark ? '#26123D' : '#EDE9FE' },
                   ]}
                 >
-                  <Icon3D name="hourglass_amber" size={18} />
+                  <Moon size={18} color="#A855F7" />
                 </View>
                 <Text
                   style={[
                     styles.settingsRowTitle,
-                    { color: '#1A1A1A' },
+                    { color: colors.textPrimary },
                   ]}
                 >
                   {t('themeMode', 'Theme Mode')}
                 </Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={{ fontSize: 13, color: '#6B7280' }}>{themeDisplayLabel}</Text>
+                <Text style={{ fontSize: 13, color: colors.textSecondary }}>{themeDisplayLabel}</Text>
                 <ChevronRight size={18} color="#9CA3AF" />
               </View>
             </TouchableOpacity>
 
-            <View style={[styles.divider, { backgroundColor: '#E8E4DC' }]} />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
             {/* Language */}
             <TouchableOpacity
@@ -591,29 +592,29 @@ export default function WarriorProfileTab() {
                 <View
                   style={[
                     styles.settingsIconWrap,
-                    { backgroundColor: '#EFF6FF' },
+                    { backgroundColor: isDark ? '#0C2B44' : '#E0F2FE' },
                   ]}
                 >
-                  <Globe size={18} color="#2563EB" />
+                  <Globe size={18} color="#0284C7" />
                 </View>
                 <Text
                   style={[
                     styles.settingsRowTitle,
-                    { color: '#1A1A1A' },
+                    { color: colors.textPrimary },
                   ]}
                 >
                   {t('language', 'Language')}
                 </Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={{ fontSize: 13, color: '#6B7280' }}>
+                <Text style={{ fontSize: 13, color: colors.textSecondary }}>
                   {activeLangObj?.flag} {activeLangObj?.label}
                 </Text>
                 <ChevronRight size={18} color="#9CA3AF" />
               </View>
             </TouchableOpacity>
 
-            <View style={[styles.divider, { backgroundColor: '#E8E4DC' }]} />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
             {/* Notifications */}
             <View style={styles.settingsRow}>
@@ -621,7 +622,7 @@ export default function WarriorProfileTab() {
                 <View
                   style={[
                     styles.settingsIconWrap,
-                    { backgroundColor: '#FFFBEB' },
+                    { backgroundColor: isDark ? '#33210C' : '#FEF3C7' },
                   ]}
                 >
                   <Bell size={18} color="#D97706" />
@@ -629,7 +630,7 @@ export default function WarriorProfileTab() {
                 <Text
                   style={[
                     styles.settingsRowTitle,
-                    { color: '#1A1A1A' },
+                    { color: colors.textPrimary },
                   ]}
                 >
                   {t('notifications', 'Notifications')}
@@ -642,19 +643,21 @@ export default function WarriorProfileTab() {
                   toggleNotifications();
                 }}
                 trackColor={{
-                  false: '#E5E7EB',
-                  true: '#FFCDD2',
+                  false: isDark ? '#2A2D3D' : '#E5E7EB',
+                  true: isDark ? '#3A3F55' : '#D1D5DB',
                 }}
                 thumbColor={
                   notificationsEnabled
-                    ? '#E53935'
+                    ? '#0A84FF'
+                    : isDark
+                    ? '#6B7280'
                     : '#FFFFFF'
                 }
-                ios_backgroundColor="#E5E7EB"
+                ios_backgroundColor={isDark ? '#2A2D3D' : '#E5E7EB'}
               />
             </View>
 
-            <View style={[styles.divider, { backgroundColor: '#E8E4DC' }]} />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
             {/* System Settings */}
             <TouchableOpacity
@@ -669,15 +672,15 @@ export default function WarriorProfileTab() {
                 <View
                   style={[
                     styles.settingsIconWrap,
-                    { backgroundColor: '#EFF6FF' },
+                    { backgroundColor: isDark ? '#1C2438' : '#EFF6FF' },
                   ]}
                 >
-                  <Settings size={18} color="#2563EB" />
+                  <Settings size={18} color="#0A84FF" />
                 </View>
                 <Text
                   style={[
                     styles.settingsRowTitle,
-                    { color: '#1A1A1A' },
+                    { color: colors.textPrimary },
                   ]}
                 >
                   {t('systemSettings', 'System Settings & Preferences')}
@@ -686,7 +689,7 @@ export default function WarriorProfileTab() {
               <ChevronRight size={18} color="#9CA3AF" />
             </TouchableOpacity>
 
-            <View style={[styles.divider, { backgroundColor: '#E8E4DC' }]} />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
             {/* App Blocking */}
             <TouchableOpacity
@@ -701,15 +704,15 @@ export default function WarriorProfileTab() {
                 <View
                   style={[
                     styles.settingsIconWrap,
-                    { backgroundColor: '#FFF2F2' },
+                    { backgroundColor: isDark ? '#2D1414' : '#FEE2E2' },
                   ]}
                 >
-                  <Icon3D name="padlock_red" size={18} />
+                  <Shield size={18} color="#DC2626" />
                 </View>
                 <Text
                   style={[
                     styles.settingsRowTitle,
-                    { color: '#1A1A1A' },
+                    { color: colors.textPrimary },
                   ]}
                 >
                   {t('appBlocker', 'App Blocking & Detox')}
@@ -718,7 +721,7 @@ export default function WarriorProfileTab() {
               <ChevronRight size={18} color="#9CA3AF" />
             </TouchableOpacity>
 
-            <View style={[styles.divider, { backgroundColor: '#E8E4DC' }]} />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
             {/* Cloud / Local Backup */}
             <TouchableOpacity
@@ -730,15 +733,15 @@ export default function WarriorProfileTab() {
                 <View
                   style={[
                     styles.settingsIconWrap,
-                    { backgroundColor: '#F0FDF4' },
+                    { backgroundColor: isDark ? '#0C2B44' : '#E0F2FE' },
                   ]}
                 >
-                  <Icon3D name="safe_gray" size={18} />
+                  <Cloud size={18} color="#0A84FF" />
                 </View>
                 <Text
                   style={[
                     styles.settingsRowTitle,
-                    { color: '#1A1A1A' },
+                    { color: colors.textPrimary },
                   ]}
                 >
                   {t('backupData', 'Offline Backup & Export')}
@@ -747,7 +750,8 @@ export default function WarriorProfileTab() {
               <ChevronRight size={18} color="#9CA3AF" />
             </TouchableOpacity>
 
-            <View style={[styles.divider, { backgroundColor: '#E8E4DC' }]} />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
 
             {/* About ARISE */}
             <TouchableOpacity
@@ -762,15 +766,15 @@ export default function WarriorProfileTab() {
                 <View
                   style={[
                     styles.settingsIconWrap,
-                    { backgroundColor: '#F6F4EF' },
+                    { backgroundColor: isDark ? '#1A1C28' : '#F3F4F6' },
                   ]}
                 >
-                  <Icon3D name="shield_blue" size={18} />
+                  <Info size={18} color={colors.textSecondary} />
                 </View>
                 <Text
                   style={[
                     styles.settingsRowTitle,
-                    { color: '#1A1A1A' },
+                    { color: colors.textPrimary },
                   ]}
                 >
                   {t('aboutArise', 'About ARISE')}

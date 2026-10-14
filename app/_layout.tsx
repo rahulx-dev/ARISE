@@ -64,29 +64,24 @@ function RootLayout() {
   const [appState, setAppState] = useState<AppState>("INITIALIZING");
 
   const [fontsLoaded] = useFonts({
-    'PlusJakartaSans-Regular': require('../assets/fonts/PlusJakartaSans-Regular.ttf'),
-    'PlusJakartaSans-Medium': require('../assets/fonts/PlusJakartaSans-Medium.ttf'),
-    'PlusJakartaSans-SemiBold': require('../assets/fonts/PlusJakartaSans-SemiBold.ttf'),
-    'PlusJakartaSans-Bold': require('../assets/fonts/PlusJakartaSans-Bold.ttf'),
-    'PlusJakartaSans-ExtraBold': require('../assets/fonts/PlusJakartaSans-ExtraBold.ttf'),
-    Inter_400Regular: require('../assets/fonts/PlusJakartaSans-Regular.ttf'),
-    Inter_500Medium: require('../assets/fonts/PlusJakartaSans-Medium.ttf'),
-    Inter_600SemiBold: require('../assets/fonts/PlusJakartaSans-SemiBold.ttf'),
-    Inter_700Bold: require('../assets/fonts/PlusJakartaSans-Bold.ttf'),
-    SpaceGrotesk_400Regular: require('../assets/fonts/PlusJakartaSans-Regular.ttf'),
-    SpaceGrotesk_500Medium: require('../assets/fonts/PlusJakartaSans-Medium.ttf'),
-    SpaceGrotesk_600SemiBold: require('../assets/fonts/PlusJakartaSans-SemiBold.ttf'),
-    SpaceGrotesk_700Bold: require('../assets/fonts/PlusJakartaSans-Bold.ttf'),
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    SpaceGrotesk_400Regular,
+    SpaceGrotesk_500Medium,
+    SpaceGrotesk_600SemiBold,
+    SpaceGrotesk_700Bold,
   });
 
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      const fontId = 'arise-plus-jakarta-sans-webfont';
+      const fontId = 'arise-inter-webfont';
       if (!document.getElementById(fontId)) {
         const link = document.createElement('link');
         link.id = fontId;
         link.rel = 'stylesheet';
-        link.href = 'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap';
+        link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap';
         document.head.appendChild(link);
       }
 
@@ -101,7 +96,7 @@ function RootLayout() {
             text-rendering: optimizeLegibility !important;
           }
           body, html, #root {
-            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif !important;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif !important;
           }
         `;
         document.head.appendChild(style);
@@ -247,7 +242,7 @@ function RootLayout() {
     return (
       <ErrorBoundary>
         <SafeAreaProvider>
-          <StatusBar style="dark" />
+          <StatusBar style="light" />
           <PermissionsGateModal
             onAllGranted={() => {
               useSettingsStore.setState({ onboardingCompleted: true });
@@ -265,7 +260,7 @@ function RootLayout() {
       <GestureHandlerRootView style={styles.container}>
         <SafeAreaProvider>
           <IOSAlertProvider>
-            <StatusBar style="dark" />
+            <StatusBar style="light" />
             <Stack
               screenOptions={{
                 headerShown: false,

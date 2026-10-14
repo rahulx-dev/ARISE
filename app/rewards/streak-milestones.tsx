@@ -34,9 +34,7 @@ import {
 import { useTheme } from '../../src/hooks/useTheme';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useSound } from '../../src/hooks/useSound';
-import { NeumorphicCard, NeumorphicCircleButton } from '../../src/components/ui/NeumorphicCard';
-import { Icon3D } from '../../src/components/ui/Icon3D';
-import { fontFamilies } from '../../src/theme/typography';
+import { GlassCard } from '../../src/components/ios/GlassCard';
 import { HoloLoader } from '../../src/components/ui/HoloLoader';
 import {
   streakGiftService,
@@ -171,16 +169,16 @@ export default function StreakMilestonesScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: isDark ? '#1C1E26' : '#E5E5EA' }]}>
-        <NeumorphicCircleButton
-          size={40}
+        <TouchableOpacity
+          style={[styles.backBtn, { backgroundColor: isDark ? '#14151C' : '#F2F2F7', borderColor: colors.border }]}
           onPress={() => {
             haptics.light();
             router.back();
           }}
-          accessibilityLabel="Back"
+          activeOpacity={0.8}
         >
-          <ArrowLeft size={18} color="#1A1A1A" weight="bold" />
-        </NeumorphicCircleButton>
+          <ArrowLeft size={20} color={colors.textPrimary} />
+        </TouchableOpacity>
 
         <View style={{ flex: 1 }}>
           <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
@@ -192,7 +190,7 @@ export default function StreakMilestonesScreen() {
         </View>
 
         <View style={styles.headerStreakPill}>
-          <Icon3D name="flame_orange" size={18} />
+          <AnimatedStreakFlame size={18} />
           <Text style={styles.headerStreakVal}>{currentStreak}d</Text>
         </View>
       </View>
@@ -207,18 +205,19 @@ export default function StreakMilestonesScreen() {
           showsVerticalScrollIndicator={false}
         >
           {/* Top Hero Banner */}
-          <NeumorphicCard
+          <GlassCard
+            variant="elevated"
             style={[
               styles.heroCard,
               {
-                backgroundColor: isDark ? '#190E08' : '#FFFFFF',
-                borderColor: isDark ? '#C2410C' : '#E8E4DC',
+                backgroundColor: isDark ? '#190E08' : '#FFF7ED',
+                borderColor: isDark ? '#C2410C' : '#F97316',
               },
             ]}
           >
             <View style={styles.heroTopRow}>
               <View style={styles.heroFlameWrap}>
-                <Icon3D name="flame_orange" size={40} />
+                <AnimatedStreakFlame size={40} />
               </View>
               <View style={{ flex: 1, gap: 2 }}>
                 <Text style={styles.heroStreakHeading}>{currentStreak} DAYS UNBROKEN</Text>
@@ -245,15 +244,15 @@ export default function StreakMilestonesScreen() {
 
             <View style={styles.heroSummaryRow}>
               <View style={styles.heroStatItem}>
-                <Icon3D name="gift_capsule" size={16} />
+                <Gift size={15} color="#EA580C" weight="fill" />
                 <Text style={styles.heroStatText}>{claimedCount} / {milestones.length} Claimed</Text>
               </View>
               <View style={styles.heroStatItem}>
-                <Icon3D name="coin_gold" size={16} />
+                <Coins size={15} color="#F59E0B" weight="fill" />
                 <Text style={styles.heroStatText}>Up to 41,300 Free Coins</Text>
               </View>
             </View>
-          </NeumorphicCard>
+          </GlassCard>
 
           {/* Timeline of Milestones */}
           <View style={styles.milestoneList}>
@@ -267,13 +266,14 @@ export default function StreakMilestonesScreen() {
               const isLocked = m.status === 'LOCKED';
 
               return (
-                <NeumorphicCard
+                <GlassCard
                   key={m.id}
+                  variant={isClaimable ? 'glow' : 'elevated'}
                   style={[
                     styles.milestoneCard,
                     isClaimable && {
-                      borderColor: '#E53935',
-                      backgroundColor: isDark ? '#1C160A' : '#FFF5F5',
+                      borderColor: '#F59E0B',
+                      backgroundColor: isDark ? '#1C160A' : '#FEF3C7',
                     },
                     isClaimed && {
                       opacity: 0.85,
@@ -286,16 +286,16 @@ export default function StreakMilestonesScreen() {
                     style={[
                       styles.daysBadgeCircle,
                       {
-                        borderColor: isClaimable ? '#E53935' : '#E8E4DC',
-                        backgroundColor: isDark ? '#141620' : '#F6F4EF',
+                        borderColor: isClaimable ? '#F59E0B' : m.color,
+                        backgroundColor: isDark ? '#141620' : '#F1F3F9',
                       },
                     ]}
                   >
-                    <Icon3D name="flame_orange" size={16} />
+                    <AnimatedStreakFlame size={16} />
                     <Text
                       style={[
                         styles.daysBadgeNum,
-                        { color: isClaimable ? '#E53935' : colors.textPrimary },
+                        { color: isClaimable ? '#F59E0B' : colors.textPrimary },
                       ]}
                     >
                       {m.daysRequired}d
@@ -309,7 +309,7 @@ export default function StreakMilestonesScreen() {
                         style={[
                           styles.giftTitle,
                           { color: colors.textPrimary },
-                          isClaimable && { color: '#E53935', fontWeight: '700' },
+                          isClaimable && { color: '#F59E0B', fontWeight: '600' },
                         ]}
                       >
                         {m.title}
@@ -323,7 +323,7 @@ export default function StreakMilestonesScreen() {
                     {/* Reward Tags */}
                     <View style={styles.rewardPillsRow}>
                       <View style={styles.coinRewardPill}>
-                        <Icon3D name="coin_gold" size={12} />
+                        <Coins size={12} color="#F59E0B" weight="fill" />
                         <Text style={styles.coinRewardText}>+{m.coinsReward} Coins</Text>
                       </View>
                       <View style={styles.perkPill}>
@@ -343,22 +343,22 @@ export default function StreakMilestonesScreen() {
                         onPress={() => handleStartUnbox(m)}
                         activeOpacity={0.85}
                       >
-                        <Icon3D name="gift_capsule" size={16} />
+                        <Gift size={16} color="#000000" weight="fill" />
                         <Text style={styles.claimGiftBtnText}>UNBOX</Text>
                       </TouchableOpacity>
                     ) : isClaimed ? (
                       <View style={styles.claimedBadge}>
-                        <Icon3D name="checkmark_green" size={14} />
+                        <CheckCircle size={16} color="#10B981" weight="fill" />
                         <Text style={styles.claimedBadgeText}>CLAIMED</Text>
                       </View>
                     ) : (
                       <View style={styles.lockedBadge}>
-                        <Icon3D name="padlock_locked" size={13} />
+                        <Lock size={14} color="#8E8E93" />
                         <Text style={styles.lockedBadgeText}>{m.daysRemaining}d left</Text>
                       </View>
                     )}
                   </View>
-                </NeumorphicCard>
+                </GlassCard>
               );
             })}
           </View>
@@ -389,8 +389,8 @@ export default function StreakMilestonesScreen() {
 
             {/* Shaking Gift Box Icon */}
             <Animated.View style={[styles.giftBoxGraphicWrap, animatedBoxStyle]}>
-              <View style={[styles.giftBoxAura, { backgroundColor: '#FFF5F5' }]} />
-              <Icon3D name="gift_capsule" size={76} />
+              <View style={[styles.giftBoxAura, { backgroundColor: '#F59E0B' }]} />
+              <Gift size={76} color="#F59E0B" weight="fill" />
             </Animated.View>
 
             <Text style={[styles.unboxTitle, { color: colors.textPrimary }]}>
@@ -407,7 +407,7 @@ export default function StreakMilestonesScreen() {
             {unboxedReward ? (
               <View style={styles.rewardRevealBox}>
                 <View style={styles.bountyRow}>
-                  <Icon3D name="coin_gold" size={28} />
+                  <Coins size={28} color="#F59E0B" weight="fill" />
                   <Text style={styles.bountyAmountText}>
                     +{unboxedReward.coins} GOLD COINS
                   </Text>
@@ -432,7 +432,7 @@ export default function StreakMilestonesScreen() {
             {/* Action Button */}
             {unboxedReward ? (
               <TouchableOpacity
-                style={[styles.collectBtn, { backgroundColor: '#E53935' }]}
+                style={[styles.collectBtn, { backgroundColor: colors.primary }]}
                 onPress={handleCloseModal}
                 activeOpacity={0.85}
               >
@@ -440,13 +440,13 @@ export default function StreakMilestonesScreen() {
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
-                style={[styles.collectBtn, { backgroundColor: '#E53935' }]}
+                style={[styles.collectBtn, { backgroundColor: '#F59E0B' }]}
                 onPress={handleConfirmClaim}
                 disabled={isClaiming}
                 activeOpacity={0.85}
               >
-                <Sparkle size={18} color="#FFFFFF" />
-                <Text style={[styles.collectBtnText, { color: '#FFFFFF' }]}>
+                <Sparkle size={18} color="#000000" />
+                <Text style={[styles.collectBtnText, { color: '#000000' }]}>
                   {isClaiming ? 'UNBOXING...' : 'OPEN GIFT BOX'}
                 </Text>
               </TouchableOpacity>
@@ -479,13 +479,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontFamily: fontFamilies.bold,
     fontSize: 14,
+    fontWeight: '600',
     letterSpacing: 0.5,
   },
   headerSub: {
-    fontFamily: fontFamilies.bold,
     fontSize: 10,
+    fontWeight: '700',
     letterSpacing: 0.8,
     marginTop: 1,
   },
@@ -493,17 +493,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#FFF5F5',
+    backgroundColor: 'rgba(234, 88, 12, 0.15)',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 100,
     borderWidth: 1,
-    borderColor: '#FED7D7',
+    borderColor: 'rgba(234, 88, 12, 0.3)',
   },
   headerStreakVal: {
-    fontFamily: fontFamilies.bold,
     fontSize: 12,
-    color: '#E53935',
+    fontWeight: '600',
+    color: '#EA580C',
   },
   loadingWrap: {
     flex: 1,
@@ -512,8 +512,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   loadingText: {
-    fontFamily: fontFamilies.bold,
     fontSize: 11,
+    fontWeight: '600',
     letterSpacing: 1,
   },
   scrollContent: {
@@ -523,7 +523,7 @@ const styles = StyleSheet.create({
   heroCard: {
     padding: 16,
     borderRadius: 22,
-    borderWidth: 1,
+    borderWidth: 1.5,
     gap: 12,
     marginBottom: 18,
   },
@@ -536,18 +536,17 @@ const styles = StyleSheet.create({
     width: 54,
     height: 54,
     borderRadius: 27,
-    backgroundColor: '#FFF5F5',
+    backgroundColor: 'rgba(234, 88, 12, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   heroStreakHeading: {
-    fontFamily: fontFamilies.bold,
     fontSize: 18,
-    color: '#1A1A1A',
+    fontWeight: '600',
+    color: '#EA580C',
     letterSpacing: -0.2,
   },
   heroSubText: {
-    fontFamily: fontFamilies.medium,
     fontSize: 12,
   },
   heroProgressTrack: {
@@ -557,7 +556,7 @@ const styles = StyleSheet.create({
   },
   heroProgressFill: {
     height: '100%',
-    backgroundColor: '#E53935',
+    backgroundColor: '#EA580C',
     borderRadius: 4,
   },
   heroSummaryRow: {
@@ -572,27 +571,25 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   heroStatText: {
-    fontFamily: fontFamilies.bold,
     fontSize: 11,
-    color: '#1A1A1A',
+    fontWeight: '600',
+    color: '#EA580C',
   },
   milestoneList: {
     gap: 10,
   },
   sectionTitle: {
-    fontFamily: fontFamilies.bold,
     fontSize: 10,
-    letterSpacing: 1.2,
+    fontWeight: '600',
+    letterSpacing: 1,
     marginBottom: 2,
   },
   milestoneCard: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 14,
-    borderRadius: 20,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#E8E4DC',
-    backgroundColor: '#FFFFFF',
     gap: 12,
   },
   daysBadgeCircle: {
@@ -605,16 +602,15 @@ const styles = StyleSheet.create({
     gap: 1,
   },
   daysBadgeNum: {
-    fontFamily: fontFamilies.bold,
     fontSize: 10,
+    fontWeight: '600',
   },
   giftTitle: {
-    fontFamily: fontFamilies.bold,
     fontSize: 13,
+    fontWeight: '600',
     letterSpacing: -0.2,
   },
   giftSub: {
-    fontFamily: fontFamilies.medium,
     fontSize: 11,
   },
   rewardPillsRow: {
@@ -627,15 +623,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
   },
   coinRewardText: {
-    fontFamily: fontFamilies.bold,
     fontSize: 10,
-    color: '#D97706',
+    fontWeight: '600',
+    color: '#F59E0B',
   },
   perkPill: {
     flexDirection: 'row',
@@ -644,7 +640,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   perkText: {
-    fontFamily: fontFamilies.medium,
     fontSize: 10,
   },
   cardRightCol: {
@@ -654,20 +649,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#E53935',
-    paddingHorizontal: 14,
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 100,
-    shadowColor: '#E53935',
+    borderRadius: 10,
+    shadowColor: '#F59E0B',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 4,
   },
   claimGiftBtnText: {
-    fontFamily: fontFamilies.bold,
     fontSize: 11,
-    color: '#FFFFFF',
+    fontWeight: '600',
+    color: '#000000',
     letterSpacing: 0.5,
   },
   claimedBadge: {
@@ -678,8 +673,8 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   claimedBadgeText: {
-    fontFamily: fontFamilies.bold,
     fontSize: 10,
+    fontWeight: '600',
     color: '#10B981',
   },
   lockedBadge: {
@@ -690,13 +685,13 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   lockedBadgeText: {
-    fontFamily: fontFamilies.bold,
     fontSize: 10,
+    fontWeight: '700',
     color: '#8E8E93',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -707,16 +702,14 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#E53935',
+    backgroundColor: '#F59E0B',
   },
   unboxCard: {
     width: '100%',
     maxWidth: 360,
     padding: 24,
     borderRadius: 24,
-    borderWidth: 1,
-    borderColor: '#E8E4DC',
-    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
     alignItems: 'center',
     gap: 14,
   },
@@ -731,14 +724,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 100,
-    backgroundColor: '#FFF5F5',
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
     borderWidth: 1,
-    borderColor: '#FED7D7',
+    borderColor: 'rgba(245, 158, 11, 0.3)',
   },
   unboxSystemTagText: {
-    fontFamily: fontFamilies.bold,
     fontSize: 9,
-    color: '#E53935',
+    fontWeight: '600',
+    color: '#F59E0B',
     letterSpacing: 1,
   },
   giftBoxGraphicWrap: {
@@ -756,13 +749,12 @@ const styles = StyleSheet.create({
     opacity: 0.15,
   },
   unboxTitle: {
-    fontFamily: fontFamilies.bold,
     fontSize: 20,
+    fontWeight: '600',
     textAlign: 'center',
     letterSpacing: -0.3,
   },
   unboxSubtitle: {
-    fontFamily: fontFamilies.medium,
     fontSize: 12,
     textAlign: 'center',
     paddingHorizontal: 12,
@@ -771,22 +763,22 @@ const styles = StyleSheet.create({
     width: '100%',
     padding: 12,
     borderRadius: 12,
-    backgroundColor: '#FFF5F5',
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
     borderWidth: 1,
-    borderColor: '#FED7D7',
+    borderColor: 'rgba(245, 158, 11, 0.25)',
     alignItems: 'center',
     gap: 4,
   },
   bountyPreviewLabel: {
-    fontFamily: fontFamilies.bold,
     fontSize: 9,
-    color: '#E53935',
+    fontWeight: '600',
+    color: '#F59E0B',
     letterSpacing: 1,
   },
   bountyPreviewVal: {
-    fontFamily: fontFamilies.bold,
     fontSize: 12,
-    color: '#1A1A1A',
+    fontWeight: '600',
+    color: '#FFFFFF',
     textAlign: 'center',
   },
   rewardRevealBox: {
@@ -800,14 +792,14 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 10,
     borderRadius: 14,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: '#F59E0B',
   },
   bountyAmountText: {
-    fontFamily: fontFamilies.bold,
     fontSize: 16,
-    color: '#D97706',
+    fontWeight: '600',
+    color: '#F59E0B',
     letterSpacing: 0.5,
   },
   perkRevealItem: {
@@ -818,8 +810,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   perkRevealText: {
-    fontFamily: fontFamilies.bold,
     fontSize: 12,
+    fontWeight: '600',
   },
   collectBtn: {
     flexDirection: 'row',
@@ -828,14 +820,12 @@ const styles = StyleSheet.create({
     gap: 8,
     width: '100%',
     paddingVertical: 14,
-    borderRadius: 100,
+    borderRadius: 14,
     marginTop: 6,
-    backgroundColor: '#E53935',
   },
   collectBtnText: {
-    fontFamily: fontFamilies.bold,
     fontSize: 13,
-    color: '#FFFFFF',
+    fontWeight: '600',
     letterSpacing: 0.8,
   },
 });

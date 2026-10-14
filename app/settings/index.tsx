@@ -50,7 +50,6 @@ import { ThemeMode } from '../../src/theme/themeEngine';
 import { fontFamilies } from '../../src/theme/typography';
 import { spacing } from '../../src/theme/spacing';
 import { borderRadius } from '../../src/theme/borderRadius';
-import { NeumorphicCircleButton } from '../../src/components/ui/NeumorphicCard';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -207,15 +206,17 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       {/* Header */}
-      <View style={styles.header}>
-        <NeumorphicCircleButton
-          size={38}
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <TouchableOpacity
+          style={[styles.backBtn, { backgroundColor: isDark ? '#12131A' : '#F3F4F6' }]}
           onPress={() => {
             haptics.light();
             router.back();
           }}
-          icon={<ArrowLeft size={18} color={colors.textPrimary} strokeWidth={2.5} />}
-        />
+          activeOpacity={0.8}
+        >
+          <ArrowLeft size={20} color={colors.textPrimary} />
+        </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>{t('settingsTitle', 'Settings')}</Text>
         <View style={{ width: 38 }} />
       </View>
@@ -291,8 +292,8 @@ export default function SettingsScreen() {
                   haptics.light();
                   toggleNotifications();
                 }}
-                trackColor={{ false: isDark ? '#2A2D3D' : '#E5E7EB', true: isDark ? '#3A3F55' : '#FECACA' }}
-                thumbColor={notificationsEnabled ? '#E53935' : (isDark ? '#6B7280' : '#FFFFFF')}
+                trackColor={{ false: isDark ? '#2A2D3D' : '#E5E7EB', true: isDark ? '#3A3F55' : '#D1D5DB' }}
+                thumbColor={notificationsEnabled ? '#0A84FF' : (isDark ? '#6B7280' : '#FFFFFF')}
                 ios_backgroundColor={isDark ? '#2A2D3D' : '#E5E7EB'}
               />
             </View>
@@ -313,8 +314,8 @@ export default function SettingsScreen() {
                   haptics.light();
                   toggleSfx();
                 }}
-                trackColor={{ false: isDark ? '#2A2D3D' : '#E5E7EB', true: isDark ? '#3A3F55' : '#FECACA' }}
-                thumbColor={sfxEnabled ? '#E53935' : (isDark ? '#6B7280' : '#FFFFFF')}
+                trackColor={{ false: isDark ? '#2A2D3D' : '#E5E7EB', true: isDark ? '#3A3F55' : '#D1D5DB' }}
+                thumbColor={sfxEnabled ? '#0A84FF' : (isDark ? '#6B7280' : '#FFFFFF')}
                 ios_backgroundColor={isDark ? '#2A2D3D' : '#E5E7EB'}
               />
             </View>
@@ -335,8 +336,8 @@ export default function SettingsScreen() {
                   haptics.light();
                   toggleHaptics();
                 }}
-                trackColor={{ false: isDark ? '#2A2D3D' : '#E5E7EB', true: isDark ? '#3A3F55' : '#FECACA' }}
-                thumbColor={hapticsEnabled ? '#E53935' : (isDark ? '#6B7280' : '#FFFFFF')}
+                trackColor={{ false: isDark ? '#2A2D3D' : '#E5E7EB', true: isDark ? '#3A3F55' : '#D1D5DB' }}
+                thumbColor={hapticsEnabled ? '#0A84FF' : (isDark ? '#6B7280' : '#FFFFFF')}
                 ios_backgroundColor={isDark ? '#2A2D3D' : '#E5E7EB'}
               />
             </View>
@@ -746,11 +747,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.sm,
     paddingBottom: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEEEEE',
+  },
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: borderRadius.pill,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
-    fontFamily: fontFamilies.bold,
-    fontSize: 20,
-    color: '#1A1A1A',
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
     letterSpacing: -0.3,
   },
   scrollContent: {
@@ -763,23 +775,24 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   sectionHeading: {
-    fontFamily: fontFamilies.bold,
+    fontFamily: fontFamilies.medium,
     fontSize: 11,
+    fontWeight: '500',
     color: '#6B7280',
-    letterSpacing: 1.2,
+    letterSpacing: 0.8,
     paddingHorizontal: 4,
   },
   cardGroup: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 22,
+    borderRadius: borderRadius.xxl,
     borderWidth: 1,
-    borderColor: '#E8E4DC',
+    borderColor: '#EEEEEE',
     overflow: 'hidden',
-    shadowColor: '#1A1A1A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 2,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    elevation: 1,
   },
   menuRow: {
     flexDirection: 'row',
