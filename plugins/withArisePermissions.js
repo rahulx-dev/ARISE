@@ -59,6 +59,7 @@ module.exports = function withArisePermissions(config) {
     if (androidManifest.application && androidManifest.application[0]) {
       androidManifest.application[0].$['android:allowBackup'] = 'false';
       androidManifest.application[0].$['android:usesCleartextTraffic'] = 'false';
+      androidManifest.application[0].$['android:networkSecurityConfig'] = '@xml/network_security_config';
     }
 
     return config;
