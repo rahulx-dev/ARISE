@@ -744,7 +744,7 @@ CREATE OR REPLACE FUNCTION public.get_hunter_leaderboard(
 )
 RETURNS JSONB
 LANGUAGE plpgsql
-SECURITY DEFINER
+SECURITY INVOKER
 SET search_path = public
 AS $$
 DECLARE
