@@ -290,7 +290,10 @@ class LockScreenActivity : Activity() {
     }
 
     private fun normalizePackage(packageName: String?): String? {
-        val normalized = packageName?.trim()?.lowercase(Locale.ROOT)
-        return normalized?.takeIf { it.isNotEmpty() && it != "null" }
+        val normalized = packageName?.trim()?.lowercase(Locale.ROOT) ?: return null
+        if (normalized.length > 256 || normalized == "null" || normalized.isEmpty()) return null
+        // Ensure standard valid reverse-domain package name format (e.g. com.example.app)
+        val isValid = normalized.matches(Regex("^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)+$"))
+        return if (isValid) normalized else null
     }
 }

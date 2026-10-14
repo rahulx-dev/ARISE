@@ -18,7 +18,7 @@ export function getIsOnboardingCompleted(): boolean {
 export function setIsOnboardingCompletedSync(completed: boolean): void {
   try {
     const val = completed ? 1 : 0;
-    expoDb.execSync(`UPDATE settings SET onboarding_completed = ${val};`);
+    expoDb.runSync("UPDATE settings SET onboarding_completed = ?;", [val]);
   } catch (e) {
     console.error("Failed to set onboarding completed sync:", e);
   }

@@ -1,6 +1,7 @@
 import { expoDb } from '../database/client';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { Linking, Platform } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
 
 export interface GoogleAuthUser {
   id: string;
@@ -23,17 +24,40 @@ export const googleAuthService = {
   },
 
   /**
-   * Get currently authenticated Google user from local storage
+   * Get currently authenticated Google user from secure storage
    */
   async getStoredGoogleUser(): Promise<GoogleAuthUser | null> {
     try {
+      // 1. Read from OS-backed hardware SecureStore on native
+      if (Platform.OS !== 'web') {
+        const secureVal = await SecureStore.getItemAsync(GOOGLE_USER_KV_KEY);
+        if (secureVal) {
+          return JSON.parse(secureVal) as GoogleAuthUser;
+        }
+      } else if (typeof localStorage !== 'undefined') {
+        const webVal = localStorage.getItem(GOOGLE_USER_KV_KEY);
+        if (webVal) {
+          return JSON.parse(webVal) as GoogleAuthUser;
+        }
+      }
+
+      // 2. Migration: read legacy plaintext SQLite, write to SecureStore, and purge plaintext copy
       this._ensureTable();
       const res = (expoDb as any).getFirstSync(
         'SELECT val FROM arise_kv WHERE key = ?',
         [GOOGLE_USER_KV_KEY]
       ) as { val: string } | null;
       if (res?.val) {
-        return JSON.parse(res.val) as GoogleAuthUser;
+        const user = JSON.parse(res.val) as GoogleAuthUser;
+        if (Platform.OS !== 'web') {
+          try {
+            await SecureStore.setItemAsync(GOOGLE_USER_KV_KEY, res.val, {
+              keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+            });
+            expoDb.runSync('DELETE FROM arise_kv WHERE key = ?', [GOOGLE_USER_KV_KEY]);
+          } catch {}
+        }
+        return user;
       }
     } catch (e) {
       console.warn('[GoogleAuth] Error reading stored user:', e);
@@ -50,25 +74,36 @@ export const googleAuthService = {
   },
 
   /**
-   * Save authenticated Google user to storage
+   * Save authenticated Google user strictly to hardware SecureStore
    */
   async saveGoogleUser(user: GoogleAuthUser): Promise<void> {
+    const userJson = JSON.stringify(user);
     try {
+      if (Platform.OS !== 'web') {
+        await SecureStore.setItemAsync(GOOGLE_USER_KV_KEY, userJson, {
+          keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+        });
+      } else if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(GOOGLE_USER_KV_KEY, userJson);
+      }
+      // HARD SECURITY RULE: Purge any plaintext copy from SQLite
       this._ensureTable();
-      expoDb.runSync(
-        'INSERT OR REPLACE INTO arise_kv (key, val) VALUES (?, ?)',
-        [GOOGLE_USER_KV_KEY, JSON.stringify(user)]
-      );
+      expoDb.runSync('DELETE FROM arise_kv WHERE key = ?', [GOOGLE_USER_KV_KEY]);
     } catch (e) {
-      console.warn('[GoogleAuth] Error saving user:', e);
+      console.warn('[GoogleAuth] Error saving user to SecureStore:', e);
     }
   },
 
   /**
-   * Sign out and clear stored Google user session
+   * Sign out and clear stored Google user session from SecureStore
    */
   async signOutGoogle(): Promise<void> {
     try {
+      if (Platform.OS !== 'web') {
+        await SecureStore.deleteItemAsync(GOOGLE_USER_KV_KEY);
+      } else if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem(GOOGLE_USER_KV_KEY);
+      }
       this._ensureTable();
       expoDb.runSync('DELETE FROM arise_kv WHERE key = ?', [GOOGLE_USER_KV_KEY]);
       if (isSupabaseConfigured() && supabase) {
@@ -238,9 +273,9 @@ export const googleAuthService = {
       if (fallbackParams.error_description) result.errorDescription = String(fallbackParams.error_description);
     }
 
-    if (!rawUrl) return result;
+    // 2. Parse from rawUrl string with strict length bounding to prevent long-input DoS
+    if (!rawUrl || typeof rawUrl !== 'string' || rawUrl.length > 4096) return result;
 
-    // 2. Parse from rawUrl string (both # hash fragment and ? query params)
     try {
       const hashIdx = rawUrl.indexOf('#');
       const queryIdx = rawUrl.indexOf('?');
@@ -256,6 +291,7 @@ export const googleAuthService = {
 
       for (const seg of segments) {
         const pairs = seg.split('&');
+        if (pairs.length > 64) continue; // Bound query parameter count against DoS
         for (const pair of pairs) {
           const [k, ...vals] = pair.split('=');
           if (!k) continue;

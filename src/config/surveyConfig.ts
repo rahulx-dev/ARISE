@@ -8,10 +8,10 @@ export const SURVEY_CONFIG = {
     MAIN_COLOR: '0284C7', // Solo Leveling Electric Cyan/Blue
   },
 
-  // BitLabs Configuration (Live & Active)
+  // BitLabs Configuration (Loaded via Environment Variable)
   BITLABS: {
-    API_TOKEN: 'd2253b50-45d4-4b41-aafc-274165b8f051',
-    ENABLED: true,
+    API_TOKEN: process.env.EXPO_PUBLIC_BITLABS_API_TOKEN || '',
+    ENABLED: !!process.env.EXPO_PUBLIC_BITLABS_API_TOKEN,
     BASE_URL: 'https://web.bitlabs.ai/',
   },
 
@@ -47,6 +47,7 @@ export function getCpxOfferwallUrl(userId: string, surveyId?: string): string {
  */
 export function getBitLabsUrl(userId: string): string {
   const token = SURVEY_CONFIG.BITLABS.API_TOKEN;
+  if (!token) return '';
   const safeUid = encodeURIComponent(userId || 'warrior_device');
   return `${SURVEY_CONFIG.BITLABS.BASE_URL}?token=${token}&uid=${safeUid}`;
 }

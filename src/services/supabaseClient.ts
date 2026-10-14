@@ -63,7 +63,7 @@ const secureSessionStorage = {
       const secureValue = await SecureStore.getItemAsync(key);
       if (secureValue) return secureValue;
 
-      // Migrate sessions written by older builds, then remove the plaintext copy.
+      // Migrate sessions written by older builds, then purge the plaintext copy.
       const legacyValue = await sqliteStorage.getItem(key);
       if (legacyValue) {
         try {
@@ -75,8 +75,8 @@ const secureSessionStorage = {
       }
       return legacyValue;
     } catch (error) {
-      console.warn("[Supabase] Secure session read failed, falling back to SQLite:", error);
-      return await sqliteStorage.getItem(key);
+      console.warn("[Supabase] Secure session read failed:", error);
+      return null;
     }
   },
   setItem: async (key: string, value: string): Promise<void> => {
@@ -84,10 +84,11 @@ const secureSessionStorage = {
       await SecureStore.setItemAsync(key, value, {
         keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
       });
+      // Ensure any legacy plaintext token is purged
       await sqliteStorage.removeItem(key);
     } catch (error) {
-      console.warn("[Supabase] Secure session write failed, falling back to SQLite:", error);
-      await sqliteStorage.setItem(key, value);
+      console.warn("[Supabase] Secure session write failed:", error);
+      // HARD SECURITY RULE: Never fall back to storing auth session tokens in plaintext SQLite
     }
   },
   removeItem: async (key: string): Promise<void> => {

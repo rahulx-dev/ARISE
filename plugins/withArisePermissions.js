@@ -55,6 +55,12 @@ module.exports = function withArisePermissions(config) {
 
     androidManifest.queries.push(launcherQuery);
 
+    // Harden application security flags
+    if (androidManifest.application && androidManifest.application[0]) {
+      androidManifest.application[0].$['android:allowBackup'] = 'false';
+      androidManifest.application[0].$['android:usesCleartextTraffic'] = 'false';
+    }
+
     return config;
   });
 };

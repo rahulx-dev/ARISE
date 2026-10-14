@@ -191,40 +191,14 @@ function RootLayout() {
         const cam = await Camera.getCameraPermissionsAsync();
         const allPermsGranted = usage && overlay && battery && cam.granted;
 
-        let isAuthCallback = false;
-        try {
-          const initialUrl = await Linking.getInitialURL();
-          isAuthCallback =
-            !!initialUrl &&
-            (initialUrl.includes('auth/callback') ||
-              initialUrl.includes('callback') ||
-              initialUrl.includes('access_token') ||
-              initialUrl.includes('code='));
-        } catch {}
-
-        if (allPermsGranted || isAuthCallback) {
+        if (allPermsGranted) {
           setAppState("READY");
           syncService.syncAll().catch(() => {});
         } else {
           setAppState("PERMISSIONS_REQUIRED");
         }
       } else {
-        let isAuthCallback = false;
-        try {
-          const initialUrl = await Linking.getInitialURL();
-          isAuthCallback =
-            !!initialUrl &&
-            (initialUrl.includes('auth/callback') ||
-              initialUrl.includes('callback') ||
-              initialUrl.includes('access_token') ||
-              initialUrl.includes('code='));
-        } catch {}
-
-        if (isAuthCallback) {
-          setAppState("READY");
-        } else {
-          setAppState("PROFILE_REQUIRED");
-        }
+        setAppState("PROFILE_REQUIRED");
       }
     } catch (e) {
       console.error("[ARISE Startup] Bootstrap failed:", e);

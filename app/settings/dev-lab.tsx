@@ -8,7 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, Redirect } from 'expo-router';
 import {
   ArrowLeft,
   Fire,
@@ -65,19 +65,7 @@ export default function DevLabScreen() {
   const rank = getRankForLevel(level);
 
   if (!__DEV__) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={styles.emptyState}>
-          <ShieldCheck size={42} color={colors.primary} />
-          <Text style={[styles.emptyStateTitle, { color: colors.textPrimary }]}>
-            Developer Lab Unavailable
-          </Text>
-          <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>
-            This testing area is disabled in production builds.
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
+    return <Redirect href="/(tabs)" />;
   }
 
   const notifySuccess = (text: string) => {
