@@ -109,52 +109,12 @@ Unlike conventional productivity apps that rely on easily dismissible timers or 
 
 ---
 
-## 🚀 Getting Started
-
-### Prerequisites
-- Node.js $\ge$ 18.x
-- Android SDK (API Level 34 / 35 recommended)
-- Java 17 (JDK)
-
-### 1. Clone & Install
-```bash
-git clone https://github.com/rahulx-dev/ARISE.git
-cd ARISE
-npm install
-```
-
-### 2. Type Check & Verification
-```bash
-npx tsc --noEmit
-npx expo-doctor
-```
-
-### 3. Run on Android Device / Emulator
-```bash
-npx expo run:android
-```
-
-### 4. Build Standalone Android APK (EAS)
-```bash
-npx eas-cli build -p android --profile preview
-```
-
----
-
-## 🔒 Permissions Used
-
-- `PACKAGE_USAGE_STATS`: Detects running foreground applications to enforce screen time limits.
-- `SYSTEM_ALERT_WINDOW`: Renders full-screen lockdown overlay over blocked apps.
-- `CAMERA`: Required strictly for local ML Kit exercise joint detection and daily physique check-in photos (no images leave device).
-- `POST_NOTIFICATIONS`: Triggers scheduled local daily streak and quest reminders.
-
----
 
 ## 🤝 Contributing & Road Ahead
 
 ARISE is an actively evolving, community-driven project. While the core native engine, ML Kit kinematics, and offline SQLite architecture are solidly built, you may encounter minor edge-case bugs or device-specific quirks as we continue to push updates.
 
-We're continuously improving stability, pose accuracy, and performance! 
+We're continuously improving stability, pose accuracy, UI,  and performance! 
 
 **Want to help make ARISE better?**
 - Found a bug or have an idea? Open an [Issue](https://github.com/rahulx-dev/ARISE/issues).
