@@ -116,6 +116,13 @@ if (isSupabaseConfigured()) {
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: isWeb,
+        // C5: PKCE code flow ONLY. The default implicit flow puts raw
+        // access/refresh tokens in the redirect URL, and any deep link
+        // could then inject an attacker's valid token via setSession().
+        // With PKCE, the redirect carries only a code, which is useless
+        // without the code verifier this device stored when it started
+        // the sign-in (persisted in SecureStore / localStorage).
+        flowType: 'pkce',
       },
     });
     console.log("[Supabase] Initialized cloud client successfully");

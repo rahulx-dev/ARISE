@@ -341,20 +341,28 @@ export const googleAuthService = {
 
       let activeSession = null;
 
-      // 1. Check if tokens are in hash/query (Implicit Grant)
-      if (parsed.accessToken && parsed.refreshToken) {
-        const { data, error } = await supabase.auth.setSession({
-          access_token: parsed.accessToken,
-          refresh_token: parsed.refreshToken,
-        });
-        if (error) {
-          console.warn('[GoogleAuth] setSession error:', error.message);
-          return { success: false, error: error.message };
-        }
-        activeSession = data.session;
+      // C5: NEVER accept raw tokens from a URL or params. Any deep link
+      // (or pasted link) can carry an attacker's valid token; setSession()
+      // would have signed this device in as that attacker. Only the PKCE
+      // code flow is accepted: the code is useless without the code
+      // verifier the SDK stored when THIS device started the sign-in.
+      if (parsed.accessToken || parsed.refreshToken) {
+        return {
+          success: false,
+          error: 'Tokens in the callback URL are not accepted. Please sign in again from the app.',
+        };
       }
-      // 2. Check if authorization code is present (PKCE Flow)
-      else if (parsed.code) {
+
+      // The callback must be the app's own OAuth route. On native the
+      // redirect is always arise://auth/callback; anything else is a
+      // foreign deep link and is rejected. (Web is exempt: the SDK's
+      // detectSessionInUrl handling owns the web callback.)
+      if (rawUrl && Platform.OS !== 'web' && !rawUrl.includes('auth/callback')) {
+        return { success: false, error: 'Invalid OAuth callback URL.' };
+      }
+
+      // 1. Authorization code present (PKCE Flow)
+      if (parsed.code) {
         const { data, error } = await supabase.auth.exchangeCodeForSession(parsed.code);
         if (error) {
           console.warn('[GoogleAuth] exchangeCodeForSession error:', error.message);
@@ -362,7 +370,7 @@ export const googleAuthService = {
         }
         activeSession = data.session;
       }
-      // 3. Fallback: check if session is already stored
+      // 2. Fallback: check if session is already stored
       else {
         const { data } = await supabase.auth.getSession();
         activeSession = data.session;

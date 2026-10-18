@@ -32,7 +32,6 @@ export function PlayerAvatar({
     (typeof activeIconId === 'string' &&
       (activeIconId.startsWith('file:') ||
         activeIconId.startsWith('content:') ||
-        activeIconId.startsWith('http://') ||
         activeIconId.startsWith('https://') ||
         activeIconId.startsWith('data:')));
 
@@ -51,7 +50,6 @@ export function PlayerAvatar({
     typeof activeIconId === 'string' &&
     (activeIconId.startsWith('file:') ||
       activeIconId.startsWith('content:') ||
-      activeIconId.startsWith('http://') ||
       activeIconId.startsWith('https://') ||
       activeIconId.startsWith('data:'))
   ) {

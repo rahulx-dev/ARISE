@@ -264,8 +264,16 @@ DROP FUNCTION IF EXISTS public.sync_hunter_profile_secure(TEXT, TEXT, TEXT, TEXT
 -- ATOMIC SECURITY DEFINER PROCEDURES (RPC)
 -- ==============================================================================
 
--- 1. grant_crystals_secure: Atomically validates source bounds, enforces idempotency in crystal_ledger,
--- updates authoritative wallet, updates leaderboard projection, and triggers Realtime broadcast.
+-- 1. grant_crystals_secure: Grants crystals ONLY for server-verified events.
+-- SECURITY (C2): the server NEVER mints crystals from a client-asserted
+-- completion. Only 'cpx_survey' is grantable, and only when a matching
+-- server-recorded postback row exists in cpx_postback_log (written by the
+-- CPX postback webhook, never by the client). 'gate_recon' / 'red_gate'
+-- completions happen on-device and have no server-side verifier, so they
+-- are REJECTED here; the client falls back to local-only crystals.
+-- 'bitlabs_survey' is rejected until a Bitlabs postback log exists.
+-- Enforces ledger idempotency, a per-user daily cap, updates the
+-- authoritative wallet + leaderboard projection, triggers Realtime.
 -- Identity is STRICTLY derived from authenticated auth.uid() session (zero client fallback).
 CREATE OR REPLACE FUNCTION public.grant_crystals_secure(
     p_amount INTEGER,
@@ -294,7 +302,8 @@ DECLARE
     v_clean_streak INTEGER;
     v_clean_reps INTEGER;
     v_clean_xp INTEGER;
-    v_allowed_max INTEGER;
+    v_postback_amount INTEGER := 0;
+    v_today_earned INTEGER := 0;
     v_current_crystals INTEGER := 0;
     v_new_crystals INTEGER := 0;
     v_inserted_id BIGINT;
@@ -309,34 +318,63 @@ BEGIN
     v_clean_name := COALESCE(NULLIF(trim(p_user_name), ''), 'Warrior');
     v_clean_avatar := COALESCE(NULLIF(trim(p_avatar_icon), ''), 'img_pfp_01');
     v_clean_rank := COALESCE(NULLIF(trim(p_rank_code), ''), 'E');
-    v_clean_level := GREATEST(1, COALESCE(p_level, 1));
-    v_clean_streak := GREATEST(0, COALESCE(p_streak, 0));
-    v_clean_reps := GREATEST(0, COALESCE(p_total_reps, 0));
-    v_clean_xp := GREATEST(0, COALESCE(p_total_xp, 0));
+    -- Sanity caps: progress fields are self-reported display data, never money.
+    -- Cap them so a crafted call cannot stuff absurd values into the wallet.
+    v_clean_level := LEAST(100, GREATEST(1, COALESCE(p_level, 1)));
+    v_clean_streak := LEAST(3650, GREATEST(0, COALESCE(p_streak, 0)));
+    v_clean_reps := LEAST(100000000, GREATEST(0, COALESCE(p_total_reps, 0)));
+    v_clean_xp := LEAST(10000000, GREATEST(0, COALESCE(p_total_xp, 0)));
 
-    -- 3. Enforce Server-Side Amount Bounds Per Source
+    -- 3. Enforce Server-Side Verification (C2). The amount is NEVER taken
+    -- on the caller's word: it must be backed by a server-recorded event.
     IF p_amount <= 0 THEN
         RETURN jsonb_build_object('success', false, 'error', 'Invalid crystal reward amount');
     END IF;
 
-    IF p_source IS NULL OR p_source NOT IN (
-        'gate_recon', 'red_gate', 'cpx_survey', 'bitlabs_survey'
-    ) OR p_source_id IS NULL OR length(trim(p_source_id)) = 0 THEN
+    IF p_source IS NULL OR p_source_id IS NULL OR length(trim(p_source_id)) = 0 THEN
         RETURN jsonb_build_object('success', false, 'error', 'Invalid reward source');
     END IF;
 
-    IF p_source = 'gate_recon' THEN
-        v_allowed_max := 500;
-    ELSIF p_source = 'red_gate' THEN
-        v_allowed_max := 1000;
-    ELSIF p_source = 'cpx_survey' OR p_source = 'bitlabs_survey' THEN
-        v_allowed_max := 5000;
-    ELSE
-        v_allowed_max := 0;
+    -- On-device completions have no server-side verifier: reject, do not mint.
+    IF p_source = 'gate_recon' OR p_source = 'red_gate' THEN
+        RETURN jsonb_build_object('success', false, 'error', 'SERVER_VERIFICATION_REQUIRED: gate/red_gate crystal grants require a server-verified event; client-asserted completions cannot mint server crystals');
     END IF;
 
-    IF p_amount > v_allowed_max THEN
-        RETURN jsonb_build_object('success', false, 'error', 'Reward exceeds maximum allowed bound for source ' || p_source);
+    IF p_source = 'bitlabs_survey' THEN
+        RETURN jsonb_build_object('success', false, 'error', 'SERVER_VERIFICATION_REQUIRED: bitlabs_survey has no server-side postback log yet');
+    END IF;
+
+    IF p_source <> 'cpx_survey' THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Invalid reward source');
+    END IF;
+
+    -- CPX: the postback row must exist for THIS user + trans_id, be
+    -- completed, and cover the requested amount. Callers must pass the
+    -- raw CPX trans_id as p_source_id. The row is written by the CPX
+    -- postback webhook (service_role), never by the client.
+    SELECT amount_crystals INTO v_postback_amount
+    FROM public.cpx_postback_log
+    WHERE trans_id = trim(p_source_id)
+      AND user_id = v_user_id
+      AND status = 'completed';
+
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object('success', false, 'error', 'No verified CPX postback for this transaction');
+    END IF;
+
+    IF p_amount > v_postback_amount THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Reward exceeds the verified CPX postback amount');
+    END IF;
+
+    -- Daily cap (defense-in-depth): at most 5000 crystals/day/user.
+    SELECT COALESCE(SUM(amount), 0) INTO v_today_earned
+    FROM public.crystal_ledger
+    WHERE user_id = v_user_id
+      AND type = 'EARN'
+      AND created_at >= date_trunc('day', TIMEZONE('utc'::text, NOW()));
+
+    IF v_today_earned + p_amount > 5000 THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Daily crystal grant cap reached');
     END IF;
 
     -- 4. Database-Enforced Idempotency Check via crystal_ledger
@@ -592,7 +630,12 @@ $$;
 
 
 -- 3. sync_hunter_profile_secure: Safely syncs profile & stats (streak, reps, xp, level, rank)
--- to user_wallets and crystal_leaderboard WITHOUT touching mana_crystals. Triggers Realtime broadcast for all metric categories!
+-- to user_wallets and crystal_leaderboard WITHOUT touching mana_crystals or
+-- cloud_coins. Money moves ONLY via ledger functions (e.g. grant_crystals_secure):
+-- this function NEVER writes a caller-supplied coin balance (C3). The
+-- p_cloud_coins parameter is accepted for backward compatibility and IGNORED;
+-- the server's stored coin balance is preserved and returned as
+-- authoritative_coins. Triggers Realtime broadcast for all metric categories!
 -- Identity is STRICTLY derived from authenticated auth.uid() session (zero client fallback).
 CREATE OR REPLACE FUNCTION public.sync_hunter_profile_secure(
     p_display_name TEXT DEFAULT 'Warrior',
@@ -621,7 +664,6 @@ DECLARE
     v_clean_streak INTEGER;
     v_clean_reps INTEGER;
     v_clean_xp INTEGER;
-    v_clean_coins INTEGER;
     v_current_crystals INTEGER := 0;
     v_ret_level INTEGER := 1;
     v_ret_xp INTEGER := 0;
@@ -639,11 +681,13 @@ BEGIN
     v_clean_avatar := COALESCE(NULLIF(trim(p_avatar_icon), ''), 'img_pfp_01');
     v_clean_rank := COALESCE(NULLIF(trim(p_rank_code), ''), 'E');
     v_clean_title := COALESCE(NULLIF(trim(p_title), ''), 'Hunter');
-    v_clean_level := GREATEST(1, COALESCE(p_level, 1));
-    v_clean_streak := GREATEST(0, COALESCE(p_current_streak, p_streak, 0));
-    v_clean_reps := GREATEST(0, COALESCE(p_total_reps, 0));
-    v_clean_xp := GREATEST(0, COALESCE(p_total_xp, 0));
-    v_clean_coins := GREATEST(0, COALESCE(p_cloud_coins, 0));
+    -- Sanity caps on self-reported progress (display/leaderboard data, never money).
+    v_clean_level := LEAST(100, GREATEST(1, COALESCE(p_level, 1)));
+    v_clean_streak := LEAST(3650, GREATEST(0, COALESCE(p_current_streak, p_streak, 0)));
+    v_clean_reps := LEAST(100000000, GREATEST(0, COALESCE(p_total_reps, 0)));
+    v_clean_xp := LEAST(10000000, GREATEST(0, COALESCE(p_total_xp, 0)));
+    -- NOTE (C3): p_cloud_coins is deliberately NOT read. The caller's coin
+    -- balance is never trusted: the server value is preserved below.
 
     -- Upsert user_wallets metadata (mana_crystals is preserved from server state)
     INSERT INTO public.user_wallets (
@@ -665,7 +709,7 @@ BEGIN
         v_clean_streak,
         v_clean_reps,
         v_clean_xp,
-        v_clean_coins,
+        0, -- cloud_coins: new wallets start at 0; caller input never sets it (C3)
         0,
         TIMEZONE('utc'::text, NOW())
     )
@@ -676,7 +720,7 @@ BEGIN
         streak = GREATEST(user_wallets.streak, v_clean_streak),
         total_reps = GREATEST(user_wallets.total_reps, v_clean_reps),
         total_xp = GREATEST(user_wallets.total_xp, v_clean_xp),
-        cloud_coins = v_clean_coins,
+        -- cloud_coins intentionally NOT assigned: the server balance is preserved (C3).
         last_synced_at = TIMEZONE('utc'::text, NOW())
     RETURNING mana_crystals, level, total_xp, streak, total_reps, cloud_coins, display_name
     INTO v_current_crystals, v_ret_level, v_ret_xp, v_ret_streak, v_ret_reps, v_ret_coins, v_ret_name;

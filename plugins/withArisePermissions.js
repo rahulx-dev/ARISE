@@ -55,11 +55,16 @@ module.exports = function withArisePermissions(config) {
 
     androidManifest.queries.push(launcherQuery);
 
-    // Harden application security flags
+    // Harden application security flags.
+    // C16: the android:networkSecurityConfig attribute previously pointed
+    // at @xml/network_security_config, a file that does not exist — which
+    // broke every Android build. The attribute is removed: the default
+    // platform config applies, and usesCleartextTraffic=false below keeps
+    // all traffic HTTPS-only. If a custom config is ever needed, ship the
+    // XML via withResourceFile AND the attribute together, never one alone.
     if (androidManifest.application && androidManifest.application[0]) {
       androidManifest.application[0].$['android:allowBackup'] = 'false';
       androidManifest.application[0].$['android:usesCleartextTraffic'] = 'false';
-      androidManifest.application[0].$['android:networkSecurityConfig'] = '@xml/network_security_config';
     }
 
     return config;

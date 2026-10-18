@@ -59,7 +59,6 @@ export function getAvatarSource(
     typeof iconId === 'string' &&
     (iconId.startsWith('file:') ||
       iconId.startsWith('content:') ||
-      iconId.startsWith('http://') ||
       iconId.startsWith('https://') ||
       iconId.startsWith('data:'))
   ) {
