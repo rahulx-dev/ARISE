@@ -41,6 +41,7 @@ import {
   PoseLandmark,
   LandmarkIndex,
   PoseCameraView,
+  release,
 } from '../../modules/pose-detector';
 
 import { ExerciseErrorBoundary } from '../../src/components/exercise/ExerciseErrorBoundary';
@@ -196,7 +197,7 @@ function ExerciseTrackerInner() {
       isMountedRef.current = false;
       if (timerRef.current) clearInterval(timerRef.current);
       voiceCoach.stop();
-      releasePoseDetector();
+      release();
     };
   }, []);
 

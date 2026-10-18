@@ -51,6 +51,27 @@ export function issueCompletionToken(context = { exerciseType: 'UNKNOWN' }) {
 }
 
 /**
+ * Validates a completion token WITHOUT consuming it.
+ * Use this to gate entry into the grant flow; call consumeCompletionToken
+ * only AFTER the grant succeeds, so a crash mid-grant does not destroy
+ * a legitimate user's token (previously: consume-first meant a crash left
+ * the user with 0 rewards and an unrecoverable token).
+ * @param {string | undefined} token
+ * @param {Partial<CompletionContext>} [expectedContext]
+ * @returns {boolean}
+ */
+export function peekCompletionToken(token, expectedContext) {
+  if (!token || typeof token !== 'string' || !activeTokens.has(token)) {
+    return false;
+  }
+  const record = activeTokens.get(token);
+  if (!record || Date.now() > record.expiresAt) {
+    return false;
+  }
+  return matchesContext(record, expectedContext);
+}
+
+/**
  * Consumes and invalidates a completion token, optionally validating expected context
  * @param {string | undefined} token
  * @param {Partial<CompletionContext>} [expectedContext]
@@ -69,16 +90,19 @@ export function consumeCompletionToken(token, expectedContext) {
     return false;
   }
 
-  // Validate context binding if expectedContext provided
-  if (expectedContext) {
-    if (expectedContext.exerciseType && expectedContext.exerciseType !== record.context.exerciseType) {
-      return false;
-    }
-    if (expectedContext.questId && expectedContext.questId !== record.context.questId) {
-      return false;
-    }
-  }
+  return matchesContext(record, expectedContext);
+}
 
+function matchesContext(record, expectedContext) {
+  if (!expectedContext) {
+    return true;
+  }
+  if (expectedContext.exerciseType && expectedContext.exerciseType !== record.context.exerciseType) {
+    return false;
+  }
+  if (expectedContext.questId && expectedContext.questId !== record.context.questId) {
+    return false;
+  }
   return true;
 }
 

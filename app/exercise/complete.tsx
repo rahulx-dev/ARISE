@@ -21,12 +21,12 @@ import { useTheme } from '../../src/hooks/useTheme';
 import { showIOSAlert } from '../../src/components/ios/IOSAlertModal';
 import { redGateService } from '../../src/services/redGateService';
 import { APP_ANIMATIONS, APP_3D_ASSETS } from '../../src/constants/assets';
-import { getExerciseConfig, ExerciseType, EXERCISE_REGISTRY } from '../../src/exercise';
+import { getExerciseConfig, ExerciseType, EXERCISE_REGISTRY, calculateRewards } from '../../src/exercise';
 import { exerciseRepository } from '../../src/database/repositories/exerciseRepository';
 import { userRepository } from '../../src/database/repositories/userRepository';
 import { adMobService } from '../../src/services/adMobService';
 import { appBlockerService } from '../../src/native';
-import { consumeCompletionToken } from '../../src/services/completionGate';
+import { consumeCompletionToken, peekCompletionToken } from '../../src/services/completionGate';
 
 const { width } = Dimensions.get('window');
 
@@ -109,8 +109,22 @@ export default function QuestCompleteScreen() {
     hasAwarded.current = true;
 
     const grantRewards = async () => {
+      // The token type the issuer stored: focus sessions issue 'FOCUS',
+      // gym issues 'GYM_WORKOUT', exercise tracker issues its own type.
+      // (Previously the focus case fell through to 'PUSHUP', so every
+      // focus completion was rejected as an "Invalid Completion".)
+      const expectedTokenType = isFocusCompletion
+        ? 'FOCUS'
+        : isGymCompletion
+        ? 'GYM_WORKOUT'
+        : validExerciseType;
       try {
-        if (!consumeCompletionToken(completionToken, { exerciseType: isGymCompletion ? 'GYM_WORKOUT' : validExerciseType })) {
+        // Peek first: validate without consuming. The token is consumed
+        // only AFTER the grant succeeds, so a crash mid-grant does not
+        // destroy a legitimate user's token (previously: consume-first
+        // meant a crash left the user with 0 rewards, no streak, no
+        // session, and an unrecoverable token).
+        if (!peekCompletionToken(completionToken, { exerciseType: expectedTokenType })) {
           showIOSAlert('Invalid Completion', 'This completion session is no longer valid.');
           router.replace('/(tabs)');
           return;
@@ -226,6 +240,8 @@ export default function QuestCompleteScreen() {
 
         await loadProfile();
         await useQuestStore.getState().loadQuests();
+        // Grant succeeded: now consume the token so it cannot be replayed.
+        consumeCompletionToken(completionToken, { exerciseType: expectedTokenType });
         if (mountedRef.current) {
           sound.play('quest_complete');
           haptics.heavy();

@@ -316,7 +316,11 @@ export default function FocusModeScreen() {
         target: targetMinutes.toString(),
         durationSeconds: (targetMinutes * 60).toString(),
         ...(params.questId ? { questId: params.questId } : {}),
-        completionToken: issueCompletionToken(),
+        completionToken: issueCompletionToken({
+          exerciseType: 'FOCUS',
+          duration: targetMinutes * 60,
+          target: targetMinutes,
+        }),
       },
     });
   };

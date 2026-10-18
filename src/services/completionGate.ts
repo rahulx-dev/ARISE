@@ -14,4 +14,5 @@ export interface CompletionContext {
 export {
   issueCompletionToken,
   consumeCompletionToken,
+  peekCompletionToken,
 } from './completionGate.js';
