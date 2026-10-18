@@ -44,7 +44,10 @@ object BlockPolicyController {
     private const val BUDGET_PREFIX = "budget_"
     private const val UNLOCKED_UNTIL_KEY = "unlocked_until_epoch"
     private const val DAILY_RESET_KEY = "last_daily_reset_epoch"
+    private const val DAILY_RESET_ANCHOR_ELAPSED_KEY = "daily_reset_anchor_elapsed"
     private const val EMERGENCY_BAILOUT_DATE_KEY = "last_emergency_bailout_date"
+    private const val EMERGENCY_BAILOUT_ANCHOR_ELAPSED_KEY = "emergency_bailout_anchor_elapsed"
+    private const val PER_PACKAGE_UNLOCK_PREFIX = "unlock_until_"
     private const val MAX_UNLOCK_WINDOW_MS = 30 * 60 * 1000L // Max 30 min pass duration
     private const val EMERGENCY_DURATION_MS = 5 * 60 * 1000L // 5-minute emergency pass
 
@@ -84,6 +87,41 @@ object BlockPolicyController {
 
     private fun getTodayDateString(): String {
         return SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(Date())
+    }
+
+    /**
+     * H13: the "current day" for the once-a-day emergency bailout, anchored
+     * to monotonic elapsedRealtime so a backward wall-clock jump cannot
+     * re-grant a bailout. The anchor is the (wall date, elapsedRealtime)
+     * pair stored at claim time; the day advances by 24h of ELAPSED time,
+     * not by the wall clock. A forward clock jump does not create an extra
+     * claim — it only moves the anchor forward (the user "loses" the
+     * skipped day's claim, same as if the day had really passed).
+     * Without an anchor (first run / legacy), falls back to the wall date.
+     */
+    private fun getAnchoredDayString(context: Context): String {
+        return try {
+            val prefs = preferences(context)
+            val anchorDate = prefs.getString(EMERGENCY_BAILOUT_DATE_KEY, null)
+            val anchorElapsed = prefs.getLong(EMERGENCY_BAILOUT_ANCHOR_ELAPSED_KEY, -1L)
+            if (anchorDate == null || anchorElapsed < 0L) {
+                getTodayDateString()
+            } else {
+                val daysSince = ((SystemClock.elapsedRealtime() - anchorElapsed) / 86_400_000L)
+                    .coerceAtLeast(0L)
+                if (daysSince == 0L) {
+                    anchorDate
+                } else {
+                    val cal = Calendar.getInstance().apply {
+                        time = SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).parse(anchorDate) ?: Date()
+                        add(Calendar.DAY_OF_YEAR, daysSince.toInt())
+                    }
+                    SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(cal.time)
+                }
+            }
+        } catch (_: Exception) {
+            getTodayDateString()
+        }
     }
 
     private val PACKAGE_REGEX = Regex("^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)+$")
@@ -240,16 +278,20 @@ object BlockPolicyController {
                 packageBudgetsMs[packageName] = budget.coerceAtLeast(0L)
             }
 
-            currentDailyResetEpochMs = getTodayEndEpoch(now)
-            val savedReset = prefs.getLong(DAILY_RESET_KEY, 0L)
-            if (savedReset != currentDailyResetEpochMs) {
+            val savedResetBefore = prefs.getLong(DAILY_RESET_KEY, 0L)
+            currentDailyResetEpochMs = getAnchoredNextResetEpoch(context)
+            // H13: a new day started only if the anchored reset epoch
+            // changed (the old reset passed on the monotonic timeline).
+            // A backward clock jump leaves the epoch unchanged, so the
+            // day is NOT extended and usage is NOT kept past midnight.
+            if (savedResetBefore != currentDailyResetEpochMs || savedResetBefore == 0L) {
                 // A new day has started: wipe stale daily usage
                 packageUsageTodayMs.clear()
                 val editor = prefs.edit()
                 prefs.all.keys
                     .filter { it.startsWith(USAGE_PREFIX) }
                     .forEach { editor.remove(it) }
-                editor.putLong(DAILY_RESET_KEY, currentDailyResetEpochMs).apply()
+                editor.apply()
             } else {
                 packageUsageTodayMs.clear()
                 for ((key, value) in prefs.all) {
@@ -276,8 +318,55 @@ object BlockPolicyController {
                 }
             }
 
+            // H14: restore per-package passes from their persisted keys.
+            perPackageUnlockUntilMs.clear()
+            val perPackageEditor = prefs.edit()
+            var perPackageDirty = false
+            for ((key, value) in prefs.all) {
+                if (!key.startsWith(PER_PACKAGE_UNLOCK_PREFIX)) continue
+                val pkg = normalizePackageName(key.removePrefix(PER_PACKAGE_UNLOCK_PREFIX)) ?: continue
+                val savedEpoch = (value as? Number)?.toLong() ?: continue
+                if (savedEpoch > now) {
+                    perPackageUnlockUntilMs[pkg] =
+                        SystemClock.elapsedRealtime() + (savedEpoch - now)
+                } else {
+                    perPackageEditor.remove(key)
+                    perPackageDirty = true
+                }
+            }
+            if (perPackageDirty) perPackageEditor.apply()
+
             activePolicies.clear()
         }
+    }
+
+    /**
+     * H13: the next daily-reset moment, anchored to monotonic
+     * elapsedRealtime so wall-clock tampering cannot move it. The
+     * stored reset epoch + the elapsedRealtime at which it was computed
+     * define the reset on the ORIGINAL timeline: a backward clock jump
+     * does not extend the day, and a forward jump does not reset daily
+     * usage early. Without a stored anchor (first run / legacy), the
+     * wall-clock midnight is computed and the anchor is persisted.
+     */
+    fun getAnchoredNextResetEpoch(context: Context): Long {
+        val prefs = preferences(context)
+        val nowWall = System.currentTimeMillis()
+        val savedReset = prefs.getLong(DAILY_RESET_KEY, 0L)
+        val savedAnchor = prefs.getLong(DAILY_RESET_ANCHOR_ELAPSED_KEY, -1L)
+        if (savedReset > 0L && savedAnchor >= 0L) {
+            val anchoredReset = savedReset + (SystemClock.elapsedRealtime() - savedAnchor)
+            // If the anchored reset is still in the future, it stands
+            // (clock was moved back). If it already passed, the day is
+            // over — compute the next wall-clock midnight and re-anchor.
+            if (anchoredReset > nowWall) return anchoredReset
+        }
+        val next = getTodayEndEpoch(nowWall)
+        prefs.edit()
+            .putLong(DAILY_RESET_KEY, next)
+            .putLong(DAILY_RESET_ANCHOR_ELAPSED_KEY, SystemClock.elapsedRealtime())
+            .apply()
+        return next
     }
 
     fun getTodayStartEpoch(nowEpochMs: Long = System.currentTimeMillis()): Long {
@@ -377,7 +466,9 @@ object BlockPolicyController {
     }
 
     private fun ensureCurrentDailyState(context: Context? = null) {
-        val nextReset = getTodayEndEpoch()
+        // H13: anchored reset when a context is available (evaluate passes
+        // one); wall-clock fallback only when there is no context.
+        val nextReset = if (context != null) getAnchoredNextResetEpoch(context) else getTodayEndEpoch()
         if (nextReset == currentDailyResetEpochMs) return
         synchronized(policyLock) {
             if (nextReset != currentDailyResetEpochMs) {
@@ -400,7 +491,7 @@ object BlockPolicyController {
         // LIVE REAL-TIME USAGE (Digital Wellbeing + Live Stopwatch)
         val usageMs = getLiveUsageForPackage(context, normalizedPackage)
         val remainingMs = (limitMs - usageMs).coerceAtLeast(0L)
-        val isPassActive = isPassActive()
+        val isPassActive = isPassActive(normalizedPackage)
 
         val previousPolicy = activePolicies[normalizedPackage]
         val lockState = when {
@@ -429,13 +520,29 @@ object BlockPolicyController {
     @Volatile
     private var unlockedUntilElapsedRealtimeMs: Long = 0L
 
-    fun isPassActive(): Boolean {
-        return SystemClock.elapsedRealtime() < unlockedUntilElapsedRealtimeMs
+    // H14: per-package pass deadlines (elapsedRealtime). A pass granted
+    // for one package unlocks ONLY that package — previously every pass
+    // was global (unlockedUntilElapsedRealtimeMs), so claiming the
+    // 5-minute emergency pass for one app unlocked ALL restricted apps.
+    private val perPackageUnlockUntilMs = ConcurrentHashMap<String, Long>()
+
+    /**
+     * True if any pass is active. With a package name, true if the
+     * GLOBAL pass or THAT package's pass is active.
+     */
+    fun isPassActive(packageName: String? = null): Boolean {
+        val nowElapsed = SystemClock.elapsedRealtime()
+        if (nowElapsed < unlockedUntilElapsedRealtimeMs) return true
+        val normalized = packageName?.let { normalizePackageName(it) } ?: return false
+        return (perPackageUnlockUntilMs[normalized] ?: 0L) > nowElapsed
     }
 
     /**
      * Grants a temporary unlock pass for a specified duration in milliseconds.
      * Uses SystemClock.elapsedRealtime() so device clock tampering cannot extend the unlock.
+     * H14: a targetPackage scopes the pass to THAT package only (the
+     * emergency bailout). A null targetPackage is the legacy global pass
+     * (workout / custom unlocks that intentionally unlock everything).
      * Every grant is immutably recorded in the UnlockLedger.
      */
     fun setUnlockDuration(context: Context?, durationMs: Long, reason: String = "WORKOUT", targetPackage: String? = null): Boolean {
@@ -444,23 +551,49 @@ object BlockPolicyController {
         return synchronized(policyLock) {
             val nowElapsed = SystemClock.elapsedRealtime()
             val nowWall = System.currentTimeMillis()
-            val targetElapsed = if (safeDuration > 0L) maxOf(unlockedUntilElapsedRealtimeMs, nowElapsed + safeDuration) else 0L
-            unlockedUntilElapsedRealtimeMs = targetElapsed
+            val normalizedTarget = targetPackage?.let { normalizePackageName(it) }
 
-            val remainingMs = (targetElapsed - nowElapsed).coerceAtLeast(0L)
-            val targetEpoch = if (remainingMs > 0L) nowWall + remainingMs else 0L
-            unlockedUntilEpochMs = targetEpoch
-
-            val prefs = preferences(actualContext)
-            if (targetEpoch > 0L) {
-                prefs.edit().putLong(UNLOCKED_UNTIL_KEY, targetEpoch).apply()
+            if (normalizedTarget != null) {
+                // Per-package pass (H14).
+                val targetElapsed = if (safeDuration > 0L) {
+                    maxOf(perPackageUnlockUntilMs[normalizedTarget] ?: 0L, nowElapsed + safeDuration)
+                } else 0L
+                if (targetElapsed > 0L) {
+                    perPackageUnlockUntilMs[normalizedTarget] = targetElapsed
+                } else {
+                    perPackageUnlockUntilMs.remove(normalizedTarget)
+                }
+                val remainingMs = (targetElapsed - nowElapsed).coerceAtLeast(0L)
+                val targetEpoch = if (remainingMs > 0L) nowWall + remainingMs else 0L
+                val prefs = preferences(actualContext)
+                if (targetEpoch > 0L) {
+                    prefs.edit().putLong(PER_PACKAGE_UNLOCK_PREFIX + normalizedTarget, targetEpoch).apply()
+                } else {
+                    prefs.edit().remove(PER_PACKAGE_UNLOCK_PREFIX + normalizedTarget).apply()
+                }
+                UnlockLedger.recordUnlock(actualContext, normalizedTarget, reason, safeDuration, safeDuration > 0L)
+                invalidateAll()
+                true
             } else {
-                prefs.edit().remove(UNLOCKED_UNTIL_KEY).apply()
-            }
+                // Global pass (legacy: workout / custom).
+                val targetElapsed = if (safeDuration > 0L) maxOf(unlockedUntilElapsedRealtimeMs, nowElapsed + safeDuration) else 0L
+                unlockedUntilElapsedRealtimeMs = targetElapsed
 
-            UnlockLedger.recordUnlock(actualContext, targetPackage ?: "all", reason, safeDuration, safeDuration > 0L)
-            invalidateAll()
-            true
+                val remainingMs = (targetElapsed - nowElapsed).coerceAtLeast(0L)
+                val targetEpoch = if (remainingMs > 0L) nowWall + remainingMs else 0L
+                unlockedUntilEpochMs = targetEpoch
+
+                val prefs = preferences(actualContext)
+                if (targetEpoch > 0L) {
+                    prefs.edit().putLong(UNLOCKED_UNTIL_KEY, targetEpoch).apply()
+                } else {
+                    prefs.edit().remove(UNLOCKED_UNTIL_KEY).apply()
+                }
+
+                UnlockLedger.recordUnlock(actualContext, "all", reason, safeDuration, safeDuration > 0L)
+                invalidateAll()
+                true
+            }
         }
     }
 
@@ -471,14 +604,19 @@ object BlockPolicyController {
     }
 
     fun getUnlockUntil(context: Context?): Long {
-        val remaining = (unlockedUntilElapsedRealtimeMs - SystemClock.elapsedRealtime()).coerceAtLeast(0L)
+        val nowElapsed = SystemClock.elapsedRealtime()
+        var remaining = (unlockedUntilElapsedRealtimeMs - nowElapsed).coerceAtLeast(0L)
+        // H14: a per-package pass also counts — report the longest active pass.
+        for (deadline in perPackageUnlockUntilMs.values) {
+            remaining = maxOf(remaining, (deadline - nowElapsed).coerceAtLeast(0L))
+        }
         return if (remaining > 0L) System.currentTimeMillis() + remaining else 0L
     }
 
     fun isEmergencyAvailable(context: Context): Boolean {
         return try {
             val prefs = preferences(context)
-            val today = getTodayDateString()
+            val today = getAnchoredDayString(context)
             val lastDate = prefs.getString(EMERGENCY_BAILOUT_DATE_KEY, "")
             today != lastDate
         } catch (_: Exception) {
@@ -497,7 +635,7 @@ object BlockPolicyController {
                 return false
             }
 
-            val today = getTodayDateString()
+            val today = getAnchoredDayString(context)
             val normalizedPackage = normalizePackageName(packageName)
 
             // 1. Set the 5-minute temporary unlock pass using monotonic time & recorded in UnlockLedger
@@ -517,9 +655,13 @@ object BlockPolicyController {
                 Log.i(TAG, "Emergency 5 min credited inside $normalizedPackage daily budget")
             }
 
-            // 3. Persist today's bailout date so emergency pass cannot be reused today
+            // 3. Persist today's (anchored) bailout date + the elapsed anchor
+            // so a backward clock jump cannot re-grant the bailout.
             try {
-                preferences(context).edit().putString(EMERGENCY_BAILOUT_DATE_KEY, today).commit()
+                preferences(context).edit()
+                    .putString(EMERGENCY_BAILOUT_DATE_KEY, today)
+                    .putLong(EMERGENCY_BAILOUT_ANCHOR_ELAPSED_KEY, SystemClock.elapsedRealtime())
+                    .commit()
             } catch (e: Exception) {
                 Log.e(TAG, "Failed persisting emergency bailout date", e)
             }
@@ -533,7 +675,7 @@ object BlockPolicyController {
     }
 
     fun resetDailyState(context: Context? = null) {
-        val nextReset = getTodayEndEpoch()
+        val nextReset = if (context != null) getAnchoredNextResetEpoch(context) else getTodayEndEpoch()
         synchronized(policyLock) {
             activePolicies.clear()
             packageUsageTodayMs.clear()
@@ -550,7 +692,9 @@ object BlockPolicyController {
                 preferences(context).all.keys
                     .filter { it.startsWith(USAGE_PREFIX) }
                     .forEach { editor.remove(it) }
-                editor.putLong(DAILY_RESET_KEY, nextReset).apply()
+                editor.putLong(DAILY_RESET_KEY, nextReset)
+                    .putLong(DAILY_RESET_ANCHOR_ELAPSED_KEY, SystemClock.elapsedRealtime())
+                    .apply()
             } catch (_: Exception) {}
         }
     }

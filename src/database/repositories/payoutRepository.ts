@@ -61,60 +61,75 @@ export const payoutRepository = {
       const createdAt = new Date().toISOString();
       const requestId = `payout:${Date.now()}:${Math.random().toString(36).slice(2)}`;
 
-      // Deduction, pass consumption, and request insertion must commit
-      // together. The previous sequence could lose coins if insertion failed,
-      // and two callers could both pass the pending check.
-      await db.transaction(async (tx: any) => {
-        const pending = await tx.select().from(payoutRequest)
-          .where(eq(payoutRequest.status, 'PENDING')).limit(1);
-        if (pending.length > 0) throw new Error('A withdrawal request is already pending');
-
-        const fresh = (await tx.select().from(userProfile).limit(1))[0];
-        if (!fresh || fresh.coins < coinsSpent) throw new Error('Insufficient coins');
-        if ((fresh.sponsorPasses ?? 0) < sponsorPassesUsed) {
-          throw new Error('Insufficient sponsor passes');
-        }
-        await tx.update(userProfile).set({
-          coins: fresh.coins - coinsSpent,
-          sponsorPasses: (fresh.sponsorPasses ?? 0) - sponsorPassesUsed,
-        }).where(and(eq(userProfile.id, fresh.id), gte(userProfile.coins, coinsSpent)));
-        await tx.insert(coinTransaction).values({
-          amount: -coinsSpent,
-          type: 'spend',
-          description: `UPI Cashout INR ${amountInr}`,
-          source: 'payout',
-          timestamp: createdAt,
-          requestId,
-        });
-        await tx.insert(payoutRequest).values({
-          amountInr, coinsSpent, upiId: trimmedUpi, sponsorPassesUsed,
-          status: 'PENDING', createdAt, requestId,
-        });
-      });
-
-      // Sync to Supabase Cloud Database (Live Admin Dashboard)
+      // H7/H58: when Supabase is configured, the server RPC is
+      // AUTHORITATIVE — it enforces the fixed 100-coins = ₹1 rate,
+      // locks the wallet, checks the server balance, writes a
+      // coin_ledger SPEND, and inserts the PENDING request. The old
+      // code did a direct `payout_requests` INSERT, which is
+      // RLS-denied (no INSERT policy) and enforced no rate at all.
+      // RPC-first: if it fails, nothing is deducted anywhere.
+      let serverProcessed = false;
       if (isSupabaseConfigured() && supabase) {
-        try {
-          const cloudUserId = await getCloudUserId();
-          const { error } = await supabase.from('payout_requests').insert({
-            user_id: cloudUserId,
-            user_name: user.displayName || 'Warrior',
-            amount_inr: amountInr,
-            coins_spent: coinsSpent,
-            upi_id: trimmedUpi,
-            request_id: requestId,
-            status: 'PENDING',
-            created_at: createdAt,
-          });
-
-          if (error) {
-            console.warn('[PayoutCloudSync] Supabase push error:', error.message);
-          } else {
-            console.log('[PayoutCloudSync] Payout request successfully pushed to Supabase Cloud!');
-          }
-        } catch (cloudErr) {
-          console.warn('[PayoutCloudSync] Offline queue warning:', cloudErr);
+        const { data, error } = await supabase.rpc('request_payout_secure', {
+          p_amount_inr: amountInr,
+          p_coins_spent: coinsSpent,
+          p_upi_id: trimmedUpi,
+          p_request_id: requestId,
+        });
+        if (error || !data?.success) {
+          return {
+            success: false,
+            error: error?.message || (data as any)?.error || 'Payout request failed.',
+          };
         }
+        serverProcessed = true;
+        if ((data as any).already_processed) {
+          // Server already has this request (retry) — nothing more to do.
+          return { success: true };
+        }
+      }
+
+      // Local mirror (and local-only path when Supabase is off):
+      // deduction, pass consumption, and request insertion commit together.
+      // The previous sequence could lose coins if insertion failed,
+      // and two callers could both pass the pending check.
+      try {
+        await db.transaction(async (tx: any) => {
+          const pending = await tx.select().from(payoutRequest)
+            .where(eq(payoutRequest.status, 'PENDING')).limit(1);
+          if (pending.length > 0) throw new Error('A withdrawal request is already pending');
+
+          const fresh = (await tx.select().from(userProfile).limit(1))[0];
+          if (!fresh || fresh.coins < coinsSpent) throw new Error('Insufficient coins');
+          if ((fresh.sponsorPasses ?? 0) < sponsorPassesUsed) {
+            throw new Error('Insufficient sponsor passes');
+          }
+          await tx.update(userProfile).set({
+            coins: fresh.coins - coinsSpent,
+            sponsorPasses: (fresh.sponsorPasses ?? 0) - sponsorPassesUsed,
+          }).where(and(eq(userProfile.id, fresh.id), gte(userProfile.coins, coinsSpent)));
+          await tx.insert(coinTransaction).values({
+            amount: -coinsSpent,
+            type: 'spend',
+            description: `UPI Cashout INR ${amountInr}`,
+            source: 'payout',
+            timestamp: createdAt,
+            requestId,
+          });
+          await tx.insert(payoutRequest).values({
+            amountInr, coinsSpent, upiId: trimmedUpi, sponsorPassesUsed,
+            status: 'PENDING', createdAt, requestId,
+          });
+        });
+      } catch (mirrorErr: any) {
+        // If the server already processed the payout, the request is
+        // real even though the local mirror failed — report success
+        // (status sync will reconcile the local record).
+        if (serverProcessed) {
+          console.warn('[Payout] Local mirror failed after server success:', mirrorErr?.message);
+          return { success: true };
+        }
+        throw mirrorErr;
       }
 
       return { success: true };

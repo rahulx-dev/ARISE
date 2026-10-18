@@ -156,12 +156,14 @@ export async function getCloudUserId(): Promise<string> {
   }
 
   try {
-    let id = await sqliteStorage.getItem(USER_DEVICE_ID_KEY);
+    // H59: the cloud/device user ID is an auth identifier — SecureStore,
+    // not plaintext arise_kv (secureSessionStorage migrates + purges legacy).
+    let id = await secureSessionStorage.getItem(USER_DEVICE_ID_KEY);
     if (!id) {
       const randomPart = Math.random().toString(36).substring(2, 10);
       const timePart = Date.now().toString(36);
       id = `warrior_${randomPart}_${timePart}`;
-      await sqliteStorage.setItem(USER_DEVICE_ID_KEY, id);
+      await secureSessionStorage.setItem(USER_DEVICE_ID_KEY, id);
     }
     return id;
   } catch {
@@ -170,33 +172,49 @@ export async function getCloudUserId(): Promise<string> {
 }
 
 /**
- * Ensures client has active authenticated / anonymous session
+ * Ensures client has active authenticated / anonymous session.
+ * H47: this function previously fell through to getCloudUserId(), which
+ * calls this function again — unbounded mutual recursion (thousands of
+ * network calls, then a stack overflow) whenever anonymous sign-in
+ * failed. It now returns "" on failure and never calls getCloudUserId.
+ * Concurrent callers share one in-flight attempt (dedupe).
  */
+let authAttempt: Promise<string> | null = null;
 export async function ensureAuthenticatedUser(): Promise<string> {
-  if (isSupabaseConfigured() && supabase) {
-    try {
-      const { data } = await supabase.auth.getSession();
-      if (data?.session?.user?.id) {
-        await sqliteStorage.setItem(USER_DEVICE_ID_KEY, data.session.user.id);
-        return data.session.user.id;
-      }
+  if (authAttempt) return authAttempt;
+  authAttempt = (async (): Promise<string> => {
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (data?.session?.user?.id) {
+          await secureSessionStorage.setItem(USER_DEVICE_ID_KEY, data.session.user.id);
+          return data.session.user.id;
+        }
 
-      // Create anonymous session so auth.uid() is populated on PostgreSQL
-      const signInRes = await supabase.auth.signInAnonymously();
-      if (signInRes.data?.user?.id) {
-        await sqliteStorage.setItem(USER_DEVICE_ID_KEY, signInRes.data.user.id);
-        return signInRes.data.user.id;
-      }
+        // Create anonymous session so auth.uid() is populated on PostgreSQL
+        const signInRes = await supabase.auth.signInAnonymously();
+        if (signInRes.data?.user?.id) {
+          await secureSessionStorage.setItem(USER_DEVICE_ID_KEY, signInRes.data.user.id);
+          return signInRes.data.user.id;
+        }
 
-      const currentUser = (await supabase.auth.getUser()).data?.user;
-      if (currentUser?.id) {
-        await sqliteStorage.setItem(USER_DEVICE_ID_KEY, currentUser.id);
-        return currentUser.id;
+        const currentUser = (await supabase.auth.getUser()).data?.user;
+        if (currentUser?.id) {
+          await secureSessionStorage.setItem(USER_DEVICE_ID_KEY, currentUser.id);
+          return currentUser.id;
+        }
+      } catch (authErr) {
+        console.warn("[SupabaseAuth] Anonymous auth session note:", authErr);
       }
-    } catch (authErr) {
-      console.warn("[SupabaseAuth] Anonymous auth session note:", authErr);
     }
-  }
 
-  return getCloudUserId();
+    // No session could be established. Return "" (caller falls back to
+    // the local device ID) — NEVER recurse into getCloudUserId().
+    return "";
+  })();
+  try {
+    return await authAttempt;
+  } finally {
+    authAttempt = null;
+  }
 }

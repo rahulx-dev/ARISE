@@ -153,6 +153,16 @@ class AppBlockerModule : Module() {
         Function("startMonitoring") { restrictedPackages: List<String> ->
             val context = appContext.reactContext ?: appContext.currentActivity
             if (context != null) {
+                // H10: fail closed when usage-access permission is missing.
+                // Without it the monitor cannot detect foreground apps, so
+                // starting it would silently never lock anything. Throwing
+                // rejects the JS promise with this message.
+                if (!UsageStatsHelper.hasUsagePermission(context)) {
+                    throw Exception("Usage Access permission is required to monitor apps. Grant it in Permissions Hub first.")
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
+                    Log.w(TAG, "startMonitoring: overlay permission missing — lock overlay may not render")
+                }
                 val validPackages = restrictedPackages.mapNotNull { BlockPolicyController.normalizePackageName(it) }
                 Log.d(TAG, "startMonitoring called with ${validPackages.size} packages")
                 val intent = Intent(context, AppMonitorService::class.java).apply {
@@ -388,12 +398,28 @@ class AppBlockerModule : Module() {
         Function("showTestOverlay") { targetPackage: String? ->
             val context = appContext.reactContext ?: appContext.currentActivity
             if (context == null) return@Function false
+            // H14: the test overlay exists to preview the lock screen and
+            // its emergency button. In a release build it would let anyone
+            // claim an emergency pass from a fake lock. Gate to debuggable
+            // builds (ApplicationInfo flag — no BuildConfig in this library
+            // module) AND require the target package to actually be in a
+            // locked state right now.
+            val isDebuggable = (context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+            if (!isDebuggable) {
+                Log.w(TAG, "showTestOverlay rejected: debug builds only")
+                return@Function false
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
                 Log.w(TAG, "showTestOverlay rejected: overlay permission unavailable")
                 return@Function false
             }
             val packageName = BlockPolicyController.normalizePackageName(targetPackage)
                 ?: return@Function false
+            val policy = BlockPolicyController.evaluate(context, packageName, false)
+            if (policy.lockState != LockState.LOCKED) {
+                Log.w(TAG, "showTestOverlay rejected: $packageName is not currently locked")
+                return@Function false
+            }
             val overlayIntent = Intent(context, BlockOverlayService::class.java).apply {
                 putExtra("PACKAGE_NAME", packageName)
                 putExtra("BUDGET_MS", 0L)

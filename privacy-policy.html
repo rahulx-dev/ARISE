@@ -110,13 +110,16 @@
       <h2>2. Data Collection, Permissions & Purpose</h2>
       <ul>
         <li>
-          <strong>Camera Access (Live Pose Detection):</strong> Used in real-time on-device memory via Google ML Kit / MediaPipe to verify exercise reps (pushups, squats). Live workout camera frames are processed in volatile memory and are not recorded, streamed, or uploaded to any remote server.
+          <strong>Camera Access (Live Pose Detection):</strong> Used in real-time on-device memory via MediaPipe to verify exercise reps (pushups, squats). Live workout camera frames are processed in volatile memory and are not recorded, streamed, or uploaded to any remote server. This applies to pose-estimation frames only — physique progress photos (below) are a separate feature and are saved on-device.
         </li>
         <li>
           <strong>Physique Progress Photos:</strong> If you choose to capture progress photos to track physical changes, these photos are persisted locally in your device's private app storage. They are never shared publicly or uploaded to cloud storage without your explicit action.
         </li>
         <li>
           <strong>Installed App Inventory & App Usage Access (PACKAGE_USAGE_STATS):</strong> Used locally to identify installed launcher-capable apps so you can configure app limits, and to track active screen time on designated restricted apps. No private message contents, keystrokes, browsing history, or in-app activity are ever accessed.
+        </li>
+        <li>
+          <strong>Background Location (Run Tracking):</strong> When you start a run, the app uses background location (ACCESS_BACKGROUND_LOCATION) to measure distance, pace, and route while the screen is off or the app is in the background. Run coordinates are stored on-device only and are never uploaded to our servers or any third party.
         </li>
         <li>
           <strong>Display Over Apps (SYSTEM_ALERT_WINDOW):</strong> Used to render the discipline lock screen over restricted apps once daily screen-time quotas expire.
@@ -131,7 +134,7 @@
           <strong>Account & Identity (Google Sign-In):</strong> When you sign in with Google, we collect your verified name and email address to authenticate your session and link your cloud progression save and leaderboard rank.
         </li>
         <li>
-          <strong>Payment & Financial Data (UPI ID):</strong> When you submit a cashout request for earned Mana Crystals, your destination UPI address and requested amount are securely stored in our Supabase backend database solely to disburse and fulfill your withdrawal.
+          <strong>Payment & Financial Data (UPI ID):</strong> When you submit a cashout request for earned coins, your destination UPI address and requested amount are transmitted over TLS and stored in our Supabase backend database solely to disburse and fulfill your withdrawal. UPI IDs are not end-to-end or field-level encrypted at rest — they are protected by TLS in transit and Supabase's access controls at rest.
         </li>
       </ul>
     </section>
@@ -141,10 +144,10 @@
       <p>The App integrates with the following third-party SDKs to provide essential features:</p>
       <ul>
         <li><strong>Supabase:</strong> Authenticated database and backend procedures for cloud progression saves, leaderboard ranking, and payout fulfillment.</li>
-        <li><strong>Sentry:</strong> Application performance monitoring and crash diagnostics (device model, OS version, stack traces). No sensitive user financial details or passwords are sent.</li>
+        <li><strong>Sentry:</strong> Application performance monitoring and crash diagnostics (device model, OS version, stack traces, and your account ID so we can correlate crashes). No sensitive user financial details or passwords are sent.</li>
         <li><strong>Google AdMob:</strong> Serves rewarded and banner advertisements. AdMob collects standard advertising IDs in accordance with Google's Advertising Policies.</li>
         <li><strong>Google Sign-In:</strong> Secure PKCE authentication for Google account linkage.</li>
-        <li><strong>CPX Research / BitLabs:</strong> Optional third-party offerwalls for optional survey rewards.</li>
+        <li><strong>CPX Research / BitLabs:</strong> Optional third-party offerwalls for optional survey rewards. When you open a survey offerwall, your account identifier (ext_user_id / uid) is shared with that provider so they can credit your rewards. Their own privacy policies apply to data they collect inside their surveys.</li>
       </ul>
     </section>
 
@@ -161,10 +164,13 @@
     <section>
       <h2>5. Account & Data Deletion</h2>
       <p>
-        You have the right to request deletion of your account and all associated personal data. You can delete your account directly inside the app under <em>Settings &rarr; Account &rarr; Delete Account</em>, or submit a deletion request by contacting us with your linked email address:
+        You have the right to request deletion of your account and all associated personal data. In the app, go to <em>Settings &rarr; Storage &amp; Data Deletion &rarr; Delete My Account</em>: this immediately deletes all local data, your cloud save, and signs you out.
+      </p>
+      <p>
+        Your Supabase login record, wallet, and leaderboard rows cannot be deleted from the app (they require server-side access). To remove them, email us from your linked Google address:
       </p>
       <p><strong>Email:</strong> support@ariseapp.dev</p>
-      <p>Upon verification, all associated cloud saves, wallet records, and leaderboard entries are permanently deleted within 30 days.</p>
+      <p>Upon verification, all remaining associated records are permanently deleted within 30 days.</p>
     </section>
 
     <footer>

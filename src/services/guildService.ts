@@ -1,6 +1,6 @@
 import { db, expoDb } from "../database/client";
 import { guild, guildMember, guildRaid, userProfile, coinTransaction } from "../database/schema";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, or } from "drizzle-orm";
 import { userRepository } from "../database/repositories/userRepository";
 
 export interface GuildData {
@@ -195,7 +195,12 @@ export const guildService = {
   },
 
   /**
-   * Found a new custom guild (costs 100 coins)
+   * Found a new custom guild (costs 100 coins).
+   * H37: everything runs in ONE transaction — validate, leave current
+   * guild, create guild + raid + membership, and spend the coins.
+   * Previously the coins were spent FIRST, then creation could fail
+   * (duplicate name/tag) and the coins were lost with no refund.
+   * Empty names/tags (after cleaning) are rejected up front.
    */
   async createGuild(
     name: string,
@@ -207,6 +212,19 @@ export const guildService = {
     if (!profile)
       return { success: false, error: "Hunter profile not initialized" };
 
+    const cleanTag = tag
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "")
+      .slice(0, 8);
+    const cleanName = name.trim();
+    if (!cleanName) {
+      return { success: false, error: "Guild name cannot be empty" };
+    }
+    if (!cleanTag) {
+      return { success: false, error: "Guild tag must contain a letter or digit" };
+    }
+
     const cost = 100;
     if (profile.coins < cost) {
       return {
@@ -215,71 +233,109 @@ export const guildService = {
       };
     }
 
-    // Spend coins
-    const spent = await userRepository.spendCoins(
-      cost,
-      `Chartered Guild: [${tag}] ${name}`,
-    );
-    if (!spent) return { success: false, error: "Transaction failed" };
-
-    // Leave any existing guild
-    await this.leaveCurrentGuild();
+    // Validate uniqueness BEFORE spending anything.
+    const dupes = await db
+      .select()
+      .from(guild)
+      .where(
+        or(eq(guild.name, cleanName), eq(guild.tag, cleanTag)),
+      )
+      .limit(1);
+    if (dupes.length > 0) {
+      return {
+        success: false,
+        error: "A guild with this name or tag already exists!",
+      };
+    }
 
     const now = new Date().toISOString();
-    const cleanTag = tag
-      .trim()
-      .toUpperCase()
-      .replace(/[^A-Z0-9]/g, "")
-      .slice(0, 8);
-    const cleanName = name.trim();
-
     try {
-      const inserted = await db
-        .insert(guild)
-        .values({
-          name: cleanName,
-          tag: cleanTag,
-          description:
-            description.trim() ||
-            "A new vanguard rising through the dimensional ranks.",
-          bannerColor,
-          rankRequirement: "E",
-          leaderName: profile.displayName || "Hunter Master",
-          memberCount: 1,
-          maxMembers: 30,
-          totalXP: 0,
-          level: 1,
-          isUserMember: 1,
+      const newGuild = await db.transaction(async (tx: any) => {
+        // Leave any existing guild (in the tx)
+        const current = await tx
+          .select()
+          .from(guild)
+          .where(eq(guild.isUserMember, 1));
+        for (const g of current) {
+          await tx
+            .update(guild)
+            .set({
+              isUserMember: 0,
+              memberCount: Math.max(1, g.memberCount - 1),
+            })
+            .where(eq(guild.id, g.id));
+        }
+        await tx.delete(guildMember).where(eq(guildMember.isCurrentUser, 1));
+
+        // Spend the charter fee (in the tx — rolls back if creation fails)
+        const pRows = await tx.select().from(userProfile).limit(1);
+        const p = pRows[0];
+        if (!p || (p.coins || 0) < cost) {
+          throw new Error("Insufficient Mana Coins!");
+        }
+        await tx
+          .update(userProfile)
+          .set({ coins: p.coins - cost })
+          .where(eq(userProfile.id, p.id));
+        await tx.insert(coinTransaction).values({
+          amount: -cost,
+          type: "spend",
+          description: `Chartered Guild: [${cleanTag}] ${cleanName}`,
+          source: "guild_create",
+          timestamp: now,
+          requestId: `guild_create:${cleanTag}:${cleanName}`,
+        });
+
+        const inserted = await tx
+          .insert(guild)
+          .values({
+            name: cleanName,
+            tag: cleanTag,
+            description:
+              description.trim() ||
+              "A new vanguard rising through the dimensional ranks.",
+            bannerColor,
+            rankRequirement: "E",
+            leaderName: profile.displayName || "Hunter Master",
+            memberCount: 1,
+            maxMembers: 30,
+            totalXP: 0,
+            level: 1,
+            isUserMember: 1,
+            createdAt: now,
+          })
+          .returning();
+
+        const created = inserted[0];
+        if (!created) {
+          throw new Error("Failed to record guild charter");
+        }
+
+        // Create initial raid for new guild
+        await tx.insert(guildRaid).values({
+          guildId: created.id,
+          gateRank: "C",
+          bossName: "Red Gate: Blood-Red Commander Igris",
+          bossMaxHp: 1500,
+          bossCurrentHp: 1500,
+          rewardXP: 500,
+          rewardCoins: 100,
+          status: "ACTIVE",
           createdAt: now,
-        })
-        .returning();
+        });
 
-      const newGuild = inserted[0];
-      if (!newGuild)
-        return { success: false, error: "Failed to record guild charter" };
+        // Add user as GUILD_MASTER
+        await tx.insert(guildMember).values({
+          guildId: created.id,
+          hunterName: profile.displayName || "Hunter Master",
+          hunterRank: "S",
+          role: "GUILD_MASTER",
+          contributionPoints: 0,
+          joinedAt: now,
+          isCurrentUser: 1,
+        });
 
-      // Create initial raid for new guild
-      await db.insert(guildRaid).values({
-        guildId: newGuild.id,
-        gateRank: "C",
-        bossName: "Red Gate: Blood-Red Commander Igris",
-        bossMaxHp: 1500,
-        bossCurrentHp: 1500,
-        rewardXP: 500,
-        rewardCoins: 100,
-        status: "ACTIVE",
-        createdAt: now,
-      });
-
-      // Add user as GUILD_MASTER
-      await db.insert(guildMember).values({
-        guildId: newGuild.id,
-        hunterName: profile.displayName || "Hunter Master",
-        hunterRank: "S",
-        role: "GUILD_MASTER",
-        contributionPoints: 0,
-        joinedAt: now,
-        isCurrentUser: 1,
+        return created;
       });
 
       return {
@@ -302,15 +358,25 @@ export const guildService = {
       };
     } catch (err: any) {
       console.error("[GuildService] Create error:", err);
+      if (String(err?.message || "").includes("UNIQUE constraint")) {
+        return {
+          success: false,
+          error: "A guild with this name or tag already exists!",
+        };
+      }
       return {
         success: false,
-        error: "A guild with this name or tag already exists!",
+        error: err?.message || "Failed to create guild",
       };
     }
   },
 
   /**
-   * Enlist / Join a Guild
+   * Enlist / Join a Guild.
+   * H38: the target is VALIDATED FIRST (exists, has capacity, not
+   * already a member) and the leave + join run in one transaction.
+   * Previously leaveCurrentGuild() ran before validation, so joining
+   * a full / non-existent guild left the user guildless.
    */
   async joinGuild(
     guildId: number,
@@ -318,9 +384,7 @@ export const guildService = {
     const profile = await userRepository.getProfile();
     if (!profile) return { success: false, error: "Profile not found" };
 
-    // Leave any current guild first
-    await this.leaveCurrentGuild();
-
+    // Validate the target BEFORE leaving the current guild.
     const targetGuilds = await db
       .select()
       .from(guild)
@@ -333,30 +397,72 @@ export const guildService = {
     if (target.memberCount >= target.maxMembers) {
       return { success: false, error: "Guild roster is at maximum capacity" };
     }
+    const alreadyMember = await db
+      .select()
+      .from(guildMember)
+      .where(
+        and(eq(guildMember.guildId, guildId), eq(guildMember.isCurrentUser, 1)),
+      )
+      .limit(1);
+    if (alreadyMember.length > 0) {
+      return { success: true };
+    }
 
     const now = new Date().toISOString();
+    try {
+      await db.transaction(async (tx: any) => {
+        // Re-read the target inside the tx (capacity may have changed).
+        const fresh = await tx
+          .select()
+          .from(guild)
+          .where(eq(guild.id, guildId))
+          .limit(1);
+        if (fresh.length === 0) throw new Error("Guild not found");
+        if (fresh[0].memberCount >= fresh[0].maxMembers) {
+          throw new Error("Guild roster is at maximum capacity");
+        }
 
-    // Mark guild membership
-    await db
-      .update(guild)
-      .set({
-        isUserMember: 1,
-        memberCount: target.memberCount + 1,
-      })
-      .where(eq(guild.id, guildId));
+        // Leave the current guild (in the tx)
+        const current = await tx
+          .select()
+          .from(guild)
+          .where(eq(guild.isUserMember, 1));
+        for (const g of current) {
+          if (g.id === guildId) continue;
+          await tx
+            .update(guild)
+            .set({
+              isUserMember: 0,
+              memberCount: Math.max(1, g.memberCount - 1),
+            })
+            .where(eq(guild.id, g.id));
+        }
+        await tx.delete(guildMember).where(eq(guildMember.isCurrentUser, 1));
 
-    // Insert user into roster
-    await db.insert(guildMember).values({
-      guildId,
-      hunterName: profile.displayName || "Hunter",
-      hunterRank: "B",
-      role: "MEMBER",
-      contributionPoints: 0,
-      joinedAt: now,
-      isCurrentUser: 1,
-    });
+        // Mark guild membership
+        await tx
+          .update(guild)
+          .set({
+            isUserMember: 1,
+            memberCount: fresh[0].memberCount + 1,
+          })
+          .where(eq(guild.id, guildId));
 
-    return { success: true };
+        // Insert user into roster
+        await tx.insert(guildMember).values({
+          guildId,
+          hunterName: profile.displayName || "Hunter",
+          hunterRank: "B",
+          role: "MEMBER",
+          contributionPoints: 0,
+          joinedAt: now,
+          isCurrentUser: 1,
+        });
+      });
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err?.message || "Failed to join guild" };
+    }
   },
 
   /**

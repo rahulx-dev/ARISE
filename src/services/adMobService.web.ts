@@ -15,9 +15,13 @@ class AdMobServiceWeb {
   }
 
   public showRewardedAd(onRewardEarned: (coins: number) => void): boolean {
-    console.log('[AdMobServiceWeb] Rewarded ad simulated for web preview');
+    // H50: web preview shows NO real ad, so it grants NO coins.
+    // Previously the web stub granted 50 coins for no ad (native grants
+    // 25) — free money for opening the web build. The callback still
+    // fires with 0 so callers can close their UI.
+    console.log('[AdMobServiceWeb] Web preview: no real ad shown, granting 0 coins');
     setTimeout(() => {
-      onRewardEarned(50);
+      onRewardEarned(0);
     }, 500);
     return true;
   }

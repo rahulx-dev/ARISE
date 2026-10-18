@@ -28,6 +28,7 @@ import expo.modules.kotlin.views.ExpoView
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 
 class PoseCameraView(context: Context, appContext: AppContext) : ExpoView(context, appContext) {
     val onPoseDetected by EventDispatcher<Map<String, Any>>()
@@ -49,7 +50,9 @@ class PoseCameraView(context: Context, appContext: AppContext) : ExpoView(contex
 
     // Frame pacing: 15 FPS (min interval ~66ms) with non-queuing frame dropping
     private var lastAnalysisTimestampMs = 0L
-    private var monotonicVideoTimestampMs = 1L
+    // H12: AtomicLong (was a plain Long with ++) — the timestamp must be
+    // strictly increasing across executor recreations on re-attach.
+    private val monotonicVideoTimestampMs = AtomicLong(1L)
     private val isAnalyzing = AtomicBoolean(false)
 
     init {
@@ -257,7 +260,7 @@ class PoseCameraView(context: Context, appContext: AppContext) : ExpoView(contex
                 val result = synchronized(detectorLock) {
                     if (isClosing.get()) return@synchronized null
                     val detector = poseLandmarker ?: return@synchronized null
-                    val timestampMs = monotonicVideoTimestampMs++
+                    val timestampMs = monotonicVideoTimestampMs.getAndIncrement()
                     detector.detectForVideo(mpImage, timestampMs)
                 } ?: run {
                     return

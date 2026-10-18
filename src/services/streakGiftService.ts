@@ -1,6 +1,6 @@
 import { userRepository } from "../database/repositories/userRepository";
 import { db } from "../database/client";
-import { achievement } from "../database/schema";
+import { achievement, userProfile, coinTransaction } from "../database/schema";
 import { eq } from "drizzle-orm";
 import { notificationService } from "./notificationService";
 
@@ -146,7 +146,14 @@ export const streakGiftService = {
   },
 
   /**
-   * Claim a milestone gift and add coins to SQLite wallet
+   * Claim a milestone gift and add coins to SQLite wallet.
+   * H52: the whole claim runs in ONE transaction — the already-claimed
+   * check, the achievement insert, and the coin grant. Previously the
+   * check-then-insert-then-grant ran as separate statements: two
+   * concurrent claims both passed the check and both paid, and if the
+   * grant threw after the insert, the gift was marked claimed with
+   * coins lost forever. The achievementId UNIQUE constraint is the
+   * hard guard: a concurrent duplicate insert throws and rolls back.
    */
   claimMilestoneGift: async (
     milestoneId: string,
@@ -170,33 +177,56 @@ export const streakGiftService = {
       );
     }
 
-    // Check if already claimed
-    const existing = await db
-      .select()
-      .from(achievement)
-      .where(eq(achievement.achievementId, milestoneId))
-      .limit(1);
+    const requestId = `streak_gift:${milestoneId}`;
+    try {
+      await db.transaction(async (tx: any) => {
+        // Check if already claimed (inside the tx)
+        const existing = await tx
+          .select()
+          .from(achievement)
+          .where(eq(achievement.achievementId, milestoneId))
+          .limit(1);
+        if (existing.length > 0) {
+          throw new Error("This streak gift has already been claimed!");
+        }
 
-    if (existing.length > 0) {
-      throw new Error("This streak gift has already been claimed!");
+        // Record in SQLite achievement table
+        await tx.insert(achievement).values({
+          achievementId: milestoneId,
+          title: def.title,
+          description: def.subtitle,
+          icon: "gift",
+          category: "STREAK_GIFT",
+          unlockedAt: new Date().toISOString(),
+        });
+
+        // Credit coins to user's wallet (in the same tx, idempotency key)
+        const pRows = await tx.select().from(userProfile).limit(1);
+        if (pRows.length > 0) {
+          const p = pRows[0];
+          await tx
+            .update(userProfile)
+            .set({
+              coins: (p.coins || 0) + def.coinsReward,
+              totalCoinsEarned: (p.totalCoinsEarned || 0) + def.coinsReward,
+            })
+            .where(eq(userProfile.id, p.id));
+          await tx.insert(coinTransaction).values({
+            amount: def.coinsReward,
+            type: "earn",
+            description: `Claimed ${def.daysRequired}-Day Streak Gift (${def.title})`,
+            source: "streak_gift",
+            timestamp: new Date().toISOString(),
+            requestId,
+          });
+        }
+      });
+    } catch (e: any) {
+      if (String(e?.message || "").includes("UNIQUE constraint")) {
+        throw new Error("This streak gift has already been claimed!");
+      }
+      throw e;
     }
-
-    // Record in SQLite achievement table
-    await db.insert(achievement).values({
-      achievementId: milestoneId,
-      title: def.title,
-      description: def.subtitle,
-      icon: "gift",
-      category: "STREAK_GIFT",
-      unlockedAt: new Date().toISOString(),
-    });
-
-    // Credit coins to user's wallet
-    await userRepository.addCoins(
-      def.coinsReward,
-      `Claimed ${def.daysRequired}-Day Streak Gift (${def.title})`,
-      "streak_gift",
-    );
 
     // Notify user
     await notificationService.createNotification(

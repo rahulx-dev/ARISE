@@ -15,11 +15,20 @@ import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarker
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import java.io.ByteArrayInputStream
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 
 class PoseDetectorModule : Module() {
     private var poseLandmarker: PoseLandmarker? = null
-    private var videoTimestampMs = 1L
+    // H12: AtomicLong (was a plain Long with ++) — AsyncFunctions run on
+    // a pool, so two processBase64Frame calls could interleave and reuse
+    // a timestamp. MediaPipe requires strictly increasing timestamps.
+    private val videoTimestampMs = AtomicLong(1L)
     private val detectorLock = Any()
+    // H12: set in release() before teardown; checked inside the lock
+    // before every detectForVideo so a frame that arrives during/after
+    // teardown never touches a closed landmarker (SIGBUS/crash).
+    private val isClosed = AtomicBoolean(false)
 
     override fun definition() = ModuleDefinition {
         Name("PoseDetector")
@@ -56,6 +65,8 @@ class PoseDetectorModule : Module() {
                         poseLandmarker = PoseLandmarker.createFromOptions(context, cpuOptions)
                         Log.d("ARISE_POSE", "MediaPipe PoseLandmarker initialized with CPU delegate")
                     }
+                    // H12: a fresh landmarker is usable again after release().
+                    isClosed.set(false)
                 }
                 }
                 return@AsyncFunction true
@@ -67,7 +78,10 @@ class PoseDetectorModule : Module() {
 
         AsyncFunction("processBase64Frame") { base64Image: String, facing: String? ->
             try {
-                val detector = poseLandmarker ?: throw IllegalStateException("PoseLandmarker not initialized")
+                // H12: do NOT read poseLandmarker outside the lock — a
+                // concurrent release() could null/close it between the read
+                // and detectForVideo (stale reference → crash). The detector
+                // is read inside the lock below, alongside the closed check.
                 val decodedBytes = Base64.decode(base64Image, Base64.DEFAULT)
 
                 var exifRotation = -1
@@ -132,8 +146,13 @@ class PoseDetectorModule : Module() {
                     try {
                         val mpImage = BitmapImageBuilder(finalBitmap).build()
                         val result = synchronized(detectorLock) {
-                            detector.detectForVideo(mpImage, videoTimestampMs++)
-                        }
+                            // H12: closed check + detector read inside the
+                            // lock — release() holds the same lock, so the
+                            // landmarker cannot be closed mid-inference.
+                            if (isClosed.get()) return@synchronized null
+                            val detector = poseLandmarker ?: return@synchronized null
+                            detector.detectForVideo(mpImage, videoTimestampMs.getAndIncrement())
+                        } ?: return@AsyncFunction emptyList<Map<String, Any>>()
                         val resultList = mutableListOf<Map<String, Any>>()
 
                         if (result.landmarks().isNotEmpty()) {
@@ -205,6 +224,10 @@ class PoseDetectorModule : Module() {
         Function("release") {
             try {
                 synchronized(detectorLock) {
+                    // H12: mark closed BEFORE close() so any in-flight
+                    // processBase64Frame that acquires the lock next sees
+                    // the closed flag instead of a torn-down landmarker.
+                    isClosed.set(true)
                     poseLandmarker?.close()
                     poseLandmarker = null
                 }

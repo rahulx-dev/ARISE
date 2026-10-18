@@ -109,6 +109,10 @@ export default function GateDetailsScreen() {
   const [activeMission, setActiveMission] = useState<SurveyTask | null>(null);
   const [currentQIdx, setCurrentQIdx] = useState<number>(0);
   const [selectedOptIdx, setSelectedOptIdx] = useState<number | null>(null);
+  // H34: the answers given so far, one per question. Previously the
+  // selection was discarded on Next, so completion required no proof
+  // that every question was answered.
+  const [answers, setAnswers] = useState<number[]>([]);
   const [isExtracting, setIsExtracting] = useState<boolean>(false);
   const [timeLeft, setTimeLeft] = useState('3h 12m');
 
@@ -156,9 +160,9 @@ export default function GateDetailsScreen() {
       if (found) {
         setGate(found);
       } else {
-        const allGates = await gateSpawnService.getActiveGates();
-        if (!mountedRef.current) return;
-        setGate(allGates[0] || null);
+        // H32: keep the "Gate Not Found" state. Previously this fell
+        // back to allGates[0], showing the wrong gate for a bogus id.
+        setGate(null);
       }
     } catch (e) {
       console.warn('Error fetching gate:', e);
@@ -267,6 +271,7 @@ export default function GateDetailsScreen() {
     sound.play('unlock');
     setCurrentQIdx(0);
     setSelectedOptIdx(null);
+    setAnswers([]);
     setActiveMission(mission);
   };
 
@@ -296,6 +301,8 @@ export default function GateDetailsScreen() {
 
     if (currentQIdx < activeMission.questions.length - 1) {
       haptics.medium();
+      // Record this question's answer before advancing (H34).
+      setAnswers((prev) => [...prev, selectedOptIdx]);
       setCurrentQIdx((prev) => prev + 1);
       setSelectedOptIdx(null);
     } else {
@@ -307,7 +314,10 @@ export default function GateDetailsScreen() {
 
       try {
         // Local questions are unmonetized practice: awards 0 Mana Crystals + in-game Coins & XP
-        const result = await gateSpawnService.completeMission(gate.id, activeMission.id, false);
+        // H34: pass every answer — the service verifies all questions
+        // were answered before granting.
+        const allAnswers = [...answers, selectedOptIdx];
+        const result = await gateSpawnService.completeMission(gate.id, activeMission.id, false, allAnswers);
         await loadProfile();
 
         const updated = await gateSpawnService.getGateById(gate.id);

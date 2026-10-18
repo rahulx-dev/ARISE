@@ -499,7 +499,10 @@ export default function OnboardingScreen() {
     }
 
     // Step 2 Validation: Permissions
+    // H1: the gate is REAL now. Previously Continue advanced with zero
+    // permissions granted, so the app blocker silently did nothing.
     if (step === 2) {
+      if (!allPermissionsGranted) return;
       setStep(3);
       return;
     }
@@ -624,16 +627,9 @@ export default function OnboardingScreen() {
               <ArrowLeft size={22} color={colors.textPrimary} />
             </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={() => {
-                haptics.light();
-                setStep((s) => s + 1);
-              }}
-              activeOpacity={0.7}
-              style={{ padding: 6 }}
-            >
-              <Text style={{ fontSize: 14, fontWeight: '500', color: colors.textMuted }}>Skip</Text>
-            </TouchableOpacity>
+            {/* H1: NO Skip on the permissions step. Skipping left the
+                app blocker silently non-functional. */}
+            <View style={{ padding: 6, width: 34 }} />
           </View>
         ) : (
           <View style={[styles.headerBar, { borderBottomColor: colors.border }]}>
@@ -1723,7 +1719,9 @@ export default function OnboardingScreen() {
               isSubmitting && styles.primaryCtaBtnDisabled,
             ]}
             onPress={handleNext}
-            disabled={isSubmitting}
+            // H1: Continue stays disabled until all 5 permissions are
+            // granted — the blocker cannot function without them.
+            disabled={isSubmitting || (step === 2 && !allPermissionsGranted)}
             activeOpacity={0.85}
           >
             {isSubmitting ? (
@@ -1746,9 +1744,11 @@ export default function OnboardingScreen() {
             </View>
           ) : step === 2 ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 4, paddingHorizontal: 16 }}>
-              <Lock size={13} color={colors.textMuted} />
-              <Text style={[styles.privacyNoteText, { color: colors.textMuted, textAlign: 'center', fontSize: 11 }]}>
-                Your data stays on your device. We only use these permissions to power core features.
+              <Lock size={13} color={allPermissionsGranted ? colors.textMuted : '#F59E0B'} />
+              <Text style={[styles.privacyNoteText, { color: allPermissionsGranted ? colors.textMuted : '#F59E0B', textAlign: 'center', fontSize: 11 }]}>
+                {allPermissionsGranted
+                  ? 'Your data stays on your device. We only use these permissions to power core features.'
+                  : `${allPermissionsCount} of 5 permissions granted. Grant all 5 to continue — the app blocker cannot work without them.`}
               </Text>
             </View>
           ) : (

@@ -254,6 +254,11 @@ export class GymService {
 
   /**
    * Starts or resumes a workout session.
+   * H41: resumes ONLY when the existing ACTIVE session matches the
+   * requested plan/day. Previously any ACTIVE session was resumed
+   * regardless, so starting Day-2 silently resumed Day-1's session.
+   * A mismatched session is abandoned (ABORTED) and a fresh one is
+   * created for the requested plan/day.
    */
   async startOrResumeSession(
     planId: number,
@@ -269,37 +274,45 @@ export class GymService {
 
     if (active.length > 0) {
       const s = active[0];
-      const setRows = await db
-        .select()
-        .from(workoutSets)
-        .where(eq(workoutSets.sessionId, s.id));
+      if (s.planId !== planId || s.dayId !== dayId) {
+        // Mismatched plan/day: abandon the stale session, start fresh.
+        await db
+          .update(workoutSessions)
+          .set({ status: "ABORTED", endTime: new Date().toISOString() })
+          .where(eq(workoutSessions.id, s.id));
+      } else {
+        const setRows = await db
+          .select()
+          .from(workoutSets)
+          .where(eq(workoutSets.sessionId, s.id));
 
-      return {
-        id: s.id,
-        planId: s.planId || planId,
-        dayId: s.dayId || dayId,
-        title: s.title,
-        startTime: s.startTime,
-        durationSeconds: s.durationSeconds,
-        status: "ACTIVE",
-        totalVolumeKg: s.totalVolumeKg,
-        totalReps: s.totalReps,
-        totalSets: s.totalSets,
-        rewardCoins: s.rewardCoins,
-        rewardXP: s.rewardXP,
-        sets: setRows.map((sr: any) => ({
-          id: sr.id,
-          sessionId: sr.sessionId,
-          exerciseId: sr.exerciseId,
-          exerciseName: sr.exerciseName,
-          setNumber: sr.setNumber,
-          targetReps: sr.targetReps,
-          completedReps: sr.completedReps,
-          weightKg: sr.weightKg,
-          completed: sr.completed === 1,
-          timestamp: sr.timestamp,
-        })),
-      };
+        return {
+          id: s.id,
+          planId: s.planId || planId,
+          dayId: s.dayId || dayId,
+          title: s.title,
+          startTime: s.startTime,
+          durationSeconds: s.durationSeconds,
+          status: "ACTIVE",
+          totalVolumeKg: s.totalVolumeKg,
+          totalReps: s.totalReps,
+          totalSets: s.totalSets,
+          rewardCoins: s.rewardCoins,
+          rewardXP: s.rewardXP,
+          sets: setRows.map((sr: any) => ({
+            id: sr.id,
+            sessionId: sr.sessionId,
+            exerciseId: sr.exerciseId,
+            exerciseName: sr.exerciseName,
+            setNumber: sr.setNumber,
+            targetReps: sr.targetReps,
+            completedReps: sr.completedReps,
+            weightKg: sr.weightKg,
+            completed: sr.completed === 1,
+            timestamp: sr.timestamp,
+          })),
+        };
+      }
     }
 
     // Create new session
@@ -357,21 +370,63 @@ export class GymService {
     const safeCompletedReps = Number.isFinite(completedReps) ? Math.max(0, Math.min(1000, Math.floor(completedReps))) : 0;
     const safeWeightKg = Number.isFinite(weightKg) ? Math.max(0, Math.min(5000, weightKg)) : 0;
     const completed = safeCompletedReps > 0 ? 1 : 0;
+    const safeSetNumber = Number.isFinite(setNumber) ? Math.max(1, Math.floor(setNumber)) : 1;
 
-    const inserted = await db
-      .insert(workoutSets)
-      .values({
-        sessionId,
-        exerciseId,
-        exerciseName,
-        setNumber,
-        targetReps: safeTargetReps,
-        completedReps: safeCompletedReps,
-        weightKg: safeWeightKg,
-        completed,
-        timestamp,
-      })
-      .returning();
+    // H40: log only into an ACTIVE session (a completed/aborted session
+    // must not accept more sets), and never insert a duplicate
+    // (sessionId, exerciseId, setNumber) row — re-logging the same set
+    // UPDATES it (correction semantics), so a double-tap cannot
+    // double-count volume/reps toward completion and rewards.
+    const sessionRows = await db
+      .select()
+      .from(workoutSessions)
+      .where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.status, "ACTIVE")))
+      .limit(1);
+    if (sessionRows.length === 0) {
+      throw new Error("Workout session is not active");
+    }
+
+    const existing = await db
+      .select()
+      .from(workoutSets)
+      .where(
+        and(
+          eq(workoutSets.sessionId, sessionId),
+          eq(workoutSets.exerciseId, exerciseId),
+          eq(workoutSets.setNumber, safeSetNumber),
+        ),
+      )
+      .limit(1);
+
+    let inserted: any[];
+    if (existing.length > 0) {
+      await db
+        .update(workoutSets)
+        .set({
+          targetReps: safeTargetReps,
+          completedReps: safeCompletedReps,
+          weightKg: safeWeightKg,
+          completed,
+          timestamp,
+        })
+        .where(eq(workoutSets.id, existing[0].id));
+      inserted = [existing[0]];
+    } else {
+      inserted = await db
+        .insert(workoutSets)
+        .values({
+          sessionId,
+          exerciseId,
+          exerciseName,
+          setNumber: safeSetNumber,
+          targetReps: safeTargetReps,
+          completedReps: safeCompletedReps,
+          weightKg: safeWeightKg,
+          completed,
+          timestamp,
+        })
+        .returning();
+    }
 
     // 0-rep sets never count as PRs.
     const isNewPR = completed === 1
@@ -389,7 +444,7 @@ export class GymService {
         sessionId,
         exerciseId,
         exerciseName,
-        setNumber,
+        setNumber: safeSetNumber,
         targetReps: safeTargetReps,
         completedReps: safeCompletedReps,
         weightKg: safeWeightKg,
@@ -440,6 +495,11 @@ export class GymService {
 
   /**
    * Completes the active workout session, calculates rewards, and connects with quests/progression.
+   * H39: duration is computed from the session's stored startTime,
+   * NOT the caller-supplied value (previously
+   * completeWorkoutSession(id, 999999) paid ~3333 coins + ~6700 XP
+   * for zero time exercised; negatives stored negative rewards).
+   * The caller value is used only if startTime is unparseable.
    */
   async completeWorkoutSession(
     sessionId: number,
@@ -455,6 +515,14 @@ export class GymService {
     if (sessionRows.length === 0) {
       return { coinsEarned: 0, xpEarned: 0, totalVolumeKg: 0 };
     }
+
+    const session = sessionRows[0];
+    const startMs = Date.parse(session.startTime || "");
+    const rawDuration = Number.isFinite(startMs)
+      ? (Date.now() - startMs) / 1000
+      : (Number.isFinite(durationSeconds) ? durationSeconds : 0);
+    // Clamp: 0 .. 24h. A session cannot last longer than a day.
+    const actualDurationSeconds = Math.max(0, Math.min(86400, Math.floor(rawDuration)));
 
     const sets = await db
       .select()
@@ -474,7 +542,7 @@ export class GymService {
         .set({
           status: "ABORTED",
           endTime: now,
-          durationSeconds,
+          durationSeconds: actualDurationSeconds,
           totalVolumeKg: 0,
           totalReps: 0,
           totalSets: 0,
@@ -493,7 +561,7 @@ export class GymService {
     // Calibrated Reward Formula: Base + Set Bonus + Duration, capped
     const baseCoins = 15;
     const setCoins = Math.min(30, completedSets.length * 3);
-    const durationCoins = Math.min(10, Math.floor(durationSeconds / 300));
+    const durationCoins = Math.min(10, Math.floor(actualDurationSeconds / 300));
     const coinsEarned = baseCoins + setCoins + durationCoins;
     const xpEarned = Math.min(250, coinsEarned * 2);
 
@@ -503,7 +571,7 @@ export class GymService {
       .set({
         status: "COMPLETED",
         endTime: now,
-        durationSeconds,
+        durationSeconds: actualDurationSeconds,
         totalVolumeKg,
         totalReps,
         totalSets: completedSets.length,
@@ -517,18 +585,31 @@ export class GymService {
       exerciseType: "GYM_WORKOUT",
       target: completedSets.length,
       completedReps: totalReps,
-      durationSeconds,
+      durationSeconds: actualDurationSeconds,
       formScore: 100,
       timestamp: now,
     });
 
-    // Grant Coins & XP idempotently
-    await coinService.addCoins(
-      coinsEarned,
-      "Completed Gym Workout",
-      "gym_workout",
-    );
-    await progressionService.addXP(xpEarned);
+    // Grant Coins & XP. If a grant fails, roll the session back to
+    // ACTIVE so the user can retry (previously the session stayed
+    // COMPLETED with no reward — H31-style loss). The coin grant is
+    // idempotent (requestId), so a retry never double-pays coins.
+    try {
+      await coinService.addCoins(
+        coinsEarned,
+        "Completed Gym Workout",
+        "gym_workout",
+        `gym:${sessionId}`,
+      );
+      await progressionService.addXP(xpEarned);
+    } catch (grantErr) {
+      console.warn("[GymService] Grant failed, rolling session back to ACTIVE:", grantErr);
+      await db
+        .update(workoutSessions)
+        .set({ status: "ACTIVE", endTime: null, rewardCoins: 0, rewardXP: 0 })
+        .where(eq(workoutSessions.id, sessionId));
+      return { coinsEarned: 0, xpEarned: 0, totalVolumeKg: 0 };
+    }
 
     // Check if daily quest exists for workout
     try {

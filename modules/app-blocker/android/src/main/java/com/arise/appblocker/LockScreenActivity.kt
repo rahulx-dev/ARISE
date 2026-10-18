@@ -144,7 +144,8 @@ class LockScreenActivity : Activity() {
     override fun onResume() {
         super.onResume()
         isActivityShowing = true
-        if (BlockPolicyController.isPassActive()) {
+        // H14: dismiss only if THIS package (or the global pass) is unlocked.
+        if (BlockPolicyController.isPassActive(currentPackageName)) {
             finishWithNoAnimation()
         }
     }

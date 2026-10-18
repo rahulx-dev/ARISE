@@ -629,6 +629,145 @@ END;
 $$;
 
 
+-- 2b. request_payout_secure: validated coin→INR payout (H7/H58).
+-- Mirrors request_redemption_secure. There was previously NO validated
+-- payout function: the only guards were amount_inr >= 10 and
+-- coins_spent >= 1000, with no ratio between them, so a privileged
+-- write could claim ₹999,999 for 1,000 coins. This RPC enforces a
+-- fixed server-side rate, locks the wallet row, checks the balance,
+-- writes a coin_ledger SPEND entry, and inserts a PENDING-only
+-- payout_requests row. Direct INSERT into payout_requests stays
+-- RLS-denied (no INSERT policy) — this RPC is the only write path.
+-- RATE: 100 coins = 1 INR, encoded from the table's minimums
+-- (1000 coins minimum / 10 INR minimum). To change the rate, change
+-- the multiplier below AND the client-side display together.
+-- Identity is STRICTLY derived from authenticated auth.uid() session.
+CREATE OR REPLACE FUNCTION public.request_payout_secure(
+    p_amount_inr INTEGER,
+    p_coins_spent INTEGER,
+    p_upi_id TEXT,
+    p_request_id TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_user_id TEXT;
+    v_current_coins INTEGER := 0;
+    v_new_coins INTEGER := 0;
+    v_payout_id BIGINT;
+    v_expected_coins INTEGER;
+BEGIN
+    v_user_id := auth.uid()::text;
+    IF v_user_id IS NULL OR length(trim(v_user_id)) = 0 THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Unauthenticated caller');
+    END IF;
+
+    -- 1. Validate amounts & fixed conversion rate (100 coins = 1 INR)
+    IF p_amount_inr IS NULL OR p_coins_spent IS NULL
+        OR p_amount_inr < 10 OR p_amount_inr > 100000 THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Payout must be between 10 and 100000 INR');
+    END IF;
+
+    v_expected_coins := p_amount_inr * 100;
+    IF p_coins_spent <> v_expected_coins THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Invalid coin conversion rate');
+    END IF;
+
+    IF p_upi_id IS NULL OR trim(p_upi_id) !~ '^[A-Za-z0-9._-]{2,64}@[A-Za-z0-9.-]{2,32}$' THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Invalid UPI ID format');
+    END IF;
+    IF p_request_id IS NULL OR length(trim(p_request_id)) = 0 THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Missing payout request id');
+    END IF;
+    IF length(trim(p_request_id)) > 128 THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Invalid payout request id');
+    END IF;
+
+    -- 2. Idempotency: an already-processed request returns success
+    IF EXISTS (
+        SELECT 1 FROM public.payout_requests
+        WHERE user_id = v_user_id AND request_id = p_request_id
+    ) THEN
+        RETURN jsonb_build_object('success', true, 'already_processed', true, 'error', 'Payout request already processed');
+    END IF;
+
+    -- 3. One pending payout at a time
+    IF EXISTS (
+        SELECT 1 FROM public.payout_requests
+        WHERE user_id = v_user_id AND status = 'PENDING'
+    ) THEN
+        RETURN jsonb_build_object('success', false, 'error', 'A payout request is already pending');
+    END IF;
+
+    -- 4. Row Lock on User Wallet (FOR UPDATE), balance check
+    SELECT cloud_coins INTO v_current_coins
+    FROM public.user_wallets
+    WHERE user_id = v_user_id
+    FOR UPDATE;
+
+    IF v_current_coins IS NULL OR v_current_coins < p_coins_spent THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Insufficient coins');
+    END IF;
+
+    v_new_coins := v_current_coins - p_coins_spent;
+
+    -- 5. Insert Spend Record into coin_ledger
+    INSERT INTO public.coin_ledger (
+        user_id,
+        amount,
+        type,
+        source,
+        source_id,
+        description,
+        created_at
+    ) VALUES (
+        v_user_id,
+        -p_coins_spent,
+        'SPEND',
+        'payout',
+        p_request_id,
+        'UPI Cashout INR ' || p_amount_inr,
+        TIMEZONE('utc'::text, NOW())
+    );
+
+    -- 6. Insert PENDING payout request (PENDING-only; admin flips to PAID)
+    INSERT INTO public.payout_requests (
+        user_id,
+        amount_inr,
+        coins_spent,
+        upi_id,
+        request_id,
+        status,
+        created_at
+    ) VALUES (
+        v_user_id,
+        p_amount_inr,
+        p_coins_spent,
+        trim(p_upi_id),
+        p_request_id,
+        'PENDING',
+        TIMEZONE('utc'::text, NOW())
+    ) RETURNING id INTO v_payout_id;
+
+    -- 7. Update User Wallet
+    UPDATE public.user_wallets
+    SET cloud_coins = v_new_coins,
+        last_synced_at = TIMEZONE('utc'::text, NOW())
+    WHERE user_id = v_user_id;
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'already_processed', false,
+        'payout_id', v_payout_id,
+        'new_balance', v_new_coins
+    );
+END;
+$$;
+
+
 -- 3. sync_hunter_profile_secure: Safely syncs profile & stats (streak, reps, xp, level, rank)
 -- to user_wallets and crystal_leaderboard WITHOUT touching mana_crystals or
 -- cloud_coins. Money moves ONLY via ledger functions (e.g. grant_crystals_secure):
@@ -974,6 +1113,8 @@ ALTER FUNCTION public.grant_crystals_secure(
 ) SET search_path = public;
 ALTER FUNCTION public.request_redemption_secure(INTEGER, INTEGER, TEXT, TEXT, TEXT)
     SET search_path = public;
+ALTER FUNCTION public.request_payout_secure(INTEGER, INTEGER, TEXT, TEXT)
+    SET search_path = public;
 ALTER FUNCTION public.sync_hunter_profile_secure(
     TEXT, TEXT, TEXT, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, TEXT, INTEGER
 ) SET search_path = public;
@@ -985,6 +1126,8 @@ REVOKE EXECUTE ON FUNCTION public.grant_crystals_secure(
 ) FROM PUBLIC, anon;
 REVOKE EXECUTE ON FUNCTION public.request_redemption_secure(INTEGER, INTEGER, TEXT, TEXT, TEXT)
     FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.request_payout_secure(INTEGER, INTEGER, TEXT, TEXT)
+    FROM PUBLIC, anon;
 REVOKE EXECUTE ON FUNCTION public.sync_hunter_profile_secure(
     TEXT, TEXT, TEXT, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, TEXT, INTEGER
 ) FROM PUBLIC, anon;
@@ -994,6 +1137,8 @@ GRANT EXECUTE ON FUNCTION public.grant_crystals_secure(
     INTEGER, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, INTEGER, INTEGER, INTEGER, INTEGER
 ) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.request_redemption_secure(INTEGER, INTEGER, TEXT, TEXT, TEXT)
+    TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.request_payout_secure(INTEGER, INTEGER, TEXT, TEXT)
     TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.sync_hunter_profile_secure(
     TEXT, TEXT, TEXT, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, TEXT, INTEGER

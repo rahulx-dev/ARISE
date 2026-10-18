@@ -84,10 +84,9 @@ export function InAppSurveyModal({
 
   const handlePressClose = () => {
     haptics.light();
-    if (isSurveyVerified) {
-      onClose(true);
-      return;
-    }
+    // H3: closing the modal NEVER grants a reward. Previously a
+    // client-side URL-substring "verification" (isSurveyVerified) made
+    // close grant onClose(true). Only a server-verified claim grants.
     setExitConfirmVisible(true);
   };
 
@@ -117,6 +116,10 @@ export function InAppSurveyModal({
   };
 
   const checkCompletionUrl = (rawUrl: string) => {
+    // UI HINT ONLY (H3): a URL containing completion substrings is NOT
+    // proof of a completed survey — any offerwall listing page carries
+    // such params. It only changes the claim button's label. The reward
+    // is granted ONLY by server verification (checkLiveCpxVerification).
     const currentUrl = (rawUrl || '').toLowerCase();
     // Ignore base offerwall listings without completion params
     if (
@@ -234,6 +237,10 @@ export function InAppSurveyModal({
   const checkLiveCpxVerification = async (): Promise<boolean> => {
     try {
       const uid = await getCloudUserId();
+      // H4: session binding. Only a postback/transaction created AFTER
+      // this modal opened counts. Previously ANY historical transaction
+      // (or any postback within 45 min) verified a brand-new survey.
+      const sessionStart = startTimeRef.current;
 
       // 1. Check Supabase cpx_postback_log if configured
       if (isSupabaseConfigured() && supabase) {
@@ -243,22 +250,21 @@ export function InAppSurveyModal({
             .select('trans_id, amount_crystals, status, created_at')
             .eq('user_id', uid)
             .eq('status', 'completed')
+            .gte('created_at', new Date(sessionStart).toISOString())
             .order('created_at', { ascending: false })
             .limit(1);
 
           if (!error && data && data.length > 0) {
-            const pbTime = new Date(data[0].created_at).getTime();
-            // If postback arrived within the last 45 minutes
-            if (Date.now() - pbTime < 45 * 60 * 1000) {
-              return true;
-            }
+            return true;
           }
         } catch (dbErr) {
           console.warn('[CPX Verification] Supabase postback check note:', dbErr);
         }
       }
 
-      // 2. Query live CPX Research API
+      // 2. Query live CPX Research API — accept only a transaction whose
+      // timestamp falls inside THIS modal session. Undated transactions
+      // are rejected (fail closed).
       const appId = SURVEY_CONFIG.CPX.APP_ID;
       const res = await fetch(
         `https://api.cpx-research.com/api/get-user-history.php?app_id=${appId}&ext_user_id=${encodeURIComponent(uid)}`
@@ -271,7 +277,13 @@ export function InAppSurveyModal({
           Array.isArray(data.transactions) &&
           data.transactions.length > 0
         ) {
-          return true;
+          for (const tx of data.transactions) {
+            const rawTs = tx?.date ?? tx?.datetime ?? tx?.created_at ?? tx?.timestamp ?? tx?.trans_date;
+            const ts = rawTs ? new Date(rawTs).getTime() : NaN;
+            if (Number.isFinite(ts) && ts >= sessionStart) {
+              return true;
+            }
+          }
         }
       }
       return false;
@@ -293,8 +305,10 @@ export function InAppSurveyModal({
     const serverVerified = await checkLiveCpxVerification();
     setIsVerifyingWithServer(false);
 
-    // Strictly require real partner verification or verified URL after 45s+
-    if (serverVerified || (isSurveyVerified && secondsElapsed >= 45)) {
+    // H3: ONLY server verification claims. Previously a client-side
+    // URL-substring flag (isSurveyVerified) was sufficient — any URL
+    // containing `trans_id=` claimed the reward with no survey done.
+    if (serverVerified) {
       setIsSurveyVerified(true);
       haptics.success();
       onClose(true);

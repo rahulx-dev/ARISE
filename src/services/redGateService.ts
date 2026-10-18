@@ -131,10 +131,17 @@ class RedGateService {
   /**
    * Spawns an Emergency Red Gate encounter (24-hour survival event)
    * with Mega 2,500 Coins Bounty & High-Priority Red System Notification!
+   *
+   * H35: NEVER replaces an uncleared active gate — not even with
+   * force=true. Previously force bypassed the existing-gate check and
+   * minted a fresh gate ID each time, so spawn→claim could repeat for
+   * a new 2500/2500 bounty. `force` now only means "spawn now"
+   * (used by the Dev Lab test button); the gate itself is unique
+   * while uncleared.
    */
   async triggerEmergencyGate(force = false): Promise<RedGateEncounter> {
     const existing = await this.getActiveGate();
-    if (existing && !force && !existing.isCleared) {
+    if (existing && !existing.isCleared) {
       return existing;
     }
 
@@ -246,7 +253,16 @@ class RedGateService {
 
   /**
    * Complete the Red Gate trial and award massive Coins & XP.
+   *
+   * H35: atomic claim. An in-memory mutex stops two concurrent claims
+   * from both passing the isCleared check and both granting 2500/2500.
+   * The coin grant carries an idempotency key (`red_gate:<gateId>`), so
+   * a crash-retry after a successful grant is a no-op. Grants happen
+   * BEFORE the gate is marked cleared (mark-before-grant lost rewards
+   * on grant failure with no retry).
    */
+  private claimInProgress = false;
+
   async claimVictory(trialId: string): Promise<{
     success: boolean;
     coinsAwarded: number;
@@ -254,6 +270,16 @@ class RedGateService {
     title: string;
     error?: string;
   }> {
+    if (this.claimInProgress) {
+      return {
+        success: false,
+        coinsAwarded: 0,
+        rewardXP: 0,
+        title: "",
+        error: "Claim already in progress.",
+      };
+    }
+    this.claimInProgress = true;
     try {
       const active = await this.getActiveGate();
       if (!active) {
@@ -276,19 +302,21 @@ class RedGateService {
         };
       }
 
-      active.isCleared = true;
-      setKv(RED_GATE_STORAGE_KEY, JSON.stringify(active));
-      setKv(RED_GATE_LAST_CLEARED_KEY, new Date().toISOString());
-
-      // Award In-Game Coins
+      // Award In-Game Coins (idempotent — crash-retry safe)
       await userRepository.addCoins(
         active.bountyCoins,
         `Conquered Emergency Red Gate: ${active.threatName}`,
         "quest",
+        `red_gate:${active.id}`,
       );
 
       // Award Massive System XP
       await userRepository.addXP(active.rewardXP);
+
+      // Grants succeeded: NOW mark cleared + persist.
+      active.isCleared = true;
+      setKv(RED_GATE_STORAGE_KEY, JSON.stringify(active));
+      setKv(RED_GATE_LAST_CLEARED_KEY, new Date().toISOString());
 
       // Schedule next unpredictable Red Gate 4.5 - 7.5 days from clearance
       const nextSpawnTarget = Date.now() + getRandomWeeklyDelayMs();
@@ -308,6 +336,8 @@ class RedGateService {
         title: "",
         error: e?.message || "Failed to claim victory",
       };
+    } finally {
+      this.claimInProgress = false;
     }
   }
 

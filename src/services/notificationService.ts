@@ -133,8 +133,26 @@ class NotificationService {
 
       await this.setupNotificationChannels();
 
-      // Cancel previous scheduled reminders to avoid duplicates
-      await Notifications.cancelAllScheduledNotificationsAsync();
+      // H55: cancel ONLY this function's 5 daily reminders, by their
+      // data.type. Previously cancelAllScheduledNotificationsAsync()
+      // wiped every pending notification from other features (red-gate
+      // alerts, focus timers), then only these 5 were re-created.
+      const DAILY_REMINDER_TYPES = new Set([
+        'DAILY_AWAKENING',
+        'MIDDAY_FOCUS',
+        'MOTIVATION',
+        'QUEST_DEADLINE',
+        'STREAK_FINAL_CALL',
+      ]);
+      try {
+        const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+        for (const n of scheduled) {
+          const t = (n.content?.data as any)?.type;
+          if (typeof t === 'string' && DAILY_REMINDER_TYPES.has(t)) {
+            await Notifications.cancelScheduledNotificationAsync(n.identifier);
+          }
+        }
+      } catch {}
 
       // 1. Morning Awakening (7:30 AM)
       await Notifications.scheduleNotificationAsync({

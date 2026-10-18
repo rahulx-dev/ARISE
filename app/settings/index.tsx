@@ -29,6 +29,7 @@ import {
   X,
   AlertTriangle,
   Check,
+  Trash2,
 } from 'lucide-react-native';
 import { useSettingsStore } from '../../src/stores/useSettingsStore';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
@@ -507,6 +508,29 @@ export default function SettingsScreen() {
               </View>
               <View style={styles.menuTextCol}>
                 <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>Privacy & Security</Text>
+              </View>
+              <ChevronRight size={16} color="#9CA3AF" />
+            </TouchableOpacity>
+
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+            {/* H22: Storage & Data Deletion (real screen) */}
+            <TouchableOpacity
+              style={styles.menuRow}
+              activeOpacity={0.75}
+              onPress={() => {
+                haptics.light();
+                router.push('/settings/storage' as any);
+              }}
+            >
+              <View style={[styles.iconCircle, { backgroundColor: isDark ? '#2D1414' : '#FEE2E2' }]}>
+                <Trash2 size={18} color="#DC2626" />
+              </View>
+              <View style={styles.menuTextCol}>
+                <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>Storage & Data Deletion</Text>
+                <Text style={[styles.menuDesc, { color: colors.textSecondary }]}>
+                  Clear app data or delete your account
+                </Text>
               </View>
               <ChevronRight size={16} color="#9CA3AF" />
             </TouchableOpacity>

@@ -104,13 +104,22 @@ object UsageStatsHelper {
      * virtually zero latency with minimal CPU & battery footprint.
      */
     fun getForegroundPackage(context: Context): String? {
+        // H10: when usage-access permission is absent (or the manager is
+        // unavailable), return null — NEVER the stale
+        // lastKnownForegroundPackage. Returning stale data made the
+        // monitor act on a package that is no longer in the foreground
+        // (and masked the missing-permission state as if monitoring worked).
         if (!hasUsagePermission(context)) {
-            return lastKnownForegroundPackage
+            lastKnownForegroundPackage = null
+            return null
         }
 
         val usageStatsManager =
             context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
-                ?: return lastKnownForegroundPackage
+                ?: run {
+                    lastKnownForegroundPackage = null
+                    return null
+                }
 
         val now = System.currentTimeMillis()
         val windowStart = if (lastQueriedTimestamp > 0L) {
@@ -196,6 +205,43 @@ object UsageStatsHelper {
         }
 
         return lastKnownForegroundPackage
+    }
+
+    /**
+     * H15: the SET of packages currently in the resumed/foreground state
+     * (split-screen / multi-window). getForegroundPackage returns only the
+     * single latest-resumed package, so a tap on the unrestricted pane
+     * made the monitor think the user had "navigated away" and dismiss
+     * the lock while the blocked pane was still visible. Callers must
+     * treat "any restricted package in this set" as still locked.
+     */
+    fun getResumedPackages(context: Context): Set<String> {
+        if (!hasUsagePermission(context)) return emptySet()
+        val usageStatsManager =
+            context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
+                ?: return emptySet()
+        val now = System.currentTimeMillis()
+        val windowStart = (now - EVENT_WINDOW_MS).coerceAtLeast(0L)
+        val resumed = mutableSetOf<String>()
+        try {
+            val events = usageStatsManager.queryEvents(windowStart, now)
+            val event = UsageEvents.Event()
+            while (events.hasNextEvent()) {
+                events.getNextEvent(event)
+                val pkg = event.packageName?.trim()?.lowercase(Locale.ROOT) ?: continue
+                if (isSystemLauncherOrUi(context, pkg)) continue
+                when (event.eventType) {
+                    UsageEvents.Event.ACTIVITY_RESUMED,
+                    UsageEvents.Event.MOVE_TO_FOREGROUND -> resumed.add(pkg)
+                    UsageEvents.Event.ACTIVITY_PAUSED,
+                    UsageEvents.Event.ACTIVITY_STOPPED,
+                    UsageEvents.Event.MOVE_TO_BACKGROUND -> resumed.remove(pkg)
+                }
+            }
+        } catch (error: Exception) {
+            Log.w(TAG, "Error querying resumed packages", error)
+        }
+        return resumed
     }
 
     fun clearForegroundCache() {

@@ -16,12 +16,10 @@ import {
   Coins,
   Sparkles,
   Zap,
-  Shield,
   Flame,
   Clock,
   User,
   PlayCircle,
-  Crown,
   Gift,
   Check,
   ShoppingBag,
@@ -152,30 +150,17 @@ export default function ShopScreen() {
     {
       id: 'double_xp',
       name: 'XP 2X Booster',
-      desc: '2x XP on workouts for 1 hour',
+      desc: '2x XP on all gains for 1 hour',
       cost: 300,
       iconBg: isDark ? 'rgba(219, 39, 119, 0.2)' : '#FCE7F3',
       iconColor: '#DB2777',
       icon: Zap,
     },
-    {
-      id: 'soul_pass',
-      name: 'Soul Hunter Pass',
-      desc: 'Unlock special raid gates & bonuses',
-      cost: 500,
-      iconBg: isDark ? 'rgba(217, 119, 6, 0.2)' : '#FEF3C7',
-      iconColor: '#D97706',
-      icon: Crown,
-    },
-    {
-      id: 'focus_shield',
-      name: 'Focus Shield',
-      desc: 'Block all distracting apps for 2 hours',
-      cost: 400,
-      iconBg: isDark ? 'rgba(124, 58, 237, 0.2)' : '#EDE9FE',
-      iconColor: '#7C3AED',
-      icon: Shield,
-    },
+    // H2: soul_pass + focus_shield REMOVED from the shop. Their effects
+    // ("special raid gates", "block all apps for 2h") do not exist as
+    // mechanics anywhere in the app — the shop charged 400–500 coins
+    // for nothing. They return only when their effects are actually
+    // implemented.
   ];
 
   // All 39 Hunter PFPs + 16 Insignia Crests
@@ -243,10 +228,20 @@ export default function ShopScreen() {
     try {
       const ok = await userRepository.spendCoins(item.cost, `Bought ${item.name}`);
       if (ok) {
+        // H2: actually ACTIVATE the boost (previously the coins were
+        // spent and nothing was recorded or enforced).
+        const { boostService } = await import('../../src/services/boostService');
+        boostService.activateBoost(item.id);
         sound.play('purchase');
         haptics.success();
         await loadProfile();
-        showDialog('Item Acquired!', `You have unlocked "${item.name}". It is now active.`);
+        const detail =
+          item.id === 'double_xp'
+            ? '2x XP on all gains for the next hour.'
+            : item.id === 'streak_freeze'
+              ? `You now hold ${boostService.getStreakFreezeCount()} freeze(s). The next missed day is forgiven automatically.`
+              : 'It is now active.';
+        showDialog('Item Acquired!', `You have unlocked "${item.name}". ${detail}`);
       }
     } catch (e) {
       console.warn(e);

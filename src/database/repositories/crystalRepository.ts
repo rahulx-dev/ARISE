@@ -109,6 +109,14 @@ export const crystalRepository = {
             }
 
             return { success: true, newBalance: authoritativeBalance };
+          } else if (!rpcErr && rpcRes && rpcRes.success === false) {
+            // H5: EXPLICIT server rejection (e.g. no verified postback,
+            // duplicate, cap reached). Do NOT fall through to the local
+            // fallback — that would mint crystals the server refused.
+            // The offline fallback below runs ONLY on transport errors
+            // (rpcErr) or when Supabase is unconfigured.
+            console.warn('[CrystalRPC] grant rejected by server:', (rpcRes as any)?.error);
+            return { success: false, newBalance: Number(profile.manaCrystals) || 0 };
           } else if (rpcErr) {
             console.warn('[CrystalRPC] grant_crystals_secure error:', rpcErr.message);
           }

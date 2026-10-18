@@ -93,14 +93,13 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
       if (newProfile && newProfile.level > oldLevel) {
         const newRank = getRankForLevel(newProfile.level);
+        // H56: the bonus is granted inside userRepository.addXP's
+        // transaction. bonusCoins here is DISPLAY-ONLY for the level-up
+        // modal — the store must never grant it again (that was the
+        // double-pay race).
         const bonusCoins = (newProfile.level - oldLevel) * 100;
 
         try {
-          await userRepository.addCoins(
-            bonusCoins,
-            `Level ${newProfile.level} Rank Ascension Bonus`,
-            'level_up'
-          );
           // Dynamically rescale active daily quests for the new higher level!
           const { questService } = await import('../services/questService');
           await questService.rescaleActiveQuestsForLevel(newProfile.level);

@@ -91,7 +91,13 @@ class CoinService {
       const profile = results[0];
       if (requestId) {
         const existing = await tx.select().from(coinTransaction).where(eq(coinTransaction.requestId, requestId)).limit(1);
-        if (existing.length > 0) return true;
+        // H53: duplicate requestId = already spent (idempotent retry).
+        // The tx callback's return value is ignored by spendCoins — the
+        // `success` flag is what matters, so set it before returning.
+        if (existing.length > 0) {
+          success = true;
+          return;
+        }
       }
       if ((profile.coins || 0) < amount) {
         success = false;

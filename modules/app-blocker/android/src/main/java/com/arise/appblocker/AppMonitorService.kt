@@ -160,11 +160,18 @@ class AppMonitorService : Service() {
     private val monitorRunnable = object : Runnable {
         override fun run() {
             if (!isMonitoring || !screenOn) return
+            // H10: permission revoked mid-run — stop instead of monitoring blind.
+            if (!UsageStatsHelper.hasUsagePermission(this@AppMonitorService)) {
+                Log.w(tag, "Usage-access permission revoked mid-run; stopping monitor")
+                isMonitoring = false
+                stopSelf()
+                return
+            }
 
             val now = System.currentTimeMillis()
 
-            // 1. Midnight rollover check
-            val nextReset = BlockPolicyController.getTodayEndEpoch(now)
+            // 1. Midnight rollover check (H13: anchored, not wall-clock)
+            val nextReset = BlockPolicyController.getAnchoredNextResetEpoch(this@AppMonitorService)
             if (nextReset != dailyResetTimestamp) {
                 Log.i(tag, "Daily rollover detected ($dailyResetTimestamp -> $nextReset). Resetting policy state.")
                 dailyResetTimestamp = nextReset
@@ -226,7 +233,16 @@ class AppMonitorService : Service() {
                             stopOverlayService()
                         }
                     } else if (isLauncher || isUnrestricted) {
-                        dismissPresentation()
+                        // H15 (split-screen): the single latest package is
+                        // the unrestricted pane the user just tapped — but
+                        // the restricted pane may still be resumed/visible.
+                        // Dismiss ONLY when no restricted package is still
+                        // in the resumed set.
+                        val stillLocked = UsageStatsHelper.getResumedPackages(this@AppMonitorService)
+                            .any { isPackageRestricted(it) }
+                        if (!stillLocked) {
+                            dismissPresentation()
+                        }
                     }
                 }
             }
@@ -319,6 +335,14 @@ class AppMonitorService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        // H10: without usage-access permission the monitor is blind — it
+        // cannot detect foreground apps. Fail closed (stop) instead of
+        // running a service that silently never locks anything.
+        if (!UsageStatsHelper.hasUsagePermission(this)) {
+            Log.w(tag, "AppMonitorService stopping: usage-access permission missing")
+            stopSelf()
+            return
+        }
         createNotificationChannel()
 
         ContextCompat.registerReceiver(
@@ -333,7 +357,7 @@ class AppMonitorService : Service() {
         screenReceiverRegistered = true
 
         BlockPolicyController.loadPersistedState(this)
-        dailyResetTimestamp = BlockPolicyController.getTodayEndEpoch()
+        dailyResetTimestamp = BlockPolicyController.getAnchoredNextResetEpoch(this)
 
         try {
             val prefs = getSharedPreferences(BlockPolicyController.PREFS_NAME, Context.MODE_PRIVATE)

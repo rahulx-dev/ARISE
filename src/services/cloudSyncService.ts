@@ -624,13 +624,28 @@ export const cloudSyncService = {
   },
 
   /**
-   * Non-blocking background sync triggered on game events
+   * Non-blocking background sync triggered on game events.
+   * H46: debounced + serialized. Previously every event fired its own
+   * gather→upsert run; two concurrent runs could finish out of order
+   * and the staler one overwrote newer cloud state. Now a burst of
+   * triggers collapses into one save, and saves run strictly in order
+   * (promise chain) so last-write-wins is always the newest write.
    */
+  private autoSyncPending = false;
+  private autoSyncChain: Promise<any> = Promise.resolve();
   async triggerAutoSync(): Promise<void> {
     try {
+      if (this.autoSyncPending) return;
+      this.autoSyncPending = true;
+      // Debounce window: collapse a burst of events into one save.
+      await new Promise((r) => setTimeout(r, 1000));
+      this.autoSyncPending = false;
       const storedUser = await googleAuthService.getStoredGoogleUser();
       if (storedUser?.email) {
-        await this.saveToCloud(storedUser.email);
+        this.autoSyncChain = this.autoSyncChain
+          .then(() => this.saveToCloud(storedUser.email))
+          .catch(() => {});
+        await this.autoSyncChain;
       }
     } catch {}
   },

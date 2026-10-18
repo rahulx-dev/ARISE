@@ -1,4 +1,4 @@
-import { db } from "../client";
+import { db, expoDb } from "../client";
 import {
   userProfile,
   coinTransaction,
@@ -19,6 +19,7 @@ import {
 } from "../schema";
 import { eq, and, gte } from "drizzle-orm";
 import { addSentryBreadcrumb, logErrorToSentry } from "../../services/sentryService";
+import { boostService } from "../../services/boostService";
 
 type UserProfile = typeof userProfile.$inferSelect;
 type UpdateProfileParams = Partial<typeof userProfile.$inferInsert>;
@@ -39,13 +40,18 @@ export const userRepository = {
   },
 
   async addXP(amount: number): Promise<void> {
+    // H54: reject non-finite amounts (NaN would corrupt stored XP).
+    if (!Number.isFinite(amount) || amount <= 0) return;
+    // H2: XP 2X Booster doubles all XP gains while active (1 hour).
+    const effectiveAmount = boostService.isDoubleXpActive() ? amount * 2 : amount;
     await db.transaction(async (tx: any) => {
       const results = await tx.select().from(userProfile).limit(1);
       if (results.length === 0) return;
 
       const profile = results[0];
-      let newXP = profile.currentXP + amount;
-      const newTotalXP = profile.totalXP + amount;
+      const oldLevel = profile.level;
+      let newXP = profile.currentXP + effectiveAmount;
+      const newTotalXP = profile.totalXP + effectiveAmount;
       let currentLevel = profile.level;
 
       let requiredXP = Math.floor(100 * Math.pow(1.5, currentLevel - 1));
@@ -56,14 +62,48 @@ export const userRepository = {
         requiredXP = Math.floor(100 * Math.pow(1.5, currentLevel - 1));
       }
 
+      // H56: level-up bonus (100 coins per level crossed) granted in the
+      // SAME transaction as the level-up, with a per-level idempotency
+      // key. Previously the store granted it as a separate follow-up
+      // call, so two concurrent addXP calls crossing the same boundary
+      // both paid the bonus. The pre-check skips levels already paid.
+      let bonusCoins = 0;
+      const bonusGrants: { level: number; requestId: string }[] = [];
+      for (let lvl = oldLevel + 1; lvl <= currentLevel; lvl++) {
+        const requestId = `level_up:${lvl}`;
+        const existing = await tx
+          .select()
+          .from(coinTransaction)
+          .where(eq(coinTransaction.requestId, requestId))
+          .limit(1);
+        if (existing.length === 0) {
+          bonusCoins += 100;
+          bonusGrants.push({ level: lvl, requestId });
+        }
+      }
+
       await tx
         .update(userProfile)
         .set({
           currentXP: newXP,
           totalXP: newTotalXP,
           level: currentLevel,
+          coins: profile.coins + bonusCoins,
+          totalCoinsEarned: profile.totalCoinsEarned + bonusCoins,
         })
         .where(eq(userProfile.id, profile.id));
+
+      const now = new Date().toISOString();
+      for (const g of bonusGrants) {
+        await tx.insert(coinTransaction).values({
+          amount: 100,
+          type: "earn",
+          description: `Level ${g.level} Rank Ascension Bonus`,
+          source: "level_up",
+          timestamp: now,
+          requestId: g.requestId,
+        });
+      }
     });
   },
 
@@ -71,12 +111,23 @@ export const userRepository = {
     amount: number,
     description: string,
     source: string,
+    requestId?: string,
   ): Promise<void> {
     await db.transaction(async (tx: any) => {
       const results = await tx.select().from(userProfile).limit(1);
       if (results.length === 0) return;
 
       const profile = results[0];
+      // H35: idempotent grant. When a requestId is given, a previous
+      // grant with the same key is a no-op (crash-retry safe).
+      if (requestId) {
+        const existing = await tx
+          .select()
+          .from(coinTransaction)
+          .where(eq(coinTransaction.requestId, requestId))
+          .limit(1);
+        if (existing.length > 0) return;
+      }
       const isAd =
         source === "ad" || source === "sponsor_video" || source.includes("ad");
       const currentPasses = profile.sponsorPasses ?? 0;
@@ -96,6 +147,7 @@ export const userRepository = {
         description,
         source,
         timestamp: new Date().toISOString(),
+        requestId: requestId ?? null,
       });
     });
   },
@@ -474,6 +526,16 @@ export const userRepository = {
         : null;
 
       if (lastActiveDateStr && lastActiveDateStr < yesterday && profile.currentStreak > 0) {
+        // H2 (Streak Freeze): a purchased freeze forgives one missed day.
+        // Consume it and keep the streak, treating yesterday as trained.
+        // Without a freeze, the streak resets to 0 as before.
+        if (boostService.consumeStreakFreeze()) {
+          await tx
+            .update(userProfile)
+            .set({ lastActiveDate: yesterday })
+            .where(eq(userProfile.id, profile.id));
+          return { streak: profile.currentStreak, broken: false };
+        }
         await tx
           .update(userProfile)
           .set({ currentStreak: 0 })
@@ -533,6 +595,79 @@ export const userRepository = {
         knowledge: 0,
         createdAt: new Date().toISOString(),
       });
+    });
+  },
+
+  /**
+   * H22: FULL local wipe for Settings → Storage / Clear App Data and
+   * Delete Account. Deletes EVERY local table (resetProfile misses
+   * settings, workout plans, guilds, sync queue, inventory, and the
+   * arise_kv key-value store) via raw SQL on the shared expoDb
+   * connection, then re-seeds a fresh level-1 profile so the app
+   * never crashes on a missing profile row. Table names are hardcoded
+   * literals, never user input. Does NOT touch the cloud — callers
+   * delete the cloud save separately when signed in.
+   */
+  async wipeAllLocalData(): Promise<void> {
+    const tables = [
+      "user_profile",
+      "quest",
+      "coin_transaction",
+      "screen_time_session",
+      "achievement",
+      "exercise_session",
+      "focus_session",
+      "progress_photo",
+      "app_restriction",
+      "notification",
+      "settings",
+      "workout_preferences",
+      "workout_plans",
+      "workout_days",
+      "workout_exercises",
+      "workout_sessions",
+      "workout_sets",
+      "personal_records",
+      "payout_request",
+      "guild",
+      "guild_raid",
+      "guild_member",
+      "crystal_redemption",
+      "crystal_transaction",
+      "sync_queue",
+      "user_inventory",
+      "arise_kv",
+    ];
+    for (const table of tables) {
+      try {
+        (expoDb as any).runSync(`DELETE FROM ${table}`);
+      } catch {
+        // Table may not exist yet on fresh installs (e.g. user_inventory
+        // is created lazily) — a missing table is not a wipe failure.
+      }
+    }
+    await db.insert(userProfile).values({
+      displayName: "Warrior",
+      avatarIcon: "user",
+      bio: "Disciplined warrior in training.",
+      workoutGoal: "strength",
+      dailyFocusGoal: 30,
+      dailyQuestTarget: 4,
+      level: 1,
+      currentXP: 0,
+      totalXP: 0,
+      coins: 0,
+      manaCrystals: 0,
+      totalCoinsEarned: 0,
+      sponsorPasses: 0,
+      currentStreak: 0,
+      longestStreak: 0,
+      strength: 0,
+      discipline: 0,
+      focus: 0,
+      health: 0,
+      knowledge: 0,
+      createdAt: new Date().toISOString(),
     });
   },
 };

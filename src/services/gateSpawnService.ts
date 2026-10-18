@@ -851,7 +851,10 @@ class GateSpawnService {
   }
 
   /**
-   * Synchronous gate lookup from in-memory cache or fast local storage
+   * Synchronous gate lookup from in-memory cache or fast local storage.
+   * H32: returns null on no match. Previously it returned gates[0] —
+   * looking up a bogus/expired ID showed (and let you complete
+   * missions on) a gate you never opened.
    */
   getGateByIdSync(id: string): SpawnedDungeonGate | null {
     if (this.inMemoryGates.length > 0) {
@@ -863,17 +866,18 @@ class GateSpawnService {
       if (raw) {
         const localGates: SpawnedDungeonGate[] = JSON.parse(raw);
         this.inMemoryGates = localGates;
-        const directMatch = localGates.find((g) => g.id === id);
-        if (directMatch) return directMatch;
-        return localGates[0] || null;
+        return localGates.find((g) => g.id === id) ?? null;
       }
     } catch {}
-    return this.inMemoryGates[0] || null;
+    return null;
   }
 
   /**
    * Get all active spawned gates.
-   * Auto-prunes expired gates and auto-spawns fresh ones if expired or empty.
+   * Auto-prunes expired gates and tops up missing ranks with fresh ones.
+   * H33: NEVER regenerates the whole set — previously, dropping below
+   * 3 gates (or one outdated payout) wiped every gate including
+   * in-progress ones. Outdated payouts are clamped in place instead.
    */
   async getActiveGates(): Promise<SpawnedDungeonGate[]> {
     try {
@@ -894,20 +898,48 @@ class GateSpawnService {
         return fresh;
       }
 
-      let gates: SpawnedDungeonGate[] = JSON.parse(raw);
-
-      // Check if gates have expired
-      const validGates = gates.filter((g) => g.expiresAt > now);
-
-      // If gates expired, fewer than 3 remain, or have outdated pre-calibration payouts, regenerate
-      const hasOutdatedGates = validGates.some((g) =>
-        g.missions.some((m) => m.grossPayoutInr > 180)
-      );
-      if (validGates.length < 3 || hasOutdatedGates) {
+      let gates: SpawnedDungeonGate[];
+      try {
+        gates = JSON.parse(raw);
+      } catch {
+        // H33: corrupt stored JSON is QUARANTINED (kept for diagnosis),
+        // not silently overwritten. Fresh gates are generated so the
+        // feature keeps working.
+        setKv(`${SPAWNED_GATES_KEY}_corrupt_backup`, raw);
         const fresh = this.generateFreshGates(cloudUserId);
         setKv(SPAWNED_GATES_KEY, JSON.stringify(fresh));
         this.inMemoryGates = fresh;
         return fresh;
+      }
+
+      // Keep only non-expired gates (in-progress gates survive).
+      const validGates = gates.filter((g) => g.expiresAt > now);
+
+      // Repair outdated pre-calibration payouts IN PLACE: clamp each
+      // mission's gross payout to its gate rank's band and recalculate
+      // crystals, instead of regenerating the whole gate.
+      for (const g of validGates) {
+        const cfg = RANK_CONFIG[g.rankCode];
+        if (!cfg) continue;
+        for (const m of g.missions) {
+          const clamped = Math.max(cfg.minGrossPayout, Math.min(cfg.maxGrossPayout, m.grossPayoutInr));
+          if (clamped !== m.grossPayoutInr) {
+            m.grossPayoutInr = clamped;
+            m.hunterCrystals = calculateHunterCrystals(clamped);
+          }
+        }
+      }
+
+      // Top up missing ranks with fresh gates (preserve the survivors).
+      const presentRanks = new Set(validGates.map((g) => g.rankCode));
+      if (presentRanks.size < 6) {
+        const fresh = this.generateFreshGates(cloudUserId);
+        for (const fg of fresh) {
+          if (!presentRanks.has(fg.rankCode)) {
+            validGates.push(fg);
+            presentRanks.add(fg.rankCode);
+          }
+        }
       }
 
       // Ensure ALL survey missions have live verified CPX Research offerwall URLs
@@ -931,6 +963,7 @@ class GateSpawnService {
         (a, b) => (rankOrder[a.rankCode] || 0) - (rankOrder[b.rankCode] || 0),
       );
 
+      setKv(SPAWNED_GATES_KEY, JSON.stringify(validGates));
       this.inMemoryGates = validGates;
       return validGates;
     } catch {
@@ -942,25 +975,33 @@ class GateSpawnService {
   }
 
   /**
-   * Get a specific gate by its unique ID
+   * Get a specific gate by its unique ID. H32: null on no match.
    */
   async getGateById(id: string): Promise<SpawnedDungeonGate | null> {
     const syncMatch = this.getGateByIdSync(id);
     if (syncMatch) return syncMatch;
 
     const gates = await this.getActiveGates();
-    return gates.find((g) => g.id === id) ?? (gates.length > 0 ? gates[0] : null);
+    return gates.find((g) => g.id === id) ?? null;
   }
 
   /**
    * Complete a survey mission within a gate.
    * If partner survey is verified, credits 20% Mana Crystals and XP.
    * If local questions / practice inquest, awards ZERO Mana Crystals (awards Gold Coins & XP only).
+   *
+   * H34: local inquests require `answers` — one selected option per
+   * question. The questions are attitudinal (no right/wrong answer), so
+   * the check is "every question was answered", not correctness.
+   * H31: grants happen BEFORE the mission is marked completed. Previously
+   * the mission was marked + persisted first, so a grant failure left
+   * the reward permanently lost with no retry.
    */
   async completeMission(
     gateId: string,
     missionId: string,
     isPartnerVerified: boolean = false,
+    answers?: number[],
   ): Promise<{
     success: boolean;
     allCleared: boolean;
@@ -1007,23 +1048,30 @@ class GateSpawnService {
         };
       }
 
-      // Mark mission completed
-      mission.isCompleted = true;
-
-      // Check if all missions in gate are completed
-      const allCleared = gate.missions.every((m) => m.isCompleted);
-      if (allCleared) {
-        gate.isCleared = true;
+      // H34: local inquest requires an answer for every question.
+      if (!isPartnerVerified) {
+        const questions = mission.questions || [];
+        const validAnswers =
+          Array.isArray(answers) &&
+          answers.length === questions.length &&
+          answers.every(
+            (a, i) =>
+              Number.isInteger(a) && a >= 0 && a < (questions[i]?.options?.length || 0),
+          );
+        if (!validAnswers) {
+          return {
+            success: false,
+            allCleared: false,
+            crystalsAwarded: 0,
+            xpAwarded: 0,
+            coinsAwarded: 0,
+            error: "Answer every question before completing this inquest",
+          };
+        }
       }
 
-      // Save updated gates to local storage
-      setKv(SPAWNED_GATES_KEY, JSON.stringify(gates));
-
-      // Increment persistent lifetime completed mission count
-      const lifetime =
-        Number(getKv("@arise_lifetime_completed_missions") || 0) + 1;
-      setKv("@arise_lifetime_completed_missions", String(lifetime));
-
+      // H31: GRANT FIRST. If a grant throws, the mission stays
+      // uncompleted and the user can retry — nothing is lost.
       let crystalsAwarded = 0;
       let coinsAwarded = 0;
 
@@ -1049,6 +1097,23 @@ class GateSpawnService {
 
       // Award System XP in all cases
       await userRepository.addXP(mission.xpReward);
+
+      // Grants succeeded: NOW mark completed, persist, and count.
+      mission.isCompleted = true;
+
+      // Check if all missions in gate are completed
+      const allCleared = gate.missions.every((m) => m.isCompleted);
+      if (allCleared) {
+        gate.isCleared = true;
+      }
+
+      // Save updated gates to local storage
+      setKv(SPAWNED_GATES_KEY, JSON.stringify(gates));
+
+      // Increment persistent lifetime completed mission count
+      const lifetime =
+        Number(getKv("@arise_lifetime_completed_missions") || 0) + 1;
+      setKv("@arise_lifetime_completed_missions", String(lifetime));
 
       return {
         success: true,
@@ -1095,24 +1160,18 @@ class GateSpawnService {
 
   /**
    * Radar Pulse: Hunter manually scans sector for newly materialized dimensional rifts.
+   * H33: preserves non-expired gates (tops up missing ranks via
+   * getActiveGates) instead of regenerating everything and wiping
+   * in-progress gates. Rate-limited to one scan per 5 minutes.
    */
   async triggerRadarScan(): Promise<SpawnedDungeonGate[]> {
-    const fresh = this.generateFreshGates();
-    const rankOrder: Record<string, number> = {
-      E: 1,
-      D: 2,
-      C: 3,
-      B: 4,
-      A: 5,
-      S: 6,
-    };
-    fresh.sort(
-      (a, b) => (rankOrder[a.rankCode] || 0) - (rankOrder[b.rankCode] || 0),
-    );
-    this.inMemoryGates = fresh;
-    setKv(SPAWNED_GATES_KEY, JSON.stringify(fresh));
-    setKv(LAST_RADAR_SCAN_KEY, new Date().toISOString());
-    return fresh;
+    const lastScan = Number(getKv(LAST_RADAR_SCAN_KEY) || 0);
+    const now = Date.now();
+    if (Number.isFinite(lastScan) && now - lastScan < 5 * 60 * 1000) {
+      return this.getActiveGates();
+    }
+    setKv(LAST_RADAR_SCAN_KEY, String(now));
+    return this.getActiveGates();
   }
 }
 

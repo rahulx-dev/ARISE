@@ -193,7 +193,8 @@ class BlockOverlayService : Service() {
         }
         currentPackageName = scopedPackage
 
-        if (BlockPolicyController.isPassActive()) {
+        // H14: hide only if THIS package (or the global pass) is unlocked.
+        if (BlockPolicyController.isPassActive(scopedPackage)) {
             removeExistingOverlay()
             stopSelf()
             return

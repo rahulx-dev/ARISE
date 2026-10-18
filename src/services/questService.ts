@@ -1,5 +1,5 @@
 import { db } from '../database/client';
-import { quest } from '../database/schema';
+import { quest, coinTransaction } from '../database/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { notificationService } from './notificationService';
 import { achievementService } from './achievementService';
@@ -778,19 +778,61 @@ class QuestService {
   }
 
   /**
-   * Test Mode helper: Reset today's daily quests to incomplete
+   * Test Mode helper: Reset today's daily quests to incomplete.
+   * H57: NEVER resets quests that already paid out. Previously every
+   * quest was reopened, so a completed + paid quest could be completed
+   * again for a second payout. Paid = a coinTransaction with
+   * requestId `quest:<id>` exists.
    */
   async resetTodayQuests(): Promise<void> {
     const today = this.getTodayDateString();
-    await db.update(quest).set({ completed: 0 }).where(and(eq(quest.frequency, 'DAILY'), eq(quest.date, today)));
+    const paidIds = await this.getPaidQuestIds();
+    const todays = await db
+      .select()
+      .from(quest)
+      .where(and(eq(quest.frequency, 'DAILY'), eq(quest.date, today)));
+    for (const q of todays) {
+      if (!paidIds.has(q.id)) {
+        await db.update(quest).set({ completed: 0 }).where(eq(quest.id, q.id));
+      }
+    }
   }
 
   /**
-   * Test Mode helper: Re-seed 6 fresh random quests from the pool
+   * Quest IDs that already paid out (a coinTransaction with
+   * requestId `quest:<id>` exists). Shared by reset/reroll guards.
+   */
+  private async getPaidQuestIds(): Promise<Set<number>> {
+    const paid = new Set<number>();
+    try {
+      const rows = await db.select().from(coinTransaction);
+      for (const r of rows) {
+        if (typeof r.requestId === 'string' && r.requestId.startsWith('quest:')) {
+          const id = Number.parseInt(r.requestId.slice('quest:'.length), 10);
+          if (Number.isFinite(id)) paid.add(id);
+        }
+      }
+    } catch {}
+    return paid;
+  }
+
+  /**
+   * Test Mode helper: Re-seed 6 fresh random quests from the pool.
+   * H57: paid quests are KEPT (completed) — deleting them and re-seeding
+   * would let the same quest pay out again under a new row ID.
    */
   async rerollDailyQuests(): Promise<void> {
     const today = this.getTodayDateString();
-    await db.delete(quest).where(and(eq(quest.frequency, 'DAILY'), eq(quest.date, today)));
+    const paidIds = await this.getPaidQuestIds();
+    const todays = await db
+      .select()
+      .from(quest)
+      .where(and(eq(quest.frequency, 'DAILY'), eq(quest.date, today)));
+    for (const q of todays) {
+      if (!paidIds.has(q.id)) {
+        await db.delete(quest).where(eq(quest.id, q.id));
+      }
+    }
     await this._doEnsureQuestsPopulated();
   }
 }

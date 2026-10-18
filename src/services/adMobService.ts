@@ -22,6 +22,9 @@ class AdMobService {
   private rewardedAdUnitId: string = PRODUCTION_REWARDED_ID || TestIds.REWARDED;
   private interstitialAdUnitId: string = PRODUCTION_INTERSTITIAL_ID || TestIds.INTERSTITIAL;
 
+  private rewardedRetryCount = 0;
+  private interstitialRetryCount = 0;
+
   public async initialize(): Promise<void> {
     if (this.isInitialized || Platform.OS !== 'android') return;
     try {
@@ -50,6 +53,7 @@ class AdMobService {
       this.rewardedAd.addAdEventListener(RewardedAdEventType.LOADED, () => {
         this.isRewardedLoaded = true;
         this.isRewardedLoading = false;
+        this.rewardedRetryCount = 0;
         console.log('[AdMobService] Rewarded Ad LOADED successfully!');
       });
 
@@ -63,11 +67,13 @@ class AdMobService {
         console.warn(`[AdMobService] Rewarded ad load error on ${adUnitId}:`, error);
         this.isRewardedLoaded = false;
         this.isRewardedLoading = false;
-        // Fallback to test ID if production ad unit failed (e.g. error code 3 no fill on pre-launch)
-        if (this.rewardedAdUnitId !== TestIds.REWARDED) {
-          console.log('[AdMobService] Switching to Test Rewarded Ad Unit');
-          this.rewardedAdUnitId = TestIds.REWARDED;
-          setTimeout(() => this.preloadRewarded(), 1000);
+        // H49: NEVER downgrade to a test unit ID. A transient load error
+        // (e.g. no fill) used to permanently swap production IDs for
+        // TestIds for the rest of the session. Retry the PRODUCTION ID
+        // with backoff, capped at 3 attempts.
+        if (this.rewardedRetryCount < 3) {
+          this.rewardedRetryCount += 1;
+          setTimeout(() => this.preloadRewarded(), 5000 * this.rewardedRetryCount);
         }
       });
 
@@ -93,6 +99,7 @@ class AdMobService {
       this.interstitialAd.addAdEventListener(AdEventType.LOADED, () => {
         this.isInterstitialLoaded = true;
         this.isInterstitialLoading = false;
+        this.interstitialRetryCount = 0;
         console.log('[AdMobService] Interstitial Ad LOADED successfully!');
       });
 
@@ -106,11 +113,11 @@ class AdMobService {
         console.warn(`[AdMobService] Interstitial ad load error on ${adUnitId}:`, error);
         this.isInterstitialLoaded = false;
         this.isInterstitialLoading = false;
-        // Fallback to test ID if production ad unit failed
-        if (this.interstitialAdUnitId !== TestIds.INTERSTITIAL) {
-          console.log('[AdMobService] Switching to Test Interstitial Ad Unit');
-          this.interstitialAdUnitId = TestIds.INTERSTITIAL;
-          setTimeout(() => this.preloadInterstitial(), 1000);
+        // H49: same as rewarded — never swap to a test ID; retry
+        // production with backoff, capped at 3 attempts.
+        if (this.interstitialRetryCount < 3) {
+          this.interstitialRetryCount += 1;
+          setTimeout(() => this.preloadInterstitial(), 5000 * this.interstitialRetryCount);
         }
       });
 
@@ -128,12 +135,36 @@ class AdMobService {
     }
 
     try {
+      // H48: the EARNED_REWARD listener MUST be removed on every exit
+      // path (earned, closed, error). Previously it was only removed
+      // inside the earned callback, so closing an ad without earning
+      // leaked it and the next ad fired the stale + new callbacks
+      // (double reward).
+      // H50: this reward is client-side only (AdMob SSV is not wired —
+      // that needs a server endpoint). The 25-coin grant stands, but it
+      // must never be treated as server-verified.
+      let settled = false;
+      const cleanup = () => {
+        if (settled) return;
+        settled = true;
+        unsubscribeEarned();
+        unsubscribeClosed();
+        unsubscribeError();
+      };
       const unsubscribeEarned = this.rewardedAd.addAdEventListener(
         RewardedAdEventType.EARNED_REWARD,
         () => {
+          cleanup();
           onRewardEarned(25);
-          unsubscribeEarned();
         }
+      );
+      const unsubscribeClosed = this.rewardedAd.addAdEventListener(
+        AdEventType.CLOSED,
+        () => cleanup()
+      );
+      const unsubscribeError = this.rewardedAd.addAdEventListener(
+        AdEventType.ERROR,
+        () => cleanup()
       );
 
       this.rewardedAd.show();

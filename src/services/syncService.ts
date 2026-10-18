@@ -8,10 +8,12 @@ import {
 import { userRepository } from "../database/repositories/userRepository";
 import { payoutRepository } from "../database/repositories/payoutRepository";
 import { getRankForLevel } from "../constants/ranks";
-import { db } from "../database/client";
+import { db, expoDb } from "../database/client";
 import { userProfile } from "../database/schema";
 import { eq } from "drizzle-orm";
 import { logErrorToSentry } from "./sentryService";
+
+const LAST_SYNC_AT_KEY = "@arise_sync_last_sync";
 
 class SyncService {
   private isSyncing = false;
@@ -143,13 +145,46 @@ class SyncService {
           }
 
           const authStreak = Number(syncRes.authoritative_streak);
-          if (!isNaN(authStreak) && authStreak > (profile.currentStreak || 0)) {
+          // H42: never resurrect a broken streak. If the local streak
+          // broke (no activity for > 1 day), the server value is stale
+          // (it is client-fed GREATEST) — skip it and let streakService
+          // reset. Only max-merge while the streak is unbroken.
+          const lastActive = (profile as any).lastActiveDate as string | undefined;
+          const daysSinceActive = lastActive
+            ? (Date.now() - new Date(lastActive).getTime()) / 86400000
+            : 0;
+          const streakBroken = Number.isFinite(daysSinceActive) && daysSinceActive > 1;
+          if (!streakBroken && !isNaN(authStreak) && authStreak > (profile.currentStreak || 0)) {
             updates.currentStreak = authStreak;
           }
 
           const authCoins = Number(syncRes.authoritative_coins);
-          if (!isNaN(authCoins) && authCoins > (profile.coins || 0)) {
-            updates.coins = authCoins;
+          // H42: never resurrect spent coins. The server never sees
+          // local spends (C3 ignores caller coin balances), so a
+          // server value higher than local is STALE whenever the local
+          // ledger has any transaction since the last sync (a spend
+          // would be undone; an unsynced earn would be lost). Apply
+          // the server value only when local was idle since last sync.
+          if (!isNaN(authCoins) && authCoins !== (profile.coins || 0)) {
+            let lastSyncAt = "";
+            try {
+              const row = (expoDb as any).getFirstSync(
+                "SELECT val FROM arise_kv WHERE key = ?",
+                [LAST_SYNC_AT_KEY],
+              ) as { val: string } | null;
+              lastSyncAt = row?.val || "";
+            } catch {}
+            let localTxSinceSync = 0;
+            try {
+              const row = (expoDb as any).getFirstSync(
+                "SELECT COUNT(*) as c FROM coin_transaction WHERE timestamp > ?",
+                [lastSyncAt || "1970-01-01T00:00:00.000Z"],
+              ) as { c: number } | null;
+              localTxSinceSync = Number(row?.c || 0);
+            } catch {}
+            if (localTxSinceSync === 0) {
+              updates.coins = authCoins;
+            }
           }
 
           if (
@@ -179,6 +214,15 @@ class SyncService {
           console.log(
             "[AutoSync] Profile & authoritative stats synchronized!",
           );
+          // H42: advance the local-activity watermark. The next sync
+          // applies the server coin value only if local had no
+          // transactions after this point.
+          try {
+            (expoDb as any).runSync(
+              "INSERT OR REPLACE INTO arise_kv (key, val) VALUES (?, ?)",
+              [LAST_SYNC_AT_KEY, new Date().toISOString()],
+            );
+          } catch {}
         }
       }
 

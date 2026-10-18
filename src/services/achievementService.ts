@@ -5,6 +5,7 @@ import {
   exerciseSession,
   focusSession,
   quest,
+  coinTransaction,
 } from "../database/schema";
 import { eq } from "drizzle-orm";
 import { notificationService } from "./notificationService";
@@ -251,15 +252,55 @@ class AchievementService {
         const alreadyUnlocked = unlockedMap.has(def.id);
 
         if (isQualified && !alreadyUnlocked) {
-          // Newly qualified milestone! Persist to SQLite
+          // Newly qualified milestone! Persist + grant rewards atomically.
+          // H51: the notification promises "+{rewardCoins} Coins" but the
+          // old code never granted anything. The grant now happens in the
+          // same transaction as the unlock row, under an idempotency key
+          // (achievement:<id>): a concurrent duplicate unlock rolls back
+          // and pays nothing.
           try {
-            await db.insert(achievement).values({
-              achievementId: def.id,
-              title: def.title,
-              description: def.description,
-              icon: def.icon,
-              category: def.category,
-              unlockedAt: now,
+            await db.transaction(async (tx: any) => {
+              await tx.insert(achievement).values({
+                achievementId: def.id,
+                title: def.title,
+                description: def.description,
+                icon: def.icon,
+                category: def.category,
+                unlockedAt: now,
+              });
+              const pRows = await tx.select().from(userProfile).limit(1);
+              if (pRows.length > 0) {
+                const p = pRows[0];
+                let newXP = (p.currentXP || 0) + def.rewardXP;
+                const newTotalXP = (p.totalXP || 0) + def.rewardXP;
+                let currentLevel = p.level || 1;
+                let requiredXP = Math.floor(100 * Math.pow(1.5, currentLevel - 1));
+                while (newXP >= requiredXP) {
+                  newXP -= requiredXP;
+                  currentLevel += 1;
+                  requiredXP = Math.floor(100 * Math.pow(1.5, currentLevel - 1));
+                }
+                await tx
+                  .update(userProfile)
+                  .set({
+                    coins: (p.coins || 0) + def.rewardCoins,
+                    totalCoinsEarned: (p.totalCoinsEarned || 0) + def.rewardCoins,
+                    currentXP: newXP,
+                    totalXP: newTotalXP,
+                    level: currentLevel,
+                  })
+                  .where(eq(userProfile.id, p.id));
+                if (def.rewardCoins !== 0) {
+                  await tx.insert(coinTransaction).values({
+                    amount: def.rewardCoins,
+                    type: "earn",
+                    description: `Achievement unlocked: ${def.title}`,
+                    source: "achievement",
+                    timestamp: now,
+                    requestId: `achievement:${def.id}`,
+                  });
+                }
+              }
             });
             unlockedMap.set(def.id, now);
             newlyUnlocked.push({

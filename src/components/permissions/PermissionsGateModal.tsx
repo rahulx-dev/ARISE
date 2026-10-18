@@ -18,7 +18,6 @@ import {
   Camera as CameraIcon,
   CheckCircle2,
   Lock,
-  ChevronLeft,
   ChevronRight,
 } from "lucide-react-native";
 import { appBlockerService } from "../../native";
@@ -35,7 +34,6 @@ interface PermissionsGateModalProps {
 
 export function PermissionsGateModal({
   onAllGranted,
-  onSkip,
 }: PermissionsGateModalProps) {
   const haptics = useHaptics();
   const { isDark, colors } = useTheme();
@@ -185,6 +183,9 @@ export function PermissionsGateModal({
   };
 
   const handleProceed = () => {
+    // H1: the gate is real. Previously Continue called onAllGranted()
+    // unconditionally, so the "mandatory" gate was bypassable.
+    if (!allGranted) return;
     haptics.success();
     try {
       useSettingsStore.setState({ onboardingCompleted: true });
@@ -250,32 +251,13 @@ export function PermissionsGateModal({
       ]}
     >
       {/* Top Header Bar */}
+      {/* H1: NO Skip / back buttons on the mandatory gate. Previously
+          both buttons called onSkip || handleProceed — and _layout
+          passes no onSkip, so they proceeded to home with ZERO
+          permissions granted. */}
       <View style={styles.topBar}>
-        <TouchableOpacity
-          onPress={onSkip || handleProceed}
-          activeOpacity={0.7}
-          style={styles.navBtn}
-        >
-          <ChevronLeft
-            size={24}
-            color={isDark ? "#FFFFFF" : "#0F172A"}
-          />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={onSkip || handleProceed}
-          activeOpacity={0.7}
-          style={styles.navBtn}
-        >
-          <Text
-            style={[
-              styles.skipText,
-              { color: isDark ? "#8E8E93" : "#64748B" },
-            ]}
-          >
-            Skip
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.navBtn} />
+        <View style={styles.navBtn} />
       </View>
 
       <ScrollView
@@ -408,6 +390,23 @@ export function PermissionsGateModal({
               </TouchableOpacity>
             );
           })}
+
+        {/* H18: prominent disclosure for Play-restricted permissions.
+            Shown BEFORE any of these are requested (background location
+            is requested later, when a run starts). */}
+        <View style={{ marginTop: 16, padding: 14, borderRadius: 12, backgroundColor: isDark ? '#1C1917' : '#FFFBEB', borderWidth: 1, borderColor: isDark ? '#44403C' : '#FDE68A' }}>
+          <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? '#FDE68A' : '#92400E', marginBottom: 6 }}>
+            Why ARISE needs these permissions
+          </Text>
+          <Text style={{ fontSize: 12, lineHeight: 18, color: isDark ? '#D6D3D1' : '#44403C' }}>
+            • Usage Access — see which apps you use, to enforce the budgets you set.{'\n'}
+            • Display over other apps — show the lock screen over a blocked app.{'\n'}
+            • Battery exemption — keep the blocker running in the background.{'\n'}
+            • Camera — on-device pose detection during workouts. Pose frames are processed in RAM and discarded; they are never saved or sent anywhere.{'\n'}
+            • Background location — requested only when you start a run, to track distance while the screen is off. Your location is stored on-device and never uploaded.{'\n'}
+            • Installed apps — list the apps on your device so you can choose which ones to restrict. The list never leaves your device.
+          </Text>
+        </View>
         </View>
       </ScrollView>
 
@@ -419,11 +418,14 @@ export function PermissionsGateModal({
         ]}
       >
         <TouchableOpacity
-          style={styles.continueBtn}
+          style={[styles.continueBtn, !allGranted && { opacity: 0.45 }]}
           onPress={handleProceed}
+          disabled={!allGranted}
           activeOpacity={0.85}
         >
-          <Text style={styles.continueBtnText}>Continue  →</Text>
+          <Text style={styles.continueBtnText}>
+            {allGranted ? "Continue  →" : "Grant All 4 Permissions to Continue"}
+          </Text>
         </TouchableOpacity>
 
         {/* Privacy Note */}
