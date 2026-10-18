@@ -427,28 +427,4 @@ export const googleAuthService = {
       };
     }
   },
-
-  /**
-   * Sign in or register with Google credentials (One-Tap / Account Chooser flow)
-   */
-  async signInWithAccount(params: {
-    displayName: string;
-    email: string;
-    photoUrl?: string | null;
-  }): Promise<GoogleAuthUser> {
-    const cleanEmail = params.email.trim().toLowerCase();
-    const cleanName = params.displayName.trim() || cleanEmail.split('@')[0];
-
-    const googleUser: GoogleAuthUser = {
-      id: `google_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-      email: cleanEmail,
-      displayName: cleanName,
-      photoUrl: params.photoUrl || null,
-      provider: 'google',
-      linkedAt: new Date().toISOString(),
-    };
-
-    await this.saveGoogleUser(googleUser);
-    return googleUser;
-  },
 };

@@ -43,10 +43,7 @@ class BlockOverlayService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val pkg = intent?.getStringExtra("PACKAGE_NAME")
-            ?.trim()
-            ?.lowercase(Locale.ROOT)
-            ?.takeIf { it.isNotEmpty() && it != "null" }
+        val pkg = BlockPolicyController.normalizePackageName(intent?.getStringExtra("PACKAGE_NAME"))
 
         if (pkg == null) {
             removeExistingOverlay()
@@ -196,7 +193,7 @@ class BlockOverlayService : Service() {
         }
         currentPackageName = scopedPackage
 
-        if (System.currentTimeMillis() < BlockPolicyController.getUnlockUntil(this)) {
+        if (BlockPolicyController.isPassActive()) {
             removeExistingOverlay()
             stopSelf()
             return

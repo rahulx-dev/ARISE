@@ -62,8 +62,6 @@ function ExerciseTrackerInner() {
     isRedGate,
     sets: paramSets,
     source,
-    rewardCoins: paramRewardCoins,
-    rewardXP: paramRewardXP,
   } = useLocalSearchParams<{
     type: string;
     questId?: string;
@@ -71,8 +69,6 @@ function ExerciseTrackerInner() {
     isRedGate?: string;
     sets?: string;
     source?: string;
-    rewardCoins?: string;
-    rewardXP?: string;
   }>();
   const router = useRouter();
   const sound = useSound();
@@ -369,13 +365,8 @@ function ExerciseTrackerInner() {
       totalCompletedReps,
       target * totalSetsRef.current
     );
-    const questCoins = paramRewardCoins ? parseInt(paramRewardCoins, 10) : 0;
-    const questXP = paramRewardXP ? parseInt(paramRewardXP, 10) : 0;
-    const finalCoins = Math.max(rewards.coins, questCoins);
-    const finalXP = Math.max(rewards.xp, questXP);
-
     if (!voiceMuted) {
-      voiceCoach.speakComplete(config.displayName, finalCoins);
+      voiceCoach.speakComplete(config.displayName, rewards.coins);
     }
 
     if (source === 'overlay') {
@@ -390,8 +381,6 @@ function ExerciseTrackerInner() {
         exerciseType: validExerciseType,
         completedReps: totalCompletedReps.toString(),
         target: (target * totalSetsRef.current).toString(),
-        earnedCoins: finalCoins.toString(),
-        earnedXP: finalXP.toString(),
         durationSeconds: duration.toString(),
         questId: questId || '',
         isRedGate: isRedGate || '',

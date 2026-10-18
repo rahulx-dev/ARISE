@@ -314,8 +314,6 @@ export default function FocusModeScreen() {
         exerciseType: 'DEEP_FOCUS',
         completedReps: targetMinutes.toString(),
         target: targetMinutes.toString(),
-        earnedCoins: coinsEarned.toString(),
-        earnedXP: xpEarned.toString(),
         durationSeconds: (targetMinutes * 60).toString(),
         ...(params.questId ? { questId: params.questId } : {}),
         completionToken: issueCompletionToken(),

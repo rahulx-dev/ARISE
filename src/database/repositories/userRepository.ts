@@ -272,8 +272,8 @@ export const userRepository = {
         }
 
         const q = qRows[0];
-        const actualCoins = Math.max(q.rewardCoins || 0, rewardCoins || 0);
-        const actualXP = Math.max(q.rewardXP || 0, rewardXP || 0);
+        const actualCoins = (q.rewardCoins && q.rewardCoins > 0) ? q.rewardCoins : Math.min(50, Math.max(10, rewardCoins || 15));
+        const actualXP = (q.rewardXP && q.rewardXP > 0) ? q.rewardXP : Math.min(200, Math.max(20, rewardXP || 45));
 
         // 1. Mark quest completed
         await tx.update(quest).set({ completed: 1 }).where(eq(quest.id, questId));

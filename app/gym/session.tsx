@@ -187,8 +187,6 @@ export default function ActiveGymSessionScreen() {
                   exerciseType: 'GYM_WORKOUT',
                   completedReps: '1',
                   target: '1',
-                  earnedCoins: result.coinsEarned.toString(),
-                  earnedXP: result.xpEarned.toString(),
                   durationSeconds: elapsedSeconds.toString(),
                   completionToken: issueCompletionToken(),
                 },

@@ -95,66 +95,76 @@
   <div class="container">
     <header>
       <h1>ARISE PROTOCOL</h1>
-      <div class="badge">100% PRIVATE ON-DEVICE ARCHITECTURE</div>
-      <p class="updated">Last Updated: September 2026</p>
+      <div class="badge">LOCAL-FIRST DISCIPLINE ARCHITECTURE & CLOUD REWARDS</div>
+      <p class="updated">Last Updated: October 2026</p>
     </header>
 
     <section>
       <h2>1. Overview</h2>
       <p>
-        <strong>ARISE</strong> ("we", "our", or "the App") is an AI-powered physical fitness gamification and screen-time discipline application. We respect your privacy and are committed to protecting personal data. This Privacy Policy describes how we handle device permissions, telemetry, and transactional information.
+        <strong>ARISE</strong> ("we", "our", or "the App") is a physical fitness gamification and screen-time discipline application. We respect your privacy and are committed to transparent, accurate data handling. This Privacy Policy describes how we collect, store, and process device permissions, telemetry, and transactional information.
       </p>
     </section>
 
     <section>
-      <h2>2. Device Permissions & Usage</h2>
+      <h2>2. Data Collection, Permissions & Purpose</h2>
       <ul>
         <li>
-          <strong>Camera Access (AI Pose Estimation):</strong> The camera feed is processed in real-time exclusively on your local device RAM using Google ML Kit. Camera frames, images, and video streams are <strong>NEVER recorded, saved to disk, or transmitted to any external server</strong>.
+          <strong>Camera Access (Live Pose Detection):</strong> Used in real-time on-device memory via Google ML Kit / MediaPipe to verify exercise reps (pushups, squats). Live workout camera frames are processed in volatile memory and are not recorded, streamed, or uploaded to any remote server.
         </li>
         <li>
-          <strong>App Usage Access (PACKAGE_USAGE_STATS):</strong> Used locally to track active screen time across distraction apps that you designate as restricted. No private messages, keystrokes, browsing history, or in-app activity are ever accessed.
+          <strong>Physique Progress Photos:</strong> If you choose to capture progress photos to track physical changes, these photos are persisted locally in your device's private app storage. They are never shared publicly or uploaded to cloud storage without your explicit action.
         </li>
         <li>
-          <strong>Display Over Apps (SYSTEM_ALERT_WINDOW):</strong> Used to render the discipline lock screen on top of restricted apps when time quotas expire.
+          <strong>Installed App Inventory & App Usage Access (PACKAGE_USAGE_STATS):</strong> Used locally to identify installed launcher-capable apps so you can configure app limits, and to track active screen time on designated restricted apps. No private message contents, keystrokes, browsing history, or in-app activity are ever accessed.
         </li>
         <li>
-          <strong>Battery Optimization Exemption:</strong> Used to prevent Android operating system vendors from terminating background monitoring services unexpectedly.
+          <strong>Display Over Apps (SYSTEM_ALERT_WINDOW):</strong> Used to render the discipline lock screen over restricted apps once daily screen-time quotas expire.
         </li>
         <li>
-          <strong>Notifications:</strong> Used for daily streak reminders, quest completions, and workout alerts.
+          <strong>Battery Optimization Exemption & Foreground Service:</strong> Used to maintain continuous screen-time monitoring and prevent OEM operating systems from killing the monitor service.
+        </li>
+        <li>
+          <strong>Notifications:</strong> Used for daily streak alerts, workout reminders, and quest completion notices.
+        </li>
+        <li>
+          <strong>Account & Identity (Google Sign-In):</strong> When you sign in with Google, we collect your verified name and email address to authenticate your session and link your cloud progression save and leaderboard rank.
+        </li>
+        <li>
+          <strong>Payment & Financial Data (UPI ID):</strong> When you submit a cashout request for earned Mana Crystals, your destination UPI address and requested amount are securely stored in our Supabase backend database solely to disburse and fulfill your withdrawal.
         </li>
       </ul>
     </section>
 
     <section>
-      <h2>3. Cloud Payouts & Anti-Cheat Ledger</h2>
+      <h2>3. Third-Party Service Providers</h2>
+      <p>The App integrates with the following third-party SDKs to provide essential features:</p>
+      <ul>
+        <li><strong>Supabase:</strong> Authenticated database and backend procedures for cloud progression saves, leaderboard ranking, and payout fulfillment.</li>
+        <li><strong>Sentry:</strong> Application performance monitoring and crash diagnostics (device model, OS version, stack traces). No sensitive user financial details or passwords are sent.</li>
+        <li><strong>Google AdMob:</strong> Serves rewarded and banner advertisements. AdMob collects standard advertising IDs in accordance with Google's Advertising Policies.</li>
+        <li><strong>Google Sign-In:</strong> Secure PKCE authentication for Google account linkage.</li>
+        <li><strong>CPX Research / BitLabs:</strong> Optional third-party offerwalls for optional survey rewards.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>4. Data Retention & User Controls</h2>
       <p>
-        When you submit a UPI cashout request in the Shop Vault:
+        Local data (settings, exercise sessions, local progress photos) can be reset at any time via <em>Settings &rarr; Storage / Clear App Data</em>.
       </p>
-      <ul>
-        <li>We collect your chosen UPI ID, requested withdrawal amount, and anonymous device identifier.</li>
-        <li>This data is encrypted in transit and stored in our secure <strong>Supabase</strong> PostgreSQL cloud database solely for the purpose of processing your monetary disbursement.</li>
-        <li>We do not sell, rent, or monetize your payment information with third parties.</li>
-      </ul>
-    </section>
-
-    <section>
-      <h2>4. Third-Party Services</h2>
-      <p>The App integrates with the following trusted third-party providers:</p>
-      <ul>
-        <li><strong>Google AdMob:</strong> For displaying rewarded and interstitial advertisements. AdMob may collect device advertising IDs in accordance with Google's Advertising Policies.</li>
-        <li><strong>Google ML Kit:</strong> On-device computer vision libraries for pose landmark extraction.</li>
-        <li><strong>Supabase:</strong> Cloud database infrastructure for verifying coin redemptions and payout requests.</li>
-      </ul>
-    </section>
-
-    <section>
-      <h2>5. Data Deletion & Contact</h2>
       <p>
-        You can delete your local workout progress, physique photos, and history at any time through <em>Settings &rarr; Storage / Clear Data</em>. To request complete deletion of any cloud withdrawal records, contact us at:
+        Cloud data associated with your Google account (cloud saves, leaderboard ranking) is retained while your account remains active.
+      </p>
+    </section>
+
+    <section>
+      <h2>5. Account & Data Deletion</h2>
+      <p>
+        You have the right to request deletion of your account and all associated personal data. You can delete your account directly inside the app under <em>Settings &rarr; Account &rarr; Delete Account</em>, or submit a deletion request by contacting us with your linked email address:
       </p>
       <p><strong>Email:</strong> support@ariseapp.dev</p>
+      <p>Upon verification, all associated cloud saves, wallet records, and leaderboard entries are permanently deleted within 30 days.</p>
     </section>
 
     <footer>

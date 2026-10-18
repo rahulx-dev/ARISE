@@ -153,9 +153,10 @@ class AppBlockerModule : Module() {
         Function("startMonitoring") { restrictedPackages: List<String> ->
             val context = appContext.reactContext ?: appContext.currentActivity
             if (context != null) {
-                Log.d(TAG, "startMonitoring called with ${restrictedPackages.size} packages")
+                val validPackages = restrictedPackages.mapNotNull { BlockPolicyController.normalizePackageName(it) }
+                Log.d(TAG, "startMonitoring called with ${validPackages.size} packages")
                 val intent = Intent(context, AppMonitorService::class.java).apply {
-                    putStringArrayListExtra("RESTRICTED_PACKAGES", ArrayList(restrictedPackages))
+                    putStringArrayListExtra("RESTRICTED_PACKAGES", ArrayList(validPackages))
                 }
                 try {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -195,9 +196,10 @@ class AppBlockerModule : Module() {
         Function("setRestrictedPackages") { restrictedPackages: List<String> ->
             val context = appContext.reactContext ?: appContext.currentActivity
             if (context != null) {
-                Log.d(TAG, "setRestrictedPackages called with ${restrictedPackages.size} packages")
+                val validPackages = restrictedPackages.mapNotNull { BlockPolicyController.normalizePackageName(it) }
+                Log.d(TAG, "setRestrictedPackages called with ${validPackages.size} packages")
                 val intent = Intent(context, AppMonitorService::class.java).apply {
-                    putStringArrayListExtra("RESTRICTED_PACKAGES", ArrayList(restrictedPackages))
+                    putStringArrayListExtra("RESTRICTED_PACKAGES", ArrayList(validPackages))
                 }
                 try {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -218,10 +220,11 @@ class AppBlockerModule : Module() {
                 Log.e(TAG, "setAppBudget rejected: native context unavailable")
                 return@Function Unit
             }
-            AppMonitorService.setBudget(context, packageName, budgetMinutes)
+            val normalizedPackage = BlockPolicyController.normalizePackageName(packageName)
+            AppMonitorService.setBudget(context, normalizedPackage, budgetMinutes)
             val intent = Intent(context, AppMonitorService::class.java).apply {
                 putExtra("UPDATED_BUDGET_MINUTES", budgetMinutes)
-                if (packageName != null) putExtra("UPDATED_PACKAGE_NAME", packageName)
+                if (normalizedPackage != null) putExtra("UPDATED_PACKAGE_NAME", normalizedPackage)
                 val savedPackages = context
                     .getSharedPreferences(BlockPolicyController.PREFS_NAME, Context.MODE_PRIVATE)
                     .getStringSet("saved_restricted_packages", null)
@@ -238,14 +241,15 @@ class AppBlockerModule : Module() {
             } catch (e: Exception) {
                 Log.e(TAG, "Error sending budget update to service", e)
             }
-            Log.d(TAG, "setAppBudget: $packageName -> $budgetMinutes min")
+            Log.d(TAG, "setAppBudget: $normalizedPackage -> $budgetMinutes min")
             Unit
         }
 
         Function("getAppBudget") { packageName: String? ->
             val context = appContext.reactContext ?: appContext.currentActivity
-            if (context != null && packageName != null) {
-                val budgetMs = BlockPolicyController.getBudgetForPackage(context, packageName)
+            val normalizedPackage = BlockPolicyController.normalizePackageName(packageName)
+            if (context != null && normalizedPackage != null) {
+                val budgetMs = BlockPolicyController.getBudgetForPackage(context, normalizedPackage)
                 budgetMs.toDouble() / 60_000.0
             } else if (context != null) {
                 BlockPolicyController.defaultBudgetMs.toDouble() / 60_000.0
@@ -260,28 +264,29 @@ class AppBlockerModule : Module() {
                 Log.w(TAG, "temporaryUnlock rejected invalid duration: $durationMs")
                 return@Function false
             }
-            val epochTarget = System.currentTimeMillis() + durationMs.toLong()
             val context = appContext.reactContext ?: appContext.currentActivity
-            if (context == null || !AppMonitorService.setUnlockUntil(context, epochTarget)) {
-                Log.e(TAG, "temporaryUnlock rejected: native context/persistence unavailable")
+            if (context == null) {
+                Log.e(TAG, "temporaryUnlock rejected: native context unavailable")
                 return@Function false
             }
-            val intent = Intent(context, AppMonitorService::class.java).apply {
-                putExtra("UNLOCKED_UNTIL_EPOCH", epochTarget)
-            }
-            try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    context.startForegroundService(intent)
-                } else {
-                    context.startService(intent)
+            val success = BlockPolicyController.setUnlockDuration(context, durationMs.toLong(), "TEMPORARY_JS_PASS")
+            if (success) {
+                val epochTarget = BlockPolicyController.getUnlockUntil(context)
+                val intent = Intent(context, AppMonitorService::class.java).apply {
+                    putExtra("UNLOCKED_UNTIL_EPOCH", epochTarget)
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error sending unlock to service", e)
-                AppMonitorService.setUnlockUntil(context, 0L)
-                return@Function false
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        context.startForegroundService(intent)
+                    } else {
+                        context.startService(intent)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error sending unlock to service", e)
+                }
             }
-            Log.d(TAG, "temporaryUnlock for $durationMs ms, target epoch: $epochTarget")
-            true
+            Log.d(TAG, "temporaryUnlock for $durationMs ms: $success")
+            success
         }
 
         Function("unlockUntil") { epochMs: Double ->
@@ -289,28 +294,29 @@ class AppBlockerModule : Module() {
                 Log.w(TAG, "unlockUntil rejected invalid epoch: $epochMs")
                 return@Function false
             }
-            val epochTarget = epochMs.toLong()
             val context = appContext.reactContext ?: appContext.currentActivity
-            if (context == null || !AppMonitorService.setUnlockUntil(context, epochTarget)) {
-                Log.e(TAG, "unlockUntil rejected: native context/persistence unavailable")
+            if (context == null) {
+                Log.e(TAG, "unlockUntil rejected: native context unavailable")
                 return@Function false
             }
-            val intent = Intent(context, AppMonitorService::class.java).apply {
-                putExtra("UNLOCKED_UNTIL_EPOCH", epochTarget)
-            }
-            try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    context.startForegroundService(intent)
-                } else {
-                    context.startService(intent)
+            val success = BlockPolicyController.setUnlockUntil(context, epochMs.toLong())
+            if (success) {
+                val epochTarget = BlockPolicyController.getUnlockUntil(context)
+                val intent = Intent(context, AppMonitorService::class.java).apply {
+                    putExtra("UNLOCKED_UNTIL_EPOCH", epochTarget)
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error sending unlock to service", e)
-                AppMonitorService.setUnlockUntil(context, 0L)
-                return@Function false
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        context.startForegroundService(intent)
+                    } else {
+                        context.startService(intent)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error sending unlock to service", e)
+                }
             }
-            Log.d(TAG, "unlockUntil epoch: $epochTarget")
-            true
+            Log.d(TAG, "unlockUntil epoch: $epochMs -> $success")
+            success
         }
 
         Function("getUnlockUntil") {
@@ -323,9 +329,7 @@ class AppBlockerModule : Module() {
         }
 
         Function("isCurrentlyUnlocked") {
-            val context = appContext.reactContext ?: appContext.currentActivity
-            val unlockedUntil = AppMonitorService.getUnlockUntil(context)
-            val isUnlocked = System.currentTimeMillis() < unlockedUntil
+            val isUnlocked = BlockPolicyController.isPassActive()
             Log.d(TAG, "isCurrentlyUnlocked: $isUnlocked")
             isUnlocked
         }
@@ -364,6 +368,21 @@ class AppBlockerModule : Module() {
             success
         }
 
+        Function("getUnlockHistory") {
+            val context = appContext.reactContext ?: appContext.currentActivity
+            if (context == null) return@Function emptyList<Map<String, Any?>>()
+            UnlockLedger.getRecords(context).map { r ->
+                mapOf(
+                    "id" to r.id,
+                    "packageName" to r.packageName,
+                    "reason" to r.reason,
+                    "durationMs" to r.durationMs,
+                    "wallClockTimestamp" to r.wallClockTimestamp,
+                    "granted" to r.granted
+                )
+            }
+        }
+
         Function("showTestOverlay") { targetPackage: String? ->
             val context = appContext.reactContext ?: appContext.currentActivity
             if (context == null) return@Function false
@@ -371,7 +390,7 @@ class AppBlockerModule : Module() {
                 Log.w(TAG, "showTestOverlay rejected: overlay permission unavailable")
                 return@Function false
             }
-            val packageName = targetPackage?.trim()?.takeIf { it.isNotEmpty() && it != "null" }
+            val packageName = BlockPolicyController.normalizePackageName(targetPackage)
                 ?: return@Function false
             val overlayIntent = Intent(context, BlockOverlayService::class.java).apply {
                 putExtra("PACKAGE_NAME", packageName)

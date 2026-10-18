@@ -40,8 +40,6 @@ export default function QuestCompleteScreen() {
     exerciseType,
     completedReps,
     target,
-    earnedCoins,
-    earnedXP,
     durationSeconds,
     questId,
     isRedGate,
@@ -51,8 +49,6 @@ export default function QuestCompleteScreen() {
     exerciseType: string;
     completedReps: string;
     target: string;
-    earnedCoins: string;
-    earnedXP: string;
     durationSeconds: string;
     questId?: string;
     isRedGate?: string;
@@ -70,13 +66,13 @@ export default function QuestCompleteScreen() {
   } | null>(null);
 
   const [multiplierClaimed, setMultiplierClaimed] = useState(false);
+  const [awardedCoins, setAwardedCoins] = useState<number>(0);
+  const [awardedXP, setAwardedXP] = useState<number>(0);
 
   const parseNonNegativeInt = (value: string | undefined, fallback: number) => {
     const parsed = Number.parseInt(value || '', 10);
     return Number.isFinite(parsed) ? Math.max(0, parsed) : fallback;
   };
-  const coins = parseNonNegativeInt(earnedCoins, 20);
-  const xp = parseNonNegativeInt(earnedXP, 100);
   const reps = parseNonNegativeInt(completedReps, 20);
   const targetNum = Math.max(1, parseNonNegativeInt(target, 20));
   const duration = parseNonNegativeInt(durationSeconds, 60);
@@ -126,6 +122,8 @@ export default function QuestCompleteScreen() {
         } catch (_: any) {}
 
         let awarded = false;
+        let grantedCoins = 0;
+        let grantedXP = 0;
 
         // Emergency Red Gate Victory Check
         if (isRedGate === 'true') {
@@ -136,40 +134,58 @@ export default function QuestCompleteScreen() {
               xp: res.rewardXP,
               title: res.title,
             });
+            grantedCoins += res.coinsAwarded;
+            grantedXP += res.rewardXP;
           }
         }
 
+        const { questService } = await import('../../src/services/questService');
+
         if (questId && parseInt(questId, 10)) {
-          awarded = await userRepository.completeQuestAndGrantRewards(
-            parseInt(questId, 10),
-            coins,
-            xp,
-            config.statType as any
-          );
+          const res = await questService.completeQuest(parseInt(questId, 10));
+          if (res.success) {
+            awarded = true;
+            grantedCoins += res.earnedCoins;
+            grantedXP += res.earnedXP;
+          }
         } else {
           // Auto-reconcile with any matching active daily quests!
-          const { questService } = await import('../../src/services/questService');
           const reconciled = await questService.reconcileCompletedActivity(
             isFocusCompletion ? 'FOCUS' : validExerciseType,
             reps || targetNum
           );
           if (reconciled.completedCount > 0) {
             awarded = true;
+            grantedCoins += reconciled.coins;
+            grantedXP += reconciled.xp;
           }
         }
 
-        if (!awarded) {
-          if (coins > 0) {
-            await userRepository.addCoins(
-              coins,
-              `${config.displayName} Session`,
-              isFocusCompletion ? 'focus' : isGymCompletion ? 'gym_workout' : 'exercise'
-            );
-          }
-          if (xp > 0) {
-            await userRepository.addXP(xp);
-          }
+        if (!awarded && !isGymCompletion) {
+          const calcCoins = isFocusCompletion
+            ? Math.min(30, Math.max(5, Math.floor(duration / 60)))
+            : Math.min(25, Math.max(5, Math.floor((reps || 1) * 0.5)));
+          const calcXP = isFocusCompletion
+            ? Math.min(100, Math.max(10, Math.floor(duration / 30)))
+            : Math.min(100, Math.max(10, (reps || 1) * (config.xpPerRep || 5)));
+
+          await userRepository.addCoins(
+            calcCoins,
+            `${config.displayName} Session`,
+            isFocusCompletion ? 'focus' : 'exercise'
+          );
+          await userRepository.addXP(calcXP);
           await userRepository.updateStat(config.statType as any, 1);
+          grantedCoins += calcCoins;
+          grantedXP += calcXP;
+        } else if (isGymCompletion) {
+          grantedCoins = 25;
+          grantedXP = 120;
+        }
+
+        if (mountedRef.current) {
+          setAwardedCoins(grantedCoins);
+          setAwardedXP(grantedXP);
         }
 
         const { streakService } = await import('../../src/services/streakService');
@@ -203,7 +219,7 @@ export default function QuestCompleteScreen() {
 
   const handleClaimMultiplier = () => {
     haptics.heavy();
-    const bonusCoins = coins * 2;
+    const bonusCoins = Math.min(50, Math.max(10, awardedCoins * 2));
     const shown = adMobService.showRewardedAd(async () => {
       try {
         await userRepository.addCoins(bonusCoins, '3X Workout Ad Multiplier', 'ad');
@@ -275,7 +291,7 @@ export default function QuestCompleteScreen() {
             {/* Coins */}
             <View style={styles.rewardItemBox}>
               <Image source={APP_3D_ASSETS.goldCoin} style={{ width: 44, height: 44 }} />
-              <Text style={styles.rewardNumber}>+{multiplierClaimed ? coins * 3 : coins}</Text>
+              <Text style={styles.rewardNumber}>+{multiplierClaimed ? awardedCoins * 3 : awardedCoins}</Text>
               <Text style={[styles.rewardUnit, { color: colors.textSecondary }]}>Gold Coins</Text>
             </View>
 
@@ -286,7 +302,7 @@ export default function QuestCompleteScreen() {
               <View style={styles.xpCircleBox}>
                 <Zap size={24} color="#0A84FF" />
               </View>
-              <Text style={[styles.rewardNumber, { color: '#0A84FF' }]}>+{xp}</Text>
+              <Text style={[styles.rewardNumber, { color: '#0A84FF' }]}>+{awardedXP}</Text>
               <Text style={[styles.rewardUnit, { color: colors.textSecondary }]}>Hunter XP</Text>
             </View>
           </View>
@@ -312,7 +328,7 @@ export default function QuestCompleteScreen() {
         </View>
 
         {/* 5. 3X BOOST BANNER */}
-        {!multiplierClaimed && coins > 0 && (
+        {!multiplierClaimed && awardedCoins > 0 && (
           <TouchableOpacity
             style={styles.boostBanner}
             onPress={handleClaimMultiplier}
@@ -324,7 +340,7 @@ export default function QuestCompleteScreen() {
               </View>
               <View style={{ gap: 2, flex: 1 }}>
                 <Text style={styles.boostTitle}>CLAIM 3X COINS MULTIPLIER</Text>
-                <Text style={styles.boostSubtitle}>Watch a quick video to unlock +{coins * 2} extra coins!</Text>
+                <Text style={styles.boostSubtitle}>Watch a quick video to unlock +{Math.min(50, awardedCoins * 2)} extra coins!</Text>
               </View>
             </View>
             <View style={styles.boostTag}>
@@ -344,7 +360,7 @@ export default function QuestCompleteScreen() {
               const text = `[ARISE PROTOCOL // SESSION CLEARED]\n\n` +
                 `Hunter: ${name} (Rank: LVL ${lvl})\n` +
                 `Workout: ${reps} ${config.displayName} Reps\n` +
-                `Rewards: +${multiplierClaimed ? coins * 3 : coins} Coins • +${xp} XP\n` +
+                `Rewards: +${multiplierClaimed ? awardedCoins * 3 : awardedCoins} Coins • +${awardedXP} XP\n` +
                 `ARISE Protocol.`;
               await Share.share({ message: text });
             } catch (err) {}

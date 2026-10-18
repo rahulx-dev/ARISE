@@ -29,6 +29,7 @@ if (!AppBlocker) {
     isCurrentlyUnlocked: () => false,
     isEmergencyAvailable: () => true,
     claimEmergencyBailout: (_packageName?: string | null) => false,
+    getUnlockHistory: () => [],
     getPackageTodayUsageMs: (_packageName: string) => 0,
     getTotalTodayUsageMs: () => 0,
     showTestOverlay: (_targetPackage?: string) => false,
@@ -183,6 +184,24 @@ export function claimEmergencyBailout(packageName?: string | null): boolean {
   return false;
 }
 
+export interface UnlockRecord {
+  id: string;
+  packageName: string;
+  reason: string;
+  durationMs: number;
+  wallClockTimestamp: number;
+  granted: boolean;
+}
+
+export function getUnlockHistory(): UnlockRecord[] {
+  if (Platform.OS !== 'android' || !AppBlocker?.getUnlockHistory) return [];
+  try {
+    return AppBlocker.getUnlockHistory() || [];
+  } catch {
+    return [];
+  }
+}
+
 export function getPackageTodayUsageMs(packageName: string): number {
   if (Platform.OS !== 'android' || !AppBlocker?.getPackageTodayUsageMs) return 0;
   try {
@@ -253,6 +272,7 @@ export default {
   isCurrentlyUnlocked,
   isEmergencyAvailable,
   claimEmergencyBailout,
+  getUnlockHistory,
   getPackageTodayUsageMs,
   getTotalTodayUsageMs,
   showTestOverlay,

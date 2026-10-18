@@ -42,6 +42,28 @@ export interface HunterCloudBackup {
 const LAST_SYNC_KEY = '@arise_last_cloud_sync';
 const CLOUD_CACHE_PREFIX = '@arise_cloud_cache_';
 
+export function validateBackupData(data: any): HunterCloudBackup | null {
+  if (!data || typeof data !== 'object') return null;
+  const level = Number.isInteger(data.level) ? Math.max(1, Math.min(100, data.level)) : 1;
+  const coins = Number.isInteger(data.coins) ? Math.max(0, Math.min(1000000, data.coins)) : 0;
+  const totalXP = Number.isInteger(data.totalXP) ? Math.max(0, Math.min(10000000, data.totalXP)) : 0;
+  const currentStreak = Number.isInteger(data.currentStreak) ? Math.max(0, Math.min(3650, data.currentStreak)) : 0;
+  const longestStreak = Number.isInteger(data.longestStreak) ? Math.max(currentStreak, Math.min(3650, data.longestStreak)) : currentStreak;
+  const displayName = typeof data.displayName === 'string' ? data.displayName.trim().slice(0, 50) || 'Warrior' : 'Warrior';
+  const avatarIcon = typeof data.avatarIcon === 'string' && data.avatarIcon.startsWith('img_pfp_') ? data.avatarIcon : 'img_pfp_01';
+
+  return {
+    ...data,
+    level,
+    coins,
+    totalXP,
+    currentStreak,
+    longestStreak,
+    displayName,
+    avatarIcon,
+  };
+}
+
 export const cloudSyncService = {
   async enqueueCashoutSync(payload: {
     requestId: string;
@@ -193,6 +215,12 @@ export const cloudSyncService = {
   ): Promise<{ success: boolean; message: string; timestamp?: string }> {
     try {
       let email = targetEmail;
+      if (isSupabaseConfigured() && supabase) {
+        const { data: authData } = await supabase.auth.getUser();
+        if (authData?.user?.email) {
+          email = authData.user.email;
+        }
+      }
       if (!email) {
         const storedUser = await googleAuthService.getStoredGoogleUser();
         email = storedUser?.email;
@@ -234,24 +262,28 @@ export const cloudSyncService = {
         );
       } catch {}
 
-      // 2. Upload to remote Supabase cloud if active
+      // 2. Upload to remote Supabase cloud if active and user session matches
       if (isSupabaseConfigured() && supabase) {
         try {
-          const { error } = await supabase
-            .from('user_cloud_saves')
-            .upsert(
-              {
-                email: cleanEmail,
-                display_name: backupData.displayName,
-                avatar_icon: backupData.avatarIcon,
-                backup_data: backupData,
-                updated_at: now,
-              },
-              { onConflict: 'email' }
-            );
+          const { data: authData } = await supabase.auth.getUser();
+          const authUser = authData?.user;
+          if (authUser && authUser.email?.toLowerCase() === cleanEmail) {
+            const { error } = await supabase
+              .from('user_cloud_saves')
+              .upsert(
+                {
+                  email: cleanEmail,
+                  display_name: backupData.displayName,
+                  avatar_icon: backupData.avatarIcon,
+                  backup_data: backupData,
+                  updated_at: now,
+                },
+                { onConflict: 'email' }
+              );
 
-          if (error) {
-            console.warn('[CloudSync] Supabase upsert note:', error.message);
+            if (error) {
+              console.warn('[CloudSync] Supabase upsert note:', error.message);
+            }
           }
         } catch (cloudErr) {
           console.warn('[CloudSync] Remote upload note:', cloudErr);
@@ -280,7 +312,14 @@ export const cloudSyncService = {
     userEmail: string
   ): Promise<{ restored: boolean; message: string; backup?: HunterCloudBackup }> {
     try {
-      const cleanEmail = userEmail.trim().toLowerCase();
+      let cleanEmail = userEmail.trim().toLowerCase();
+      if (isSupabaseConfigured() && supabase) {
+        const { data: authData } = await supabase.auth.getUser();
+        if (authData?.user?.email) {
+          cleanEmail = authData.user.email.trim().toLowerCase();
+        }
+      }
+
       let backup: HunterCloudBackup | null = null;
 
       // 1. First attempt: Fetch from Remote Supabase Cloud
@@ -367,28 +406,6 @@ export const cloudSyncService = {
         } catch {}
       }
 
-      // 4. Merge highest authoritative stats from user_wallets if available
-      if (backup && isSupabaseConfigured() && supabase) {
-        try {
-          const { data: authData } = await supabase.auth.getUser();
-          const userId = authData?.user?.id;
-          if (userId) {
-            const { data: wallet } = await supabase
-              .from('user_wallets')
-              .select('*')
-              .eq('user_id', userId)
-              .maybeSingle();
-            if (wallet) {
-              if (wallet.level && wallet.level > (backup.level || 1)) backup.level = wallet.level;
-              if (wallet.total_xp && wallet.total_xp > (backup.totalXP || 0)) backup.totalXP = wallet.total_xp;
-              if (wallet.cloud_coins && wallet.cloud_coins > (backup.coins || 0)) backup.coins = wallet.cloud_coins;
-              if (wallet.streak && wallet.streak > (backup.currentStreak || 0)) backup.currentStreak = wallet.streak;
-              if (wallet.mana_crystals && wallet.mana_crystals > (backup.manaCrystals || 0)) backup.manaCrystals = wallet.mana_crystals;
-            }
-          }
-        } catch {}
-      }
-
       // Check if backup has authentic gameplay progression or custom profile
       const isAuthenticSave =
         Boolean(backup) &&
@@ -400,53 +417,72 @@ export const cloudSyncService = {
           Boolean(Array.isArray(backup?.achievements) && backup.achievements.length > 0));
 
       // If no valid save found anywhere for this email -> fresh user
-      if (!backup || !isAuthenticSave) {
+      const validated = validateBackupData(backup);
+      if (!validated || !isAuthenticSave) {
         return {
           restored: false,
           message: 'No prior cloud backup found for this account. Starting fresh!',
         };
       }
+      backup = validated;
 
       const now = new Date().toISOString();
 
-      // 3. Atomically restore into SQLite tables
-      // A. Restore User Profile (Level, XP, Coins, Streaks, Attributes)
-      const currentProfile = await userRepository.getProfile();
-      await userRepository.updateProfile({
-        displayName: backup.displayName || currentProfile?.displayName || 'Warrior',
-        avatarIcon: backup.avatarIcon || currentProfile?.avatarIcon || 'img_pfp_01',
-        profileImageUri: backup.profileImageUri || currentProfile?.profileImageUri || undefined,
-        level: Math.max(currentProfile?.level || 1, backup.level || 1),
-        currentXP: Math.max(currentProfile?.currentXP || 0, backup.currentXP || 0),
-        totalXP: Math.max(currentProfile?.totalXP || 0, backup.totalXP || 0),
-        coins: Math.max(currentProfile?.coins || 0, backup.coins || 0),
-        currentStreak: Math.max(currentProfile?.currentStreak || 0, backup.currentStreak || 0),
-        longestStreak: Math.max(currentProfile?.longestStreak || 0, backup.longestStreak || 0),
-        strength: Math.max(currentProfile?.strength || 0, backup.strength || 0),
-        discipline: Math.max(currentProfile?.discipline || 0, backup.discipline || 0),
-        focus: Math.max(currentProfile?.focus || 0, backup.focus || 0),
-        health: Math.max(currentProfile?.health || 0, backup.health || 0),
-        knowledge: Math.max(currentProfile?.knowledge || 0, backup.knowledge || 0),
-      });
+      // 3. Atomically restore into SQLite tables in a single ACID transaction
+      expoDb.withTransactionSync(() => {
+        // A. Restore User Profile
+        expoDb.runSync(
+          `UPDATE user_profile SET
+            display_name = ?,
+            avatar_icon = ?,
+            profile_image_uri = ?,
+            level = ?,
+            current_xp = ?,
+            total_xp = ?,
+            coins = ?,
+            current_streak = ?,
+            longest_streak = ?,
+            strength = ?,
+            discipline = ?,
+            focus = ?,
+            health = ?,
+            knowledge = ?
+          WHERE id = (SELECT id FROM user_profile LIMIT 1)`,
+          [
+            validated.displayName || 'Warrior',
+            validated.avatarIcon || 'img_pfp_01',
+            validated.profileImageUri || null,
+            validated.level,
+            validated.currentXP || 0,
+            validated.totalXP,
+            validated.coins,
+            validated.currentStreak,
+            validated.longestStreak,
+            Math.max(0, Math.min(1000, validated.strength || 0)),
+            Math.max(0, Math.min(1000, validated.discipline || 0)),
+            Math.max(0, Math.min(1000, validated.focus || 0)),
+            Math.max(0, Math.min(1000, validated.health || 0)),
+            Math.max(0, Math.min(1000, validated.knowledge || 0)),
+          ]
+        );
 
-      // B. Restore Unlocked Avatars & Inventory
-      if (Array.isArray(backup.unlockedInventory) && backup.unlockedInventory.length > 0) {
-        for (const item of backup.unlockedInventory) {
-          if (item?.itemId) {
-            await inventoryRepository.unlockItem(item.itemId, item.itemType || 'AVATAR');
-            if (item.isEquipped) {
-              await inventoryRepository.equipItem(item.itemId, item.itemType || 'AVATAR');
+        // B. Restore Unlocked Avatars & Inventory
+        if (Array.isArray(backup.unlockedInventory) && backup.unlockedInventory.length > 0) {
+          for (const item of backup.unlockedInventory) {
+            if (item?.itemId) {
+              expoDb.runSync(
+                'INSERT OR REPLACE INTO user_inventory (item_id, item_type, unlocked_at, is_equipped) VALUES (?, ?, ?, ?)',
+                [item.itemId, item.itemType || 'AVATAR', now, item.isEquipped ? 1 : 0]
+              );
             }
           }
         }
-      }
 
-      // C. Restore Achievements (Robust parameterized INSERT OR REPLACE preventing ID collisions)
-      if (Array.isArray(backup.achievements) && backup.achievements.length > 0) {
-        for (const ach of backup.achievements) {
-          const achId = ach?.achievementId || ach?.id;
-          if (!achId || typeof achId !== 'string') continue;
-          try {
+        // C. Restore Achievements
+        if (Array.isArray(backup.achievements) && backup.achievements.length > 0) {
+          for (const ach of backup.achievements) {
+            const achId = ach?.achievementId || ach?.id;
+            if (!achId || typeof achId !== 'string') continue;
             expoDb.runSync(
               'INSERT OR REPLACE INTO achievement (achievement_id, title, description, icon, category, unlocked_at) VALUES (?, ?, ?, ?, ?, ?)',
               [
@@ -458,17 +494,13 @@ export const cloudSyncService = {
                 ach.unlockedAt || now,
               ]
             );
-          } catch (achErr) {
-            console.warn('[CloudSync] Error restoring achievement:', achErr);
           }
         }
-      }
 
-      // D. Restore Exercise Sessions (Enables milestone metric counters)
-      if (Array.isArray(backup.exerciseSessions) && backup.exerciseSessions.length > 0) {
-        for (const s of backup.exerciseSessions) {
-          if (!s?.exerciseType) continue;
-          try {
+        // D. Restore Exercise Sessions
+        if (Array.isArray(backup.exerciseSessions) && backup.exerciseSessions.length > 0) {
+          for (const s of backup.exerciseSessions) {
+            if (!s?.exerciseType) continue;
             expoDb.runSync(
               'INSERT INTO exercise_session (exercise_type, target, completed_reps, duration_seconds, form_score, timestamp, quest_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
               [
@@ -481,55 +513,54 @@ export const cloudSyncService = {
                 s.questId || null,
               ]
             );
-          } catch {}
+          }
         }
-      }
 
-      // E. Restore Focus Sessions
-      if (Array.isArray(backup.focusSessions) && backup.focusSessions.length > 0) {
-        for (const f of backup.focusSessions) {
-          if (!f?.startTime) continue;
-          try {
+        // E. Restore Focus Sessions
+        if (Array.isArray(backup.focusSessions) && backup.focusSessions.length > 0) {
+          for (const f of backup.focusSessions) {
+            if (!f?.startTime) continue;
             expoDb.runSync(
-              'INSERT INTO focus_session (package_name, app_name, duration_ms, start_time, end_time, target_end_epoch, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+              'INSERT INTO focus_session (target_minutes, completed_minutes, start_time, end_time, status, reward_coins, reward_xp) VALUES (?, ?, ?, ?, ?, ?, ?)',
               [
-                f.packageName || 'focus',
-                f.appName || 'Deep Focus',
-                f.durationMs || 1500000,
+                Math.round((f.durationMs || 1500000) / 60000),
+                Math.round((f.durationMs || 1500000) / 60000),
                 f.startTime,
                 f.endTime || now,
-                f.targetEndEpoch || Date.now(),
                 f.status || 'COMPLETED',
+                0,
+                0,
               ]
             );
-          } catch {}
+          }
         }
-      }
 
-      // F. Restore Quests
-      if (Array.isArray(backup.quests) && backup.quests.length > 0) {
-        for (const q of backup.quests) {
-          if (!q?.title) continue;
-          try {
+        // F. Restore Quests
+        if (Array.isArray(backup.quests) && backup.quests.length > 0) {
+          for (const q of backup.quests) {
+            if (!q?.title) continue;
             expoDb.runSync(
-              'INSERT INTO quest (title, description, type, target, progress, completed, reward_coins, reward_xp, frequency, date, exercise_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+              'INSERT INTO quest (title, description, category, exercise_type, target, reward_coins, reward_xp, difficulty, completed, quest_type, frequency, date, is_custom, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
               [
                 q.title,
                 q.description || '',
-                q.type || 'EXERCISE',
+                q.category || 'FITNESS',
+                q.exerciseType || 'PUSHUP',
                 q.target || 10,
-                q.progress || 0,
-                q.completed || 0,
                 q.rewardCoins || 100,
                 q.rewardXP || 250,
+                q.difficulty || 'easy',
+                q.completed || 0,
+                q.questType || 'TRACKED',
                 q.frequency || 'DAILY',
                 q.date || now.split('T')[0],
-                q.exerciseType || 'PUSHUP',
+                0,
+                now,
               ]
             );
-          } catch {}
+          }
         }
-      }
+      });
 
       // Refresh in-memory Zustand store and re-evaluate achievements immediately
       try {

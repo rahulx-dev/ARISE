@@ -138,8 +138,7 @@ class AppMonitorService : Service() {
     }
 
     private fun normalizePackage(packageName: String?): String? {
-        val normalized = packageName?.trim()?.lowercase(Locale.ROOT)
-        return normalized?.takeIf { it.isNotEmpty() && it != "null" }
+        return BlockPolicyController.normalizePackageName(packageName)
     }
 
     private fun normalizePackages(packages: Collection<String>): Set<String> {
@@ -175,7 +174,7 @@ class AppMonitorService : Service() {
 
             // 2. Active screen-time pass check
             val unlockTarget = BlockPolicyController.getUnlockUntil(this@AppMonitorService)
-            val isUnlocked = now < unlockTarget
+            val isUnlocked = BlockPolicyController.isPassActive()
             if (isUnlocked != lastWasUnlocked) {
                 lastWasUnlocked = isUnlocked
                 updateNotification(isUnlocked, unlockTarget)

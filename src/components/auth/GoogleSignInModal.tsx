@@ -53,23 +53,16 @@ export function GoogleSignInModal({ visible, onClose, onSuccess }: GoogleSignInM
 
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('Connecting to Google...');
-  const [showManualForm, setShowManualForm] = useState(false);
-  const [customName, setCustomName] = useState('');
-  const [customEmail, setCustomEmail] = useState('');
   const [errorText, setErrorText] = useState('');
   const [storedUser, setStoredUser] = useState<GoogleAuthUser | null>(null);
 
   useEffect(() => {
     if (visible) {
       loadStoredUser();
-      setShowManualForm(false);
       setErrorText('');
       setLoading(false);
-      if (profile?.displayName) {
-        setCustomName(profile.displayName);
-      }
     }
-  }, [visible, profile?.displayName]);
+  }, [visible]);
 
   const loadStoredUser = async () => {
     const user = await googleAuthService.getStoredGoogleUser();
@@ -93,63 +86,11 @@ export function GoogleSignInModal({ visible, onClose, onSuccess }: GoogleSignInM
         setErrorText(res.error || 'Failed to open Google account selector');
         haptics.warning();
       }
-      // On web, startCloudOAuth initiates window.location redirect to accounts.google.com
     } catch (e: any) {
       setLoading(false);
       setErrorText(e?.message || 'Error opening Google account selector');
       haptics.warning();
     }
-  };
-
-  /**
-   * Direct/Manual connection with Gmail address
-   */
-  const handleDirectConnect = async (account: { displayName: string; email: string }) => {
-    haptics.medium();
-    setLoading(true);
-    setErrorText('');
-    setLoadingMessage('Linking Google Account...');
-
-    try {
-      const authUser = await googleAuthService.signInWithAccount(account);
-      setStoredUser(authUser);
-
-      setLoadingMessage('Checking Cloud Backup...');
-      const restoreRes = await cloudSyncService.restoreFromCloud(authUser.email);
-
-      if (restoreRes.restored) {
-        sound.play('level_up');
-        haptics.success();
-      } else {
-        haptics.success();
-      }
-
-      setLoading(false);
-      onSuccess({
-        user: authUser,
-        restored: restoreRes.restored,
-        message: restoreRes.message,
-        backup: restoreRes.backup,
-      });
-      onClose();
-    } catch (e: any) {
-      setLoading(false);
-      setErrorText(e?.message || 'Failed to link Google account');
-      haptics.warning();
-    }
-  };
-
-  const handleManualSubmit = async () => {
-    const trimmedName = customName.trim() || profile?.displayName || 'Hunter';
-    const trimmedEmail = customEmail.trim().toLowerCase();
-
-    if (!trimmedEmail || !trimmedEmail.includes('@') || !trimmedEmail.includes('.')) {
-      setErrorText('Please enter a valid Gmail address');
-      haptics.warning();
-      return;
-    }
-
-    await handleDirectConnect({ displayName: trimmedName, email: trimmedEmail });
   };
 
   const handleDisconnect = async () => {
@@ -393,115 +334,6 @@ export function GoogleSignInModal({ visible, onClose, onSuccess }: GoogleSignInM
                             </Text>
                           </View>
                         </View>
-
-                        {/* Manual / Alternate Link Toggle */}
-                        {!showManualForm ? (
-                          <TouchableOpacity
-                            style={styles.manualToggleBtn}
-                            onPress={() => {
-                              haptics.light();
-                              setShowManualForm(true);
-                            }}
-                            activeOpacity={0.7}
-                          >
-                            <Mail size={15} color={colors.textMuted} />
-                            <Text style={[styles.manualToggleText, { color: colors.textSecondary }]}>
-                              Or connect by entering Gmail directly
-                            </Text>
-                            <ChevronRight size={15} color={colors.textMuted} />
-                          </TouchableOpacity>
-                        ) : (
-                          /* Manual Entry Form */
-                          <View
-                            style={[
-                              styles.manualFormBox,
-                              {
-                                backgroundColor: isDark ? '#191D2E' : '#F9FAFB',
-                                borderColor: isDark ? '#262C42' : '#E5E7EB',
-                              },
-                            ]}
-                          >
-                            <Text style={[styles.manualFormTitle, { color: colors.textPrimary }]}>
-                              Direct Gmail Link
-                            </Text>
-
-                            <View style={styles.inputGroup}>
-                              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
-                                Hunter Name
-                              </Text>
-                              <View
-                                style={[
-                                  styles.inputWrap,
-                                  {
-                                    backgroundColor: isDark ? '#131622' : '#FFFFFF',
-                                    borderColor: isDark ? '#262C42' : '#E5E7EB',
-                                  },
-                                ]}
-                              >
-                                <User size={16} color={colors.textMuted} />
-                                <TextInput
-                                  style={[styles.textInput, { color: colors.textPrimary }]}
-                                  placeholder="Your Name"
-                                  placeholderTextColor={colors.textMuted}
-                                  value={customName}
-                                  onChangeText={setCustomName}
-                                  autoCapitalize="words"
-                                />
-                              </View>
-                            </View>
-
-                            <View style={styles.inputGroup}>
-                              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
-                                Gmail Address
-                              </Text>
-                              <View
-                                style={[
-                                  styles.inputWrap,
-                                  {
-                                    backgroundColor: isDark ? '#131622' : '#FFFFFF',
-                                    borderColor: isDark ? '#262C42' : '#E5E7EB',
-                                  },
-                                ]}
-                              >
-                                <Mail size={16} color={colors.textMuted} />
-                                <TextInput
-                                  style={[styles.textInput, { color: colors.textPrimary }]}
-                                  placeholder="yourname@gmail.com"
-                                  placeholderTextColor={colors.textMuted}
-                                  value={customEmail}
-                                  onChangeText={setCustomEmail}
-                                  keyboardType="email-address"
-                                  autoCapitalize="none"
-                                />
-                              </View>
-                            </View>
-
-                            <View style={styles.manualBtnRow}>
-                              <TouchableOpacity
-                                style={[
-                                  styles.cancelManualBtn,
-                                  {
-                                    backgroundColor: isDark ? '#1E2235' : '#E5E7EB',
-                                  },
-                                ]}
-                                onPress={() => setShowManualForm(false)}
-                                activeOpacity={0.8}
-                              >
-                                <Text style={[styles.cancelManualText, { color: colors.textSecondary }]}>
-                                  Cancel
-                                </Text>
-                              </TouchableOpacity>
-
-                              <TouchableOpacity
-                                style={[styles.submitManualBtn, { backgroundColor: '#4285F4' }]}
-                                onPress={handleManualSubmit}
-                                activeOpacity={0.85}
-                              >
-                                <Text style={styles.submitManualText}>Link & Restore</Text>
-                              </TouchableOpacity>
-                            </View>
-                          </View>
-                        )}
                       </View>
                     )}
 

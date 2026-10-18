@@ -339,8 +339,6 @@ export default function QuestsScreen() {
           type: cameraExercise,
           target: String(q.target || 20),
           questId: String(q.id),
-          rewardCoins: String(q.rewardCoins || 18),
-          rewardXP: String(q.rewardXP || 50),
         },
       } as any);
     } else if (isFocus) {

@@ -2,6 +2,7 @@ package com.arise.appblocker
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.os.SystemClock
 import android.util.Log
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -85,16 +86,20 @@ object BlockPolicyController {
         return SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(Date())
     }
 
+    private val PACKAGE_REGEX = Regex("^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)+$")
+    private const val MAX_PACKAGE_LENGTH = 256
+
     fun normalizePackageName(packageName: String?): String? {
-        val normalized = packageName?.trim()?.lowercase(Locale.ROOT)
-        return normalized?.takeIf { it.isNotEmpty() && it != "null" }
+        val normalized = packageName?.trim()?.lowercase(Locale.ROOT) ?: return null
+        if (normalized.length > MAX_PACKAGE_LENGTH || normalized == "null" || normalized.isEmpty()) return null
+        return if (PACKAGE_REGEX.matches(normalized)) normalized else null
     }
 
     private fun budgetKey(packageName: String): String = BUDGET_PREFIX + packageName
     private fun usageKey(packageName: String): String = USAGE_PREFIX + packageName
 
     // =========================================================================
-    // HYBRID REAL-TIME SESSION ENGINE
+    // HYBRID REAL-TIME SESSION ENGINE (MONOTONIC TIME)
     // =========================================================================
 
     /**
@@ -109,7 +114,7 @@ object BlockPolicyController {
                 flushActiveSession(context)
 
                 activeSessionPackage = normalized
-                activeSessionStartTime = System.currentTimeMillis()
+                activeSessionStartTime = SystemClock.elapsedRealtime()
                 // Seed base usage from Digital Wellbeing + local storage
                 activeSessionBaseUsage = getPersistedUsage(context, normalized)
                 Log.d(TAG, "Live stopwatch started for $normalized. Base usage: ${activeSessionBaseUsage / 1000}s")
@@ -136,7 +141,7 @@ object BlockPolicyController {
         val pkg = activeSessionPackage ?: return
         val startTime = activeSessionStartTime
         if (startTime > 0L) {
-            val durationMs = (System.currentTimeMillis() - startTime).coerceAtLeast(0L)
+            val durationMs = (SystemClock.elapsedRealtime() - startTime).coerceAtLeast(0L)
             if (durationMs > 0L) {
                 val updated = activeSessionBaseUsage + durationMs
                 packageUsageTodayMs[pkg] = updated
@@ -161,7 +166,7 @@ object BlockPolicyController {
         val normalized = normalizePackageName(packageName) ?: return 0L
         synchronized(sessionLock) {
             if (normalized == activeSessionPackage && activeSessionStartTime > 0L) {
-                val liveSessionDelta = (System.currentTimeMillis() - activeSessionStartTime).coerceAtLeast(0L)
+                val liveSessionDelta = (SystemClock.elapsedRealtime() - activeSessionStartTime).coerceAtLeast(0L)
                 return activeSessionBaseUsage + liveSessionDelta
             }
         }
@@ -392,7 +397,7 @@ object BlockPolicyController {
         // LIVE REAL-TIME USAGE (Digital Wellbeing + Live Stopwatch)
         val usageMs = getLiveUsageForPackage(context, normalizedPackage)
         val remainingMs = (limitMs - usageMs).coerceAtLeast(0L)
-        val isPassActive = now < getUnlockUntil(context)
+        val isPassActive = isPassActive()
 
         val previousPolicy = activePolicies[normalizedPackage]
         val lockState = when {
@@ -417,55 +422,40 @@ object BlockPolicyController {
         return policy
     }
 
-    fun setUnlockUntil(context: Context?, epochMs: Long): Boolean {
-        val now = System.currentTimeMillis()
-        val target = when {
-            epochMs <= now -> 0L
-            epochMs - now > MAX_UNLOCK_WINDOW_MS -> {
-                Log.w(TAG, "Rejecting unlock window longer than 30 minutes")
-                return false
-            }
-            else -> epochMs
-        }
+    // Monotonic elapsed-realtime anchor for temporary unlocks
+    @Volatile
+    private var unlockedUntilElapsedRealtimeMs: Long = 0L
+
+    fun isPassActive(): Boolean {
+        return SystemClock.elapsedRealtime() < unlockedUntilElapsedRealtimeMs
+    }
+
+    /**
+     * Grants a temporary unlock pass for a specified duration in milliseconds.
+     * Uses SystemClock.elapsedRealtime() so device clock tampering cannot extend the unlock.
+     * Every grant is immutably recorded in the UnlockLedger.
+     */
+    fun setUnlockDuration(context: Context?, durationMs: Long, reason: String = "WORKOUT", targetPackage: String? = null): Boolean {
         val actualContext = context ?: return false
-        return try {
-            val editor = preferences(actualContext).edit()
-            if (target > 0L) {
-                editor.putLong(UNLOCKED_UNTIL_KEY, target)
-            } else {
-                editor.remove(UNLOCKED_UNTIL_KEY)
-            }
-            if (editor.commit()) {
-                unlockedUntilEpochMs = target
-                invalidateAll()
-                true
-            } else {
-                false
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Unable to persist unlock window", e)
-            false
+        val safeDuration = durationMs.coerceIn(0L, MAX_UNLOCK_WINDOW_MS)
+        return synchronized(policyLock) {
+            val nowElapsed = SystemClock.elapsedRealtime()
+            unlockedUntilElapsedRealtimeMs = if (safeDuration > 0L) nowElapsed + safeDuration else 0L
+            UnlockLedger.recordUnlock(actualContext, targetPackage ?: "all", reason, safeDuration, safeDuration > 0L)
+            invalidateAll()
+            true
         }
     }
 
-    fun getUnlockUntil(context: Context?): Long {
-        val actualContext = context ?: return 0L
+    fun setUnlockUntil(context: Context?, epochMs: Long): Boolean {
         val now = System.currentTimeMillis()
-        return try {
-            val prefs = preferences(actualContext)
-            val saved = prefs.getLong(UNLOCKED_UNTIL_KEY, 0L)
-            if (saved > now) {
-                unlockedUntilEpochMs = saved
-                saved
-            } else {
-                if (saved > 0L) prefs.edit().remove(UNLOCKED_UNTIL_KEY).apply()
-                unlockedUntilEpochMs = 0L
-                0L
-            }
-        } catch (_: Exception) {
-            unlockedUntilEpochMs = 0L
-            0L
-        }
+        val durationMs = if (epochMs > now) epochMs - now else 0L
+        return setUnlockDuration(context, durationMs, "CUSTOM", null)
+    }
+
+    fun getUnlockUntil(context: Context?): Long {
+        val remaining = (unlockedUntilElapsedRealtimeMs - SystemClock.elapsedRealtime()).coerceAtLeast(0L)
+        return if (remaining > 0L) System.currentTimeMillis() + remaining else 0L
     }
 
     fun isEmergencyAvailable(context: Context): Boolean {
@@ -481,7 +471,7 @@ object BlockPolicyController {
 
     /**
      * Executes the once-per-day 5-minute emergency bailout unlock.
-     * Counts 5 minutes toward the daily usage budget.
+     * Counted INSIDE the daily budget. Monotonic time tracking. Recorded in UnlockLedger.
      */
     fun claimEmergencyBailout(context: Context, packageName: String?): Boolean {
         synchronized(policyLock) {
@@ -491,17 +481,15 @@ object BlockPolicyController {
             }
 
             val today = getTodayDateString()
-            val now = System.currentTimeMillis()
-            val unlockUntil = now + EMERGENCY_DURATION_MS
+            val normalizedPackage = normalizePackageName(packageName)
 
-            // 1. Set the 5-minute temporary unlock pass
-            if (!setUnlockUntil(context, unlockUntil)) {
+            // 1. Set the 5-minute temporary unlock pass using monotonic time & recorded in UnlockLedger
+            if (!setUnlockDuration(context, EMERGENCY_DURATION_MS, "EMERGENCY_PASS", normalizedPackage)) {
                 Log.e(TAG, "Failed setting unlock window for emergency pass")
                 return false
             }
 
-            // 2. Count those 5 minutes toward the blocked app's daily budget!
-            val normalizedPackage = normalizePackageName(packageName)
+            // 2. Count those 5 minutes INSIDE the daily budget!
             if (normalizedPackage != null) {
                 addTrackedUsage(context, normalizedPackage, EMERGENCY_DURATION_MS)
                 synchronized(sessionLock) {
@@ -509,7 +497,7 @@ object BlockPolicyController {
                         activeSessionBaseUsage += EMERGENCY_DURATION_MS
                     }
                 }
-                Log.i(TAG, "Emergency 5 min credited to $normalizedPackage usage today")
+                Log.i(TAG, "Emergency 5 min credited inside $normalizedPackage daily budget")
             }
 
             // 3. Persist today's bailout date so emergency pass cannot be reused today
@@ -519,8 +507,10 @@ object BlockPolicyController {
                 Log.e(TAG, "Failed persisting emergency bailout date", e)
             }
 
+            // TODO_PRODUCT_DECISION: Shop Pass / Instant Unlock rules are unsettled; flagged as open product decision per Lucky's requirements.
+
             invalidateAll()
-            Log.i(TAG, "Emergency bailout granted successfully until $unlockUntil")
+            Log.i(TAG, "Emergency bailout granted successfully")
             return true
         }
     }

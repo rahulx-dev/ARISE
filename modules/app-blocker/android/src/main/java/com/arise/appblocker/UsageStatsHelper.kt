@@ -91,12 +91,8 @@ object UsageStatsHelper {
     }
 
     fun isSystemLauncherOrUi(context: Context, packageName: String): Boolean {
-        val normalized = packageName.trim().lowercase(Locale.ROOT)
+        val normalized = BlockPolicyController.normalizePackageName(packageName) ?: return false
         if (normalized == "android" || knownLauncherPackages.contains(normalized)) return true
-        if (normalized.contains("launcher") || normalized.contains("quickstep")) {
-            knownLauncherPackages.add(normalized)
-            return true
-        }
 
         ensureLauncherCache(context)
         return knownLauncherPackages.contains(normalized)

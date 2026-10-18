@@ -44,6 +44,9 @@ class PoseCameraView(context: Context, appContext: AppContext) : ExpoView(contex
     private var cameraFacing: String = "front"
     private var isTextureReady: Boolean = false
 
+    private val detectorLock = Any()
+    private val isClosing = AtomicBoolean(false)
+
     // Frame pacing: 15 FPS (min interval ~66ms) with non-queuing frame dropping
     private var lastAnalysisTimestampMs = 0L
     private var monotonicVideoTimestampMs = 1L
@@ -61,6 +64,11 @@ class PoseCameraView(context: Context, appContext: AppContext) : ExpoView(contex
             override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, w: Int, h: Int) {}
             override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean {
                 isTextureReady = false
+                try {
+                    cameraProvider?.unbindAll()
+                } catch (e: Exception) {
+                    Log.w("ARISE_POSE_CAMERA", "Error unbinding on surface destroy: ${e.message}")
+                }
                 return true
             }
             override fun onSurfaceTextureUpdated(st: SurfaceTexture) {}
@@ -68,41 +76,43 @@ class PoseCameraView(context: Context, appContext: AppContext) : ExpoView(contex
     }
 
     private fun initPoseDetector() {
-        val appContextObj = appContext.reactContext ?: context
-        val baseOptionsBuilder = BaseOptions.builder()
-            .setModelAssetPath("pose_landmarker_full.task")
+        synchronized(detectorLock) {
+            val appContextObj = appContext.reactContext ?: context
+            val baseOptionsBuilder = BaseOptions.builder()
+                .setModelAssetPath("pose_landmarker_full.task")
 
-        try {
-            val gpuBaseOptions = baseOptionsBuilder.setDelegate(Delegate.GPU).build()
-            val gpuOptions = PoseLandmarker.PoseLandmarkerOptions.builder()
-                .setBaseOptions(gpuBaseOptions)
-                .setRunningMode(RunningMode.VIDEO)
-                .setMinPoseDetectionConfidence(0.5f)
-                .setMinPosePresenceConfidence(0.5f)
-                .setMinTrackingConfidence(0.5f)
-                .setNumPoses(1)
-                .build()
-            poseLandmarker = PoseLandmarker.createFromOptions(appContextObj, gpuOptions)
-            Log.d("ARISE_POSE_CAMERA", "MediaPipe PoseLandmarker initialized with GPU delegate (pose_landmarker_full.task)")
-        } catch (eGpu: Throwable) {
-            Log.w("ARISE_POSE_CAMERA", "GPU delegate failed (${eGpu.message}), falling back to CPU")
             try {
-                val cpuBaseOptions = BaseOptions.builder()
-                    .setModelAssetPath("pose_landmarker_full.task")
-                    .setDelegate(Delegate.CPU)
-                    .build()
-                val cpuOptions = PoseLandmarker.PoseLandmarkerOptions.builder()
-                    .setBaseOptions(cpuBaseOptions)
+                val gpuBaseOptions = baseOptionsBuilder.setDelegate(Delegate.GPU).build()
+                val gpuOptions = PoseLandmarker.PoseLandmarkerOptions.builder()
+                    .setBaseOptions(gpuBaseOptions)
                     .setRunningMode(RunningMode.VIDEO)
                     .setMinPoseDetectionConfidence(0.5f)
                     .setMinPosePresenceConfidence(0.5f)
                     .setMinTrackingConfidence(0.5f)
                     .setNumPoses(1)
                     .build()
-                poseLandmarker = PoseLandmarker.createFromOptions(appContextObj, cpuOptions)
-                Log.d("ARISE_POSE_CAMERA", "MediaPipe PoseLandmarker initialized with CPU delegate fallback")
-            } catch (eCpu: Throwable) {
-                Log.e("ARISE_POSE_CAMERA", "Failed to initialize PoseLandmarker on CPU", eCpu)
+                poseLandmarker = PoseLandmarker.createFromOptions(appContextObj, gpuOptions)
+                Log.d("ARISE_POSE_CAMERA", "MediaPipe PoseLandmarker initialized with GPU delegate (pose_landmarker_full.task)")
+            } catch (eGpu: Throwable) {
+                Log.w("ARISE_POSE_CAMERA", "GPU delegate failed (${eGpu.message}), falling back to CPU")
+                try {
+                    val cpuBaseOptions = BaseOptions.builder()
+                        .setModelAssetPath("pose_landmarker_full.task")
+                        .setDelegate(Delegate.CPU)
+                        .build()
+                    val cpuOptions = PoseLandmarker.PoseLandmarkerOptions.builder()
+                        .setBaseOptions(cpuBaseOptions)
+                        .setRunningMode(RunningMode.VIDEO)
+                        .setMinPoseDetectionConfidence(0.5f)
+                        .setMinPosePresenceConfidence(0.5f)
+                        .setMinTrackingConfidence(0.5f)
+                        .setNumPoses(1)
+                        .build()
+                    poseLandmarker = PoseLandmarker.createFromOptions(appContextObj, cpuOptions)
+                    Log.d("ARISE_POSE_CAMERA", "MediaPipe PoseLandmarker initialized with CPU delegate fallback")
+                } catch (eCpu: Throwable) {
+                    Log.e("ARISE_POSE_CAMERA", "Failed to initialize PoseLandmarker on CPU", eCpu)
+                }
             }
         }
     }
@@ -203,6 +213,11 @@ class PoseCameraView(context: Context, appContext: AppContext) : ExpoView(contex
             return
         }
 
+        if (isClosing.get()) {
+            imageProxy.close()
+            return
+        }
+
         // Drop incoming frame if previous inference is still executing — never queue frames
         if (!isAnalyzing.compareAndSet(false, true)) {
             imageProxy.close()
@@ -210,11 +225,6 @@ class PoseCameraView(context: Context, appContext: AppContext) : ExpoView(contex
         }
 
         try {
-            val detector = poseLandmarker
-            if (detector == null) {
-                return
-            }
-
             lastAnalysisTimestampMs = currentRealTime
 
             val rawBitmap = imageProxy.toBitmap()
@@ -237,8 +247,14 @@ class PoseCameraView(context: Context, appContext: AppContext) : ExpoView(contex
 
             try {
                 val mpImage = BitmapImageBuilder(finalBitmap).build()
-                val timestampMs = monotonicVideoTimestampMs++
-                val result = detector.detectForVideo(mpImage, timestampMs)
+                val result = synchronized(detectorLock) {
+                    if (isClosing.get()) return@synchronized null
+                    val detector = poseLandmarker ?: return@synchronized null
+                    val timestampMs = monotonicVideoTimestampMs++
+                    detector.detectForVideo(mpImage, timestampMs)
+                } ?: run {
+                    return
+                }
 
                 if (result.landmarks().isNotEmpty()) {
                     val poseLandmarks = result.landmarks()[0]
@@ -285,14 +301,37 @@ class PoseCameraView(context: Context, appContext: AppContext) : ExpoView(contex
         }
     }
 
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        isClosing.set(false)
+        if (cameraExecutor.isShutdown || cameraExecutor.isTerminated) {
+            cameraExecutor = Executors.newSingleThreadExecutor()
+        }
+        synchronized(detectorLock) {
+            if (poseLandmarker == null) {
+                initPoseDetector()
+            }
+        }
+        if (isTextureReady) {
+            startCamera()
+        }
+    }
+
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
+        isClosing.set(true)
         try {
             cameraProvider?.unbindAll()
+            camera = null
             cameraExecutor.shutdown()
-            poseLandmarker?.close()
-            poseLandmarker = null
-            Log.d("ARISE_POSE_CAMERA", "PoseCameraView detached and cleaned up")
+            try {
+                cameraExecutor.awaitTermination(300, java.util.concurrent.TimeUnit.MILLISECONDS)
+            } catch (_: Exception) {}
+            synchronized(detectorLock) {
+                poseLandmarker?.close()
+                poseLandmarker = null
+            }
+            Log.d("ARISE_POSE_CAMERA", "PoseCameraView detached and cleaned up safely")
         } catch (e: Exception) {
             Log.w("ARISE_POSE_CAMERA", "Cleanup error: ${e.message}")
         }

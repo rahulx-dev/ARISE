@@ -19,14 +19,16 @@ import java.io.ByteArrayInputStream
 class PoseDetectorModule : Module() {
     private var poseLandmarker: PoseLandmarker? = null
     private var videoTimestampMs = 1L
+    private val detectorLock = Any()
 
     override fun definition() = ModuleDefinition {
         Name("PoseDetector")
 
         AsyncFunction("initialize") {
             try {
-                if (poseLandmarker == null) {
-                    val context = appContext.reactContext ?: return@AsyncFunction false
+                synchronized(detectorLock) {
+                    if (poseLandmarker == null) {
+                        val context = appContext.reactContext ?: return@AsyncFunction false
                     val baseOptions = BaseOptions.builder()
                         .setModelAssetPath("pose_landmarker_full.task")
 
@@ -54,6 +56,7 @@ class PoseDetectorModule : Module() {
                         poseLandmarker = PoseLandmarker.createFromOptions(context, cpuOptions)
                         Log.d("ARISE_POSE", "MediaPipe PoseLandmarker initialized with CPU delegate")
                     }
+                }
                 }
                 return@AsyncFunction true
             } catch (e: Exception) {
@@ -128,7 +131,9 @@ class PoseDetectorModule : Module() {
 
                     try {
                         val mpImage = BitmapImageBuilder(finalBitmap).build()
-                        val result = detector.detectForVideo(mpImage, videoTimestampMs++)
+                        val result = synchronized(detectorLock) {
+                            detector.detectForVideo(mpImage, videoTimestampMs++)
+                        }
                         val resultList = mutableListOf<Map<String, Any>>()
 
                         if (result.landmarks().isNotEmpty()) {
@@ -199,9 +204,11 @@ class PoseDetectorModule : Module() {
 
         Function("release") {
             try {
-                poseLandmarker?.close()
-                poseLandmarker = null
-                Log.d("ARISE_POSE", "PoseLandmarker released")
+                synchronized(detectorLock) {
+                    poseLandmarker?.close()
+                    poseLandmarker = null
+                }
+                Log.d("ARISE_POSE", "PoseLandmarker released safely")
             } catch (e: Exception) {
                 Log.e("ARISE_POSE", "Error releasing PoseLandmarker", e)
             }
