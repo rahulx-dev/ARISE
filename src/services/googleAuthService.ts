@@ -24,45 +24,82 @@ export const googleAuthService = {
   },
 
   /**
-   * Get currently authenticated Google user from secure storage
+   * Get currently authenticated Google user from secure storage.
+   * C4: the stored user is RE-VALIDATED against the live Supabase session.
+   * A forged/stale stored entry (crafted KV/SecureStore value) is purged
+   * and never trusted as "linked". With no live session (offline), the
+   * stored user is returned as-is for display; cloud operations re-check
+   * the session themselves.
    */
   async getStoredGoogleUser(): Promise<GoogleAuthUser | null> {
     try {
+      let user: GoogleAuthUser | null = null;
+
       // 1. Read from OS-backed hardware SecureStore on native
       if (Platform.OS !== 'web') {
         const secureVal = await SecureStore.getItemAsync(GOOGLE_USER_KV_KEY);
         if (secureVal) {
-          return JSON.parse(secureVal) as GoogleAuthUser;
+          user = JSON.parse(secureVal) as GoogleAuthUser;
         }
       } else if (typeof localStorage !== 'undefined') {
         const webVal = localStorage.getItem(GOOGLE_USER_KV_KEY);
         if (webVal) {
-          return JSON.parse(webVal) as GoogleAuthUser;
+          user = JSON.parse(webVal) as GoogleAuthUser;
         }
       }
 
       // 2. Migration: read legacy plaintext SQLite, write to SecureStore, and purge plaintext copy
-      this._ensureTable();
-      const res = (expoDb as any).getFirstSync(
-        'SELECT val FROM arise_kv WHERE key = ?',
-        [GOOGLE_USER_KV_KEY]
-      ) as { val: string } | null;
-      if (res?.val) {
-        const user = JSON.parse(res.val) as GoogleAuthUser;
-        if (Platform.OS !== 'web') {
-          try {
-            await SecureStore.setItemAsync(GOOGLE_USER_KV_KEY, res.val, {
-              keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-            });
-            expoDb.runSync('DELETE FROM arise_kv WHERE key = ?', [GOOGLE_USER_KV_KEY]);
-          } catch {}
+      if (!user) {
+        this._ensureTable();
+        const res = (expoDb as any).getFirstSync(
+          'SELECT val FROM arise_kv WHERE key = ?',
+          [GOOGLE_USER_KV_KEY]
+        ) as { val: string } | null;
+        if (res?.val) {
+          user = JSON.parse(res.val) as GoogleAuthUser;
+          if (Platform.OS !== 'web') {
+            try {
+              await SecureStore.setItemAsync(GOOGLE_USER_KV_KEY, res.val, {
+                keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+              });
+              expoDb.runSync('DELETE FROM arise_kv WHERE key = ?', [GOOGLE_USER_KV_KEY]);
+            } catch {}
+          }
         }
-        return user;
       }
+
+      if (user && isSupabaseConfigured() && supabase) {
+        try {
+          const { data } = await supabase.auth.getSession();
+          const liveEmail = data?.session?.user?.email?.trim().toLowerCase();
+          if (liveEmail && user.email.trim().toLowerCase() !== liveEmail) {
+            await this.clearStoredGoogleUser();
+            return null;
+          }
+        } catch {}
+      }
+
+      return user;
     } catch (e) {
       console.warn('[GoogleAuth] Error reading stored user:', e);
     }
     return null;
+  },
+
+  /**
+   * Delete the stored Google user from every store WITHOUT touching the
+   * Supabase session (unlike signOutGoogle, which signs the session out).
+   */
+  async clearStoredGoogleUser(): Promise<void> {
+    try {
+      if (Platform.OS !== 'web') {
+        await SecureStore.deleteItemAsync(GOOGLE_USER_KV_KEY);
+      } else if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem(GOOGLE_USER_KV_KEY);
+      }
+      this._ensureTable();
+      expoDb.runSync('DELETE FROM arise_kv WHERE key = ?', [GOOGLE_USER_KV_KEY]);
+    } catch {}
   },
 
   /**

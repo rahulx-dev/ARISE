@@ -1,5 +1,5 @@
-import { db } from "../database/client";
-import { guild, guildMember, guildRaid, userProfile } from "../database/schema";
+import { db, expoDb } from "../database/client";
+import { guild, guildMember, guildRaid, userProfile, coinTransaction } from "../database/schema";
 import { eq, desc, and } from "drizzle-orm";
 import { userRepository } from "../database/repositories/userRepository";
 
@@ -382,7 +382,16 @@ export const guildService = {
   },
 
   /**
-   * Attack the active Raid Boss (deals damage, awards points and drops)
+   * Attack the active Raid Boss (deals damage, awards points and drops).
+   *
+   * ECON-NEW-1 / C10: the whole attack runs in ONE transaction. The raid
+   * HP update is conditional on status='ACTIVE', and the victory reward
+   * is recorded under a requestId (`raid:<raidId>`) whose UNIQUE
+   * constraint makes concurrent clears idempotent: the loser's insert
+   * throws, its transaction rolls back, and it pays nothing. The next
+   * raid spawns only if no ACTIVE raid exists for the guild (no
+   * duplicates). A 60-second per-guild attack cooldown (KV, survives
+   * restarts) stops the tap-to-farm loop.
    */
   async attackRaidBoss(
     guildId: number,
@@ -394,17 +403,10 @@ export const guildService = {
     bossName: string;
     rewardCoins?: number;
     rewardXP?: number;
+    cooldownMs?: number;
   }> {
-    // ECON-NEW-1: Require verified guild membership before any attack or reward
-    const memberRows = await db
-      .select()
-      .from(guildMember)
-      .where(
-        and(eq(guildMember.guildId, guildId), eq(guildMember.isCurrentUser, 1)),
-      )
-      .limit(1);
-
-    if (memberRows.length === 0) {
+    // N12: NaN damage previously poisoned the raid row (NaN HP stored).
+    if (!Number.isFinite(damage)) {
       return { cleared: false, newHp: 0, maxHp: 0, bossName: "None" };
     }
 
@@ -413,81 +415,182 @@ export const guildService = {
       return { cleared: false, newHp: 0, maxHp: 0, bossName: "None" };
     }
 
-    // C8: Clamp damage to sane single-attack bound (1..200)
-    const safeDamage = Math.max(1, Math.min(200, Math.floor(damage)));
-
-    const newHp = Math.max(0, raid.bossCurrentHp - safeDamage);
-    const cleared = newHp === 0;
-
-    // Update raid HP
-    await db
-      .update(guildRaid)
-      .set({
-        bossCurrentHp: newHp,
-        status: cleared ? "CLEARED" : "ACTIVE",
-      })
-      .where(eq(guildRaid.id, raid.id));
-
-    // Update user's contribution points
-    const m = memberRows[0];
-    await db
-      .update(guildMember)
-      .set({ contributionPoints: m.contributionPoints + safeDamage })
-      .where(eq(guildMember.id, m.id));
-
-    // Add Guild XP
-    const targetGuild = await db
-      .select()
-      .from(guild)
-      .where(eq(guild.id, guildId))
-      .limit(1);
-    if (targetGuild.length > 0) {
-      const g = targetGuild[0];
-      await db
-        .update(guild)
-        .set({ totalXP: g.totalXP + safeDamage })
-        .where(eq(guild.id, guildId));
-    }
-
-    if (cleared) {
-      // Award player raid victory rewards
-      await userRepository.addCoins(
-        raid.rewardCoins,
-        `Gate Raid Victory: ${raid.bossName}`,
-        "guild_raid",
-      );
-      await userRepository.addXP(raid.rewardXP);
-
-      // Spawn next raid boss automatically
-      const nextBossIndex = Math.floor(Math.random() * NEXT_BOSSES.length);
-      const nextBoss = NEXT_BOSSES[nextBossIndex];
-      await db.insert(guildRaid).values({
-        guildId,
-        gateRank: nextBoss.gateRank,
-        bossName: nextBoss.bossName,
-        bossMaxHp: nextBoss.bossMaxHp,
-        bossCurrentHp: nextBoss.bossMaxHp,
-        rewardXP: nextBoss.rewardXP,
-        rewardCoins: nextBoss.rewardCoins,
-        status: "ACTIVE",
-        createdAt: new Date().toISOString(),
-      });
-
+    // Cooldown: 60s between attacks on the same guild (anti-farm).
+    const cooldownKey = `raid_attack_cooldown:${guildId}`;
+    let lastAttack = 0;
+    try {
+      const row = (expoDb as any).getFirstSync(
+        'SELECT val FROM arise_kv WHERE key = ?',
+        [cooldownKey],
+      ) as { val: string } | null;
+      lastAttack = Number(row?.val || 0) || 0;
+    } catch {}
+    const cooldownMs = 60000 - (Date.now() - lastAttack);
+    if (cooldownMs > 0) {
       return {
-        cleared: true,
-        newHp: 0,
+        cleared: false,
+        newHp: raid.bossCurrentHp,
         maxHp: raid.bossMaxHp,
         bossName: raid.bossName,
-        rewardCoins: raid.rewardCoins,
-        rewardXP: raid.rewardXP,
+        cooldownMs,
       };
     }
 
-    return {
-      cleared: false,
-      newHp,
-      maxHp: raid.bossMaxHp,
-      bossName: raid.bossName,
-    };
+    // C8: Clamp damage to sane single-attack bound (1..200)
+    const safeDamage = Math.max(1, Math.min(200, Math.floor(damage)));
+
+    const result = await db.transaction(async (tx: any) => {
+      // ECON-NEW-1: verified guild membership, checked inside the tx.
+      const memberRows = await tx
+        .select()
+        .from(guildMember)
+        .where(
+          and(eq(guildMember.guildId, guildId), eq(guildMember.isCurrentUser, 1)),
+        )
+        .limit(1);
+      if (memberRows.length === 0) {
+        return { landed: false, cleared: false, newHp: raid.bossCurrentHp, maxHp: raid.bossMaxHp, bossName: raid.bossName };
+      }
+
+      // Re-read the raid inside the tx: the pre-tx read may be stale.
+      const raidRows = await tx
+        .select()
+        .from(guildRaid)
+        .where(and(eq(guildRaid.id, raid.id), eq(guildRaid.status, "ACTIVE")))
+        .limit(1);
+      if (raidRows.length === 0) {
+        return { landed: false, cleared: false, newHp: 0, maxHp: raid.bossMaxHp, bossName: raid.bossName };
+      }
+      const liveRaid = raidRows[0];
+
+      const newHp = Math.max(0, liveRaid.bossCurrentHp - safeDamage);
+      const cleared = newHp === 0;
+
+      // C10: conditional HP update — only an ACTIVE row transitions.
+      await tx
+        .update(guildRaid)
+        .set({
+          bossCurrentHp: newHp,
+          status: cleared ? "CLEARED" : "ACTIVE",
+        })
+        .where(and(eq(guildRaid.id, liveRaid.id), eq(guildRaid.status, "ACTIVE")));
+
+      // Update user's contribution points
+      const m = memberRows[0];
+      await tx
+        .update(guildMember)
+        .set({ contributionPoints: m.contributionPoints + safeDamage })
+        .where(eq(guildMember.id, m.id));
+
+      // Add Guild XP
+      const targetGuild = await tx
+        .select()
+        .from(guild)
+        .where(eq(guild.id, guildId))
+        .limit(1);
+      if (targetGuild.length > 0) {
+        const g = targetGuild[0];
+        await tx
+          .update(guild)
+          .set({ totalXP: g.totalXP + safeDamage })
+          .where(eq(guild.id, guildId));
+      }
+
+      if (cleared) {
+        // Victory rewards, granted in the same tx under an idempotency
+        // key. A concurrent clear's insert violates the UNIQUE
+        // constraint, rolls its whole tx back, and pays nothing.
+        const requestId = `raid:${liveRaid.id}`;
+        const pRows = await tx.select().from(userProfile).limit(1);
+        if (pRows.length > 0) {
+          const profile = pRows[0];
+          const rewardCoins = liveRaid.rewardCoins || 0;
+          const rewardXP = liveRaid.rewardXP || 0;
+          let newXP = profile.currentXP + rewardXP;
+          const newTotalXP = profile.totalXP + rewardXP;
+          let currentLevel = profile.level;
+          let requiredXP = Math.floor(100 * Math.pow(1.5, currentLevel - 1));
+          while (newXP >= requiredXP) {
+            newXP -= requiredXP;
+            currentLevel += 1;
+            requiredXP = Math.floor(100 * Math.pow(1.5, currentLevel - 1));
+          }
+          await tx
+            .update(userProfile)
+            .set({
+              coins: profile.coins + rewardCoins,
+              totalCoinsEarned: profile.totalCoinsEarned + rewardCoins,
+              currentXP: newXP,
+              totalXP: newTotalXP,
+              level: currentLevel,
+            })
+            .where(eq(userProfile.id, profile.id));
+          if (rewardCoins !== 0) {
+            await tx.insert(coinTransaction).values({
+              amount: rewardCoins,
+              type: "earn",
+              description: `Gate Raid Victory: ${liveRaid.bossName}`,
+              source: "guild_raid",
+              timestamp: new Date().toISOString(),
+              requestId,
+            });
+          }
+        }
+
+        // Spawn next raid boss automatically — only if no ACTIVE raid
+        // exists for the guild (prevents duplicate raids).
+        const activeNow = await tx
+          .select()
+          .from(guildRaid)
+          .where(and(eq(guildRaid.guildId, guildId), eq(guildRaid.status, "ACTIVE")))
+          .limit(1);
+        if (activeNow.length === 0) {
+          const nextBossIndex = Math.floor(Math.random() * NEXT_BOSSES.length);
+          const nextBoss = NEXT_BOSSES[nextBossIndex];
+          await tx.insert(guildRaid).values({
+            guildId,
+            gateRank: nextBoss.gateRank,
+            bossName: nextBoss.bossName,
+            bossMaxHp: nextBoss.bossMaxHp,
+            bossCurrentHp: nextBoss.bossMaxHp,
+            rewardXP: nextBoss.rewardXP,
+            rewardCoins: nextBoss.rewardCoins,
+            status: "ACTIVE",
+            createdAt: new Date().toISOString(),
+          });
+        }
+
+        return {
+          landed: true,
+          cleared: true,
+          newHp: 0,
+          maxHp: liveRaid.bossMaxHp,
+          bossName: liveRaid.bossName,
+          rewardCoins: liveRaid.rewardCoins,
+          rewardXP: liveRaid.rewardXP,
+        };
+      }
+
+      return {
+        landed: true,
+        cleared: false,
+        newHp,
+        maxHp: liveRaid.bossMaxHp,
+        bossName: liveRaid.bossName,
+      };
+    });
+
+    // Record the cooldown only for attacks that actually landed.
+    if (result.landed) {
+      try {
+        (expoDb as any).runSync(
+          'INSERT OR REPLACE INTO arise_kv (key, val) VALUES (?, ?)',
+          [cooldownKey, String(Date.now())],
+        );
+      } catch {}
+    }
+
+    const { landed: _landed, ...publicResult } = result as any;
+    return publicResult;
   },
 };

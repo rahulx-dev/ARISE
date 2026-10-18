@@ -1,5 +1,5 @@
 /**
- * ARISE — Cryptographic Completion Token Gate
+ * ARISE — Completion Token Gate
  * Type definitions and re-export.
  */
 

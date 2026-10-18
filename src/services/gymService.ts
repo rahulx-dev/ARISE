@@ -338,6 +338,9 @@ export class GymService {
 
   /**
    * Logs a completed set within an active workout session and checks for PR.
+   * C14: a 0-rep set is NOT a completed set. Previously every logged set
+   * was stored completed: 1 with no validation, so 0-rep sets counted
+   * toward gym completion and rewards.
    */
   async logSet(
     sessionId: number,
@@ -350,6 +353,11 @@ export class GymService {
   ): Promise<{ setLog: WorkoutSetLog; isNewPR: boolean }> {
     const timestamp = new Date().toISOString();
 
+    const safeTargetReps = Number.isFinite(targetReps) ? Math.max(1, Math.min(1000, Math.floor(targetReps))) : 10;
+    const safeCompletedReps = Number.isFinite(completedReps) ? Math.max(0, Math.min(1000, Math.floor(completedReps))) : 0;
+    const safeWeightKg = Number.isFinite(weightKg) ? Math.max(0, Math.min(5000, weightKg)) : 0;
+    const completed = safeCompletedReps > 0 ? 1 : 0;
+
     const inserted = await db
       .insert(workoutSets)
       .values({
@@ -357,20 +365,23 @@ export class GymService {
         exerciseId,
         exerciseName,
         setNumber,
-        targetReps,
-        completedReps,
-        weightKg,
-        completed: 1,
+        targetReps: safeTargetReps,
+        completedReps: safeCompletedReps,
+        weightKg: safeWeightKg,
+        completed,
         timestamp,
       })
       .returning();
 
-    const isNewPR = await this.checkAndRecordPR(
-      exerciseId,
-      exerciseName,
-      weightKg,
-      completedReps,
-    );
+    // 0-rep sets never count as PRs.
+    const isNewPR = completed === 1
+      ? await this.checkAndRecordPR(
+          exerciseId,
+          exerciseName,
+          safeWeightKg,
+          safeCompletedReps,
+        )
+      : false;
 
     return {
       setLog: {
@@ -379,10 +390,10 @@ export class GymService {
         exerciseId,
         exerciseName,
         setNumber,
-        targetReps,
-        completedReps,
-        weightKg,
-        completed: true,
+        targetReps: safeTargetReps,
+        completedReps: safeCompletedReps,
+        weightKg: safeWeightKg,
+        completed: completed === 1,
         timestamp,
       },
       isNewPR,

@@ -293,20 +293,20 @@ export default function QuestsScreen() {
   const handleManualComplete = async (q: QuestData) => {
     showIOSAlert(
       'Confirm Habit Completion',
-      `Have you completed your self-reported discipline habit: "${q.title}"?`,
+      `Have you completed your self-reported discipline habit: "${q.title}"?\n\nManual habits are self-reported (no proof), so they mark complete but grant no coins or XP.`,
       [
         { text: 'Not Yet', style: 'cancel' },
         {
-          text: 'Confirm & Claim',
+          text: 'Confirm',
           style: 'primary',
           onPress: async () => {
             haptics.success();
             sound.play('quest_complete');
             try {
-              const result = await completeQuest(q.id);
+              await completeQuest(q.id);
               showIOSAlert(
                 'Habit Cleared!',
-                `You completed "${q.title}" and earned +${result.coins} Coins and +${result.xp} XP.`,
+                `You completed "${q.title}". Manual habits grant no coins or XP.`,
                 [{ text: 'Awesome', style: 'default' }],
                 { variant: 'quest', tag: 'HABIT COMPLETED' }
               );

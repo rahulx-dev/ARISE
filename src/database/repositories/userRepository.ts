@@ -274,9 +274,24 @@ export const userRepository = {
         const q = qRows[0];
         const actualCoins = (q.rewardCoins && q.rewardCoins > 0) ? q.rewardCoins : Math.min(50, Math.max(10, rewardCoins || 15));
         const actualXP = (q.rewardXP && q.rewardXP > 0) ? q.rewardXP : Math.min(200, Math.max(20, rewardXP || 45));
+        const requestId = `quest:${questId}`;
 
-        // 1. Mark quest completed
-        await tx.update(quest).set({ completed: 1 }).where(eq(quest.id, questId));
+        // C10: idempotency key. If a previous completion already recorded
+        // this requestId, this is a duplicate — grant nothing.
+        const existingTx = await tx
+          .select()
+          .from(coinTransaction)
+          .where(eq(coinTransaction.requestId, requestId))
+          .limit(1);
+        if (existingTx.length > 0) {
+          return false;
+        }
+
+        // 1. Mark quest completed — conditional on still-incomplete, so a
+        // concurrent completion cannot double-pay (C10). The requestId
+        // unique constraint below is the hard guard if two transactions
+        // interleave: the loser's insert throws and rolls everything back.
+        await tx.update(quest).set({ completed: 1 }).where(and(eq(quest.id, questId), eq(quest.completed, 0)));
 
         // 2. Add Coins & XP to User
         const pRows = await tx.select().from(userProfile).limit(1);
@@ -310,23 +325,61 @@ export const userRepository = {
             .set(updates)
             .where(eq(userProfile.id, profile.id));
 
-          // 3. Insert transaction
+          // 3. Insert transaction (requestId = idempotency key, C10)
           await tx.insert(coinTransaction).values({
             amount: actualCoins,
             type: "earn",
             description: `Completed Quest: ${qRows[0].title}`,
             source: "quest_reward",
             timestamp: new Date().toISOString(),
+            requestId,
           });
         }
 
         return true;
       });
-    } catch (err) {
+    } catch (err: any) {
+      // Duplicate requestId = concurrent completion already paid. Quiet
+      // return: not an error, the quest is already completed + paid.
+      if (String(err?.message || "").includes("UNIQUE constraint")) {
+        return false;
+      }
       logErrorToSentry(err, {
         module: "userRepository",
         action: "completeQuestAndGrantRewards",
         extra: { questId, rewardCoins, rewardXP, statType },
+      });
+      return false;
+    }
+  },
+
+  /**
+   * Mark a quest complete WITHOUT granting rewards (ECON-NEW-2).
+   * For self-reported (MANUAL) quests: zero proof means zero pay.
+   * Double-marking is harmless — there is no grant to duplicate.
+   */
+  async markQuestComplete(questId: number): Promise<boolean> {
+    try {
+      return await db.transaction(async (tx: any) => {
+        const qRows = await tx
+          .select()
+          .from(quest)
+          .where(eq(quest.id, questId))
+          .limit(1);
+        if (qRows.length === 0 || qRows[0].completed === 1) {
+          return false;
+        }
+        await tx
+          .update(quest)
+          .set({ completed: 1 })
+          .where(and(eq(quest.id, questId), eq(quest.completed, 0)));
+        return true;
+      });
+    } catch (err) {
+      logErrorToSentry(err, {
+        module: "userRepository",
+        action: "markQuestComplete",
+        extra: { questId },
       });
       return false;
     }

@@ -53,3 +53,29 @@ test('invalid tokens are rejected by both peek and consume', () => {
   assert.equal(peekCompletionToken('no-such-token', { exerciseType: 'PUSHUP' }), false);
   assert.equal(consumeCompletionToken('no-such-token', { exerciseType: 'PUSHUP' }), false);
 });
+
+test('C1: token is bound to full context — tampered reps/duration/target rejected', () => {
+  const ctx = { exerciseType: 'PUSHUP', questId: '7', reps: 30, duration: 180, target: 30 };
+  const token = issueCompletionToken(ctx);
+  // Tampered reps must not match (previously only exerciseType was checked).
+  assert.equal(peekCompletionToken(token, { ...ctx, reps: 999 }), false);
+  assert.equal(peekCompletionToken(token, { ...ctx, duration: 1 }), false);
+  assert.equal(peekCompletionToken(token, { ...ctx, target: 1 }), false);
+  assert.equal(peekCompletionToken(token, { ...ctx, questId: '8' }), false);
+  // Exact context matches, and the token survives the failed peeks.
+  assert.equal(consumeCompletionToken(token, ctx), true);
+});
+
+test('C1: focus tokens have no reps — reps expectation is skipped, duration still bound', () => {
+  const token = issueCompletionToken({ exerciseType: 'FOCUS', questId: '', duration: 1500, target: 25 });
+  assert.equal(peekCompletionToken(token, { exerciseType: 'FOCUS', questId: undefined, duration: 1500, target: 25 }), true);
+  assert.equal(peekCompletionToken(token, { exerciseType: 'FOCUS', duration: 60, target: 25 }), false);
+  assert.equal(consumeCompletionToken(token, { exerciseType: 'FOCUS', duration: 1500, target: 25 }), true);
+});
+
+test('C1: issued tokens use CSPRNG entropy (32 hex chars, not Math.random base36)', () => {
+  const token = issueCompletionToken({ exerciseType: 'PUSHUP' });
+  const part = token.split('_').pop();
+  // WebCrypto path: 16 bytes -> 32 lowercase hex chars.
+  assert.match(part, /^[0-9a-f]{32}$/);
+});

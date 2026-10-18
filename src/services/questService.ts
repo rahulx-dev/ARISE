@@ -575,7 +575,9 @@ class QuestService {
   }
 
   /**
-   * Complete a quest idempotently (Awards full quest coins and XP)
+   * Complete a quest idempotently (Awards full quest coins and XP),
+   * except MANUAL quests: self-reported habits have zero proof, so they
+   * mark complete with ZERO rewards (ECON-NEW-2).
    */
   async completeQuest(questId: number): Promise<{ success: boolean; earnedCoins: number; earnedXP: number }> {
     try {
@@ -585,6 +587,17 @@ class QuestService {
       const q = rows[0];
       if (q.completed === 1) {
         // Already completed! Idempotent return without double rewards
+        return { success: true, earnedCoins: 0, earnedXP: 0 };
+      }
+
+      // ECON-NEW-2: MANUAL = self-attestation, zero proof. Mark complete,
+      // grant NOTHING. Tracked quests below still earn full rewards.
+      if (q.questType === 'MANUAL') {
+        const marked = await userRepository.markQuestComplete(questId);
+        if (!marked) {
+          return { success: false, earnedCoins: 0, earnedXP: 0 };
+        }
+        await userRepository.updateStreak();
         return { success: true, earnedCoins: 0, earnedXP: 0 };
       }
 

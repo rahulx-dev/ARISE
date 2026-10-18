@@ -9,6 +9,7 @@ import {
   Animated,
   Easing,
   AppState,
+  Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -28,10 +29,10 @@ import {
 import { GlassCard } from '../../src/components/ios/GlassCard';
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { audioService, AUDIO_TRACKS } from '../../src/services/audioService';
-import { db } from '../../src/database/client';
-import { focusSession } from '../../src/database/schema';
+import { issueCompletionToken } from '../../src/services/completionGate';
 import { useKeepAwake } from 'expo-keep-awake';
 import { historyService } from '../../src/services/historyService';
+import { focusService } from '../../src/services/focusService';
 import { issueCompletionToken } from '../../src/services/completionGate';
 import { useSound } from '../../src/hooks/useSound';
 import { useHaptics } from '../../src/hooks/useHaptics';
@@ -68,9 +69,15 @@ export default function FocusModeScreen() {
   const endTimeRef = useRef<number | null>(null);
   const completedRef = useRef(false);
   const mountedRef = useRef(true);
+  const sessionIdRef = useRef<number | null>(null);
 
   useEffect(() => () => {
     mountedRef.current = false;
+    // Abandon an unfinished focus session on unmount (C11). Already
+    // completed sessions are untouched (abandon only affects ACTIVE rows).
+    if (sessionIdRef.current != null) {
+      focusService.abandonFocusSession(sessionIdRef.current).catch(() => {});
+    }
   }, []);
 
   // 120 FPS Siri Live Ring Animation Values
@@ -181,6 +188,14 @@ export default function FocusModeScreen() {
         startTimeRef.current = Date.now();
         endTimeRef.current = Date.now() + remainingMs;
       }
+      // Record a REAL session row via focusService (C11): previously the
+      // screen fabricated a COMPLETED row with a fake startTime and the
+      // service was bypassed entirely.
+      if (sessionIdRef.current == null) {
+        focusService.startFocusSession(targetMinutes).then((id) => {
+          sessionIdRef.current = id;
+        }).catch(() => {});
+      }
       if (!isMuted) {
         audioService.play(selectedTrackId);
       } else {
@@ -254,6 +269,10 @@ export default function FocusModeScreen() {
     haptics.medium();
     setIsActive(false);
     audioService.stop();
+    if (sessionIdRef.current != null) {
+      focusService.abandonFocusSession(sessionIdRef.current).catch(() => {});
+      sessionIdRef.current = null;
+    }
     setRemainingMs(targetMinutes * 60 * 1000);
     startTimeRef.current = null;
     endTimeRef.current = null;
@@ -285,27 +304,32 @@ export default function FocusModeScreen() {
     setIsActive(false);
     endTimeRef.current = null;
     audioService.stop();
+
+    // Verify the session through focusService (C11): real row, real
+    // startTime, 80% gate, prorated rewards. Previously the screen
+    // fabricated a COMPLETED row with a fake startTime and the service
+    // was bypassed entirely.
+    let verified = { coins: 0, xp: 0 };
+    if (sessionIdRef.current != null) {
+      try {
+        verified = await focusService.completeFocusSession(sessionIdRef.current);
+      } catch (e) {
+        console.warn('Failed to verify focus session:', e);
+      }
+      sessionIdRef.current = null;
+    }
+    if (verified.coins <= 0 && verified.xp <= 0) {
+      // Under 80% of target (or session missing): no rewards, no completion.
+      Alert.alert(
+        'Focus Incomplete',
+        'You completed less than 80% of the target focus time. No rewards were granted.',
+      );
+      return;
+    }
+
     sound.play('quest_complete');
     haptics.success();
-
-    const coinsEarned = Math.round(targetMinutes * 1.5);
-    const xpEarned = targetMinutes * 3;
-
-    try {
-      await db.insert(focusSession).values({
-        targetMinutes,
-        completedMinutes: targetMinutes,
-        status: 'COMPLETED',
-        startTime: new Date(Date.now() - targetMinutes * 60 * 1000).toISOString(),
-        endTime: new Date().toISOString(),
-        rewardCoins: coinsEarned,
-        rewardXP: xpEarned,
-      });
-
-      await usePlayerStore.getState().loadProfile();
-    } catch (e) {
-      console.warn('Failed to record focus session:', e);
-    }
+    await usePlayerStore.getState().loadProfile();
 
     if (!mountedRef.current) return;
     router.replace({
@@ -318,6 +342,7 @@ export default function FocusModeScreen() {
         ...(params.questId ? { questId: params.questId } : {}),
         completionToken: issueCompletionToken({
           exerciseType: 'FOCUS',
+          questId: params.questId || '',
           duration: targetMinutes * 60,
           target: targetMinutes,
         }),

@@ -27,6 +27,7 @@ import { userRepository } from '../../src/database/repositories/userRepository';
 import { adMobService } from '../../src/services/adMobService';
 import { appBlockerService } from '../../src/native';
 import { consumeCompletionToken, peekCompletionToken } from '../../src/services/completionGate';
+import { calculateFocusRewards } from '../../src/services/focusService';
 
 const { width } = Dimensions.get('window');
 
@@ -109,33 +110,34 @@ export default function QuestCompleteScreen() {
     hasAwarded.current = true;
 
     const grantRewards = async () => {
-      // The token type the issuer stored: focus sessions issue 'FOCUS',
-      // gym issues 'GYM_WORKOUT', exercise tracker issues its own type.
-      // (Previously the focus case fell through to 'PUSHUP', so every
-      // focus completion was rejected as an "Invalid Completion".)
-      const expectedTokenType = isFocusCompletion
-        ? 'FOCUS'
+      // The token context the issuer stored (C1: full binding). Focus has
+      // no reps; gym has no questId — fields the issuer did not set are
+      // omitted so the gate compares exactly what was issued.
+      const expectedTokenContext = isFocusCompletion
+        ? { exerciseType: 'FOCUS', questId: questId || undefined, duration, target: targetNum }
         : isGymCompletion
-        ? 'GYM_WORKOUT'
-        : validExerciseType;
+        ? { exerciseType: 'GYM_WORKOUT', reps, duration, target: targetNum }
+        : { exerciseType: validExerciseType, questId: questId || undefined, reps, duration, target: targetNum };
       try {
         // Peek first: validate without consuming. The token is consumed
         // only AFTER the grant succeeds, so a crash mid-grant does not
         // destroy a legitimate user's token (previously: consume-first
         // meant a crash left the user with 0 rewards, no streak, no
         // session, and an unrecoverable token).
-        if (!peekCompletionToken(completionToken, { exerciseType: expectedTokenType })) {
+        if (!peekCompletionToken(completionToken, expectedTokenContext)) {
           showIOSAlert('Invalid Completion', 'This completion session is no longer valid.');
           router.replace('/(tabs)');
           return;
         }
 
-        // Only unlock focus shield if actual workout effort was verified (C14)
-        const isEligibleForUnlock = isGymCompletion
-          ? true
-          : isFocusCompletion
-          ? duration >= 300
-          : reps > 0 && reps >= targetNum * 0.5;
+        // Unlock only on verified FULL completion (C14): full target reps
+        // for exercise/gym, 80% of target duration for focus. Partial
+        // effort still earns coins/XP below, but does not unlock apps.
+        // (Previously: 50% gate for exercise, unconditional for gym,
+        // flat 300s for focus.)
+        const isEligibleForUnlock = isFocusCompletion
+          ? duration >= targetNum * 60 * 0.8
+          : reps > 0 && reps >= targetNum;
 
         if (isEligibleForUnlock) {
           try {
@@ -164,8 +166,13 @@ export default function QuestCompleteScreen() {
         const { questService } = await import('../../src/services/questService');
 
         if (questId && parseInt(questId, 10)) {
-          // Only complete quest if effort was expended (reps > 0 or duration > 0)
-          if (reps > 0 || (isFocusCompletion && duration >= 60)) {
+          // Complete the linked quest only on FULL completion (C14):
+          // full target reps for exercise, full target minutes for focus.
+          // (Previously: any reps > 0, or 60s of focus, completed a quest
+          // and paid full quest rewards. Reconcile already required 100%.)
+          const questCompleted =
+            isFocusCompletion ? duration >= targetNum * 60 : reps >= targetNum;
+          if (questCompleted) {
             const res = await questService.completeQuest(parseInt(questId, 10));
             if (res.success) {
               awarded = true;
@@ -191,8 +198,13 @@ export default function QuestCompleteScreen() {
 
         if (!awarded && !isGymCompletion) {
           if (isFocusCompletion) {
-            const calcCoins = duration >= 60 ? Math.min(30, Math.max(1, Math.floor(duration / 60))) : 0;
-            const calcXP = duration >= 30 ? Math.min(100, Math.max(5, Math.floor(duration / 30))) : 0;
+            // Single source of truth with focusService (C11): same 80%
+            // gate + prorated schedule, computed from the token-bound
+            // duration/target — never from an unbound local formula.
+            const completedMinutes = Math.floor(duration / 60);
+            const focusRewards = calculateFocusRewards(targetNum, completedMinutes);
+            const calcCoins = focusRewards.coins;
+            const calcXP = focusRewards.xp;
             if (calcCoins > 0 || calcXP > 0) {
               await userRepository.addCoins(calcCoins, `${config.displayName} Session`, 'focus');
               await userRepository.addXP(calcXP);
@@ -241,7 +253,7 @@ export default function QuestCompleteScreen() {
         await loadProfile();
         await useQuestStore.getState().loadQuests();
         // Grant succeeded: now consume the token so it cannot be replayed.
-        consumeCompletionToken(completionToken, { exerciseType: expectedTokenType });
+        consumeCompletionToken(completionToken, expectedTokenContext);
         if (mountedRef.current) {
           sound.play('quest_complete');
           haptics.heavy();

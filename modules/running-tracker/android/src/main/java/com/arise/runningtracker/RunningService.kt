@@ -42,6 +42,19 @@ class RunningService : Service(), LocationListener, SensorEventListener {
 
         const val EXTRA_TARGET_KM = "extra_target_km"
 
+        // C15: persisted session state (SharedPreferences). Process death
+        // wipes the in-memory companion vars above; the persisted copy lets
+        // a null-intent restart RESTORE the run instead of losing it.
+        const val PREFS_NAME = "arise_running_session"
+        const val KEY_ACTIVE = "active"
+        const val KEY_TARGET_KM = "targetKm"
+        const val KEY_DISTANCE = "distanceMeters"
+        const val KEY_ELAPSED = "elapsedSeconds"
+        const val KEY_STEPS = "totalSteps"
+        const val KEY_CALORIES = "caloriesBurned"
+        const val KEY_PAUSED = "isPaused"
+        const val KEY_COMPLETED = "hasTriggeredCompletion"
+
         var isServiceRunning = false
             private set
 
@@ -120,13 +133,23 @@ class RunningService : Service(), LocationListener, SensorEventListener {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent == null) {
+            // C15: system restart after process death. Restore the persisted
+            // run instead of silently losing it. Only stop if nothing to restore.
             if (!isServiceRunning) {
-                stopSelf()
+                if (!restorePersistedSession()) {
+                    stopSelf()
+                }
             }
             return START_NOT_STICKY
         }
 
-        val action = intent.action ?: return START_NOT_STICKY
+        val action = intent.action
+        if (action == null) {
+            if (!isServiceRunning && !restorePersistedSession()) {
+                stopSelf()
+            }
+            return START_NOT_STICKY
+        }
 
         when (action) {
             ACTION_START -> {
@@ -170,6 +193,16 @@ class RunningService : Service(), LocationListener, SensorEventListener {
         vehicleSamplesCount = 0
         initialStepCount = -1
 
+        beginTrackingInfrastructure()
+    }
+
+    /**
+     * Foreground notification + location/sensor listeners + elapsed timer.
+     * Shared by fresh starts and C15 restores (restore reuses the setup
+     * WITHOUT resetting the counters).
+     */
+    @SuppressLint("MissingPermission")
+    private fun beginTrackingInfrastructure() {
         try {
             if (wakeLock?.isHeld != true) {
                 wakeLock?.acquire(4 * 60 * 60 * 1000L) // 4 hours max safety cap
@@ -255,6 +288,9 @@ class RunningService : Service(), LocationListener, SensorEventListener {
     private fun stopTrackingSession() {
         isServiceRunning = false
         isPaused = false
+        // C15: a deliberate stop discards the run — clear persisted state
+        // so a later null-intent restart does not resurrect it.
+        clearPersistedSession()
 
         try {
             timerRunnable?.let { mainHandler.removeCallbacks(it) }
@@ -397,9 +433,78 @@ class RunningService : Service(), LocationListener, SensorEventListener {
 
     private fun broadcastStats() {
         val stats = getCurrentStatsMap()
+        // C15: persist on every stats change so a process death loses at
+        // most the last second of progress. No-op when not running.
+        persistSessionState()
         mainHandler.post {
             listener?.invoke(stats)
         }
+    }
+
+    /**
+     * C15: persist the current run to SharedPreferences. Called on every
+     * stats broadcast. A deliberate stop clears it (stopTrackingSession);
+     * a process kill leaves it, so a null-intent restart can restore.
+     */
+    private fun persistSessionState() {
+        if (!isServiceRunning) return
+        try {
+            getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+                .putBoolean(KEY_ACTIVE, true)
+                .putFloat(KEY_TARGET_KM, activeTargetKm.toFloat())
+                .putFloat(KEY_DISTANCE, totalDistanceMeters.toFloat())
+                .putLong(KEY_ELAPSED, elapsedSeconds)
+                .putInt(KEY_STEPS, totalSteps)
+                .putInt(KEY_CALORIES, caloriesBurned)
+                .putBoolean(KEY_PAUSED, isPaused)
+                .putBoolean(KEY_COMPLETED, hasTriggeredCompletion)
+                .apply()
+        } catch (e: Exception) {
+            Log.w(TAG, "Persist session note: ${e.message}")
+        }
+    }
+
+    private fun clearPersistedSession() {
+        try {
+            getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().clear().apply()
+        } catch (e: Exception) {
+            Log.w(TAG, "Clear persisted session note: ${e.message}")
+        }
+    }
+
+    /**
+     * C15: restore a run persisted before a process death. Returns false
+     * when no active run was persisted. Restores counters WITHOUT
+     * resetting them, then re-attaches all tracking infrastructure.
+     */
+    private fun restorePersistedSession(): Boolean {
+        val prefs = try {
+            getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        } catch (e: Exception) {
+            Log.w(TAG, "Restore session note: ${e.message}")
+            return false
+        }
+        if (!prefs.getBoolean(KEY_ACTIVE, false)) return false
+
+        activeTargetKm = prefs.getFloat(KEY_TARGET_KM, 1.0f).toDouble().takeIf { it > 0 } ?: 1.0
+        totalDistanceMeters = prefs.getFloat(KEY_DISTANCE, 0f).toDouble()
+        elapsedSeconds = prefs.getLong(KEY_ELAPSED, 0L)
+        totalSteps = prefs.getInt(KEY_STEPS, 0)
+        caloriesBurned = prefs.getInt(KEY_CALORIES, 0)
+        isPaused = prefs.getBoolean(KEY_PAUSED, false)
+        hasTriggeredCompletion = prefs.getBoolean(KEY_COMPLETED, false)
+        isVehicleSpeed = false
+        currentSpeedKmh = 0.0
+        currentPaceFormatted = "--:--"
+        lastRecordedLocation = null
+        speedEmaKmh = 0.0
+        vehicleSamplesCount = 0
+        initialStepCount = -1
+        isServiceRunning = true
+
+        Log.d(TAG, "Restored persisted run: target=${activeTargetKm}km distance=${totalDistanceMeters}m elapsed=${elapsedSeconds}s")
+        beginTrackingInfrastructure()
+        return true
     }
 
     private fun createNotificationChannel() {

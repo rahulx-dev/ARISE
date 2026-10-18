@@ -244,7 +244,16 @@ export const cloudSyncService = {
         );
       } catch {}
 
-      // 2. Upload to remote Supabase cloud if active and user session matches
+      // 2. Upload to remote Supabase cloud if active and user session matches.
+      // C4/N21: never report "backed up to Cloud" when only the local
+      // cache was written. The local copy IS saved; the cloud is not.
+      if (!isSupabaseConfigured() || !supabase) {
+        return {
+          success: false,
+          message: 'Saved locally only — cloud is not configured.',
+        };
+      }
+
       if (isSupabaseConfigured() && supabase) {
         try {
           const { data: authData, error: userError } = await supabase.auth.getUser();
@@ -301,17 +310,23 @@ export const cloudSyncService = {
   ): Promise<{ restored: boolean; message: string; backup?: HunterCloudBackup }> {
     try {
       let cleanEmail = userEmail.trim().toLowerCase();
+      // C4: remote restore requires a LIVE session. The session's email
+      // is authoritative; a caller-supplied email never selects remote
+      // data. Without a session, only the device's own local cache is
+      // consulted (step 3).
+      let hasLiveSession = false;
       if (isSupabaseConfigured() && supabase) {
         const { data: authData } = await supabase.auth.getUser();
         if (authData?.user?.email) {
           cleanEmail = authData.user.email.trim().toLowerCase();
+          hasLiveSession = true;
         }
       }
 
       let backup: HunterCloudBackup | null = null;
 
       // 1. First attempt: Fetch from Remote Supabase Cloud
-      if (isSupabaseConfigured() && supabase) {
+      if (hasLiveSession && isSupabaseConfigured() && supabase) {
         try {
           const { data, error } = await supabase
             .from('user_cloud_saves')
@@ -329,7 +344,7 @@ export const cloudSyncService = {
       }
 
       // 2. Second attempt: Check authoritative user_wallets on Supabase if remote cloud save not found
-      if (!backup && isSupabaseConfigured() && supabase) {
+      if (!backup && hasLiveSession && isSupabaseConfigured() && supabase) {
         try {
           const { data: authData } = await supabase.auth.getUser();
           const userId = authData?.user?.id;

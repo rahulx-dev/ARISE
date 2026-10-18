@@ -1,9 +1,15 @@
 /**
- * ARISE — Cryptographic Completion Token Gate
+ * ARISE — Completion Token Gate
  *
  * Prevents completion replay attacks, arbitrary deep-link reward minting,
  * and zero-effort reward forging.
- * Tokens are bound to exercise context, single-use, and expire after 5 minutes.
+ * Tokens are bound to the FULL exercise context (type, quest, reps,
+ * duration, target), single-use, and expire after 5 minutes.
+ *
+ * NOT cryptographic proof: the token is an in-memory anti-replay nonce.
+ * An attacker with JS access can mint tokens, so the server must NEVER
+ * treat a completion token as proof of effort — money paths require
+ * server-verified events (see grant_crystals_secure in schema.sql).
  */
 
 /**
@@ -27,14 +33,13 @@ const activeTokens = new Map();
 const TOKEN_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
- * Issues a cryptographically bound single-use completion token
+ * Issues a single-use, context-bound completion token
  * @param {CompletionContext} [context]
  * @returns {string}
  */
 export function issueCompletionToken(context = { exerciseType: 'UNKNOWN' }) {
   pruneExpiredTokens();
-  const randomPart = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-  const token = `arise_tok_${Date.now().toString(36)}_${randomPart}`;
+  const token = `arise_tok_${Date.now().toString(36)}_${randomTokenPart()}`;
 
   activeTokens.set(token, {
     context: {
@@ -97,13 +102,43 @@ function matchesContext(record, expectedContext) {
   if (!expectedContext) {
     return true;
   }
-  if (expectedContext.exerciseType && expectedContext.exerciseType !== record.context.exerciseType) {
+  const ctx = record.context;
+  if (expectedContext.exerciseType && expectedContext.exerciseType !== ctx.exerciseType) {
     return false;
   }
-  if (expectedContext.questId && expectedContext.questId !== record.context.questId) {
+  if (expectedContext.questId && expectedContext.questId !== ctx.questId) {
+    return false;
+  }
+  // Full binding (C1): the token is bound to the exact effort that was
+  // issued. A tampered route param (reps/duration/target) must not match.
+  // Fields the issuer did not set are skipped (e.g. focus has no reps).
+  if (Number.isFinite(expectedContext.reps) && expectedContext.reps !== ctx.reps) {
+    return false;
+  }
+  if (Number.isFinite(expectedContext.duration) && expectedContext.duration !== ctx.duration) {
+    return false;
+  }
+  if (Number.isFinite(expectedContext.target) && expectedContext.target !== ctx.target) {
     return false;
   }
   return true;
+}
+
+// CSPRNG token entropy (C1). Previously Math.random() — predictable.
+// Falls back to timestamp + counter + Math.random only where WebCrypto
+// is unavailable, so the gate never crashes in exotic environments.
+let tokenCounter = 0;
+function randomTokenPart() {
+  try {
+    const c = globalThis.crypto;
+    if (c && typeof c.getRandomValues === 'function') {
+      const bytes = new Uint8Array(16);
+      c.getRandomValues(bytes);
+      return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+    }
+  } catch {}
+  tokenCounter += 1;
+  return `${Date.now().toString(36)}${tokenCounter.toString(36)}${Math.random().toString(36).slice(2)}`;
 }
 
 function pruneExpiredTokens() {
