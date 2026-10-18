@@ -50,8 +50,11 @@ export function isDurationBased(type: ExerciseType): boolean {
   return type === 'PLANK';
 }
 
+import { calculateRewards as calcRewardsPure } from './rewardCalculator.js';
+
 /**
  * Calculate rewards for completing an exercise.
+ * Strict zero-effort gate: 0 reps = 0 coins, 0 XP.
  */
 export function calculateRewards(
   type: ExerciseType,
@@ -59,13 +62,7 @@ export function calculateRewards(
   target: number
 ): { coins: number; xp: number } {
   const config = getExerciseConfig(type);
-  const reps = Math.min(completedReps, target); // Don't reward beyond target
-  // Calibrated unit economics: 1 coin per 5 reps (min 1 coin per set)
-  const earnedCoins = Math.max(1, Math.floor(reps / 5));
-  return {
-    coins: earnedCoins,
-    xp: reps * config.xpPerRep,
-  };
+  return calcRewardsPure(type, completedReps, target, config.xpPerRep);
 }
 
 // Re-export everything

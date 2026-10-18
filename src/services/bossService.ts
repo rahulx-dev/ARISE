@@ -93,6 +93,11 @@ class BossService {
 
   async claimBossVictoryReward(): Promise<boolean> {
     try {
+      const boss = await this.getCurrentBoss();
+      if (!boss.isDefeated) {
+        return false;
+      }
+
       const alreadyClaimed = await this.isWeeklyRewardClaimed();
       if (alreadyClaimed) {
         return false;

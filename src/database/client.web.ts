@@ -191,6 +191,9 @@ function createQueryChain(tableName: string, sourceData?: any[]) {
 }
 
 export const expoDb: any = {
+  withTransactionSync: (cb: () => void) => {
+    cb();
+  },
   runSync: (sql: string, params: any[] = []) => {
     parseKeyValueMutation(sql, params);
     if (sql.startsWith("CREATE TABLE IF NOT EXISTS")) {

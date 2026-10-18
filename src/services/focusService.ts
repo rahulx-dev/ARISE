@@ -1,6 +1,6 @@
 import { db } from '../database/client';
 import { focusSession } from '../database/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { FocusSession } from '../types';
 
 export const focusService = {
@@ -23,20 +23,37 @@ export const focusService = {
   },
 
   completeFocusSession: async (sessionId: number): Promise<{ coins: number; xp: number }> => {
-    const record = await db.select().from(focusSession).where(eq(focusSession.id, sessionId)).limit(1);
-    const session = record[0];
+    const record = await db
+      .select()
+      .from(focusSession)
+      .where(and(eq(focusSession.id, sessionId), eq(focusSession.status, 'ACTIVE')))
+      .limit(1);
 
-    const targetMinutes = session ? session.targetMinutes : 25;
-    const coins = session ? session.rewardCoins : Math.max(1, Math.floor(targetMinutes / 10));
-    const xp = session ? session.rewardXP : targetMinutes * 4;
+    if (record.length === 0) {
+      return { coins: 0, xp: 0 };
+    }
+
+    const session = record[0];
+    const now = new Date();
+    const startTime = new Date(session.startTime).getTime();
+    const elapsedMinutes = Math.max(0, Math.floor((now.getTime() - startTime) / 60000));
+
+    // Require that at least 80% of target time elapsed or at least 1 minute
+    if (elapsedMinutes < Math.min(session.targetMinutes, 1)) {
+      return { coins: 0, xp: 0 };
+    }
+
+    const completedMinutes = Math.min(session.targetMinutes, elapsedMinutes);
+    const coins = Math.min(50, session.rewardCoins);
+    const xp = Math.min(250, session.rewardXP);
 
     await db.update(focusSession)
       .set({
         status: 'COMPLETED',
-        completedMinutes: targetMinutes,
-        endTime: new Date().toISOString(),
+        completedMinutes,
+        endTime: now.toISOString(),
       })
-      .where(eq(focusSession.id, sessionId));
+      .where(and(eq(focusSession.id, sessionId), eq(focusSession.status, 'ACTIVE')));
 
     return { coins, xp };
   },

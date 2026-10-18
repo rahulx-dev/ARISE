@@ -434,6 +434,17 @@ export class GymService {
     sessionId: number,
     durationSeconds: number,
   ): Promise<{ coinsEarned: number; xpEarned: number; totalVolumeKg: number }> {
+    // C10: Atomic verification of ACTIVE session to reject repeats and phantoms
+    const sessionRows = await db
+      .select()
+      .from(workoutSessions)
+      .where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.status, "ACTIVE")))
+      .limit(1);
+
+    if (sessionRows.length === 0) {
+      return { coinsEarned: 0, xpEarned: 0, totalVolumeKg: 0 };
+    }
+
     const sets = await db
       .select()
       .from(workoutSets)
@@ -443,21 +454,39 @@ export class GymService {
     let totalReps = 0;
     const completedSets = sets.filter((s: any) => s.completed === 1);
 
+    const now = new Date().toISOString();
+
+    // C14: Zero-effort gym completion (0 sets completed) grants ZERO coins and ZERO XP
+    if (completedSets.length === 0) {
+      await db
+        .update(workoutSessions)
+        .set({
+          status: "ABORTED",
+          endTime: now,
+          durationSeconds,
+          totalVolumeKg: 0,
+          totalReps: 0,
+          totalSets: 0,
+          rewardCoins: 0,
+          rewardXP: 0,
+        })
+        .where(eq(workoutSessions.id, sessionId));
+      return { coinsEarned: 0, xpEarned: 0, totalVolumeKg: 0 };
+    }
+
     for (const s of completedSets) {
       totalVolumeKg += (s.weightKg || 0) * (s.completedReps || 0);
       totalReps += s.completedReps || 0;
     }
 
-    // Reward Formula: 15 Coins base + 2 Coins per completed set + 1 Coin per 5 mins
-    const baseCoins = 20;
-    const setCoins = completedSets.length * 3;
-    const durationCoins = Math.floor(durationSeconds / 300);
+    // Calibrated Reward Formula: Base + Set Bonus + Duration, capped
+    const baseCoins = 15;
+    const setCoins = Math.min(30, completedSets.length * 3);
+    const durationCoins = Math.min(10, Math.floor(durationSeconds / 300));
     const coinsEarned = baseCoins + setCoins + durationCoins;
-    const xpEarned = coinsEarned * 2;
+    const xpEarned = Math.min(250, coinsEarned * 2);
 
-    const now = new Date().toISOString();
-
-    // Mark session completed
+    // Mark session completed atomically
     await db
       .update(workoutSessions)
       .set({

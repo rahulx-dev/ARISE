@@ -1,17 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const PACKAGE_REGEX = /^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$/;
-const MAX_PACKAGE_LENGTH = 256;
-
-function normalizePackageName(packageName) {
-  if (typeof packageName !== 'string') return null;
-  const normalized = packageName.trim().toLowerCase();
-  if (normalized.length === 0 || normalized.length > MAX_PACKAGE_LENGTH || normalized === 'null') {
-    return null;
-  }
-  return PACKAGE_REGEX.test(normalized) ? normalized : null;
-}
+import { normalizePackageName } from '../src/utils/packageValidation.js';
 
 test('normalizePackageName validates valid reverse-domain packages', () => {
   assert.equal(normalizePackageName('com.instagram.android'), 'com.instagram.android');

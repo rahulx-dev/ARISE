@@ -291,19 +291,32 @@ export default function QuestsScreen() {
   const { animatedStyle: progressAnimatedStyle } = useProgressSpring(dailyProgressRatio);
 
   const handleManualComplete = async (q: QuestData) => {
-    haptics.success();
-    sound.play('quest_complete');
-    try {
-      const result = await completeQuest(q.id);
-      showIOSAlert(
-        'Protocol Cleared!',
-        `You completed "${q.title}" and earned +${result.coins} Coins and +${result.xp} XP.`,
-        [{ text: 'Awesome', style: 'default' }],
-        { variant: 'quest', tag: 'QUEST CLEARED' }
-      );
-    } catch {
-      showIOSAlert('Unable to complete quest', 'Your progress was not changed. Please try again.');
-    }
+    showIOSAlert(
+      'Confirm Habit Completion',
+      `Have you completed your self-reported discipline habit: "${q.title}"?`,
+      [
+        { text: 'Not Yet', style: 'cancel' },
+        {
+          text: 'Confirm & Claim',
+          style: 'primary',
+          onPress: async () => {
+            haptics.success();
+            sound.play('quest_complete');
+            try {
+              const result = await completeQuest(q.id);
+              showIOSAlert(
+                'Habit Cleared!',
+                `You completed "${q.title}" and earned +${result.coins} Coins and +${result.xp} XP.`,
+                [{ text: 'Awesome', style: 'default' }],
+                { variant: 'quest', tag: 'HABIT COMPLETED' }
+              );
+            } catch {
+              showIOSAlert('Unable to complete quest', 'Your progress was not changed. Please try again.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleQuestAction = (q: QuestData) => {

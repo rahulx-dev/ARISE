@@ -1,32 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-
-function parseWorkoutDeepLink(urlStr) {
-  try {
-    const url = new URL(urlStr);
-    if (url.protocol !== 'arise:') return null;
-
-    if (url.host === 'exercise') {
-      const exerciseType = url.pathname.replace('/', '').toLowerCase();
-      if (!['pushup', 'squat', 'plank', 'jumping_jack'].includes(exerciseType)) {
-        return null;
-      }
-      const rawTarget = parseInt(url.searchParams.get('target') || '10', 10);
-      const target = Number.isFinite(rawTarget) ? Math.max(1, Math.min(100, rawTarget)) : 10;
-      const source = (url.searchParams.get('source') || 'direct').slice(0, 32);
-
-      return { exerciseType, target, source };
-    }
-
-    if (url.host === 'watch-ad-unlock' || url.host === 'shop') {
-      return { action: url.host };
-    }
-
-    return null;
-  } catch {
-    return null;
-  }
-}
+import { parseWorkoutDeepLink } from '../src/utils/deepLinks.js';
 
 test('parseWorkoutDeepLink parses valid workout deep links with clamped targets', () => {
   const link = parseWorkoutDeepLink('arise://exercise/pushup?target=10&source=overlay');

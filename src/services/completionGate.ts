@@ -1,14 +1,17 @@
-const validTokens = new Set<string>();
+/**
+ * ARISE — Cryptographic Completion Token Gate
+ * Type definitions and re-export.
+ */
 
-export function issueCompletionToken(): string {
-  const token = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-  validTokens.add(token);
-  return token;
+export interface CompletionContext {
+  exerciseType: string;
+  questId?: string;
+  reps?: number;
+  duration?: number;
+  target?: number;
 }
 
-export function consumeCompletionToken(token: string | undefined): boolean {
-  if (__DEV__ && !token) return true;
-  if (!token || !validTokens.has(token)) return false;
-  validTokens.delete(token);
-  return true;
-}
+export {
+  issueCompletionToken,
+  consumeCompletionToken,
+} from './completionGate.js';

@@ -138,9 +138,11 @@ class PoseCameraView(context: Context, appContext: AppContext) : ExpoView(contex
     }
 
     private fun startCamera() {
+        if (isClosing.get()) return
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         cameraProviderFuture.addListener({
             try {
+                if (isClosing.get()) return@addListener
                 cameraProvider = cameraProviderFuture.get()
                 bindCameraUseCases()
             } catch (e: Exception) {
@@ -150,6 +152,7 @@ class PoseCameraView(context: Context, appContext: AppContext) : ExpoView(contex
     }
 
     private fun bindCameraUseCases() {
+        if (isClosing.get()) return
         val provider = cameraProvider ?: return
         val activity = appContext.currentActivity
         val lifecycleOwner = activity as? LifecycleOwner
@@ -185,8 +188,12 @@ class PoseCameraView(context: Context, appContext: AppContext) : ExpoView(contex
             .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
             .build()
 
-        imageAnalysis.setAnalyzer(cameraExecutor) { imageProxy ->
-            processImageProxy(imageProxy)
+        try {
+            imageAnalysis.setAnalyzer(cameraExecutor) { imageProxy ->
+                processImageProxy(imageProxy)
+            }
+        } catch (e: Exception) {
+            Log.w("ARISE_POSE_CAMERA", "Failed to attach analyzer to executor", e)
         }
 
         try {

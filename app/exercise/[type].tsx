@@ -38,8 +38,6 @@ import {
   RepCounterState,
 } from '../../src/exercise';
 import {
-  initialize as initPoseDetector,
-  release as releasePoseDetector,
   PoseLandmark,
   LandmarkIndex,
   PoseCameraView,
@@ -93,8 +91,8 @@ function ExerciseTrackerInner() {
     : config.defaultTarget || 20;
   const parsedSets = paramSets ? Number.parseInt(paramSets, 10) : NaN;
   const totalSets =
-    !isNaN(parsedSets) && parsedSets > 0
-      ? parsedSets
+    Number.isFinite(parsedSets) && parsedSets > 0
+      ? Math.min(10, Math.max(1, parsedSets))
       : questId || isRedGate
       ? 1
       : 3;
@@ -152,14 +150,6 @@ function ExerciseTrackerInner() {
       requestCameraPermission();
     }
 
-    // Initialize native on-device pose detector
-    initPoseDetector()
-      .then((ok) => {
-        if (__DEV__) console.log('[ARISE TRACKER] MODEL_READY:', ok);
-      })
-      .catch((err) => {
-        console.warn('[ARISE TRACKER] Pose detector initialization note:', err);
-      });
 
     if (!voiceMuted) {
       voiceCoach.speak(
@@ -348,12 +338,12 @@ function ExerciseTrackerInner() {
     haptics.success();
     sound.play('quest_complete');
 
-    // Calculate total completed reps across all sets
+    // Calculate total completed reps across all sets (C14: zero reps stays 0)
     let totalCompletedReps: number;
     if (earlyReps !== undefined) {
       totalCompletedReps = Math.max(
-        1,
-        (currentSetRef.current - 1) * target + earlyReps
+        0,
+        (currentSetRef.current - 1) * target + Math.max(0, earlyReps)
       );
     } else {
       totalCompletedReps = target * totalSetsRef.current;
@@ -369,7 +359,8 @@ function ExerciseTrackerInner() {
       voiceCoach.speakComplete(config.displayName, rewards.coins);
     }
 
-    if (source === 'overlay') {
+    // Only grant overlay temporary unlock if user completed full target reps (C14)
+    if (source === 'overlay' && totalCompletedReps >= target * totalSetsRef.current && totalCompletedReps > 0) {
       try {
         appBlockerService.temporaryUnlock(20 * 60 * 1000);
       } catch {}
@@ -385,7 +376,13 @@ function ExerciseTrackerInner() {
         questId: questId || '',
         isRedGate: isRedGate || '',
         source: source || '',
-        completionToken: issueCompletionToken(),
+        completionToken: issueCompletionToken({
+          exerciseType: validExerciseType,
+          questId: questId || '',
+          reps: totalCompletedReps,
+          duration,
+          target: target * totalSetsRef.current,
+        }),
       },
     });
   };

@@ -18,8 +18,7 @@ class BootReceiver : BroadcastReceiver() {
         Log.d(TAG, "Received broadcast action: $action")
 
         if (action == Intent.ACTION_BOOT_COMPLETED ||
-            action == Intent.ACTION_MY_PACKAGE_REPLACED ||
-            action == "android.intent.action.QUICKBOOT_POWERON"
+            action == Intent.ACTION_MY_PACKAGE_REPLACED
         ) {
             try {
                 // Ensure usage access permission is still granted

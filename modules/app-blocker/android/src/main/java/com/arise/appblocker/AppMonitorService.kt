@@ -394,14 +394,12 @@ class AppMonitorService : Service() {
             }
         }
 
-        if (intent?.hasExtra("UNLOCKED_UNTIL_EPOCH") == true) {
-            val requestedUnlockUntil = intent.getLongExtra("UNLOCKED_UNTIL_EPOCH", 0L)
-            if (BlockPolicyController.setUnlockUntil(this, requestedUnlockUntil)) {
-                lastWasUnlocked = requestedUnlockUntil > System.currentTimeMillis()
-                updateNotification(lastWasUnlocked, requestedUnlockUntil)
-                shouldReevaluate = true
-                Log.d(tag, "Applied screen-time pass until: $requestedUnlockUntil")
-            }
+        val isPassActive = BlockPolicyController.isPassActive()
+        val currentUnlockUntil = BlockPolicyController.getUnlockUntil(this)
+        if (isPassActive != lastWasUnlocked) {
+            lastWasUnlocked = isPassActive
+            updateNotification(lastWasUnlocked, currentUnlockUntil)
+            shouldReevaluate = true
         }
 
         if (!isMonitoring) {

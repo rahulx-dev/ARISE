@@ -119,11 +119,22 @@ class RunningService : Service(), LocationListener, SensorEventListener {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val action = intent?.action ?: ACTION_START
+        if (intent == null) {
+            if (!isServiceRunning) {
+                stopSelf()
+            }
+            return START_NOT_STICKY
+        }
+
+        val action = intent.action ?: return START_NOT_STICKY
 
         when (action) {
             ACTION_START -> {
-                val targetKm = intent?.getDoubleExtra(EXTRA_TARGET_KM, 1.0) ?: 1.0
+                if (isServiceRunning) {
+                    Log.d(TAG, "Ignoring duplicate ACTION_START: tracking session is already running")
+                    return START_NOT_STICKY
+                }
+                val targetKm = intent.getDoubleExtra(EXTRA_TARGET_KM, 1.0)
                 startTrackingSession(targetKm)
             }
             ACTION_PAUSE -> {
@@ -138,7 +149,7 @@ class RunningService : Service(), LocationListener, SensorEventListener {
             }
         }
 
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
     @SuppressLint("MissingPermission")

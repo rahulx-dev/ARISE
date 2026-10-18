@@ -277,7 +277,7 @@ export const guildService = {
         hunterName: profile.displayName || "Hunter Master",
         hunterRank: "S",
         role: "GUILD_MASTER",
-        contributionPoints: 100,
+        contributionPoints: 0,
         joinedAt: now,
         isCurrentUser: 1,
       });
@@ -395,12 +395,28 @@ export const guildService = {
     rewardCoins?: number;
     rewardXP?: number;
   }> {
-    const raid = await this.getActiveRaid(guildId);
-    if (!raid) {
+    // ECON-NEW-1: Require verified guild membership before any attack or reward
+    const memberRows = await db
+      .select()
+      .from(guildMember)
+      .where(
+        and(eq(guildMember.guildId, guildId), eq(guildMember.isCurrentUser, 1)),
+      )
+      .limit(1);
+
+    if (memberRows.length === 0) {
       return { cleared: false, newHp: 0, maxHp: 0, bossName: "None" };
     }
 
-    const newHp = Math.max(0, raid.bossCurrentHp - damage);
+    const raid = await this.getActiveRaid(guildId);
+    if (!raid || raid.status !== "ACTIVE") {
+      return { cleared: false, newHp: 0, maxHp: 0, bossName: "None" };
+    }
+
+    // C8: Clamp damage to sane single-attack bound (1..200)
+    const safeDamage = Math.max(1, Math.min(200, Math.floor(damage)));
+
+    const newHp = Math.max(0, raid.bossCurrentHp - safeDamage);
     const cleared = newHp === 0;
 
     // Update raid HP
@@ -413,21 +429,11 @@ export const guildService = {
       .where(eq(guildRaid.id, raid.id));
 
     // Update user's contribution points
-    const memberRows = await db
-      .select()
-      .from(guildMember)
-      .where(
-        and(eq(guildMember.guildId, guildId), eq(guildMember.isCurrentUser, 1)),
-      )
-      .limit(1);
-
-    if (memberRows.length > 0) {
-      const m = memberRows[0];
-      await db
-        .update(guildMember)
-        .set({ contributionPoints: m.contributionPoints + damage })
-        .where(eq(guildMember.id, m.id));
-    }
+    const m = memberRows[0];
+    await db
+      .update(guildMember)
+      .set({ contributionPoints: m.contributionPoints + safeDamage })
+      .where(eq(guildMember.id, m.id));
 
     // Add Guild XP
     const targetGuild = await db
@@ -439,7 +445,7 @@ export const guildService = {
       const g = targetGuild[0];
       await db
         .update(guild)
-        .set({ totalXP: g.totalXP + damage })
+        .set({ totalXP: g.totalXP + safeDamage })
         .where(eq(guild.id, guildId));
     }
 

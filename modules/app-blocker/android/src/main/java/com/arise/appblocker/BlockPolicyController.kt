@@ -266,8 +266,11 @@ object BlockPolicyController {
             val savedUnlock = prefs.getLong(UNLOCKED_UNTIL_KEY, 0L)
             if (savedUnlock > now) {
                 unlockedUntilEpochMs = savedUnlock
+                val remainingMs = (savedUnlock - now).coerceAtLeast(0L)
+                unlockedUntilElapsedRealtimeMs = SystemClock.elapsedRealtime() + remainingMs
             } else {
                 unlockedUntilEpochMs = 0L
+                unlockedUntilElapsedRealtimeMs = 0L
                 if (savedUnlock > 0L) {
                     prefs.edit().remove(UNLOCKED_UNTIL_KEY).apply()
                 }
@@ -440,7 +443,21 @@ object BlockPolicyController {
         val safeDuration = durationMs.coerceIn(0L, MAX_UNLOCK_WINDOW_MS)
         return synchronized(policyLock) {
             val nowElapsed = SystemClock.elapsedRealtime()
-            unlockedUntilElapsedRealtimeMs = if (safeDuration > 0L) nowElapsed + safeDuration else 0L
+            val nowWall = System.currentTimeMillis()
+            val targetElapsed = if (safeDuration > 0L) maxOf(unlockedUntilElapsedRealtimeMs, nowElapsed + safeDuration) else 0L
+            unlockedUntilElapsedRealtimeMs = targetElapsed
+
+            val remainingMs = (targetElapsed - nowElapsed).coerceAtLeast(0L)
+            val targetEpoch = if (remainingMs > 0L) nowWall + remainingMs else 0L
+            unlockedUntilEpochMs = targetEpoch
+
+            val prefs = preferences(actualContext)
+            if (targetEpoch > 0L) {
+                prefs.edit().putLong(UNLOCKED_UNTIL_KEY, targetEpoch).apply()
+            } else {
+                prefs.edit().remove(UNLOCKED_UNTIL_KEY).apply()
+            }
+
             UnlockLedger.recordUnlock(actualContext, targetPackage ?: "all", reason, safeDuration, safeDuration > 0L)
             invalidateAll()
             true

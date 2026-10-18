@@ -16,6 +16,7 @@ interface GymState {
   activeSession: ActiveWorkoutSession | null;
   personalRecords: PersonalRecord[];
   workoutHistory: ActiveWorkoutSession[];
+  lastCompletedRewards: { coinsEarned: number; xpEarned: number } | null;
   isLoading: boolean;
 
   loadGymData: () => Promise<void>;
@@ -39,6 +40,7 @@ export const useGymStore = create<GymState>((set, get) => ({
   activeSession: null,
   personalRecords: [],
   workoutHistory: [],
+  lastCompletedRewards: null,
   isLoading: false,
 
   loadGymData: async () => {
@@ -131,6 +133,10 @@ export const useGymStore = create<GymState>((set, get) => ({
     set({
       activeSession: null,
       workoutHistory: history,
+      lastCompletedRewards: {
+        coinsEarned: rewards.coinsEarned,
+        xpEarned: rewards.xpEarned,
+      },
     });
 
     return rewards;

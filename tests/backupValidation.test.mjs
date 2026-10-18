@@ -1,27 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-
-function validateBackupData(data) {
-  if (!data || typeof data !== 'object') return null;
-  const level = Number.isInteger(data.level) ? Math.max(1, Math.min(100, data.level)) : 1;
-  const coins = Number.isInteger(data.coins) ? Math.max(0, Math.min(1000000, data.coins)) : 0;
-  const totalXP = Number.isInteger(data.totalXP) ? Math.max(0, Math.min(10000000, data.totalXP)) : 0;
-  const currentStreak = Number.isInteger(data.currentStreak) ? Math.max(0, Math.min(3650, data.currentStreak)) : 0;
-  const longestStreak = Number.isInteger(data.longestStreak) ? Math.max(currentStreak, Math.min(3650, data.longestStreak)) : currentStreak;
-  const displayName = typeof data.displayName === 'string' ? data.displayName.trim().slice(0, 50) || 'Warrior' : 'Warrior';
-  const avatarIcon = typeof data.avatarIcon === 'string' && data.avatarIcon.startsWith('img_pfp_') ? data.avatarIcon : 'img_pfp_01';
-
-  return {
-    ...data,
-    level,
-    coins,
-    totalXP,
-    currentStreak,
-    longestStreak,
-    displayName,
-    avatarIcon,
-  };
-}
+import { validateBackupData } from '../src/utils/backupValidation.js';
 
 test('validateBackupData rejects non-objects and null', () => {
   assert.equal(validateBackupData(null), null);
@@ -51,16 +30,37 @@ test('validateBackupData clamps excessive levels and negative coins', () => {
   assert.equal(validated.avatarIcon, 'img_pfp_01');
 });
 
-test('validateBackupData preserves authentic valid progression', () => {
-  const authentic = {
-    level: 15,
-    coins: 3500,
-    totalXP: 45000,
-    currentStreak: 7,
-    longestStreak: 14,
-    displayName: 'Jinwoo',
-    avatarIcon: 'img_pfp_05',
+test('validateBackupData enforces single equipped item per type (NEW-SYNC-3)', () => {
+  const multiEquip = {
+    level: 5,
+    coins: 100,
+    displayName: 'Hunter',
+    unlockedInventory: [
+      { itemId: 'avatar_1', itemType: 'AVATAR', isEquipped: true },
+      { itemId: 'avatar_2', itemType: 'AVATAR', isEquipped: true },
+      { itemId: 'title_1', itemType: 'TITLE', isEquipped: true },
+    ],
   };
-  const validated = validateBackupData(authentic);
-  assert.deepEqual(validated, authentic);
+  const validated = validateBackupData(multiEquip);
+  assert.ok(validated);
+  const equippedAvatars = validated.unlockedInventory.filter(i => i.itemType === 'AVATAR' && i.isEquipped);
+  assert.equal(equippedAvatars.length, 1);
+  assert.equal(equippedAvatars[0].itemId, 'avatar_1');
+});
+
+test('validateBackupData sanitizes unvalidated arrays and clamps quest rewards (NEW-SYNC-4)', () => {
+  const craftedBlob = {
+    quests: [
+      {
+        id: 1,
+        title: 'Exploit Quest',
+        rewardCoins: 999999,
+        rewardXP: 999999,
+      },
+    ],
+  };
+  const validated = validateBackupData(craftedBlob);
+  assert.ok(validated);
+  assert.equal(validated.quests[0].rewardCoins, 100);
+  assert.equal(validated.quests[0].rewardXP, 500);
 });

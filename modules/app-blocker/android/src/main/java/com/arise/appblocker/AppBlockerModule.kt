@@ -271,9 +271,8 @@ class AppBlockerModule : Module() {
             }
             val success = BlockPolicyController.setUnlockDuration(context, durationMs.toLong(), "TEMPORARY_JS_PASS")
             if (success) {
-                val epochTarget = BlockPolicyController.getUnlockUntil(context)
                 val intent = Intent(context, AppMonitorService::class.java).apply {
-                    putExtra("UNLOCKED_UNTIL_EPOCH", epochTarget)
+                    action = "com.arise.appblocker.ACTION_REEVALUATE_POLICIES"
                 }
                 try {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -282,7 +281,9 @@ class AppBlockerModule : Module() {
                         context.startService(intent)
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error sending unlock to service", e)
+                    Log.e(TAG, "Error sending unlock to service, rolling back unlock", e)
+                    BlockPolicyController.setUnlockDuration(context, 0L, "ROLLBACK_SERVICE_DELIVERY_FAILED")
+                    return@Function false
                 }
             }
             Log.d(TAG, "temporaryUnlock for $durationMs ms: $success")
@@ -301,9 +302,8 @@ class AppBlockerModule : Module() {
             }
             val success = BlockPolicyController.setUnlockUntil(context, epochMs.toLong())
             if (success) {
-                val epochTarget = BlockPolicyController.getUnlockUntil(context)
                 val intent = Intent(context, AppMonitorService::class.java).apply {
-                    putExtra("UNLOCKED_UNTIL_EPOCH", epochTarget)
+                    action = "com.arise.appblocker.ACTION_REEVALUATE_POLICIES"
                 }
                 try {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -312,7 +312,9 @@ class AppBlockerModule : Module() {
                         context.startService(intent)
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error sending unlock to service", e)
+                    Log.e(TAG, "Error sending unlock to service, rolling back unlock", e)
+                    BlockPolicyController.setUnlockDuration(context, 0L, "ROLLBACK_SERVICE_DELIVERY_FAILED")
+                    return@Function false
                 }
             }
             Log.d(TAG, "unlockUntil epoch: $epochMs -> $success")

@@ -165,6 +165,15 @@ export default function ActiveGymSessionScreen() {
 
   const handleFinishWorkout = async () => {
     if (finishingRef.current) return;
+    const totalCompletedSets = Object.values(sessionSets).reduce((sum, s) => sum + s.length, 0);
+    if (totalCompletedSets === 0) {
+      showIOSAlert(
+        'No Sets Logged',
+        'Log at least one completed set to submit your workout session and earn rewards.'
+      );
+      return;
+    }
+
     showIOSAlert(
       'Finish Workout?',
       'Are you ready to submit your workout session and claim your rewards?',
@@ -185,10 +194,15 @@ export default function ActiveGymSessionScreen() {
                 pathname: '/exercise/complete',
                 params: {
                   exerciseType: 'GYM_WORKOUT',
-                  completedReps: '1',
-                  target: '1',
+                  completedReps: totalCompletedSets.toString(),
+                  target: totalCompletedSets.toString(),
                   durationSeconds: elapsedSeconds.toString(),
-                  completionToken: issueCompletionToken(),
+                  completionToken: issueCompletionToken({
+                    exerciseType: 'GYM_WORKOUT',
+                    reps: totalCompletedSets,
+                    duration: elapsedSeconds,
+                    target: totalCompletedSets,
+                  }),
                 },
               });
             } finally {

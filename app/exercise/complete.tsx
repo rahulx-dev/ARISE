@@ -110,23 +110,31 @@ export default function QuestCompleteScreen() {
 
     const grantRewards = async () => {
       try {
-        if (!consumeCompletionToken(completionToken)) {
+        if (!consumeCompletionToken(completionToken, { exerciseType: isGymCompletion ? 'GYM_WORKOUT' : validExerciseType })) {
           showIOSAlert('Invalid Completion', 'This completion session is no longer valid.');
           router.replace('/(tabs)');
           return;
         }
 
-        // Unlock focus shield / screen time for 20 minutes
-        try {
-          appBlockerService.temporaryUnlock?.(20 * 60 * 1000);
-        } catch (_: any) {}
+        // Only unlock focus shield if actual workout effort was verified (C14)
+        const isEligibleForUnlock = isGymCompletion
+          ? true
+          : isFocusCompletion
+          ? duration >= 300
+          : reps > 0 && reps >= targetNum * 0.5;
+
+        if (isEligibleForUnlock) {
+          try {
+            appBlockerService.temporaryUnlock?.(20 * 60 * 1000);
+          } catch (_: any) {}
+        }
 
         let awarded = false;
         let grantedCoins = 0;
         let grantedXP = 0;
 
         // Emergency Red Gate Victory Check
-        if (isRedGate === 'true') {
+        if (isRedGate === 'true' && (reps > 0 || isFocusCompletion)) {
           const res = await redGateService.claimVictory('exercise');
           if (res.success && mountedRef.current) {
             setRedGateVictory({
@@ -142,45 +150,58 @@ export default function QuestCompleteScreen() {
         const { questService } = await import('../../src/services/questService');
 
         if (questId && parseInt(questId, 10)) {
-          const res = await questService.completeQuest(parseInt(questId, 10));
-          if (res.success) {
-            awarded = true;
-            grantedCoins += res.earnedCoins;
-            grantedXP += res.earnedXP;
+          // Only complete quest if effort was expended (reps > 0 or duration > 0)
+          if (reps > 0 || (isFocusCompletion && duration >= 60)) {
+            const res = await questService.completeQuest(parseInt(questId, 10));
+            if (res.success) {
+              awarded = true;
+              grantedCoins += res.earnedCoins;
+              grantedXP += res.earnedXP;
+            }
           }
         } else {
-          // Auto-reconcile with any matching active daily quests!
-          const reconciled = await questService.reconcileCompletedActivity(
-            isFocusCompletion ? 'FOCUS' : validExerciseType,
-            reps || targetNum
-          );
-          if (reconciled.completedCount > 0) {
-            awarded = true;
-            grantedCoins += reconciled.coins;
-            grantedXP += reconciled.xp;
+          // Auto-reconcile with matching daily quests (never reconcile 0 reps - C14)
+          const actualReps = isFocusCompletion ? Math.floor(duration / 60) : reps;
+          if (actualReps > 0) {
+            const reconciled = await questService.reconcileCompletedActivity(
+              isFocusCompletion ? 'FOCUS' : validExerciseType,
+              actualReps
+            );
+            if (reconciled.completedCount > 0) {
+              awarded = true;
+              grantedCoins += reconciled.coins;
+              grantedXP += reconciled.xp;
+            }
           }
         }
 
         if (!awarded && !isGymCompletion) {
-          const calcCoins = isFocusCompletion
-            ? Math.min(30, Math.max(5, Math.floor(duration / 60)))
-            : Math.min(25, Math.max(5, Math.floor((reps || 1) * 0.5)));
-          const calcXP = isFocusCompletion
-            ? Math.min(100, Math.max(10, Math.floor(duration / 30)))
-            : Math.min(100, Math.max(10, (reps || 1) * (config.xpPerRep || 5)));
-
-          await userRepository.addCoins(
-            calcCoins,
-            `${config.displayName} Session`,
-            isFocusCompletion ? 'focus' : 'exercise'
-          );
-          await userRepository.addXP(calcXP);
-          await userRepository.updateStat(config.statType as any, 1);
-          grantedCoins += calcCoins;
-          grantedXP += calcXP;
+          if (isFocusCompletion) {
+            const calcCoins = duration >= 60 ? Math.min(30, Math.max(1, Math.floor(duration / 60))) : 0;
+            const calcXP = duration >= 30 ? Math.min(100, Math.max(5, Math.floor(duration / 30))) : 0;
+            if (calcCoins > 0 || calcXP > 0) {
+              await userRepository.addCoins(calcCoins, `${config.displayName} Session`, 'focus');
+              await userRepository.addXP(calcXP);
+              await userRepository.updateStat(config.statType as any, 1);
+              grantedCoins += calcCoins;
+              grantedXP += calcXP;
+            }
+          } else if (reps > 0) {
+            const rewards = calculateRewards(validExerciseType, reps, targetNum, config.xpPerRep);
+            if (rewards.coins > 0 || rewards.xp > 0) {
+              await userRepository.addCoins(rewards.coins, `${config.displayName} Session`, 'exercise');
+              await userRepository.addXP(rewards.xp);
+              await userRepository.updateStat(config.statType as any, 1);
+              grantedCoins += rewards.coins;
+              grantedXP += rewards.xp;
+            }
+          }
         } else if (isGymCompletion) {
-          grantedCoins = 25;
-          grantedXP = 120;
+          // Display authentic rewards computed by gymService (no hardcoded fake values)
+          const { useGymStore } = await import('../../src/stores/useGymStore');
+          const gymRewards = useGymStore.getState().lastCompletedRewards;
+          grantedCoins = gymRewards?.coinsEarned || 0;
+          grantedXP = gymRewards?.xpEarned || 0;
         }
 
         if (mountedRef.current) {

@@ -1,46 +1,31 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { calculateRewards } from '../src/exercise/rewardCalculator.js';
 
-function calculateWorkoutReward({ reps, target, exerciseType, formScore = 100 }) {
-  const safeReps = Math.max(0, Math.floor(Number(reps) || 0));
-  const safeTarget = Math.max(1, Math.floor(Number(target) || 10));
-
-  // Zero-effort completion grants nothing (C14)
-  if (safeReps === 0) {
-    return { coins: 0, xp: 0 };
-  }
-
-  // Base rewards per rep type
-  const baseRewardPerRep = exerciseType === 'pushup' ? 2 : 1;
-  const earnedCoins = Math.min(100, safeReps * baseRewardPerRep);
-  const earnedXP = Math.min(250, safeReps * 5);
-
-  return { coins: earnedCoins, xp: earnedXP };
-}
-
-test('calculateWorkoutReward: Zero reps grants ZERO coins and ZERO XP', () => {
-  const zeroWork = calculateWorkoutReward({ reps: 0, target: 10, exerciseType: 'pushup' });
+test('calculateRewards: Zero reps grants ZERO coins and ZERO XP (C14)', () => {
+  const zeroWork = calculateRewards('PUSHUP', 0, 10);
   assert.equal(zeroWork.coins, 0);
   assert.equal(zeroWork.xp, 0);
-});
 
-test('calculateWorkoutReward: Clamps rewards and ignores malicious inputs', () => {
-  const maliciousExploit = calculateWorkoutReward({
-    reps: 9999999,
-    target: 10,
-    exerciseType: 'pushup',
-  });
-  // Must be strictly capped at 100 coins and 250 XP
-  assert.equal(maliciousExploit.coins, 100);
-  assert.equal(maliciousExploit.xp, 250);
-
-  const negativeReps = calculateWorkoutReward({
-    reps: -50,
-    target: 10,
-    exerciseType: 'pushup',
-  });
+  const negativeReps = calculateRewards('PUSHUP', -5, 10);
   assert.equal(negativeReps.coins, 0);
   assert.equal(negativeReps.xp, 0);
+});
+
+test('calculateRewards: Clamps rewards against inflation exploits', () => {
+  const normalWork = calculateRewards('PUSHUP', 20, 20);
+  assert.equal(normalWork.coins, 4); // 20 / 5 = 4 coins
+  assert.equal(normalWork.xp, 100);  // 20 * 5 = 100 XP
+
+  // Capped to target
+  const overTarget = calculateRewards('PUSHUP', 500, 20);
+  assert.equal(overTarget.coins, 4);
+  assert.equal(overTarget.xp, 100);
+
+  // Maximum ceiling test
+  const extremeExploit = calculateRewards('PUSHUP', 999999, 999999);
+  assert.ok(extremeExploit.coins <= 50);
+  assert.ok(extremeExploit.xp <= 500);
 });
 
 test('Idempotency prevents double reward grants with same request ID', () => {
