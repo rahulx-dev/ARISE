@@ -112,19 +112,18 @@ Unlike conventional productivity apps that rely on easily dismissible timers or 
 
 ## 🤝 Contributing & Road Ahead
 
-ARISE is an actively evolving, community-driven project. While the core native engine, ML Kit kinematics, and offline SQLite architecture are solidly built, you may encounter minor edge-case bugs or device-specific quirks as we continue to push updates.
+ARISE is an actively evolving private project. While the core native engine, ML Kit kinematics, and offline SQLite architecture are solidly built, you may encounter minor edge-case bugs or device-specific quirks as we continue to push updates.
 
-We're continuously improving stability, pose accuracy, UI,  and performance! 
+We're continuously improving stability, pose accuracy, UI,  and performance!
 
-**Want to help make ARISE better?**
+**Found a bug or have an idea?**
 - Found a bug or have an idea? Open an [Issue](https://github.com/rahulx-dev/ARISE/issues).
-- Want to contribute code, optimize ML models, or add new exercises? Fork the repo, create a branch, and open a **Pull Request** — all contributions are warmly welcomed!
 
 ---
 
 ## 📜 License
 
-Distributed under the MIT License. See `LICENSE` for more information.
+Proprietary — all rights reserved. This code is not licensed for use, copying, modification, or distribution by anyone except the owner.
 
 ---
 
