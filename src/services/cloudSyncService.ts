@@ -45,6 +45,8 @@ const CLOUD_CACHE_PREFIX = '@arise_cloud_cache_';
 import { validateBackupData, ValidatedHunterBackup } from '../utils/backupValidation';
 export { validateBackupData };
 export type { ValidatedHunterBackup };
+let autoSyncPending = false;
+let autoSyncChain: Promise<any> = Promise.resolve();
 
 export const cloudSyncService = {
   async enqueueCashoutSync(payload: {
@@ -643,8 +645,8 @@ export const cloudSyncService = {
 
       return {
         restored: true,
-        message: `Welcome back, ${backup.displayName}! Restored your Level ${backup.level || 1} progression, achievements, quests, and unlocked gear.`,
-        backup,
+        message: `Welcome back, ${validated.displayName}! Restored your Level ${validated.level || 1} progression, achievements, quests, and unlocked gear.`,
+        backup: validated as unknown as HunterCloudBackup,
       };
     } catch (err: any) {
       console.error('[CloudSync] Restore error:', err);
@@ -663,21 +665,19 @@ export const cloudSyncService = {
    * triggers collapses into one save, and saves run strictly in order
    * (promise chain) so last-write-wins is always the newest write.
    */
-  private autoSyncPending = false;
-  private autoSyncChain: Promise<any> = Promise.resolve();
   async triggerAutoSync(): Promise<void> {
     try {
-      if (this.autoSyncPending) return;
-      this.autoSyncPending = true;
+      if (autoSyncPending) return;
+      autoSyncPending = true;
       // Debounce window: collapse a burst of events into one save.
       await new Promise((r) => setTimeout(r, 1000));
-      this.autoSyncPending = false;
+      autoSyncPending = false;
       const storedUser = await googleAuthService.getStoredGoogleUser();
       if (storedUser?.email) {
-        this.autoSyncChain = this.autoSyncChain
-          .then(() => this.saveToCloud(storedUser.email))
+        autoSyncChain = autoSyncChain
+          .then(() => cloudSyncService.saveToCloud(storedUser.email))
           .catch(() => {});
-        await this.autoSyncChain;
+        await autoSyncChain;
       }
     } catch {}
   },

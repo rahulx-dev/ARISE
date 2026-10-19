@@ -244,8 +244,7 @@ export default function GateDetailsScreen() {
   const userLevel = profile?.level || 1;
   const isLocked = userLevel < gate.requiredLevel;
 
-  const totalGrossPayout = gate.missions.reduce((acc, m) => acc + m.grossPayoutInr, 0);
-  const totalCrystals = gate.missions.reduce((acc, m) => acc + m.hunterCrystals, 0);
+  const totalTierInr = gate.missions.reduce((acc, m) => acc + (m.displayTierInr || 0), 0);
   const totalXP = gate.missions.reduce((acc, m) => acc + m.xpReward, 0);
   const completedMissionsCount = gate.missions.filter((m) => m.isCompleted).length;
 
@@ -317,7 +316,9 @@ export default function GateDetailsScreen() {
         // H34: pass every answer — the service verifies all questions
         // were answered before granting.
         const allAnswers = [...answers, selectedOptIdx];
-        const result = await gateSpawnService.completeMission(gate.id, activeMission.id, false, allAnswers);
+        const result = await gateSpawnService.completeMission(gate.id, activeMission.id, {
+          answers: allAnswers,
+        });
         await loadProfile();
 
         const updated = await gateSpawnService.getGateById(gate.id);
@@ -414,19 +415,19 @@ export default function GateDetailsScreen() {
           <View style={styles.bountyCol}>
             <Image source={APP_3D_ASSETS.goldCoin} style={{ width: 24, height: 24 }} />
             <View style={styles.bountyTextCol}>
-              <Text style={[styles.bountyLabel, { color: colors.textSecondary }]}>BOUNTY POOL</Text>
-              <Text style={[styles.bountyValINR, { color: '#F59E0B' }]}>₹{totalGrossPayout} INR</Text>
+              <Text style={[styles.bountyLabel, { color: colors.textSecondary }]}>TIER POOL</Text>
+              <Text style={[styles.bountyValINR, { color: '#F59E0B' }]}>₹{totalTierInr} INR</Text>
             </View>
           </View>
 
           <View style={[styles.bountyDivider, { backgroundColor: isDark ? '#1C1E2A' : '#F1F5F9' }]} />
 
-          {/* Column 2: Hunter Share (20%) */}
+          {/* Column 2: Server Verified */}
           <View style={styles.bountyCol}>
             <Image source={APP_3D_ASSETS.manaCrystal} style={{ width: 22, height: 22 }} />
             <View style={styles.bountyTextCol}>
-              <Text style={[styles.bountyLabel, { color: colors.textSecondary }]}>HUNTER SHARE (20%)</Text>
-              <Text style={[styles.bountyValCrystals, { color: '#0A84FF' }]}>+{totalCrystals.toLocaleString()}</Text>
+              <Text style={[styles.bountyLabel, { color: colors.textSecondary }]}>REWARD STATUS</Text>
+              <Text style={[styles.bountyValCrystals, { color: '#0A84FF', fontSize: 13 }]}>Verified</Text>
             </View>
           </View>
 
@@ -503,7 +504,7 @@ export default function GateDetailsScreen() {
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <View style={[styles.rewardBadgePill, { backgroundColor: isDark ? '#141E2D' : '#EFF6FF' }]}>
                       <ManaCrystalIcon size={13} color="#0284C7" secondaryColor="#0284C7" />
-                      <Text style={styles.crystalRewardText}>+{mission.hunterCrystals}</Text>
+                      <Text style={styles.crystalRewardText}>₹{mission.displayTierInr || 0} Tier</Text>
                     </View>
                     <View style={[styles.rewardBadgePill, { backgroundColor: isDark ? '#261218' : '#FFF1F2' }]}>
                       <Zap size={13} color="#EF4444" fill="#EF4444" />
@@ -689,16 +690,16 @@ export default function GateDetailsScreen() {
         url={inAppSurvey.url}
         title={inAppSurvey.title}
         provider={inAppSurvey.provider}
-        onClose={async (completed: boolean) => {
+        onClose={async (result: { verified: boolean; transId?: string }) => {
           const finishedMissionId = inAppSurvey.missionId;
           setInAppSurvey((prev) => ({ ...prev, visible: false, missionId: undefined }));
 
-          if (!completed) {
+          if (!result?.verified || !result?.transId) {
             haptics.warning();
             setInquestNotice({
               visible: true,
               title: 'INQUEST ABORTED',
-              message: 'You exited the survey portal before completing the questions. No Mana Crystals were extracted.',
+              message: 'You exited the survey portal before completing the questions or server verification was not received. No Mana Crystals were extracted.',
             });
             await loadProfile();
             if (mountedRef.current) await fetchGate();
@@ -710,17 +711,20 @@ export default function GateDetailsScreen() {
             const m = gate.missions.find((item) => item.id === finishedMissionId);
             if (m && !m.isCompleted) {
               try {
-                // Verified external survey from partner: award 20% Mana Crystals
-                const result = await gateSpawnService.completeMission(gate.id, finishedMissionId, true);
+                // Verified external survey from partner: claim through server
+                const res = await gateSpawnService.completeMission(gate.id, finishedMissionId, {
+                  transId: result.transId,
+                  provider: 'cpx',
+                });
                 await loadProfile();
                 const updated = await gateSpawnService.getGateById(gate.id);
                 if (updated && mountedRef.current) setGate(updated);
 
                 if (!mountedRef.current) return;
                 setClearedReward({
-                  crystals: result.crystalsAwarded,
-                  xp: result.xpAwarded,
-                  coins: result.coinsAwarded,
+                  crystals: res.crystalsAwarded,
+                  xp: res.xpAwarded,
+                  coins: res.coinsAwarded,
                   title: m.title,
                 });
                 setClearedModalVisible(true);

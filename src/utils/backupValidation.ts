@@ -76,4 +76,5 @@ export interface ValidatedHunterBackup {
 }
 
 // Re-export implementation from pure JS module
+// @ts-ignore
 export { validateBackupData } from './backupValidation.js';

@@ -269,7 +269,7 @@ function GateCardItem({
 }) {
   const isGateLocked = userLevel < gateItem.requiredLevel;
   const rankStyle = getRankTagStyles(gateItem.rankCode, isDark);
-  const totalCrystalBounty = gateItem.missions.reduce((acc, m) => acc + m.hunterCrystals, 0);
+  const totalCrystalBounty = gateItem.missions.reduce((acc, m) => acc + (m.displayTierInr || 0), 0);
   const completedMissions = gateItem.missions.filter((m) => m.isCompleted).length;
   const isCompleted = gateItem.isCleared || (gateItem.missions.length > 0 && completedMissions === gateItem.missions.length);
   const gateThumb = DUNGEON_IMAGES[gateItem.rankCode] || DUNGEON_IMAGES.E;

@@ -225,7 +225,7 @@ export default function QuestCompleteScreen() {
               grantedXP += calcXP;
             }
           } else if (reps > 0) {
-            const rewards = calculateRewards(validExerciseType, reps, targetNum, config.xpPerRep);
+            const rewards = calculateRewards(validExerciseType, reps, targetNum);
             if (rewards.coins > 0 || rewards.xp > 0) {
               await userRepository.addCoins(rewards.coins, `${config.displayName} Session`, 'exercise');
               await userRepository.addXP(rewards.xp);

@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 17,
     fontWeight: "700",
-    fontFamily: fontFamilies.heading,
+    fontFamily: fontFamilies.bold,
   },
   content: { padding: 16, gap: 16 },
   infoCard: {

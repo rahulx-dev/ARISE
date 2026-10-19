@@ -33,7 +33,6 @@ import { issueCompletionToken } from '../../src/services/completionGate';
 import { useKeepAwake } from 'expo-keep-awake';
 import { historyService } from '../../src/services/historyService';
 import { focusService } from '../../src/services/focusService';
-import { issueCompletionToken } from '../../src/services/completionGate';
 import { useSound } from '../../src/hooks/useSound';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useTheme } from '../../src/hooks/useTheme';

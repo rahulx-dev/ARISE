@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ARISE — Completion Token Gate
  * Type definitions and re-export.

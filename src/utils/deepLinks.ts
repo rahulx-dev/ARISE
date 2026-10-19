@@ -10,4 +10,5 @@ export interface ParsedWorkoutDeepLink {
   action?: string;
 }
 
+// @ts-ignore
 export { parseWorkoutDeepLink } from './deepLinks.js';
