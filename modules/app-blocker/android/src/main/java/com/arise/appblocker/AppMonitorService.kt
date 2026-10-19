@@ -335,26 +335,47 @@ class AppMonitorService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        createNotificationChannel()
+
+        try {
+            if (Build.VERSION.SDK_INT >= 34) {
+                startForeground(1001, createNotification(), android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+            } else {
+                startForeground(1001, createNotification())
+            }
+        } catch (startException: Throwable) {
+            Log.e(tag, "Foreground service could not be started in onCreate", startException)
+        }
+
         // H10: without usage-access permission the monitor is blind — it
         // cannot detect foreground apps. Fail closed (stop) instead of
         // running a service that silently never locks anything.
         if (!UsageStatsHelper.hasUsagePermission(this)) {
             Log.w(tag, "AppMonitorService stopping: usage-access permission missing")
+            try {
+                stopForeground(true)
+            } catch (_: Throwable) {}
             stopSelf()
             return
         }
-        createNotificationChannel()
 
-        ContextCompat.registerReceiver(
-            this,
-            screenReceiver,
-            IntentFilter().apply {
-                addAction(Intent.ACTION_SCREEN_OFF)
-                addAction(Intent.ACTION_SCREEN_ON)
-            },
-            ContextCompat.RECEIVER_NOT_EXPORTED
-        )
-        screenReceiverRegistered = true
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(screenReceiver, IntentFilter().apply {
+                    addAction(Intent.ACTION_SCREEN_OFF)
+                    addAction(Intent.ACTION_SCREEN_ON)
+                }, Context.RECEIVER_EXPORTED)
+            } else {
+                @Suppress("UnspecifiedRegisterReceiverFlag")
+                registerReceiver(screenReceiver, IntentFilter().apply {
+                    addAction(Intent.ACTION_SCREEN_OFF)
+                    addAction(Intent.ACTION_SCREEN_ON)
+                })
+            }
+            screenReceiverRegistered = true
+        } catch (e: Throwable) {
+            Log.e(tag, "Failed to register screenReceiver", e)
+        }
 
         BlockPolicyController.loadPersistedState(this)
         dailyResetTimestamp = BlockPolicyController.getAnchoredNextResetEpoch(this)
@@ -367,13 +388,6 @@ class AppMonitorService : Service() {
             }
         } catch (e: Exception) {
             Log.w(tag, "Unable to restore restricted package list", e)
-        }
-
-        try {
-            startForeground(1001, createNotification())
-        } catch (startException: Exception) {
-            Log.e(tag, "Foreground service could not be started", startException)
-            stopSelf()
         }
     }
 

@@ -208,6 +208,13 @@ class AppBlockerModule : Module() {
             if (context != null) {
                 val validPackages = restrictedPackages.mapNotNull { BlockPolicyController.normalizePackageName(it) }
                 Log.d(TAG, "setRestrictedPackages called with ${validPackages.size} packages")
+                if (!UsageStatsHelper.hasUsagePermission(context)) {
+                    Log.d(TAG, "setRestrictedPackages: skipping service launch (no usage permission)")
+                    return@Function Unit
+                }
+                if (validPackages.isEmpty()) {
+                    return@Function Unit
+                }
                 val intent = Intent(context, AppMonitorService::class.java).apply {
                     putStringArrayListExtra("RESTRICTED_PACKAGES", ArrayList(validPackages))
                 }
@@ -232,6 +239,10 @@ class AppBlockerModule : Module() {
             }
             val normalizedPackage = BlockPolicyController.normalizePackageName(packageName)
             AppMonitorService.setBudget(context, normalizedPackage, budgetMinutes)
+            if (!UsageStatsHelper.hasUsagePermission(context)) {
+                Log.d(TAG, "setAppBudget: saved to prefs, skipping service intent (no usage permission)")
+                return@Function Unit
+            }
             val intent = Intent(context, AppMonitorService::class.java).apply {
                 putExtra("UPDATED_BUDGET_MINUTES", budgetMinutes)
                 if (normalizedPackage != null) putExtra("UPDATED_PACKAGE_NAME", normalizedPackage)

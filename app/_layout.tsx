@@ -168,12 +168,13 @@ function RootLayout() {
             : 120; // BUG-16: match the settings column default (120) everywhere
         appBlockerService.setAppBudget?.(null, dailyBudget);
         if (activeBlocked.length > 0) {
-          appBlockerService.startMonitoring(activeBlocked);
-          console.log(
-            `[ARISE Startup] Background app blocker restored for ${activeBlocked.length} apps with ${dailyBudget}m daily budget`,
-          );
-        } else {
-          appBlockerService.setRestrictedPackages([]);
+          const hasUsage = await appBlockerService.hasUsagePermission();
+          if (hasUsage) {
+            appBlockerService.startMonitoring(activeBlocked);
+            console.log(
+              `[ARISE Startup] Background app blocker restored for ${activeBlocked.length} apps with ${dailyBudget}m daily budget`,
+            );
+          }
         }
       } catch (blockerErr) {
         console.warn("[ARISE Startup] Blocker restore note:", blockerErr);
@@ -190,12 +191,21 @@ function RootLayout() {
 
       if (onboardingCompleted) {
         // Enforce mandatory 4-permissions check before allowing Home Screen
-        const usage = await appBlockerService.hasUsagePermission();
-        const overlay = await appBlockerService.hasOverlayPermission();
-        const battery =
-          (await appBlockerService.hasBatteryOptimizationExemption?.()) ?? true;
-        const cam = await Camera.getCameraPermissionsAsync();
-        const allPermsGranted = usage && overlay && battery && cam.granted;
+        let usage = false;
+        let overlay = false;
+        let battery = true;
+        let camGranted = false;
+        try {
+          usage = await appBlockerService.hasUsagePermission();
+          overlay = await appBlockerService.hasOverlayPermission();
+          battery =
+            (await appBlockerService.hasBatteryOptimizationExemption?.()) ?? true;
+          const cam = await Camera.getCameraPermissionsAsync();
+          camGranted = cam.granted;
+        } catch (permErr) {
+          console.warn("[ARISE Startup] Permissions check note:", permErr);
+        }
+        const allPermsGranted = usage && overlay && battery && camGranted;
 
         if (allPermsGranted) {
           setAppState("READY");

@@ -17,6 +17,21 @@ class TimerForegroundService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    override fun onCreate() {
+        super.onCreate()
+        createNotificationChannel()
+        try {
+            val notification = createChronometerNotification(System.currentTimeMillis() + 60000L, "Screen Time")
+            if (Build.VERSION.SDK_INT >= 34) {
+                startForeground(2001, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+            } else {
+                startForeground(2001, notification)
+            }
+        } catch (e: Throwable) {
+            Log.e(tag, "startForeground in onCreate failed", e)
+        }
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val prefs = getSharedPreferences(ScreenTimerModule.PREFS_NAME, Context.MODE_PRIVATE)
         val now = System.currentTimeMillis()
@@ -42,6 +57,9 @@ class TimerForegroundService : Service() {
                     .remove(ScreenTimerModule.KEY_LABEL)
                     .commit()
             }
+            try {
+                stopForeground(true)
+            } catch (_: Throwable) {}
             stopSelfResult(startId)
             return START_NOT_STICKY
         }
@@ -53,11 +71,15 @@ class TimerForegroundService : Service() {
             .putString(ScreenTimerModule.KEY_LABEL, label)
             .commit()
 
-        createNotificationChannel()
         try {
-            startForeground(2001, createChronometerNotification(targetEndEpoch, label))
+            val notification = createChronometerNotification(targetEndEpoch, label)
+            if (Build.VERSION.SDK_INT >= 34) {
+                startForeground(2001, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+            } else {
+                startForeground(2001, notification)
+            }
             Log.d(tag, "Screen timer active until $targetEndEpoch ($label)")
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(tag, "Foreground service start failed", e)
         }
 
