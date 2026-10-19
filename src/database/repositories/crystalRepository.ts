@@ -152,6 +152,90 @@ export const crystalRepository = {
   },
 
   /**
+   * Claim crystals for a completed partner survey.
+   * PROFIT GATE (Batch 5D): the ONLY way survey crystals are ever
+   * granted. The caller supplies the network's trans_id; the server
+   * (`grant_crystals_secure`) grants the network-computed amount from
+   * the provider-authenticated postback row — or rejects when no
+   * revenue is confirmed. The client NEVER chooses the amount, and
+   * there is NO offline/local fallback: a transport error means the
+   * user retries when online. Minting survey crystals offline would
+   * pay out before the partner confirms revenue.
+   */
+  async claimSurveyCrystals(
+    transId: string,
+    provider: 'cpx' | 'bitlabs' = 'cpx',
+  ): Promise<{ success: boolean; granted: number; error?: string }> {
+    try {
+      const cleanTransId = (transId || '').trim();
+      if (!cleanTransId || cleanTransId.length > 256 || !['cpx', 'bitlabs'].includes(provider)) {
+        return { success: false, granted: 0, error: 'Invalid survey transaction' };
+      }
+      if (!isSupabaseConfigured() || !supabase) {
+        return { success: false, granted: 0, error: 'Cloud unavailable — retry when online' };
+      }
+      const records = await db.select().from(userProfile).limit(1);
+      if (records.length === 0) return { success: false, granted: 0, error: 'No local profile' };
+      const profile = records[0];
+      const rankInfo = getRankForLevel(profile.level || 1);
+      const source = `${provider}_survey`;
+      const requestId = `survey-claim:${provider}:${cleanTransId}`;
+
+      const { data: rpcRes, error: rpcErr } = await supabase.rpc('grant_crystals_secure', {
+        // p_amount is IGNORED by the server for survey grants — the
+        // amount comes from the verified postback row. Passed as 0.
+        p_amount: 0,
+        p_source: source,
+        p_source_id: cleanTransId,
+        p_description: `Survey reward: ${provider} ${cleanTransId}`,
+        p_user_name: profile.displayName || 'Warrior',
+        p_rank_code: rankInfo.rankCode,
+        p_level: profile.level || 1,
+        p_streak: profile.currentStreak || 0,
+        p_total_reps: ((profile.strength || 0) * 15) + ((profile.discipline || 0) * 20),
+        p_total_xp: profile.totalXP || (profile.currentXP || 0),
+      });
+
+      if (rpcErr) {
+        console.warn('[SurveyClaim] grant_crystals_secure error:', rpcErr.message);
+        return { success: false, granted: 0, error: 'Cloud unavailable — retry when online' };
+      }
+      if (!rpcRes || !rpcRes.success) {
+        // Explicit server rejection (no verified revenue, already
+        // claimed, cap reached). NEVER fall through to local minting.
+        return { success: false, granted: 0, error: String((rpcRes as any)?.error || 'Survey not confirmed') };
+      }
+
+      const granted = Number(rpcRes.amount_granted) || 0;
+      const authoritativeBalance = Number(rpcRes.new_balance);
+      if (Number.isSafeInteger(authoritativeBalance)) {
+        await db
+          .update(userProfile)
+          .set({ manaCrystals: authoritativeBalance } as any)
+          .where(eq(userProfile.id, profile.id));
+      }
+      if (!rpcRes.already_processed && granted > 0) {
+        const existing = await db.select().from(crystalTransaction)
+          .where(eq(crystalTransaction.requestId, requestId)).limit(1);
+        if (existing.length === 0) {
+          await db.insert(crystalTransaction).values({
+            amount: granted,
+            type: 'earn',
+            description: `Survey reward: ${provider} ${cleanTransId}`,
+            gateId: null,
+            timestamp: new Date().toISOString(),
+            requestId,
+          });
+        }
+      }
+      return { success: true, granted };
+    } catch (e) {
+      console.warn('Failed to claim survey crystals:', e);
+      return { success: false, granted: 0, error: 'Claim failed — retry when online' };
+    }
+  },
+
+  /**
    * Reset local exploited/unearned crystals to 0 and sync to cloud
    */
   async resetExploitedBalance(): Promise<number> {

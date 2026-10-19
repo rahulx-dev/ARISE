@@ -27,14 +27,21 @@ import {
 import { useHaptics } from '../../hooks/useHaptics';
 
 import { getCloudUserId, supabase, isSupabaseConfigured } from '../../services/supabaseClient';
-import { SURVEY_CONFIG } from '../../config/surveyConfig';
 
 interface InAppSurveyModalProps {
   visible: boolean;
   url: string | null;
   title?: string;
   provider?: string;
-  onClose: (completed: boolean) => void;
+  /**
+   * Batch 5D: the modal NEVER grants and NEVER decides verification.
+   * It returns the network trans_id of a server-recorded, revenue-
+   * confirmed postback (or verified:false). The caller claims through
+   * `crystalRepository.claimSurveyCrystals`, and the server RPC is the
+   * only decider. A boolean "verified" from the client would be
+   * tamperable — the trans_id is just a lookup key, not proof.
+   */
+  onClose: (result: { verified: boolean; transId?: string }) => void;
 }
 
 export function InAppSurveyModal({
@@ -86,14 +93,14 @@ export function InAppSurveyModal({
     haptics.light();
     // H3: closing the modal NEVER grants a reward. Previously a
     // client-side URL-substring "verification" (isSurveyVerified) made
-    // close grant onClose(true). Only a server-verified claim grants.
+    // close grant onClose({ verified: true }). Only a server-verified claim grants.
     setExitConfirmVisible(true);
   };
 
   const handleConfirmExitWithoutReward = () => {
     setExitConfirmVisible(false);
     haptics.warning();
-    onClose(false); // Strictly NO reward awarded!
+    onClose({ verified: false }); // Strictly NO reward awarded!
   };
 
   const handleReload = () => {
@@ -119,7 +126,7 @@ export function InAppSurveyModal({
     // UI HINT ONLY (H3): a URL containing completion substrings is NOT
     // proof of a completed survey — any offerwall listing page carries
     // such params. It only changes the claim button's label. The reward
-    // is granted ONLY by server verification (checkLiveCpxVerification).
+    // is granted ONLY by server verification (findVerifiedPostback).
     const currentUrl = (rawUrl || '').toLowerCase();
     // Ignore base offerwall listings without completion params
     if (
@@ -234,7 +241,7 @@ export function InAppSurveyModal({
     true;
   `;
 
-  const checkLiveCpxVerification = async (): Promise<boolean> => {
+  const findVerifiedPostback = async (): Promise<string | null> => {
     try {
       const uid = await getCloudUserId();
       // H4: session binding. Only a postback/transaction created AFTER
@@ -242,53 +249,38 @@ export function InAppSurveyModal({
       // (or any postback within 45 min) verified a brand-new survey.
       const sessionStart = startTimeRef.current;
 
-      // 1. Check Supabase cpx_postback_log if configured
+      // The ONLY check: a server-recorded, provider-authenticated
+      // postback row confirming revenue for this user (Batch 5D).
+      // The row is written by the `survey-postback` Edge Function
+      // (service_role) after CPX/BitLabs authenticates the callback.
+      // The client-side CPX public-API fetch that used to live here is
+      // GONE: that endpoint takes no credentials, so any client could
+      // read it — it proved nothing and must never gate a reward.
+      // This query is a read-only lookup; the trans_id it returns is a
+      // lookup key for the claim RPC, not proof by itself.
       if (isSupabaseConfigured() && supabase) {
         try {
           const { data, error } = await supabase
             .from('cpx_postback_log')
-            .select('trans_id, amount_crystals, status, created_at')
+            .select('trans_id, amount_crystals, amount_usd, status, created_at')
             .eq('user_id', uid)
-            .eq('status', 'completed')
+            .eq('status', 'approved')
+            .eq('signature_verified', true)
+            .eq('claimed', false)
             .gte('created_at', new Date(sessionStart).toISOString())
             .order('created_at', { ascending: false })
             .limit(1);
 
-          if (!error && data && data.length > 0) {
-            return true;
+          if (!error && data && data.length > 0 && data[0]?.trans_id) {
+            return String(data[0].trans_id);
           }
         } catch (dbErr) {
           console.warn('[CPX Verification] Supabase postback check note:', dbErr);
         }
       }
-
-      // 2. Query live CPX Research API — accept only a transaction whose
-      // timestamp falls inside THIS modal session. Undated transactions
-      // are rejected (fail closed).
-      const appId = SURVEY_CONFIG.CPX.APP_ID;
-      const res = await fetch(
-        `https://api.cpx-research.com/api/get-user-history.php?app_id=${appId}&ext_user_id=${encodeURIComponent(uid)}`
-      );
-      if (res.ok) {
-        const data = await res.json();
-        if (
-          data &&
-          (data.status === 'success' || data.success) &&
-          Array.isArray(data.transactions) &&
-          data.transactions.length > 0
-        ) {
-          for (const tx of data.transactions) {
-            const rawTs = tx?.date ?? tx?.datetime ?? tx?.created_at ?? tx?.timestamp ?? tx?.trans_date;
-            const ts = rawTs ? new Date(rawTs).getTime() : NaN;
-            if (Number.isFinite(ts) && ts >= sessionStart) {
-              return true;
-            }
-          }
-        }
-      }
-      return false;
+      return null;
     } catch {
-      return false;
+      return null;
     }
   };
 
@@ -302,16 +294,17 @@ export function InAppSurveyModal({
     }
 
     setIsVerifyingWithServer(true);
-    const serverVerified = await checkLiveCpxVerification();
+    const transId = await findVerifiedPostback();
     setIsVerifyingWithServer(false);
 
     // H3: ONLY server verification claims. Previously a client-side
     // URL-substring flag (isSurveyVerified) was sufficient — any URL
     // containing `trans_id=` claimed the reward with no survey done.
-    if (serverVerified) {
+    // Now the modal only hands back the trans_id; the claim RPC decides.
+    if (transId) {
       setIsSurveyVerified(true);
       haptics.success();
-      onClose(true);
+      onClose({ verified: true, transId });
       return;
     }
 

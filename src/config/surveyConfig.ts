@@ -15,13 +15,16 @@ export const SURVEY_CONFIG = {
     BASE_URL: 'https://web.bitlabs.ai/',
   },
 
-  // 80/20 Profit Model
-  PROFIT_MODEL: {
-    APP_OWNER_SHARE_PERCENT: 80,
-    HUNTER_SHARE_PERCENT: 20,
-    CRYSTALS_PER_INR: 10,
-    CPX_CURRENCY_FACTOR: 180, // Set in CPX Dashboard
-  },
+  // NOTE (Batch 5D): there is NO in-app profit split anymore. The
+  // publisher's share is set where the money is computed:
+  // - CPX dashboard -> currency factor (crystals per $1 AFTER your
+  //   commission; e.g. 180). The postback's amount_local already nets it.
+  // - BitLabs dashboard -> reward conversion (VAL in crystals AFTER
+  //   your commission). The callback's RAW is the USD paid to you.
+  // The server grants exactly the network-computed crystal amount, and
+  // only when the postback confirms revenue (amount_usd > 0). Any
+  // in-app "80/20" constant would be a second, diverging source of
+  // truth — so it was deleted, not moved.
 };
 
 /**

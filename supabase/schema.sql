@@ -187,18 +187,77 @@ CREATE INDEX IF NOT EXISTS idx_payout_requests_status ON public.payout_requests 
 CREATE INDEX IF NOT EXISTS idx_payout_requests_user ON public.payout_requests (user_id);
 
 -- 7. CPX Research Survey Postback Audit Log
+-- PROFIT GATE (Batch 5D): a row here is NOT a client claim — it is a
+-- server-recorded, provider-authenticated postback. Rows are written ONLY
+-- by the `survey-postback` Edge Function (service_role). Clients have NO
+-- INSERT/UPDATE/DELETE policy on this table (SELECT owner only, below).
+--   CPX: the webhook accepts the postback only when the request carries
+--     the CPX_POSTBACK_SECRET configured in the CPX dashboard postback
+--     URL (CPX signs nothing; the secret URL param is the auth).
+--   BitLabs: the webhook recomputes the HEX HMAC-SHA1 of the full callback
+--     URL with the BitLabs App Secret and compares it timing-safely.
+-- amount_usd = revenue the network says it owes the publisher (CPX
+--   amount_usd / BitLabs RAW). amount_crystals = network-computed crystal
+--   reward (CPX amount_local, already net of the publisher's commission via
+--   the CPX dashboard currency factor / BitLabs VAL, floored).
+-- A grant is possible ONLY from a row with status='approved',
+-- signature_verified=true, claimed=false, amount_usd > 0. Zero-revenue
+-- rows are recorded as 'rejected' and can never mint crystals.
 CREATE TABLE IF NOT EXISTS public.cpx_postback_log (
     id BIGSERIAL PRIMARY KEY,
     trans_id TEXT UNIQUE NOT NULL,
     user_id TEXT NOT NULL,
     amount_crystals INTEGER NOT NULL DEFAULT 0,
     amount_usd NUMERIC(10, 4) NOT NULL DEFAULT 0.0000,
-    status TEXT NOT NULL DEFAULT 'completed',
+    status TEXT NOT NULL DEFAULT 'approved',
+    provider TEXT NOT NULL DEFAULT 'cpx',
+    signature_verified BOOLEAN NOT NULL DEFAULT false,
+    claimed BOOLEAN NOT NULL DEFAULT false,
+    callback_type TEXT,
+    reversed_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW())
 );
 
 CREATE INDEX IF NOT EXISTS idx_cpx_postback_user ON public.cpx_postback_log (user_id);
 CREATE INDEX IF NOT EXISTS idx_cpx_postback_trans ON public.cpx_postback_log (trans_id);
+CREATE INDEX IF NOT EXISTS idx_cpx_postback_claimable
+    ON public.cpx_postback_log (user_id, provider, status, signature_verified, claimed);
+
+-- Upgrade path for databases created before Batch 5D: add the new
+-- columns, migrate legacy 'completed' rows to 'approved', enforce the
+-- status allowlist, and scope the trans_id uniqueness per provider
+-- (CPX trans_ids and BitLabs TX ids live in different namespaces and
+-- could otherwise collide on a bare trans_id UNIQUE).
+DO $$
+BEGIN
+    ALTER TABLE public.cpx_postback_log ADD COLUMN IF NOT EXISTS provider TEXT NOT NULL DEFAULT 'cpx';
+    ALTER TABLE public.cpx_postback_log ADD COLUMN IF NOT EXISTS signature_verified BOOLEAN NOT NULL DEFAULT false;
+    ALTER TABLE public.cpx_postback_log ADD COLUMN IF NOT EXISTS claimed BOOLEAN NOT NULL DEFAULT false;
+    ALTER TABLE public.cpx_postback_log ADD COLUMN IF NOT EXISTS callback_type TEXT;
+    ALTER TABLE public.cpx_postback_log ADD COLUMN IF NOT EXISTS reversed_at TIMESTAMPTZ;
+    ALTER TABLE public.cpx_postback_log ALTER COLUMN status SET DEFAULT 'approved';
+    UPDATE public.cpx_postback_log SET status = 'approved' WHERE status = 'completed';
+    BEGIN
+        ALTER TABLE public.cpx_postback_log
+            ADD CONSTRAINT cpx_postback_status_check CHECK (status IN ('approved', 'rejected', 'reversed'));
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+    BEGIN
+        ALTER TABLE public.cpx_postback_log
+            ADD CONSTRAINT cpx_postback_provider_check CHECK (provider IN ('cpx', 'bitlabs'));
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+    -- Replace the bare trans_id UNIQUE with (provider, trans_id).
+    BEGIN
+        ALTER TABLE public.cpx_postback_log DROP CONSTRAINT IF EXISTS cpx_postback_log_trans_id_key;
+    EXCEPTION WHEN undefined_object THEN NULL;
+    END;
+    BEGIN
+        ALTER TABLE public.cpx_postback_log
+            ADD CONSTRAINT cpx_postback_provider_trans_unique UNIQUE (provider, trans_id);
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+END $$;
 
 
 -- ==============================================================================
@@ -283,13 +342,18 @@ DROP FUNCTION IF EXISTS public.sync_hunter_profile_secure(TEXT, TEXT, TEXT, TEXT
 -- ==============================================================================
 
 -- 1. grant_crystals_secure: Grants crystals ONLY for server-verified events.
--- SECURITY (C2): the server NEVER mints crystals from a client-asserted
--- completion. Only 'cpx_survey' is grantable, and only when a matching
--- server-recorded postback row exists in cpx_postback_log (written by the
--- CPX postback webhook, never by the client). 'gate_recon' / 'red_gate'
+-- SECURITY (C2 + Batch 5D PROFIT GATE): the server NEVER mints crystals
+-- from a client-asserted completion, and NEVER from a client-supplied
+-- amount. Only 'cpx_survey' / 'bitlabs_survey' are grantable, and only
+-- when a matching provider-authenticated postback row exists in
+-- cpx_postback_log (written by the `survey-postback` Edge Function with
+-- service_role, never by the client) with status='approved',
+-- signature_verified=true, claimed=false, AND amount_usd > 0 (the network
+-- confirmed it owes the publisher revenue). The crystal amount comes
+-- from that row (network-computed, net of the publisher's commission) —
+-- p_amount is IGNORED for survey grants. 'gate_recon' / 'red_gate'
 -- completions happen on-device and have no server-side verifier, so they
 -- are REJECTED here; the client falls back to local-only crystals.
--- 'bitlabs_survey' is rejected until a Bitlabs postback log exists.
 -- Enforces ledger idempotency, a per-user daily cap, updates the
 -- authoritative wallet + leaderboard projection, triggers Realtime.
 -- Identity is STRICTLY derived from authenticated auth.uid() session (zero client fallback).
@@ -325,6 +389,11 @@ DECLARE
     v_current_crystals INTEGER := 0;
     v_new_crystals INTEGER := 0;
     v_inserted_id BIGINT;
+    -- Batch 5D: the grant amount is server-derived from the verified
+    -- postback row, never from the caller's p_amount.
+    v_amount INTEGER := 0;
+    v_provider TEXT := '';
+    v_revenue_usd NUMERIC(10, 4) := 0;
 BEGIN
     -- 1. Determine & Authenticate User Identity STRICTLY from auth.uid()
     v_user_id := auth.uid()::text;
@@ -347,12 +416,9 @@ BEGIN
     v_clean_reps := LEAST(100000000, GREATEST(0, COALESCE(p_total_reps, 0)));
     v_clean_xp := LEAST(10000000, GREATEST(0, COALESCE(p_total_xp, 0)));
 
-    -- 3. Enforce Server-Side Verification (C2). The amount is NEVER taken
-    -- on the caller's word: it must be backed by a server-recorded event.
-    IF p_amount <= 0 THEN
-        RETURN jsonb_build_object('success', false, 'error', 'Invalid crystal reward amount');
-    END IF;
-
+    -- 3. Enforce Server-Side Verification (C2 + Batch 5D PROFIT GATE).
+    -- The amount is NEVER taken on the caller's word: it must be backed
+    -- by a provider-authenticated postback row that confirms revenue.
     IF p_source IS NULL OR p_source_id IS NULL OR length(trim(p_source_id)) = 0 THEN
         RETURN jsonb_build_object('success', false, 'error', 'Invalid reward source');
     END IF;
@@ -362,42 +428,60 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'error', 'SERVER_VERIFICATION_REQUIRED: gate/red_gate crystal grants require a server-verified event; client-asserted completions cannot mint server crystals');
     END IF;
 
-    IF p_source = 'bitlabs_survey' THEN
-        RETURN jsonb_build_object('success', false, 'error', 'SERVER_VERIFICATION_REQUIRED: bitlabs_survey has no server-side postback log yet');
-    END IF;
-
-    IF p_source <> 'cpx_survey' THEN
+    IF p_source = 'cpx_survey' THEN
+        v_provider := 'cpx';
+    ELSIF p_source = 'bitlabs_survey' THEN
+        v_provider := 'bitlabs';
+    ELSE
         RETURN jsonb_build_object('success', false, 'error', 'Invalid reward source');
     END IF;
 
-    -- CPX: the postback row must exist for THIS user + trans_id, be
-    -- completed, and cover the requested amount. Callers must pass the
-    -- raw CPX trans_id as p_source_id. The row is written by the CPX
-    -- postback webhook (service_role), never by the client.
-    SELECT amount_crystals INTO v_postback_amount
+    -- PROFIT GATE: the postback row must exist for THIS user + trans_id,
+    -- be approved, be provider-authenticated (signature_verified), be
+    -- unclaimed, and confirm revenue (amount_usd > 0). The row is
+    -- written by the `survey-postback` Edge Function (service_role),
+    -- never by the client. Callers pass the raw network trans_id as
+    -- p_source_id. The row is locked so two concurrent claims for the
+    -- same transaction serialize; the first marks it claimed.
+    SELECT amount_crystals, amount_usd INTO v_postback_amount, v_revenue_usd
     FROM public.cpx_postback_log
     WHERE trans_id = trim(p_source_id)
       AND user_id = v_user_id
-      AND status = 'completed';
+      AND provider = v_provider
+      AND status = 'approved'
+      AND signature_verified = true
+      AND claimed = false
+      AND amount_usd > 0
+      AND amount_crystals > 0
+    FOR UPDATE;
 
     IF NOT FOUND THEN
-        RETURN jsonb_build_object('success', false, 'error', 'No verified CPX postback for this transaction');
+        RETURN jsonb_build_object('success', false, 'error', 'No verified revenue-confirmed postback for this transaction');
     END IF;
 
-    IF p_amount > v_postback_amount THEN
-        RETURN jsonb_build_object('success', false, 'error', 'Reward exceeds the verified CPX postback amount');
-    END IF;
+    -- The grant amount is the network-computed reward from the verified
+    -- row. p_amount is IGNORED: a caller must never be able to choose
+    -- how many crystals a survey pays.
+    v_amount := v_postback_amount;
 
     -- Daily cap (defense-in-depth): at most 5000 crystals/day/user.
+    -- Checked BEFORE marking the row claimed, so a cap rejection leaves
+    -- the transaction claimable again once the cap resets.
     SELECT COALESCE(SUM(amount), 0) INTO v_today_earned
     FROM public.crystal_ledger
     WHERE user_id = v_user_id
       AND type = 'EARN'
       AND created_at >= date_trunc('day', TIMEZONE('utc'::text, NOW()));
 
-    IF v_today_earned + p_amount > 5000 THEN
+    IF v_today_earned + v_amount > 5000 THEN
         RETURN jsonb_build_object('success', false, 'error', 'Daily crystal grant cap reached');
     END IF;
+
+    UPDATE public.cpx_postback_log
+    SET claimed = true
+    WHERE trans_id = trim(p_source_id)
+      AND user_id = v_user_id
+      AND provider = v_provider;
 
     -- 4. Database-Enforced Idempotency Check via crystal_ledger
     BEGIN
@@ -411,7 +495,7 @@ BEGIN
             created_at
         ) VALUES (
             v_user_id,
-            p_amount,
+            v_amount,
             'EARN',
             p_source,
             p_source_id,
@@ -454,7 +538,7 @@ BEGIN
         v_clean_streak,
         v_clean_reps,
         v_clean_xp,
-        p_amount,
+        v_amount,
         TIMEZONE('utc'::text, NOW())
     )
     ON CONFLICT (user_id) DO UPDATE SET
@@ -464,12 +548,12 @@ BEGIN
         streak = GREATEST(user_wallets.streak, v_clean_streak),
         total_reps = GREATEST(user_wallets.total_reps, v_clean_reps),
         total_xp = GREATEST(user_wallets.total_xp, v_clean_xp),
-        -- L25: overflow-safe addition. Plain `mana_crystals + p_amount`
+        -- L25: overflow-safe addition. Plain `mana_crystals + v_amount`
         -- raises an unhandled "integer out of range" if the wallet is
         -- near INT_MAX. Saturate at INT_MAX instead of erroring.
         mana_crystals = CASE
-            WHEN user_wallets.mana_crystals > 2147483647 - p_amount THEN 2147483647
-            ELSE user_wallets.mana_crystals + p_amount
+            WHEN user_wallets.mana_crystals > 2147483647 - v_amount THEN 2147483647
+            ELSE user_wallets.mana_crystals + v_amount
         END,
         last_synced_at = TIMEZONE('utc'::text, NOW())
     RETURNING mana_crystals INTO v_new_crystals;
@@ -514,9 +598,115 @@ BEGIN
     RETURN jsonb_build_object(
         'success', true,
         'already_processed', false,
-        'amount_granted', p_amount,
+        'amount_granted', v_amount,
+        'revenue_usd', v_revenue_usd,
+        'trans_id', trim(p_source_id),
         'new_balance', v_new_crystals,
         'user_id', v_user_id
+    );
+END;
+$$;
+
+
+-- 1b. reverse_survey_grant_secure: Claws back crystals when a survey
+-- network reverses a previously approved payout (chargeback / quality
+-- reversal). PROFIT GATE, second half: if the revenue is taken back,
+-- the crystals go back too. Called ONLY by the `survey-postback`
+-- Edge Function with the service_role key; authenticated users are
+-- rejected. The ledger type CHECK allows only EARN/SPEND, so the
+-- clawback is a SPEND row with a distinct source_id
+-- ('<trans_id>:reversal') — the (source, source_id, user_id) UNIQUE
+-- keeps a repeated reversal postback idempotent. The wallet is floored
+-- at 0: crystals the user already spent cannot be un-spent.
+CREATE OR REPLACE FUNCTION public.reverse_survey_grant_secure(
+    p_provider TEXT,
+    p_trans_id TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_postback RECORD;
+    v_granted INTEGER := 0;
+    v_current_crystals INTEGER := 0;
+    v_new_crystals INTEGER := 0;
+    v_source TEXT;
+BEGIN
+    IF auth.role() <> 'service_role' THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Service-role only');
+    END IF;
+    IF p_provider NOT IN ('cpx', 'bitlabs') OR p_trans_id IS NULL OR length(trim(p_trans_id)) = 0 THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Invalid provider or transaction id');
+    END IF;
+
+    SELECT * INTO v_postback
+    FROM public.cpx_postback_log
+    WHERE provider = p_provider AND trans_id = trim(p_trans_id)
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Postback not found');
+    END IF;
+
+    IF v_postback.status = 'reversed' THEN
+        RETURN jsonb_build_object('success', true, 'already_processed', true, 'amount_reversed', 0);
+    END IF;
+
+    v_source := p_provider || '_survey';
+
+    -- Only reverse if crystals were actually granted for this transaction.
+    SELECT amount INTO v_granted
+    FROM public.crystal_ledger
+    WHERE source = v_source
+      AND source_id = trim(p_trans_id)
+      AND user_id = v_postback.user_id
+      AND type = 'EARN';
+
+    IF FOUND AND v_granted > 0 THEN
+        BEGIN
+            INSERT INTO public.crystal_ledger (
+                user_id, amount, type, source, source_id, description, created_at
+            ) VALUES (
+                v_postback.user_id,
+                -v_granted,
+                'SPEND',
+                v_source,
+                trim(p_trans_id) || ':reversal',
+                'Survey grant reversed: partner clawback',
+                TIMEZONE('utc'::text, NOW())
+            );
+        EXCEPTION WHEN unique_violation THEN
+            -- Reversal already recorded; fall through to mark the row.
+            NULL;
+        END;
+
+        UPDATE public.user_wallets
+        SET mana_crystals = GREATEST(0, mana_crystals - v_granted),
+            last_synced_at = TIMEZONE('utc'::text, NOW())
+        WHERE user_id = v_postback.user_id
+        RETURNING mana_crystals INTO v_new_crystals;
+
+        IF FOUND THEN
+            v_current_crystals := v_new_crystals;
+            UPDATE public.crystal_leaderboard
+            SET crystals_mined = v_new_crystals,
+                updated_at = TIMEZONE('utc'::text, NOW())
+            WHERE user_id = v_postback.user_id;
+        END IF;
+    END IF;
+
+    UPDATE public.cpx_postback_log
+    SET status = 'reversed',
+        reversed_at = TIMEZONE('utc'::text, NOW())
+    WHERE id = v_postback.id;
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'already_processed', false,
+        'amount_reversed', COALESCE(v_granted, 0),
+        'new_balance', v_current_crystals
     );
 END;
 $$;
@@ -1185,6 +1375,8 @@ ALTER FUNCTION public.sync_hunter_profile_secure(
 ) SET search_path = public;
 ALTER FUNCTION public.get_hunter_leaderboard(TEXT, INTEGER, TEXT)
     SET search_path = public;
+ALTER FUNCTION public.reverse_survey_grant_secure(TEXT, TEXT)
+    SET search_path = public;
 
 REVOKE EXECUTE ON FUNCTION public.grant_crystals_secure(
     INTEGER, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, INTEGER, INTEGER, INTEGER, INTEGER
@@ -1210,3 +1402,9 @@ GRANT EXECUTE ON FUNCTION public.sync_hunter_profile_secure(
 ) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.get_hunter_leaderboard(TEXT, INTEGER, TEXT)
     TO authenticated, service_role;
+-- Batch 5D: reversal is service_role ONLY (the Edge Function). The
+-- function itself also rejects non-service_role callers via auth.role().
+REVOKE EXECUTE ON FUNCTION public.reverse_survey_grant_secure(TEXT, TEXT)
+    FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.reverse_survey_grant_secure(TEXT, TEXT)
+    TO service_role;

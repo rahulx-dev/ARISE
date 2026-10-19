@@ -7,7 +7,10 @@ interface InAppSurveyModalProps {
   url: string | null;
   title?: string;
   provider?: string;
-  onClose: (completed: boolean) => void;
+  // Batch 5D: same contract as the native modal. Web preview NEVER
+  // grants — it reports verified:false; the app claims after the
+  // partner confirms revenue server-side.
+  onClose: (result: { verified: boolean; transId?: string }) => void;
 }
 
 export function InAppSurveyModal({
@@ -20,7 +23,7 @@ export function InAppSurveyModal({
   if (!visible || !url) return null;
 
   return (
-    <Modal visible={visible} animationType="fade" transparent onRequestClose={() => onClose(false)}>
+    <Modal visible={visible} animationType="fade" transparent onRequestClose={() => onClose({ verified: false })}>
       <View style={styles.backdrop}>
         <View style={styles.card}>
           <View style={styles.header}>
@@ -28,7 +31,7 @@ export function InAppSurveyModal({
               <Sparkles size={14} color="#0284C7" />
               <Text style={styles.tagText}>{provider}</Text>
             </View>
-            <TouchableOpacity onPress={() => onClose(false)} style={styles.closeBtn}>
+            <TouchableOpacity onPress={() => onClose({ verified: false })} style={styles.closeBtn}>
               <X size={20} color="#6B7280" />
             </TouchableOpacity>
           </View>
@@ -36,6 +39,7 @@ export function InAppSurveyModal({
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.desc}>
             Web preview mode: Surveys open directly in a new secure browser tab.
+            Rewards are claimed in the app only after the partner confirms the payout.
           </Text>
 
           <View style={styles.iframeWrap}>
@@ -57,9 +61,9 @@ export function InAppSurveyModal({
 
             <TouchableOpacity
               style={styles.doneBtn}
-              onPress={() => onClose(true)}
+              onPress={() => onClose({ verified: false })}
             >
-              <Text style={styles.doneBtnText}>Claim Reward & Close</Text>
+              <Text style={styles.doneBtnText}>Close</Text>
             </TouchableOpacity>
           </View>
         </View>
