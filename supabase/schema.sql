@@ -220,8 +220,11 @@ CREATE TABLE IF NOT EXISTS public.cpx_postback_log (
 
 CREATE INDEX IF NOT EXISTS idx_cpx_postback_user ON public.cpx_postback_log (user_id);
 CREATE INDEX IF NOT EXISTS idx_cpx_postback_trans ON public.cpx_postback_log (trans_id);
-CREATE INDEX IF NOT EXISTS idx_cpx_postback_claimable
-    ON public.cpx_postback_log (user_id, provider, status, signature_verified, claimed);
+-- NOTE: idx_cpx_postback_claimable is created AFTER the upgrade DO block
+-- below. It references the Batch 5D columns (provider, signature_verified,
+-- claimed), which do not exist yet on databases created before 5D —
+-- creating it here would fail with `column "provider" does not exist`
+-- and abort the script before the columns are ever added.
 
 -- Upgrade path for databases created before Batch 5D: add the new
 -- columns, migrate legacy 'completed' rows to 'approved', enforce the
@@ -258,6 +261,11 @@ BEGIN
     EXCEPTION WHEN duplicate_object THEN NULL;
     END;
 END $$;
+
+-- Claimable-postback index: created here, AFTER the upgrade block above
+-- has added the Batch 5D columns (see note above the other indexes).
+CREATE INDEX IF NOT EXISTS idx_cpx_postback_claimable
+    ON public.cpx_postback_log (user_id, provider, status, signature_verified, claimed);
 
 
 -- ==============================================================================
