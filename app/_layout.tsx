@@ -3,7 +3,7 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { StyleSheet, View, ActivityIndicator, Text, Platform } from "react-native";
+import { StyleSheet, View, Text, Pressable, Platform } from "react-native";
 import {
   useFonts,
   SpaceGrotesk_400Regular,
@@ -34,7 +34,6 @@ import { adMobService } from "../src/services/adMobService";
 import { coinService } from "../src/services/coinService";
 import * as Linking from "expo-linking";
 import { Camera } from "expo-camera";
-import { AriseLogo } from "../src/components/ui/AriseLogo";
 import { PermissionsGateModal } from "../src/components/permissions/PermissionsGateModal";
 import { LevelUpModal } from "../src/components/level/LevelUpModal";
 import { syncService } from "../src/services/syncService";
@@ -52,12 +51,16 @@ initSentry();
  * INITIALIZING         - DB init + font loading + settings/profile load from SQLite
  * PROFILE_REQUIRED     - onboardingCompleted === false -> show onboarding
  * PERMISSIONS_REQUIRED - mandatory 4-permissions not yet granted -> show gate
+ * STARTUP_ERROR        - bootstrap threw (DB corrupt, storage full, ...) -> retry screen,
+ *                        NEVER onboarding: routing an onboarded user to onboarding
+ *                        on a transient error looks like data loss (BUG-13)
  * READY                - all ready -> show home tabs
  */
 type AppState =
   | "INITIALIZING"
   | "PROFILE_REQUIRED"
   | "PERMISSIONS_REQUIRED"
+  | "STARTUP_ERROR"
   | "READY";
 
 function RootLayout() {
@@ -127,6 +130,9 @@ function RootLayout() {
       // 1. Initialize database (create tables, seed if first launch)
       await initializeDatabase();
 
+      // BUG-08: start background sync only AFTER the DB is ready.
+      syncService.start();
+
       // 2. Load settings from SQLite (source of truth)
       await useSettingsStore.getState().loadSettings();
 
@@ -159,7 +165,7 @@ function RootLayout() {
         const dailyBudget =
           settingsRec.length > 0 && typeof settingsRec[0]?.dailyBudgetMinutes === 'number'
             ? settingsRec[0].dailyBudgetMinutes
-            : 30;
+            : 120; // BUG-16: match the settings column default (120) everywhere
         appBlockerService.setAppBudget?.(null, dailyBudget);
         if (activeBlocked.length > 0) {
           appBlockerService.startMonitoring(activeBlocked);
@@ -203,12 +209,45 @@ function RootLayout() {
     } catch (e) {
       console.error("[ARISE Startup] Bootstrap failed:", e);
       logErrorToSentry(e, { module: 'Startup', action: 'bootstrapApp' });
-      setAppState("PROFILE_REQUIRED");
+      // BUG-13: NEVER route to onboarding on a bootstrap error. A transient
+      // failure (storage full, DB locked) on an onboarded device would look
+      // exactly like data loss. Show a retry screen instead.
+      setAppState("STARTUP_ERROR");
     }
   };
 
-  if (!fontsLoaded) {
-    return null;
+  // BUG-04: never render a blank screen and never render the Stack while
+  // bootstrap is still running. Show the splash until fonts AND bootstrap
+  // are both done.
+  if (!fontsLoaded || appState === "INITIALIZING") {
+    return (
+      <View style={styles.splashContainer}>
+        <Text style={styles.splashLogo}>ARISE</Text>
+        <Text style={styles.splashSubtext}>LOADING</Text>
+      </View>
+    );
+  }
+
+  // BUG-13: dedicated startup-error screen with retry.
+  if (appState === "STARTUP_ERROR") {
+    return (
+      <View style={styles.splashContainer}>
+        <Text style={styles.splashLogo}>ARISE</Text>
+        <Text style={styles.splashSubtext}>SOMETHING WENT WRONG</Text>
+        <Text style={styles.errorText}>
+          The app could not start. Your data was not deleted.
+        </Text>
+        <Pressable
+          style={styles.retryButton}
+          onPress={() => {
+            setAppState("INITIALIZING");
+            bootstrapApp();
+          }}
+        >
+          <Text style={styles.retryButtonText}>RETRY</Text>
+        </Pressable>
+      </View>
+    );
   }
 
   // Mandatory 4-permissions gate: user CANNOT reach home until all 4 are granted
@@ -321,6 +360,26 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     letterSpacing: 3,
     marginTop: 12,
+  },
+  errorText: {
+    fontSize: 13,
+    color: colors.textMuted,
+    textAlign: "center",
+    marginTop: 16,
+    paddingHorizontal: 32,
+  },
+  retryButton: {
+    marginTop: 24,
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 8,
+    backgroundColor: colors.primary,
+  },
+  retryButtonText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    letterSpacing: 2,
   },
 });
 

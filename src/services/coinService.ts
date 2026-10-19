@@ -30,6 +30,10 @@ class CoinService {
 
     let newBalance = 0;
     const now = new Date().toISOString();
+    // BUG-11: only notify when coins were actually granted. A duplicate
+    // requestId is an idempotent no-op — notifying "+X Coins" for it tells
+    // the user they earned coins they never got.
+    let granted = false;
 
     await db.transaction(async (tx: any) => {
       const results = await tx.select().from(userProfile).limit(1);
@@ -62,15 +66,18 @@ class CoinService {
         timestamp: now,
         requestId: requestId ?? null,
       });
+      granted = true;
     });
 
-    // Notify user of reward
-    await notificationService.createNotification(
-      'REWARD',
-      'Coins Earned',
-      `+${amount} Coins awarded for ${description}`,
-      source
-    );
+    // Notify user of reward — only if this call actually granted coins.
+    if (granted) {
+      await notificationService.createNotification(
+        'REWARD',
+        'Coins Earned',
+        `+${amount} Coins awarded for ${description}`,
+        source
+      );
+    }
 
     return newBalance;
   }

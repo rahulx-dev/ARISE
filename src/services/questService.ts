@@ -1,6 +1,6 @@
 import { db } from '../database/client';
 import { quest, coinTransaction } from '../database/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, like } from 'drizzle-orm';
 import { notificationService } from './notificationService';
 import { achievementService } from './achievementService';
 import { userRepository } from '../database/repositories/userRepository';
@@ -375,11 +375,15 @@ class QuestService {
   }
 
   private getCurrentWeekString(): string {
+    // BUG-09: ISO-8601 week number. The old non-ISO formula skipped W1 in
+    // years where Jan 1 falls on Saturday (Jan 1 computed as W2), so weekly
+    // quests could misalign at the year boundary.
     const d = new Date();
-    const startOfYear = new Date(d.getFullYear(), 0, 1);
-    const pastDaysOfYear = (d.getTime() - startOfYear.getTime()) / 86400000;
-    const weekNum = Math.ceil((pastDaysOfYear + startOfYear.getDay() + 1) / 7);
-    return `${d.getFullYear()}-W${weekNum}`;
+    const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
+    const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+    const weekNum = Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+    return `${date.getUTCFullYear()}-W${weekNum}`;
   }
 
   private populatingPromise: Promise<void> | null = null;
@@ -809,14 +813,24 @@ class QuestService {
   private async getPaidQuestIds(): Promise<Set<number>> {
     const paid = new Set<number>();
     try {
-      const rows = await db.select().from(coinTransaction);
+      // BUG-03: filter in SQL (LIKE 'quest:%'), never fetch the whole
+      // coin_transaction table into memory. The old code loaded every
+      // transaction ever recorded on each reset/reroll call.
+      const rows = await db
+        .select()
+        .from(coinTransaction)
+        .where(like(coinTransaction.requestId, 'quest:%'));
       for (const r of rows) {
         if (typeof r.requestId === 'string' && r.requestId.startsWith('quest:')) {
           const id = Number.parseInt(r.requestId.slice('quest:'.length), 10);
           if (Number.isFinite(id)) paid.add(id);
         }
       }
-    } catch {}
+    } catch (e) {
+      // BUG-15: never swallow this silently. An empty set here means every
+      // quest looks "unpaid", which could allow re-completion of paid quests.
+      console.warn('[QuestService] getPaidQuestIds failed, treating all quests as unpaid:', e);
+    }
     return paid;
   }
 

@@ -481,7 +481,13 @@ export const userRepository = {
       const pad = (n: number) => String(n).padStart(2, "0");
       const getLocalDateStr = (d: Date) =>
         `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-      const yesterday = getLocalDateStr(new Date(now.getTime() - 24 * 60 * 60 * 1000));
+      // BUG-10: calendar-day arithmetic, not -86400000ms. Subtracting exactly
+      // 24h lands on the wrong local date across DST transitions (23h/25h
+      // days). setDate(-1) is DST-correct. (India has no DST, so this only
+      // matters for global users — but the fix is free.)
+      const yesterdayDate = new Date(now);
+      yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+      const yesterday = getLocalDateStr(yesterdayDate);
 
       const lastActiveDateStr = profile.lastActiveDate
         ? profile.lastActiveDate.split("T")[0]

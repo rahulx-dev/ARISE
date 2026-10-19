@@ -70,6 +70,10 @@ CREATE INDEX IF NOT EXISTS idx_user_cloud_saves_updated ON public.user_cloud_sav
 ALTER TABLE public.user_cloud_saves ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Allow public read-write on user_cloud_saves" ON public.user_cloud_saves;
+-- Idempotency: the DO block below drops all policies, but it runs AFTER
+-- this CREATE. On re-run this policy already exists, so drop it first
+-- (otherwise the script dies here with 42710 before reaching cleanup).
+DROP POLICY IF EXISTS "Allow owner read-write on user_cloud_saves" ON public.user_cloud_saves;
 CREATE POLICY "Allow owner read-write on user_cloud_saves"
 ON public.user_cloud_saves
 FOR ALL

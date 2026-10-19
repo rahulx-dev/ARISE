@@ -135,8 +135,12 @@ export const settings = sqliteTable("settings", {
   hapticsEnabled: integer("haptics_enabled").notNull().default(1),
   notificationsEnabled: integer("notifications_enabled").notNull().default(0),
   onboardingCompleted: integer("onboarding_completed").notNull().default(0),
-  dailyBudgetMinutes: integer("daily_budget_minutes").notNull().default(30),
+  dailyBudgetMinutes: integer("daily_budget_minutes").notNull().default(120),
   theme: text("theme").notNull().default("light"), // 'dark' | 'light' | 'system'
+  // BUG-02: the migration in client.native.ts adds a `language` column to the
+  // settings table, but the Drizzle schema did not declare it, so any typed
+  // access silently missed it. Declared here to match the migration.
+  language: text("language").notNull().default("en-US"),
   bgMusicEnabled: integer("bg_music_enabled").notNull().default(0),
   bgMusicVolume: real("bg_music_volume").notNull().default(0.5),
   focusMusicTrack: text("focus_music_track").notNull().default("deep_focus"),

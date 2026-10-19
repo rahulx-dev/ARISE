@@ -582,14 +582,18 @@ export const cloudSyncService = {
           for (const f of validated.focusSessions) {
             expoDb.runSync(
               'INSERT INTO focus_session (target_minutes, completed_minutes, start_time, end_time, status, reward_coins, reward_xp) VALUES (?, ?, ?, ?, ?, ?, ?)',
+              // BUG-05: use the sanitizer's real field names. The old code read
+              // f.durationMinutes / f.timestamp / f.completed, which do not
+              // exist on sanitized focus sessions — every restore inserted
+              // NULLs into NOT NULL columns (and always marked ABORTED).
               [
-                f.durationMinutes,
-                f.durationMinutes,
-                f.timestamp || now,
-                f.timestamp || now,
-                f.completed ? 'COMPLETED' : 'ABORTED',
-                0,
-                0,
+                f.targetMinutes ?? 0,
+                f.completedMinutes ?? 0,
+                f.startTime || now,
+                f.endTime || now,
+                f.status || 'COMPLETED',
+                f.rewardCoins ?? 0,
+                f.rewardXP ?? 0,
               ]
             );
           }

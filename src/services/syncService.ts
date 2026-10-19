@@ -22,10 +22,18 @@ class SyncService {
   private syncTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
-    this.init();
+    // BUG-08: do NOT start the AppState listener + 60s sync interval here.
+    // This service is a module-level singleton, so the constructor ran the
+    // moment the module was imported — before initializeDatabase() was
+    // awaited. Call start() explicitly after the DB is ready.
   }
 
-  private init() {
+  /**
+   * Start background sync (AppState listener + 60s interval).
+   * Must be called after initializeDatabase() — see bootstrapApp.
+   * Idempotent: calling twice is a no-op.
+   */
+  start() {
     if (this.appStateListener || this.syncTimer) return;
 
     this.appStateListener = AppState.addEventListener("change", (nextState) => {

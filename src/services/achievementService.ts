@@ -224,7 +224,10 @@ class AchievementService {
             break;
           case "iron_streak_3":
           case "badge_streak_3":
-            currentMetric = profile.currentStreak || 0;
+            // BUG-07: progress must not reset to 0 when a streak breaks.
+            // longestStreak is the high-water mark; a user who hit 7 days
+            // and broke the streak still earned that progress.
+            currentMetric = Math.max(profile.currentStreak || 0, profile.longestStreak || 0);
             break;
           case "ascension_lvl_5":
           case "badge_level_5":
