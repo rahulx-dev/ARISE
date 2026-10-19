@@ -54,8 +54,12 @@ class TimerForegroundService : Service() {
             .commit()
 
         createNotificationChannel()
-        startForeground(2001, createChronometerNotification(targetEndEpoch, label))
-        Log.d(tag, "Screen timer active until $targetEndEpoch ($label)")
+        try {
+            startForeground(2001, createChronometerNotification(targetEndEpoch, label))
+            Log.d(tag, "Screen timer active until $targetEndEpoch ($label)")
+        } catch (e: Exception) {
+            Log.e(tag, "Foreground service start failed", e)
+        }
 
         return START_STICKY
     }

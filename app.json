@@ -15,6 +15,7 @@
       "package": "com.arise.app",
       "versionCode": 1,
       "allowBackup": false,
+      "edgeToEdgeEnabled": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundColor": "#000000",
@@ -39,10 +40,6 @@
         "android.permission.ACTIVITY_RECOGNITION"
       ],
       "blockedPermissions": [
-        // H17: RECORD_AUDIO was listed in BOTH permissions and
-        // blockedPermissions (contradictory). The app never records
-        // audio (zero recording usages in app/+src/), so it stays
-        // blocked only.
         "android.permission.RECORD_AUDIO"
       ]
     },
