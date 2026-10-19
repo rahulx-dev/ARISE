@@ -34,6 +34,7 @@ import {
 import { usePlayerStore } from '../../src/stores/usePlayerStore';
 import { crystalRepository, CrystalRedemptionItem } from '../../src/database/repositories/crystalRepository';
 import { coinService } from '../../src/services/coinService';
+import { expoDb } from '../../src/database/client';
 import { gateSpawnService } from '../../src/services/gateSpawnService';
 import { useHaptics } from '../../src/hooks/useHaptics';
 import { useSound } from '../../src/hooks/useSound';
@@ -45,6 +46,12 @@ import { AnimatedNumber } from '../../src/components/motion/AnimatedNumber';
 const CRYSTALS_PER_INR = 10; // 10 Mana Crystals = ₹1.00 INR
 const MIN_CASHOUT_INR = 25;
 const MAX_CASHOUT_INR = 2000;
+// M2: the COINS exchange is two operations (crystal debit, then coin
+// credit) that cannot share one transaction — the debit may be a cloud
+// RPC. If the coin credit fails after the debit committed, this KV
+// entry records the pending credit so reopening this screen completes
+// it (the addCoins requestId makes the retry idempotent).
+const PENDING_COIN_CREDIT_KEY = 'pending_coin_credit:crystal_exchange';
 const UPI_REGEX = /^[a-zA-Z0-9.\-_]{2,64}@[a-zA-Z0-9]{2,32}$/;
 const POPULAR_UPI_HANDLES = ['@okhdfcbank', '@okicici', '@oksbi', '@paytm', '@ybl', '@axl'];
 
@@ -120,6 +127,28 @@ export default function RedeemScreen() {
 
   useEffect(() => {
     loadCrystalData();
+  }, [loadCrystalData]);
+
+  // M2: recover a coin credit that was pending when the app closed or
+  // crashed after the crystal debit committed.
+  useEffect(() => {
+    const recoverPendingCoinCredit = async () => {
+      try {
+        const row = (expoDb as any).getFirstSync(
+          'SELECT val FROM arise_kv WHERE key = ?',
+          [PENDING_COIN_CREDIT_KEY],
+        ) as { val: string } | null;
+        if (!row?.val) return;
+        const pending = JSON.parse(row.val) as { requestId: string; coinsAwarded: number; description: string };
+        if (!pending?.requestId || !Number.isSafeInteger(pending.coinsAwarded) || pending.coinsAwarded <= 0) return;
+        await coinService.addCoins(pending.coinsAwarded, pending.description, 'crystal_exchange', pending.requestId);
+        (expoDb as any).runSync('DELETE FROM arise_kv WHERE key = ?', [PENDING_COIN_CREDIT_KEY]);
+        await loadCrystalData();
+      } catch (e) {
+        console.warn('[Redeem] Pending coin-credit recovery failed:', e);
+      }
+    };
+    recoverPendingCoinCredit();
   }, [loadCrystalData]);
 
   const crystalsRequired = selectedInr * CRYSTALS_PER_INR;
@@ -286,12 +315,30 @@ export default function RedeemScreen() {
 
       if (activeMethod === 'COINS') {
         const coinsAwarded = selectedInr * 100; // ₹1 INR = 100 Coins
-        await coinService.addCoins(
-          coinsAwarded,
-          `Converted ${crystalsRequired} Crystals`,
-          'crystal_exchange',
-          `${idempotencyKey}:coins`
-        );
+        const coinRequestId = `${idempotencyKey}:coins`;
+        try {
+          await coinService.addCoins(
+            coinsAwarded,
+            `Converted ${crystalsRequired} Crystals`,
+            'crystal_exchange',
+            coinRequestId
+          );
+        } catch (creditErr) {
+          // M2: crystals were already debited. Record the pending credit
+          // so reopening this screen completes it, and tell the user to
+          // retry instead of silently losing the crystals.
+          try {
+            (expoDb as any).runSync(
+              'INSERT OR REPLACE INTO arise_kv (key, val) VALUES (?, ?)',
+              [PENDING_COIN_CREDIT_KEY, JSON.stringify({
+                requestId: coinRequestId,
+                coinsAwarded,
+                description: `Converted ${crystalsRequired} Crystals`,
+              })],
+            );
+          } catch {}
+          throw new Error('Crystals were debited but the coin credit failed. Reopen this screen to complete the exchange — your coins are not lost.');
+        }
       }
 
       sound.play('purchase');

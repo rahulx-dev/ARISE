@@ -261,7 +261,7 @@ export const guildService = {
             .update(guild)
             .set({
               isUserMember: 0,
-              memberCount: Math.max(1, g.memberCount - 1),
+              memberCount: Math.max(0, g.memberCount - 1), // M52: a guild CAN reach 0 members — the old floor of 1 kept a phantom member forever
             })
             .where(eq(guild.id, g.id));
         }
@@ -433,7 +433,7 @@ export const guildService = {
             .update(guild)
             .set({
               isUserMember: 0,
-              memberCount: Math.max(1, g.memberCount - 1),
+              memberCount: Math.max(0, g.memberCount - 1), // M52: a guild CAN reach 0 members — the old floor of 1 kept a phantom member forever
             })
             .where(eq(guild.id, g.id));
         }
@@ -478,7 +478,7 @@ export const guildService = {
         .update(guild)
         .set({
           isUserMember: 0,
-          memberCount: Math.max(1, g.memberCount - 1),
+          memberCount: Math.max(0, g.memberCount - 1), // M52: a guild CAN reach 0 members — the old floor of 1 kept a phantom member forever
         })
         .where(eq(guild.id, g.id));
     }
@@ -510,6 +510,10 @@ export const guildService = {
     rewardCoins?: number;
     rewardXP?: number;
     cooldownMs?: number;
+    // N12: the ACTUAL damage applied after the 1..200 clamp. The UI
+    // used to display its own unclamped number (e.g. 374) while the
+    // service applied 200. Only present when the attack landed.
+    damageDealt?: number;
   }> {
     // N12: NaN damage previously poisoned the raid row (NaN HP stored).
     if (!Number.isFinite(damage)) {
@@ -674,6 +678,7 @@ export const guildService = {
           bossName: liveRaid.bossName,
           rewardCoins: liveRaid.rewardCoins,
           rewardXP: liveRaid.rewardXP,
+          damageDealt: safeDamage,
         };
       }
 
@@ -683,6 +688,7 @@ export const guildService = {
         newHp,
         maxHp: liveRaid.bossMaxHp,
         bossName: liveRaid.bossName,
+        damageDealt: safeDamage,
       };
     });
 

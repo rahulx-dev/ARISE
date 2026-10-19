@@ -6,8 +6,8 @@ import {
   TouchableOpacity,
   StyleProp,
   ViewStyle,
-  Clipboard,
 } from 'react-native';
+import { copyToClipboard } from '../../utils/clipboard';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -109,9 +109,9 @@ export function SoloLevelingWindow({
 
   const handleCopyCode = () => {
     if (errorDetails || errorCode) {
-      try {
-        Clipboard.setString(errorDetails || errorCode || '');
-      } catch {}
+      // M29: Clipboard was removed from react-native in 0.74 — the old
+      // Clipboard.setString was a silent no-op. Use the expo-clipboard util.
+      copyToClipboard(errorDetails || errorCode || '').catch(() => {});
     }
   };
 

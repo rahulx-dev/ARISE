@@ -269,6 +269,9 @@ export const cloudSyncService = {
             .upsert(
               {
                 email: cleanEmail,
+                // M17: record the stable auth.uid() alongside the mutable
+                // email so the uid-based RLS policy can own this row.
+                user_id: authUser.id,
                 display_name: backupData.displayName,
                 avatar_icon: backupData.avatarIcon,
                 backup_data: backupData,
@@ -324,15 +327,40 @@ export const cloudSyncService = {
       }
 
       let backup: HunterCloudBackup | null = null;
+      // M17: prefer the stable auth.uid() lookup; fall back to the legacy
+      // email lookup for rows saved before user_id was recorded.
+      let sessionUserId: string | null = null;
+      if (hasLiveSession && isSupabaseConfigured() && supabase) {
+        const { data: authData2 } = await supabase.auth.getUser();
+        sessionUserId = authData2?.user?.id ?? null;
+      }
 
       // 1. First attempt: Fetch from Remote Supabase Cloud
       if (hasLiveSession && isSupabaseConfigured() && supabase) {
         try {
-          const { data, error } = await supabase
-            .from('user_cloud_saves')
-            .select('backup_data')
-            .eq('email', cleanEmail)
-            .maybeSingle();
+          let data: any = null;
+          let error: any = null;
+          if (sessionUserId) {
+            const res = await supabase
+              .from('user_cloud_saves')
+              .select('backup_data')
+              .eq('user_id', sessionUserId)
+              .maybeSingle();
+            data = res.data;
+            error = res.error;
+          }
+          // Fall back to the legacy email-keyed row when the uid query
+          // returned nothing OR errored (e.g. the user_id column does not
+          // exist yet because the new schema.sql was not applied).
+          if (!data) {
+            const res = await supabase
+              .from('user_cloud_saves')
+              .select('backup_data')
+              .eq('email', cleanEmail)
+              .maybeSingle();
+            data = res.data;
+            error = res.error;
+          }
 
           if (!error && data?.backup_data) {
             backup = data.backup_data as HunterCloudBackup;

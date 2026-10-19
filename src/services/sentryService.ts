@@ -10,11 +10,51 @@ export function initSentry() {
     Sentry.init({
       dsn: SENTRY_DSN,
       debug: false,
-      tracesSampleRate: 1.0,
+      // M68: 100% trace + profile sampling was a bandwidth/battery hog
+      // and flooded Sentry. 10% is plenty for crash diagnostics.
+      // (Disclosed in the Privacy Policy — DOC-N5.)
+      tracesSampleRate: 0.1,
       enableAutoSessionTracking: true,
       attachStacktrace: true,
+      // Never send PII with crash reports.
+      sendDefaultPii: false,
       _experiments: {
-        profilesSampleRate: 1.0,
+        profilesSampleRate: 0.1,
+      },
+      beforeSend(event) {
+        // M68: scrub PII from crash reports before they leave the device.
+        // Emails, phone numbers, and tokens must never reach Sentry.
+        try {
+          if (event.user) {
+            delete (event.user as any).email;
+            delete (event.user as any).username;
+            delete (event.user as any).ip_address;
+          }
+          const scrub = (text: string | undefined): string | undefined => {
+            if (!text) return text;
+            return text
+              .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, '[email]')
+              .replace(/(\+?91[\s-]?)?[6-9]\d{9}/g, '[phone]')
+              .replace(/(token|secret|password|api[_-]?key)[=:]\s*[^\s&"']+/gi, '$1=[redacted]');
+          };
+          if (event.message) event.message = scrub(event.message) as string;
+          if (event.exception?.values) {
+            for (const v of event.exception.values) {
+              if (v.value) v.value = scrub(v.value) as string;
+            }
+          }
+          if (event.breadcrumbs) {
+            for (const b of event.breadcrumbs) {
+              if (b.message) b.message = scrub(b.message) as string;
+              if (b.data) {
+                for (const k of Object.keys(b.data)) {
+                  if (typeof b.data[k] === 'string') b.data[k] = scrub(b.data[k]) as string;
+                }
+              }
+            }
+          }
+        } catch {}
+        return event;
       },
     });
   } catch (err) {

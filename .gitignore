@@ -35,6 +35,19 @@ yarn-error.*
 .env*.local
 .env.production
 .env.staging
+# M41: close the remaining gaps — every .env variant, keystores, and
+# credential files. (.env itself was committed once before .gitignore
+# covered it — history purge is still outstanding.)
+.env.*
+!.env.example
+*.keystore
+*.aab
+google-services.json
+GoogleService-Info.plist
+credentials.json
+service-account*.json
+*.log
+.idea/
 
 # typescript
 *.tsbuildinfo

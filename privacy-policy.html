@@ -144,7 +144,7 @@
       <p>The App integrates with the following third-party SDKs to provide essential features:</p>
       <ul>
         <li><strong>Supabase:</strong> Authenticated database and backend procedures for cloud progression saves, leaderboard ranking, and payout fulfillment.</li>
-        <li><strong>Sentry:</strong> Application performance monitoring and crash diagnostics (device model, OS version, stack traces, and your account ID so we can correlate crashes). No sensitive user financial details or passwords are sent.</li>
+        <li><strong>Sentry:</strong> Application performance monitoring and crash diagnostics (device model, OS version, stack traces, and your account ID so we can correlate crashes). No sensitive user financial details or passwords are sent. Sampling: 10% of performance traces and profiles are sent (not 100%). Emails, phone numbers, and tokens are scrubbed from crash reports before they leave your device.</li>
         <li><strong>Google AdMob:</strong> Serves rewarded and banner advertisements. AdMob collects standard advertising IDs in accordance with Google's Advertising Policies.</li>
         <li><strong>Google Sign-In:</strong> Secure PKCE authentication for Google account linkage.</li>
         <li><strong>CPX Research / BitLabs:</strong> Optional third-party offerwalls for optional survey rewards. When you open a survey offerwall, your account identifier (ext_user_id / uid) is shared with that provider so they can credit your rewards. Their own privacy policies apply to data they collect inside their surveys.</li>

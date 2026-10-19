@@ -235,7 +235,7 @@ export default function PermissionsScreen() {
     {
       id: 'camera',
       title: 'Camera Access (AI Pose Tracker)',
-      explanation: 'ARISE uses your phone camera for real-time on-device Google ML Kit body joint tracking. Camera frames are processed 100% in RAM and are never recorded or uploaded.',
+      explanation: 'ARISE uses your phone camera for real-time on-device MediaPipe body joint tracking. Camera frames are processed 100% in RAM and are never recorded or uploaded.',
       icon: CameraIcon,
       action: triggerNativeCamera,
     },

@@ -36,6 +36,12 @@ const AlertContext = createContext<AlertContextType | undefined>(undefined);
 
 let globalShowAlert: ((options: AlertOptions) => void) | null = null;
 
+// M30: capture the ORIGINAL native alert before hijacking. Alerts fired
+// before the provider mounts, and alerts that depend on RN options
+// (cancelable/onDismiss), must fall back to it — the old code dropped
+// both: pre-mount alerts vanished silently, and options were ignored.
+const originalRNAlert = RNAlert.alert.bind(RNAlert);
+
 /**
  * Global drop-in replacement for Alert.alert with Solo Leveling System UI aesthetic
  */
@@ -64,6 +70,10 @@ export function showIOSAlert(
       errorCode: options?.errorCode,
       footerNote: options?.footerNote,
     });
+  } else {
+    // M30: provider not mounted yet — fall back to the native alert
+    // instead of silently dropping the alert.
+    originalRNAlert(title, message, buttons as any);
   }
 }
 
@@ -132,8 +142,14 @@ export function IOSAlertProvider({ children }: { children: React.ReactNode }) {
 
   // Intercept standard React Native Alert.alert across the entire app
   useEffect(() => {
-    RNAlert.alert = (title: string, message?: string, buttons?: any[]) => {
-      showAlert({ title, message, buttons });
+    RNAlert.alert = (title: string, message?: string, buttons?: any[], options?: any) => {
+      // M30: the custom modal cannot honor RN options (cancelable,
+      // onDismiss). Calls that depend on them go to the native alert.
+      if (options && (options.cancelable === false || typeof options.onDismiss === 'function')) {
+        originalRNAlert(title, message, buttons, options);
+      } else {
+        showAlert({ title, message, buttons });
+      }
     };
   }, [showAlert]);
 

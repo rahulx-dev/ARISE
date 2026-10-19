@@ -153,20 +153,41 @@ export const payoutRepository = {
 
           if (data && data.length > 0) {
             for (const item of data) {
-              const condition = item.created_at
-                ? and(eq(payoutRequest.upiId, item.upi_id), eq(payoutRequest.createdAt, item.created_at))
-                : and(eq(payoutRequest.upiId, item.upi_id), eq(payoutRequest.amountInr, Number(item.amount_inr)));
+              // M25: match by requestId, the stable unique key. The old
+              // match on (upiId, createdAt) — or (upiId, amountInr) —
+              // could sync the WRONG row when two payouts share a UPI id
+              // or amount. Legacy fallback kept for rows created before
+              // requestId existed.
+              const condition = item.request_id
+                ? eq(payoutRequest.requestId, item.request_id)
+                : item.created_at
+                  ? and(eq(payoutRequest.upiId, item.upi_id), eq(payoutRequest.createdAt, item.created_at))
+                  : and(eq(payoutRequest.upiId, item.upi_id), eq(payoutRequest.amountInr, Number(item.amount_inr)));
+
+              const local = await db
+                .select()
+                .from(payoutRequest)
+                .where(condition)
+                .limit(1);
+              if (local.length === 0) continue;
 
               if (item.status === 'PAID') {
                 await db
                   .update(payoutRequest)
                   .set({ status: 'PAID', paidAt: item.paid_at })
-                  .where(condition);
+                  .where(eq(payoutRequest.id, local[0].id));
               } else if (item.status === 'REJECTED') {
-                await db
-                  .update(payoutRequest)
-                  .set({ status: 'REJECTED' })
-                  .where(condition);
+                // A cloud rejection must refund locally too: route through
+                // markAsRejected (atomic refund + pass restore). The old
+                // code flipped the status with no refund — coins lost.
+                if (local[0].status === 'PENDING') {
+                  await payoutRepository.markAsRejected(local[0].id, true);
+                } else {
+                  await db
+                    .update(payoutRequest)
+                    .set({ status: 'REJECTED' })
+                    .where(eq(payoutRequest.id, local[0].id));
+                }
               }
             }
           }
@@ -215,30 +236,50 @@ export const payoutRepository = {
 
   async markAsRejected(id: number, refundCoins: boolean = true): Promise<boolean> {
     try {
-      const req = await db
-        .select()
-        .from(payoutRequest)
-        .where(eq(payoutRequest.id, id))
-        .limit(1);
+      // M24: refund + status flip + sponsor-pass restore in ONE transaction.
+      // The old code refunded first, then updated status in a separate
+      // call — a crash between them left the request PENDING with coins
+      // already refunded, so a second rejection refunded twice. Sponsor
+      // passes were never restored at all.
+      let rejected = false;
+      await db.transaction(async (tx: any) => {
+        const req = await tx
+          .select()
+          .from(payoutRequest)
+          .where(eq(payoutRequest.id, id))
+          .limit(1);
+        if (req.length === 0 || req[0].status !== 'PENDING') return;
 
-      if (req.length === 0 || req[0].status !== 'PENDING') {
-        return false;
-      }
+        const updated = await tx
+          .update(payoutRequest)
+          .set({ status: 'REJECTED' })
+          .where(and(eq(payoutRequest.id, id), eq(payoutRequest.status, 'PENDING')));
+        if (!updated || ((updated as any).changes ?? 1) === 0) return;
 
-      if (refundCoins) {
-        await userRepository.addCoins(
-          req[0].coinsSpent,
-          `Refund: UPI Cashout INR ${req[0].amountInr}`,
-          'refund'
-        );
-      }
-
-      await db
-        .update(payoutRequest)
-        .set({ status: 'REJECTED' })
-        .where(eq(payoutRequest.id, id));
-
-      return true;
+        if (refundCoins) {
+          const profile = (await tx.select().from(userProfile).limit(1))[0];
+          if (profile) {
+            await tx
+              .update(userProfile)
+              .set({
+                coins: (profile.coins || 0) + req[0].coinsSpent,
+                // Restore the sponsor passes this request consumed.
+                sponsorPasses: (profile.sponsorPasses || 0) + (req[0].sponsorPassesUsed || 0),
+              })
+              .where(eq(userProfile.id, profile.id));
+            await tx.insert(coinTransaction).values({
+              amount: req[0].coinsSpent,
+              type: 'earn',
+              description: `Refund: UPI Cashout INR ${req[0].amountInr}`,
+              source: 'refund',
+              timestamp: new Date().toISOString(),
+              requestId: `payout-refund:${id}`,
+            });
+          }
+        }
+        rejected = true;
+      });
+      return rejected;
     } catch {
       return false;
     }

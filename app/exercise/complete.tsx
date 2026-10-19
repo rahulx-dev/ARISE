@@ -69,14 +69,26 @@ export default function QuestCompleteScreen() {
   const [multiplierClaimed, setMultiplierClaimed] = useState(false);
   const [awardedCoins, setAwardedCoins] = useState<number>(0);
   const [awardedXP, setAwardedXP] = useState<number>(0);
+  // M3: the grant effect can throw (DB locked, profile missing). The old
+  // code swallowed the error and still rendered "BOUNTY TRANSFERRED".
+  const [grantFailed, setGrantFailed] = useState(false);
+  // M3: the 3X card showed awardedCoins * 3, but the real bonus is capped
+  // at 50 (min(50, awarded*2)), so for awardedCoins > 25 the card lied.
+  // Store the ACTUAL bonus granted and display awarded + bonus.
+  const [multiplierBonus, setMultiplierBonus] = useState(0);
 
+  // L5: strict parse. parseInt("12abc") -> 12 silently accepted a
+  // tampered param, and the old 20/20/60 fallbacks invented reps out of
+  // thin air. A non-numeric param is now 0, which fails the token gate
+  // (the issued token carries the real values) instead of paying out.
   const parseNonNegativeInt = (value: string | undefined, fallback: number) => {
-    const parsed = Number.parseInt(value || '', 10);
+    if (typeof value !== 'string' || !/^\d+$/.test(value.trim())) return fallback;
+    const parsed = Number.parseInt(value.trim(), 10);
     return Number.isFinite(parsed) ? Math.max(0, parsed) : fallback;
   };
-  const reps = parseNonNegativeInt(completedReps, 20);
-  const targetNum = Math.max(1, parseNonNegativeInt(target, 20));
-  const duration = parseNonNegativeInt(durationSeconds, 60);
+  const reps = parseNonNegativeInt(completedReps, 0);
+  const targetNum = Math.max(1, parseNonNegativeInt(target, 1));
+  const duration = parseNonNegativeInt(durationSeconds, 0);
 
   const rawType = exerciseType?.toUpperCase() || 'PUSHUP';
   const isFocusCompletion = rawType === 'DEEP_FOCUS' || rawType === 'FOCUS';
@@ -244,7 +256,10 @@ export default function QuestCompleteScreen() {
             target: targetNum,
             completedReps: reps,
             durationSeconds: duration,
-            formScore: 95,
+            // M71: no fake form score. The complete screen receives no
+            // real pose score, so 0 = "not measured". Nothing displays or
+            // averages formScore, so 0 is safe and honest.
+            formScore: 0,
             timestamp: new Date().toISOString(),
             questId: questId ? parseInt(questId, 10) : undefined,
           });
@@ -260,6 +275,7 @@ export default function QuestCompleteScreen() {
         }
       } catch (e) {
         console.warn('Error awarding rewards:', e);
+        if (mountedRef.current) setGrantFailed(true);
       }
     };
 
@@ -274,6 +290,7 @@ export default function QuestCompleteScreen() {
         await userRepository.addCoins(bonusCoins, '3X Workout Ad Multiplier', 'ad');
         await loadProfile();
         if (mountedRef.current) {
+          setMultiplierBonus(bonusCoins);
           setMultiplierClaimed(true);
           sound.play('level_up');
           haptics.success();
@@ -316,7 +333,7 @@ export default function QuestCompleteScreen() {
           <View style={styles.completionPill}>
             <CheckCircle2 size={14} color="#10B981" />
             <Text style={styles.completionPillText}>
-              {reps} / {targetNum} Reps Completed (95% Accuracy)
+              {reps} / {targetNum} Reps Completed
             </Text>
           </View>
         </View>
@@ -335,12 +352,12 @@ export default function QuestCompleteScreen() {
 
         {/* 3. REWARDS CLAIMED CARD */}
         <View style={[styles.rewardsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.cardHeaderLabel, { color: colors.textSecondary }]}>BOUNTY TRANSFERRED</Text>
+          <Text style={[styles.cardHeaderLabel, { color: colors.textSecondary }]}>{grantFailed ? 'REWARD FAILED' : 'BOUNTY TRANSFERRED'}</Text>
           <View style={styles.rewardsRow}>
             {/* Coins */}
             <View style={styles.rewardItemBox}>
               <Image source={APP_3D_ASSETS.goldCoin} style={{ width: 44, height: 44 }} />
-              <Text style={styles.rewardNumber}>+{multiplierClaimed ? awardedCoins * 3 : awardedCoins}</Text>
+              <Text style={styles.rewardNumber}>+{multiplierClaimed ? awardedCoins + multiplierBonus : awardedCoins}</Text>
               <Text style={[styles.rewardUnit, { color: colors.textSecondary }]}>Gold Coins</Text>
             </View>
 
@@ -356,6 +373,12 @@ export default function QuestCompleteScreen() {
             </View>
           </View>
         </View>
+
+        {grantFailed && (
+          <Text style={{ color: '#EF4444', textAlign: 'center', marginTop: 8 }}>
+            Rewards could not be saved. Reopen this session from History to retry — no coins were lost.
+          </Text>
+        )}
 
         {/* 4. TELEMETRY STATS */}
         <View style={[styles.telemetryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -409,7 +432,7 @@ export default function QuestCompleteScreen() {
               const text = `[ARISE PROTOCOL // SESSION CLEARED]\n\n` +
                 `Hunter: ${name} (Rank: LVL ${lvl})\n` +
                 `Workout: ${reps} ${config.displayName} Reps\n` +
-                `Rewards: +${multiplierClaimed ? awardedCoins * 3 : awardedCoins} Coins • +${awardedXP} XP\n` +
+                `Rewards: +${multiplierClaimed ? awardedCoins + multiplierBonus : awardedCoins} Coins • +${awardedXP} XP\n` +
                 `ARISE Protocol.`;
               await Share.share({ message: text });
             } catch (err) {}

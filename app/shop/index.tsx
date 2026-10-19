@@ -216,16 +216,20 @@ export default function ShopScreen() {
 
   const handleBuyBoost = async (item: BoostItem) => {
     haptics.medium();
-    if (currentCoins < item.cost) {
-      sound.play('rep_count');
-      showDialog(
-        'Insufficient Coins',
-        `You need ${item.cost} Coins to buy "${item.name}". You currently have ${currentCoins.toLocaleString()} Coins.`
-      );
-      return;
-    }
-
+    // M4: in-flight guard. purchasingId was declared but never used —
+    // two rapid taps fired two spendCoins calls and double-charged.
+    if (purchasingId !== null) return;
+    setPurchasingId(item.id);
     try {
+      if (currentCoins < item.cost) {
+        sound.play('rep_count');
+        showDialog(
+          'Insufficient Coins',
+          `You need ${item.cost} Coins to buy "${item.name}". You currently have ${currentCoins.toLocaleString()} Coins.`
+        );
+        return;
+      }
+
       const ok = await userRepository.spendCoins(item.cost, `Bought ${item.name}`);
       if (ok) {
         // H2: actually ACTIVATE the boost (previously the coins were
@@ -245,11 +249,15 @@ export default function ShopScreen() {
       }
     } catch (e) {
       console.warn(e);
+    } finally {
+      setPurchasingId(null);
     }
   };
 
   const handleAvatarAction = async (item: AvatarItem) => {
     haptics.medium();
+    // M4: in-flight guard (see handleBuyBoost).
+    if (purchasingId !== null) return;
     const isUnlocked =
       unlockedItemIds.includes(item.id) ||
       unlockedItemIds.includes(item.avatarIcon) ||
@@ -284,25 +292,32 @@ export default function ShopScreen() {
       return;
     }
 
-    const ok = await userRepository.spendCoins(item.cost, `Purchased ${item.name}`);
-    if (ok) {
-      // Lifetime persistent unlock in SQLite
-      await inventoryRepository.unlockItem(item.avatarIcon, 'AVATAR');
-      await inventoryRepository.unlockItem(item.id, 'AVATAR');
-      await inventoryRepository.unlockItem(`avatar_${item.avatarIcon}`, 'AVATAR');
-      await inventoryRepository.equipItem(item.avatarIcon, 'AVATAR');
-      await userRepository.updateProfile({ avatarIcon: item.avatarIcon, profileImageUri: null });
-      setUnlockedItemIds((prev) => [...prev, item.id, item.avatarIcon, `avatar_${item.avatarIcon}`]);
-      setEquippedAvatar(item.avatarIcon);
-      await loadProfile();
-      sound.play('purchase');
-      haptics.success();
-      showDialog('Unlocked & Equipped!', `"${item.name}" is now unlocked for your account for life.`);
+    setPurchasingId(item.id);
+    try {
+      const ok = await userRepository.spendCoins(item.cost, `Purchased ${item.name}`);
+      if (ok) {
+        // Lifetime persistent unlock in SQLite
+        await inventoryRepository.unlockItem(item.avatarIcon, 'AVATAR');
+        await inventoryRepository.unlockItem(item.id, 'AVATAR');
+        await inventoryRepository.unlockItem(`avatar_${item.avatarIcon}`, 'AVATAR');
+        await inventoryRepository.equipItem(item.avatarIcon, 'AVATAR');
+        await userRepository.updateProfile({ avatarIcon: item.avatarIcon, profileImageUri: null });
+        setUnlockedItemIds((prev) => [...prev, item.id, item.avatarIcon, `avatar_${item.avatarIcon}`]);
+        setEquippedAvatar(item.avatarIcon);
+        await loadProfile();
+        sound.play('purchase');
+        haptics.success();
+        showDialog('Unlocked & Equipped!', `"${item.name}" is now unlocked for your account for life.`);
+      }
+    } finally {
+      setPurchasingId(null);
     }
   };
 
   const handleRedeemVoucher = async (voucher: VoucherItem) => {
     haptics.heavy();
+    // M4: in-flight guard (see handleBuyBoost).
+    if (purchasingId !== null) return;
     if (manaCrystals < voucher.crystalsCost) {
       sound.play('rep_count');
       showDialog(
@@ -312,6 +327,7 @@ export default function ShopScreen() {
       return;
     }
 
+    setPurchasingId(voucher.id);
     try {
       const ok = await crystalRepository.spendCrystals(
         voucher.crystalsCost,
@@ -329,6 +345,8 @@ export default function ShopScreen() {
       }
     } catch (e) {
       console.warn(e);
+    } finally {
+      setPurchasingId(null);
     }
   };
 

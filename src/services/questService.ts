@@ -611,15 +611,20 @@ class QuestService {
 
       // Complete the quest and grant all rewards in one SQLite transaction. This
       // also makes concurrent taps idempotent.
-      const completed = await userRepository.completeQuestAndGrantRewards(
+      // M46: report the ACTUAL granted amounts from the transaction,
+      // not the claimed ones (they differ when the row has 0 rewards and
+      // the fallback schedule applies).
+      const grant = await userRepository.completeQuestAndGrantRewards(
         questId,
         finalEarnedCoins,
         q.rewardXP,
         statType
       );
-      if (!completed) {
+      if (!grant.granted) {
         return { success: false, earnedCoins: 0, earnedXP: 0 };
       }
+      const finalEarnedCoinsActual = grant.coins;
+      const finalEarnedXPActual = grant.xp;
 
       await userRepository.updateStreak();
 
@@ -628,7 +633,7 @@ class QuestService {
         await notificationService.createNotification(
           'QUEST',
           'Quest Completed!',
-          `You completed "${q.title}". +${finalEarnedCoins} Coins, +${q.rewardXP} XP`,
+          `You completed "${q.title}". +${finalEarnedCoinsActual} Coins, +${finalEarnedXPActual} XP`,
           String(questId)
         );
       } catch (notificationError) {
@@ -644,8 +649,8 @@ class QuestService {
 
       return {
         success: true,
-        earnedCoins: finalEarnedCoins,
-        earnedXP: q.rewardXP,
+        earnedCoins: finalEarnedCoinsActual,
+        earnedXP: finalEarnedXPActual,
       };
     } catch (error) {
       console.error('Error completing quest:', error);
@@ -665,13 +670,12 @@ class QuestService {
         .where(and(eq(quest.frequency, 'DAILY'), eq(quest.date, today), eq(quest.completed, 0)));
 
       for (const q of activeDaily) {
-        const template =
-          DAILY_QUEST_POOL.find((t) => t.title === q.title) ||
-          DAILY_QUEST_POOL.find(
-            (t) =>
-              t.category === q.category &&
-              (t.exerciseType || null) === (q.exerciseType || null)
-          );
+        // M44: rescale ONLY on an exact title match. The old fallback
+        // matched by (category, exerciseType) and could rescale a quest
+        // to the WRONG template when two templates shared those fields.
+        // An unmatched quest is left alone — a skipped rescale is safer
+        // than a wrong one.
+        const template = DAILY_QUEST_POOL.find((t) => t.title === q.title);
 
         if (template) {
           const scaled = getLevelScaledQuest(template, newLevel);

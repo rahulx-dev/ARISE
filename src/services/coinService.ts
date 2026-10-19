@@ -110,7 +110,12 @@ class CoinService {
         .update(userProfile)
         .set({ coins: newBalance })
         .where(and(eq(userProfile.id, profile.id), gte(userProfile.coins, amount)));
-      if (!updated || ((updated as any).changes ?? 1) === 0) return false;
+      // M43: the old check `!updated || (changes ?? 1) === 0` misfired:
+      // on a driver that returns undefined for the update result it
+      // reported failure even though the update succeeded. Only an
+      // explicit changes === 0 (balance guard rejected the update)
+      // means failure; an unreported count means the update ran.
+      if ((updated as any)?.changes === 0) return false;
 
       await tx.insert(coinTransaction).values({
         amount: -amount,

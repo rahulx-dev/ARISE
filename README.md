@@ -65,8 +65,8 @@ Unlike conventional productivity apps that rely on easily dismissible timers or 
 - **Hardened Overlay Lock**: Uses foreground service polling with `UsageStatsManager` and `SYSTEM_ALERT_WINDOW` to immediately block blacklisted distraction apps (Instagram, YouTube, Twitter, Games).
 - **Time Pass Token Economy**: Locked apps can only be accessed by redeeming Coins earned through physical workouts or focus sessions.
 
-### 3. 🏋️ Comprehensive Gym Engine & 200+ Exercise Database
-- **Local Structured Catalog**: Over 200 exercises across all 11 muscle groups (Chest, Back, Shoulders, Biceps, Triceps, Legs, Glutes, Core, Full Body, Cardio, Mobility) with equipment tags and safety cues.
+### 3. 🏋️ Comprehensive Gym Engine & 180+ Exercise Database
+- **Local Structured Catalog**: 180+ exercises across all 11 muscle groups (Chest, Back, Shoulders, Biceps, Triceps, Legs, Glutes, Core, Full Body, Cardio, Mobility) with equipment tags and safety cues.
 - **Deterministic Workout Generator**: Generates 3, 4, 5, and 6-day splits (PPL, Upper/Lower, Full Body) calibrated to lifter experience, equipment, and duration targets.
 - **Live Workout Tracker**: Multi-mode set logging (AI Camera, Timer, Manual), interactive Rest Timer (+15s / -15s / Skip), volume calculations, and automated Personal Record (PR) celebration triggers.
 

@@ -40,7 +40,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   hapticsEnabled: true,
   notificationsEnabled: false,
   onboardingCompleted: false,
-  dailyBudgetMinutes: 30,
+  dailyBudgetMinutes: 120,
   theme: 'light',
   bgMusicEnabled: false,
   bgMusicVolume: 0.5,
@@ -110,22 +110,38 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
   updateSetting: async (key: string, value: any) => {
     try {
+      // M69: key allowlist + insert-if-missing. The old code let ANY key
+      // through (payload[key] — including "id"), and silently did
+      // nothing when the settings row was missing.
+      const ALLOWED_SETTINGS_KEYS = [
+        'sfxEnabled', 'sfxVolume', 'hapticsEnabled', 'notificationsEnabled',
+        'onboardingCompleted', 'dailyBudgetMinutes', 'theme', 'language',
+        'bgMusicEnabled', 'bgMusicVolume', 'focusMusicTrack', 'focusMusicVolume',
+        'voiceAccent', 'voiceLanguage',
+      ];
+      if (!ALLOWED_SETTINGS_KEYS.includes(key)) {
+        console.warn(`[Settings] Ignoring update for unknown setting key: ${key}`);
+        return;
+      }
       const nextValue = key === 'dailyBudgetMinutes'
         ? (() => {
             const numVal = Number(value);
-            return Number.isFinite(numVal) ? Math.max(0, Math.trunc(numVal)) : 30;
+            return Number.isFinite(numVal) ? Math.max(0, Math.trunc(numVal)) : 120;
           })()
         : value;
 
       const current = await db.select().from(settings).limit(1);
+      const payload: any = {};
+      if (typeof nextValue === 'boolean') {
+        payload[key] = nextValue ? 1 : 0;
+      } else {
+        payload[key] = nextValue;
+      }
       if (current.length > 0) {
-        const payload: any = {};
-        if (typeof nextValue === 'boolean') {
-          payload[key] = nextValue ? 1 : 0;
-        } else {
-          payload[key] = nextValue;
-        }
         await db.update(settings).set(payload).where(eq(settings.id, current[0].id));
+      } else {
+        // No settings row yet (fresh/corrupt DB): insert with defaults.
+        await db.insert(settings).values(payload as any);
       }
 
       if (key === 'dailyBudgetMinutes') {

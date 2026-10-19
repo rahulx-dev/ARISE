@@ -138,7 +138,7 @@ async function initializeDatabaseOnce(): Promise<void> {
 
     CREATE TABLE IF NOT EXISTS app_restriction (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      package_name TEXT NOT NULL,
+      package_name TEXT NOT NULL UNIQUE,
       app_name TEXT NOT NULL,
       app_icon_uri TEXT,
       is_restricted INTEGER NOT NULL DEFAULT 0
@@ -418,10 +418,16 @@ async function initializeDatabaseOnce(): Promise<void> {
       SELECT MIN(id) FROM coin_transaction
       WHERE request_id IS NOT NULL GROUP BY request_id
     );
+    -- M35: duplicate restriction rows for one package. Keep the earliest.
+    DELETE FROM app_restriction
+    WHERE id NOT IN (
+      SELECT MIN(id) FROM app_restriction GROUP BY package_name
+    );
   `);
   expoDb.execSync("CREATE UNIQUE INDEX IF NOT EXISTS idx_crystal_redemption_request ON crystal_redemption(request_id);");
   expoDb.execSync("CREATE UNIQUE INDEX IF NOT EXISTS idx_crystal_transaction_request ON crystal_transaction(request_id);");
   expoDb.execSync("CREATE UNIQUE INDEX IF NOT EXISTS idx_coin_transaction_request ON coin_transaction(request_id);");
+  expoDb.execSync("CREATE UNIQUE INDEX IF NOT EXISTS idx_app_restriction_pkg_unique ON app_restriction(package_name);");
 
   // Check and seed User Profile only if not existing
   const profileRows = await db.select().from(schema.userProfile).limit(1);

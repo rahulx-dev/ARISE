@@ -10,7 +10,7 @@ export const streakService = {
     const res = await userRepository.checkDailyStreakLapse();
     return {
       streak: res.streak,
-      isNewDay: false,
+      isNewDay: res.isNewDay,
       streakBroken: res.broken,
     };
   },

@@ -28,6 +28,7 @@ import {
 import { useTheme } from '../../hooks/useTheme';
 import { useHaptics } from '../../hooks/useHaptics';
 import { notificationService, AppNotification } from '../../services/notificationService';
+import { showIOSAlert } from '../ios/IOSAlertModal';
 import { fontFamilies } from '../../theme/typography';
 
 interface NotificationSheetProps {
@@ -96,9 +97,21 @@ export const NotificationSheet: React.FC<NotificationSheetProps> = ({ isOpen, on
   };
 
   const handleClearAll = async () => {
-    haptics.warning();
-    setNotifications([]);
-    await notificationService.clearAllNotifications();
+    // M31: one-tap Clear-all with no confirm and no undo deleted every
+    // notification. Confirm first.
+    if (notifications.length === 0) return;
+    showIOSAlert('Clear all notifications?', `Delete all ${notifications.length} notifications? This cannot be undone.`, [
+      { text: 'CANCEL', style: 'cancel' },
+      {
+        text: 'CLEAR ALL',
+        style: 'destructive',
+        onPress: async () => {
+          haptics.warning();
+          setNotifications([]);
+          await notificationService.clearAllNotifications();
+        },
+      },
+    ]);
   };
 
   const formatTimeAgo = (isoString: string): string => {

@@ -44,7 +44,7 @@ export function AboutAriseSheet({ visible, onClose }: AboutAriseSheetProps) {
         <GlassCard variant="default" style={styles.infoCard}>
           <Text style={[styles.infoHeading, { color: colors.textPrimary }]}>About ARISE</Text>
           <Text style={[styles.infoBody, { color: colors.textSecondary }]}>
-            ARISE is an offline-first, performance-driven discipline operating system that replaces distraction with earned screen time. Built with local SQLite database storage, Google ML Kit pose detection, and hardware-accelerated soundscapes.
+            ARISE is an offline-first, performance-driven discipline operating system that replaces distraction with earned screen time. Built with local SQLite database storage, MediaPipe pose detection, and hardware-accelerated soundscapes.
           </Text>
         </GlassCard>
 
@@ -56,7 +56,7 @@ export function AboutAriseSheet({ visible, onClose }: AboutAriseSheetProps) {
               haptics.light();
               showIOSAlert(
                 'Privacy Architecture',
-                'ARISE operates strictly on-device. Pose detection camera frames are processed in volatile memory and immediately recycled. All workout history and screen time metrics are stored locally in your private SQLite database.'
+                'Pose detection runs on-device: camera frames are processed in volatile memory by MediaPipe and never recorded or uploaded. Workout history lives in local SQLite. When you sign in, a backup syncs to Supabase cloud, your hunter profile appears on leaderboards, and anonymized crash reports go to Sentry. See Settings > Storage & Data for deletion.'
               );
             }}
             activeOpacity={0.7}
@@ -88,7 +88,7 @@ export function AboutAriseSheet({ visible, onClose }: AboutAriseSheetProps) {
               haptics.light();
               showIOSAlert(
                 'Software Licenses',
-                'ARISE is engineered with React Native, Expo SDK 54, Google ML Kit, Phosphor Icons, and SQLite. All third-party libraries comply with their respective open-source licenses.'
+                'ARISE is engineered with React Native, Expo SDK 54, MediaPipe, Phosphor Icons, and SQLite. All third-party libraries comply with their respective open-source licenses.'
               );
             }}
             activeOpacity={0.7}
@@ -100,7 +100,7 @@ export function AboutAriseSheet({ visible, onClose }: AboutAriseSheetProps) {
         </View>
 
         <Text style={[styles.copyrightText, { color: colors.textMuted }]}>
-          Crafted with discipline • 100% On-Device & Private Architecture
+          Crafted with discipline • On-device pose processing • Private by design
         </Text>
       </View>
     </ARISEBottomSheet>

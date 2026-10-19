@@ -46,9 +46,14 @@ export const useGymStore = create<GymState>((set, get) => ({
   loadGymData: async () => {
     set({ isLoading: true });
     try {
-      const [prefs, plan, today, prs, history] = await Promise.all([
+      // M70: getActivePlan() FIRST, alone. It auto-generates a plan when
+      // none exists — a side effect. The old Promise.all ran
+      // getTodayWorkout concurrently, so it could read "no plan" while
+      // getActivePlan was still creating one, and todayWorkout came back
+      // null even though a plan now exists.
+      const plan = await gymService.getActivePlan();
+      const [prefs, today, prs, history] = await Promise.all([
         gymService.getPreferences(),
-        gymService.getActivePlan(),
         gymService.getTodayWorkout(),
         gymService.getPersonalRecords(),
         gymService.getWorkoutHistory(),

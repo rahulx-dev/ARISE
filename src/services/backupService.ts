@@ -160,7 +160,7 @@ function sanitizeExerciseSession(s: unknown): Record<string, any> | null {
     target: cleanInt(s.target, 1, 1000, 10),
     completedReps: cleanInt(s.completedReps, 0, 1000, 0),
     durationSeconds: cleanInt(s.durationSeconds, 1, 86400, 60),
-    formScore: cleanInt(s.formScore, 0, 100, 100),
+    formScore: cleanInt(s.formScore, 0, 100, 0),
     timestamp: cleanDate(s.timestamp),
     questId: cleanOptInt(s.questId, 1, 2147483647),
   };

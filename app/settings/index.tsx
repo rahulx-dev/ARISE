@@ -663,11 +663,11 @@ export default function SettingsScreen() {
               </TouchableOpacity>
             </View>
             <View style={[styles.privacyBox, { backgroundColor: isDark ? '#081D2E' : '#F0F9FF', borderColor: isDark ? '#0C385C' : '#BAE6FD' }]}>
-              <Text style={[styles.privacyHeading, { color: isDark ? '#38BDF8' : '#0284C7' }]}>100% ON-DEVICE PRIVACY</Text>
+              <Text style={[styles.privacyHeading, { color: isDark ? '#38BDF8' : '#0284C7' }]}>PRIVACY</Text>
               <Text style={[styles.privacyBody, { color: isDark ? '#BAE6FD' : '#334155' }]}>
-                • Camera frames are analyzed entirely in volatile RAM by Google ML Kit and discarded immediately.{'\n\n'}
+                • Camera frames are analyzed entirely in volatile RAM by MediaPipe and discarded immediately.{'\n\n'}
                 • No workout camera video or images are ever stored or transmitted to remote servers.{'\n\n'}
-                • All quest history, streak metrics, and profile data are stored safely in your local SQLite database on your device.
+                • Quest history, streaks, and profile data live in local SQLite, and — when you sign in — a backup syncs to Supabase cloud with leaderboard visibility. Anonymized crash reports go to Sentry.
               </Text>
             </View>
             <TouchableOpacity

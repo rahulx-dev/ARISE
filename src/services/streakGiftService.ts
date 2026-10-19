@@ -95,6 +95,10 @@ export const streakGiftService = {
     totalAvailableCoins: number;
   }> => {
     const profile = await userRepository.getProfile();
+    // M59: eligibility uses the HIGH-WATER mark, not currentStreak. A
+    // user who hit a 7-day streak, did not claim, then broke the streak
+    // still earned that milestone gift (same rule as BUG-07 achievements).
+    const bestStreak = Math.max(profile?.currentStreak || 0, profile?.longestStreak || 0);
     const currentStreak = profile?.currentStreak || 0;
 
     // Fetch all claimed streak gifts recorded in SQLite
@@ -108,7 +112,7 @@ export const streakGiftService = {
     const milestones: StreakMilestoneGift[] = MILESTONE_DEFINITIONS.map(
       (def) => {
         const isClaimed = claimedIds.has(def.id);
-        const isEligible = currentStreak >= def.daysRequired;
+        const isEligible = bestStreak >= def.daysRequired;
 
         let status: "CLAIMED" | "CLAIMABLE" | "LOCKED" = "LOCKED";
         if (isClaimed) {
@@ -117,7 +121,7 @@ export const streakGiftService = {
           status = "CLAIMABLE";
         }
 
-        const daysRemaining = Math.max(0, def.daysRequired - currentStreak);
+        const daysRemaining = Math.max(0, def.daysRequired - bestStreak);
 
         return {
           ...def,
@@ -165,15 +169,18 @@ export const streakGiftService = {
   }> => {
     const profile = await userRepository.getProfile();
     const currentStreak = profile?.currentStreak || 0;
+    const bestStreak = Math.max(currentStreak, profile?.longestStreak || 0);
     const def = MILESTONE_DEFINITIONS.find((m) => m.id === milestoneId);
 
     if (!def) {
       throw new Error("Invalid streak gift milestone");
     }
 
-    if (currentStreak < def.daysRequired) {
+    // M59: claim eligibility matches the listing (best streak), so a
+    // CLAIMABLE gift cannot throw here.
+    if (bestStreak < def.daysRequired) {
       throw new Error(
-        `Requires ${def.daysRequired} days streak. Current: ${currentStreak}`,
+        `Requires ${def.daysRequired} days streak. Best: ${bestStreak}`,
       );
     }
 

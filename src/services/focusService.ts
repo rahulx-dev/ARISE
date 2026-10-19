@@ -37,6 +37,13 @@ export const focusService = {
       rewardXP: target * 4,
     };
 
+    // M53: single-active-session rule. Abandon any orphaned ACTIVE rows
+    // (screen remount, crash) before starting a new one, so at most one
+    // ACTIVE focus session ever exists.
+    await db.update(focusSession)
+      .set({ status: 'ABANDONED', endTime: new Date().toISOString() })
+      .where(eq(focusSession.status, 'ACTIVE'));
+
     const inserted = await db.insert(focusSession).values({
       targetMinutes: target,
       completedMinutes: 0,

@@ -110,7 +110,9 @@ export const progressPhoto = sqliteTable("progress_photo", {
 
 export const appRestriction = sqliteTable("app_restriction", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  packageName: text("package_name").notNull(),
+  // M35: UNIQUE — one row per package. Duplicate rows made the blocker
+  // apply the same package twice and the toggle ambiguous.
+  packageName: text("package_name").notNull().unique(),
   appName: text("app_name").notNull(),
   appIconUri: text("app_icon_uri"),
   isRestricted: integer("is_restricted").notNull().default(0),

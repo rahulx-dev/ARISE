@@ -252,59 +252,18 @@ export const userRepository = {
     });
   },
 
-  async purchaseScreenTimeAtomically(
-    coinCost: number,
-    sessionData: Omit<typeof screenTimeSession.$inferInsert, "id">,
-    description: string,
-  ): Promise<{ success: boolean; error?: string; session?: any }> {
-    return await db.transaction(async (tx: any) => {
-      const results = await tx.select().from(userProfile).limit(1);
-      if (results.length === 0) {
-        return { success: false, error: "User profile not found." };
-      }
+  // M75: purchaseScreenTimeAtomically removed — it had zero call sites
+  // (dead API surface) and the shop now spends via spendCoins directly.
 
-      const profile = results[0];
-      if (profile.coins < coinCost) {
-        return {
-          success: false,
-          error: `Insufficient Coins. You need ${coinCost} Coins (Current Balance: ${profile.coins} Coins).`,
-        };
-      }
-
-      // 1. Deduct coins
-      await tx
-        .update(userProfile)
-        .set({ coins: profile.coins - coinCost })
-        .where(eq(userProfile.id, profile.id));
-
-      // 2. Insert transaction
-      await tx.insert(coinTransaction).values({
-        amount: -coinCost,
-        type: "spend",
-        description,
-        source: "shop_purchase",
-        timestamp: new Date().toISOString(),
-      });
-
-      // 3. Create screen time session
-      const insertedSession = await tx
-        .insert(screenTimeSession)
-        .values(sessionData)
-        .returning();
-
-      return {
-        success: true,
-        session: insertedSession[0] || sessionData,
-      };
-    });
-  },
-
+  // M46: returns the ACTUAL granted amounts. The old boolean return let
+  // the caller report the *claimed* rewards (e.g. earnedXP: 0 when the
+  // row had rewardXP 0 but the fallback granted 45 XP).
   async completeQuestAndGrantRewards(
     questId: number,
     rewardCoins: number,
     rewardXP: number,
     statType?: "strength" | "discipline" | "focus" | "health" | "knowledge",
-  ): Promise<boolean> {
+  ): Promise<{ granted: boolean; coins: number; xp: number }> {
     try {
       addSentryBreadcrumb("quest", "Attempting quest completion", {
         questId,
@@ -320,7 +279,7 @@ export const userRepository = {
           .where(eq(quest.id, questId))
           .limit(1);
         if (qRows.length === 0 || qRows[0].completed === 1) {
-          return false; // Already completed or not found
+          return { granted: false, coins: 0, xp: 0 }; // Already completed or not found
         }
 
         const q = qRows[0];
@@ -336,7 +295,7 @@ export const userRepository = {
           .where(eq(coinTransaction.requestId, requestId))
           .limit(1);
         if (existingTx.length > 0) {
-          return false;
+          return { granted: false, coins: 0, xp: 0 };
         }
 
         // 1. Mark quest completed — conditional on still-incomplete, so a
@@ -388,20 +347,20 @@ export const userRepository = {
           });
         }
 
-        return true;
+        return { granted: true, coins: actualCoins, xp: actualXP };
       });
     } catch (err: any) {
       // Duplicate requestId = concurrent completion already paid. Quiet
       // return: not an error, the quest is already completed + paid.
       if (String(err?.message || "").includes("UNIQUE constraint")) {
-        return false;
+        return { granted: false, coins: 0, xp: 0 };
       }
       logErrorToSentry(err, {
         module: "userRepository",
         action: "completeQuestAndGrantRewards",
         extra: { questId, rewardCoins, rewardXP, statType },
       });
-      return false;
+      return { granted: false, coins: 0, xp: 0 };
     }
   },
 
@@ -509,10 +468,13 @@ export const userRepository = {
    * Checks on startup or day-change whether the previous day was missed.
    * If missed (lastActiveDate < yesterday), resets currentStreak to 0 without modifying lastActiveDate.
    */
-  async checkDailyStreakLapse(): Promise<{ streak: number; broken: boolean }> {
+  // M60: returns isNewDay (today != lastActiveDate) instead of the
+  // caller hardcoding false. A first launch of the day IS a new day even
+  // when the streak is intact.
+  async checkDailyStreakLapse(): Promise<{ streak: number; broken: boolean; isNewDay: boolean }> {
     return await db.transaction(async (tx: any) => {
       const results = await tx.select().from(userProfile).limit(1);
-      if (results.length === 0) return { streak: 0, broken: false };
+      if (results.length === 0) return { streak: 0, broken: false, isNewDay: true };
 
       const profile = results[0];
       const now = new Date();
@@ -534,16 +496,16 @@ export const userRepository = {
             .update(userProfile)
             .set({ lastActiveDate: yesterday })
             .where(eq(userProfile.id, profile.id));
-          return { streak: profile.currentStreak, broken: false };
+          return { streak: profile.currentStreak, broken: false, isNewDay: lastActiveDateStr !== getLocalDateStr(now) };
         }
         await tx
           .update(userProfile)
           .set({ currentStreak: 0 })
           .where(eq(userProfile.id, profile.id));
-        return { streak: 0, broken: true };
+        return { streak: 0, broken: true, isNewDay: lastActiveDateStr !== getLocalDateStr(now) };
       }
 
-      return { streak: profile.currentStreak, broken: false };
+      return { streak: profile.currentStreak, broken: false, isNewDay: lastActiveDateStr !== getLocalDateStr(now) };
     });
   },
 

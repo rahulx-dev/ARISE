@@ -27,6 +27,14 @@ export const photoRepository = {
       .orderBy(desc(progressPhoto.date));
   },
 
+  async getPhotoById(photoId: number) {
+    const results = await db.select()
+      .from(progressPhoto)
+      .where(eq(progressPhoto.id, photoId))
+      .limit(1);
+    return results.length > 0 ? results[0] : null;
+  },
+
   async deletePhoto(photoId: number) {
     await db.delete(progressPhoto).where(eq(progressPhoto.id, photoId));
   },

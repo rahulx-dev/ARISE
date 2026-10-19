@@ -221,6 +221,15 @@ export default function FocusModeScreen() {
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
       audioService.pause();
+      // Focus-pause fix: FREEZE the deadline. The old code cleared the
+      // interval but left endTimeRef at its wall-clock deadline, so the
+      // pause burned time — pausing for 5 min cost 5 min on resume.
+      // Re-freezing here is idempotent (mute toggles re-run this branch).
+      if (endTimeRef.current) {
+        const remaining = Math.max(0, endTimeRef.current - Date.now());
+        setRemainingMs(remaining);
+        endTimeRef.current = Date.now() + remaining;
+      }
     }
 
     return () => {
@@ -282,9 +291,16 @@ export default function FocusModeScreen() {
   const handleAddFiveMinutes = () => {
     haptics.light();
     const extraMs = 5 * 60 * 1000;
-    setRemainingMs((prev) => prev + extraMs);
+    // L7: cap the session at 24h total. The old +5 had no cap — the
+    // deadline could grow without bound.
+    const MAX_MS = 1440 * 60 * 1000;
     if (endTimeRef.current) {
-      endTimeRef.current += extraMs;
+      const cur = Math.max(0, endTimeRef.current - Date.now());
+      const next = Math.min(MAX_MS, cur + extraMs);
+      setRemainingMs(next);
+      endTimeRef.current = Date.now() + next;
+    } else {
+      setRemainingMs((prev) => Math.min(MAX_MS, prev + extraMs));
     }
   };
 

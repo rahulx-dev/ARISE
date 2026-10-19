@@ -241,7 +241,8 @@ class AchievementService {
             currentMetric = totalFocusMinutes;
             break;
           case "badge_streak_7":
-            currentMetric = profile.currentStreak || 0;
+            // M59: same high-water rule as the 3-day streak achievements.
+            currentMetric = Math.max(profile.currentStreak || 0, profile.longestStreak || 0);
             break;
           case "badge_grandmaster":
             currentMetric = profile.level || 1;

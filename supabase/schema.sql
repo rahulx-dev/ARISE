@@ -58,6 +58,11 @@ CREATE TABLE IF NOT EXISTS public.user_cloud_saves (
     backup_data JSONB NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW())
 );
+-- M17: stable owner identity. Email is a mutable claim (it can change),
+-- so new saves also record auth.uid(). The email policy stays for
+-- backward compatibility with existing rows.
+ALTER TABLE public.user_cloud_saves ADD COLUMN IF NOT EXISTS user_id TEXT;
+CREATE INDEX IF NOT EXISTS idx_user_cloud_saves_user ON public.user_cloud_saves (user_id);
 
 CREATE INDEX IF NOT EXISTS idx_user_cloud_saves_updated ON public.user_cloud_saves (updated_at DESC);
 
@@ -250,10 +255,19 @@ CREATE POLICY "cpx_postback_select_owner" ON public.cpx_postback_log
 FOR SELECT USING (user_id = auth.uid()::text);
 
 -- 8. User Cloud Saves: Owner read-write
+-- M17: the email-keyed policy below is kept for backward compatibility
+-- (existing rows are keyed by email), but email is a mutable claim.
+-- New saves also carry auth.uid() in user_id, and the uid policy is the
+-- stable owner identity going forward.
 CREATE POLICY "user_cloud_saves_owner_rw" ON public.user_cloud_saves
 FOR ALL
 USING (lower(email) = lower(COALESCE(auth.jwt() ->> 'email', '')))
 WITH CHECK (lower(email) = lower(COALESCE(auth.jwt() ->> 'email', '')));
+
+CREATE POLICY "user_cloud_saves_owner_uid" ON public.user_cloud_saves
+FOR ALL
+USING (user_id IS NOT NULL AND user_id = auth.uid()::text)
+WITH CHECK (user_id IS NOT NULL AND user_id = auth.uid()::text);
 
 -- Drop any obsolete legacy function overloads that cause duplicate warnings in Supabase Linter
 DROP FUNCTION IF EXISTS public.sync_hunter_profile_secure(TEXT, TEXT, TEXT, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, TEXT);
@@ -315,9 +329,13 @@ BEGIN
     END IF;
 
     -- 2. Clean & Sanitize Inputs
-    v_clean_name := COALESCE(NULLIF(trim(p_user_name), ''), 'Warrior');
-    v_clean_avatar := COALESCE(NULLIF(trim(p_avatar_icon), ''), 'img_pfp_01');
-    v_clean_rank := COALESCE(NULLIF(trim(p_rank_code), ''), 'E');
+    -- M18: allowlists + length caps. Rank must be a known code (an
+    -- arbitrary string could poison the leaderboard display); names and
+    -- icon ids are capped so a crafted call cannot stuff huge values.
+    v_clean_name := LEFT(COALESCE(NULLIF(trim(p_user_name), ''), 'Warrior'), 64);
+    v_clean_avatar := LEFT(COALESCE(NULLIF(trim(p_avatar_icon), ''), 'img_pfp_01'), 64);
+    v_clean_rank := CASE WHEN upper(trim(p_rank_code)) IN ('E','D','C','B','A','S','NATIONAL')
+        THEN upper(trim(p_rank_code)) ELSE 'E' END;
     -- Sanity caps: progress fields are self-reported display data, never money.
     -- Cap them so a crafted call cannot stuff absurd values into the wallet.
     v_clean_level := LEAST(100, GREATEST(1, COALESCE(p_level, 1)));
@@ -393,7 +411,9 @@ BEGIN
             'EARN',
             p_source,
             p_source_id,
-            p_description,
+            -- L27: description is NOT NULL in crystal_ledger. A NULL
+            -- description raised an unhandled NOT NULL violation.
+            COALESCE(NULLIF(trim(p_description), ''), 'Crystal grant'),
             TIMEZONE('utc'::text, NOW())
         ) RETURNING id INTO v_inserted_id;
     EXCEPTION WHEN unique_violation THEN
@@ -440,7 +460,13 @@ BEGIN
         streak = GREATEST(user_wallets.streak, v_clean_streak),
         total_reps = GREATEST(user_wallets.total_reps, v_clean_reps),
         total_xp = GREATEST(user_wallets.total_xp, v_clean_xp),
-        mana_crystals = user_wallets.mana_crystals + p_amount,
+        -- L25: overflow-safe addition. Plain `mana_crystals + p_amount`
+        -- raises an unhandled "integer out of range" if the wallet is
+        -- near INT_MAX. Saturate at INT_MAX instead of erroring.
+        mana_crystals = CASE
+            WHEN user_wallets.mana_crystals > 2147483647 - p_amount THEN 2147483647
+            ELSE user_wallets.mana_crystals + p_amount
+        END,
         last_synced_at = TIMEZONE('utc'::text, NOW())
     RETURNING mana_crystals INTO v_new_crystals;
 
@@ -547,19 +573,26 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'error', 'Invalid redemption request id');
     END IF;
 
-    -- 2. Check Idempotency via crystal_ledger
+    -- 2. Row Lock on User Wallet FIRST (M15). The idempotency EXISTS check
+    -- below must run AFTER the lock: two concurrent calls for the same user
+    -- serialize on this row, so the second sees the first's committed
+    -- ledger row. (Checking before the lock let both pass, then one died
+    -- on the UNIQUE constraint with a raw 500 instead of already_processed.)
+    SELECT mana_crystals INTO v_current_crystals
+    FROM public.user_wallets
+    WHERE user_id = v_user_id
+    FOR UPDATE;
+
+    -- 3. Check Idempotency via crystal_ledger (after the lock — see above).
+    -- This runs BEFORE the balance check on purpose: a retry must return
+    -- already_processed even if the user spent crystals after the first
+    -- (successful) redemption dropped their balance below the amount.
     IF EXISTS (
         SELECT 1 FROM public.crystal_ledger
         WHERE source = 'redemption' AND source_id = p_request_uuid AND user_id = v_user_id
     ) THEN
         RETURN jsonb_build_object('success', true, 'already_processed', true, 'error', 'Redemption request already processed');
     END IF;
-
-    -- 3. Row Lock on User Wallet (FOR UPDATE)
-    SELECT mana_crystals INTO v_current_crystals
-    FROM public.user_wallets
-    WHERE user_id = v_user_id
-    FOR UPDATE;
 
     IF v_current_crystals IS NULL OR v_current_crystals < p_crystals_spent THEN
         RETURN jsonb_build_object('success', false, 'error', 'Insufficient Mana Crystals');
@@ -613,11 +646,13 @@ BEGIN
         last_synced_at = TIMEZONE('utc'::text, NOW())
     WHERE user_id = v_user_id;
 
-    -- 7. Update Leaderboard Projection
-    UPDATE public.crystal_leaderboard
-    SET crystals_mined = v_new_crystals,
-        updated_at = TIMEZONE('utc'::text, NOW())
-    WHERE user_id = v_user_id;
+    -- 7. Upsert Leaderboard Projection (L29: plain UPDATE silently did
+    -- nothing when the row was missing, leaving a stale leaderboard).
+    INSERT INTO public.crystal_leaderboard (user_id, crystals_mined, updated_at)
+    VALUES (v_user_id, v_new_crystals, TIMEZONE('utc'::text, NOW()))
+    ON CONFLICT (user_id) DO UPDATE
+        SET crystals_mined = EXCLUDED.crystals_mined,
+            updated_at = EXCLUDED.updated_at;
 
     RETURN jsonb_build_object(
         'success', true,
@@ -625,6 +660,12 @@ BEGIN
         'redemption_id', v_redemption_id,
         'new_balance', v_new_crystals
     );
+EXCEPTION
+    -- M15 defense-in-depth: the UNIQUE (source, source_id, user_id) on
+    -- crystal_ledger is the hard guard. A concurrent duplicate lands here
+    -- and gets a clean already_processed instead of a raw 500.
+    WHEN unique_violation THEN
+        RETURN jsonb_build_object('success', true, 'already_processed', true, 'error', 'Redemption request already processed');
 END;
 $$;
 
@@ -686,7 +727,17 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'error', 'Invalid payout request id');
     END IF;
 
-    -- 2. Idempotency: an already-processed request returns success
+    -- 2. Row Lock on User Wallet FIRST (M15, same race as redemption).
+    -- The EXISTS checks below must run after the lock so concurrent calls
+    -- for the same user serialize and the second sees committed state.
+    SELECT cloud_coins INTO v_current_coins
+    FROM public.user_wallets
+    WHERE user_id = v_user_id
+    FOR UPDATE;
+
+    -- 3. Idempotency: an already-processed request returns success.
+    -- Runs BEFORE the balance check on purpose: a retry must return
+    -- already_processed even if later spending dropped the balance.
     IF EXISTS (
         SELECT 1 FROM public.payout_requests
         WHERE user_id = v_user_id AND request_id = p_request_id
@@ -694,7 +745,7 @@ BEGIN
         RETURN jsonb_build_object('success', true, 'already_processed', true, 'error', 'Payout request already processed');
     END IF;
 
-    -- 3. One pending payout at a time
+    -- 4. One pending payout at a time
     IF EXISTS (
         SELECT 1 FROM public.payout_requests
         WHERE user_id = v_user_id AND status = 'PENDING'
@@ -702,19 +753,14 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'error', 'A payout request is already pending');
     END IF;
 
-    -- 4. Row Lock on User Wallet (FOR UPDATE), balance check
-    SELECT cloud_coins INTO v_current_coins
-    FROM public.user_wallets
-    WHERE user_id = v_user_id
-    FOR UPDATE;
-
+    -- 5. Balance check (after lock + idempotency)
     IF v_current_coins IS NULL OR v_current_coins < p_coins_spent THEN
         RETURN jsonb_build_object('success', false, 'error', 'Insufficient coins');
     END IF;
 
     v_new_coins := v_current_coins - p_coins_spent;
 
-    -- 5. Insert Spend Record into coin_ledger
+    -- 6. Insert Spend Record into coin_ledger
     INSERT INTO public.coin_ledger (
         user_id,
         amount,
@@ -733,7 +779,7 @@ BEGIN
         TIMEZONE('utc'::text, NOW())
     );
 
-    -- 6. Insert PENDING payout request (PENDING-only; admin flips to PAID)
+    -- 7. Insert PENDING payout request (PENDING-only; admin flips to PAID)
     INSERT INTO public.payout_requests (
         user_id,
         amount_inr,
@@ -752,7 +798,7 @@ BEGIN
         TIMEZONE('utc'::text, NOW())
     ) RETURNING id INTO v_payout_id;
 
-    -- 7. Update User Wallet
+    -- 8. Update User Wallet
     UPDATE public.user_wallets
     SET cloud_coins = v_new_coins,
         last_synced_at = TIMEZONE('utc'::text, NOW())
@@ -764,6 +810,10 @@ BEGIN
         'payout_id', v_payout_id,
         'new_balance', v_new_coins
     );
+EXCEPTION
+    -- M15 defense-in-depth: uq_payout_requests_request is the hard guard.
+    WHEN unique_violation THEN
+        RETURN jsonb_build_object('success', true, 'already_processed', true, 'error', 'Payout request already processed');
 END;
 $$;
 
@@ -816,10 +866,12 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'error', 'Unauthenticated caller');
     END IF;
 
-    v_clean_name := COALESCE(NULLIF(trim(p_display_name), ''), 'Warrior');
-    v_clean_avatar := COALESCE(NULLIF(trim(p_avatar_icon), ''), 'img_pfp_01');
-    v_clean_rank := COALESCE(NULLIF(trim(p_rank_code), ''), 'E');
-    v_clean_title := COALESCE(NULLIF(trim(p_title), ''), 'Hunter');
+    -- M18: allowlists + length caps (see grant_crystals_secure).
+    v_clean_name := LEFT(COALESCE(NULLIF(trim(p_display_name), ''), 'Warrior'), 64);
+    v_clean_avatar := LEFT(COALESCE(NULLIF(trim(p_avatar_icon), ''), 'img_pfp_01'), 64);
+    v_clean_rank := CASE WHEN upper(trim(p_rank_code)) IN ('E','D','C','B','A','S','NATIONAL')
+        THEN upper(trim(p_rank_code)) ELSE 'E' END;
+    v_clean_title := LEFT(COALESCE(NULLIF(trim(p_title), ''), 'Hunter'), 64);
     -- Sanity caps on self-reported progress (display/leaderboard data, never money).
     v_clean_level := LEAST(100, GREATEST(1, COALESCE(p_level, 1)));
     v_clean_streak := LEAST(3650, GREATEST(0, COALESCE(p_current_streak, p_streak, 0)));
@@ -935,6 +987,15 @@ DECLARE
     v_current_user_rank JSONB := NULL;
     v_total_count INTEGER := 0;
 BEGIN
+    -- M16: clamp p_limit. In Postgres, LIMIT with a negative value means
+    -- "no limit", so an unvalidated p_limit=-1 dumped the whole table and
+    -- a huge p_limit meant a DoS-sized JSON payload.
+    p_limit := LEAST(100, GREATEST(1, COALESCE(p_limit, 100)));
+    -- Unknown categories fall back to 'streak' instead of returning empty.
+    IF p_category IS NULL OR p_category NOT IN ('streak', 'reps', 'power') THEN
+        p_category := 'streak';
+    END IF;
+
     SELECT COUNT(*) INTO v_total_count FROM public.crystal_leaderboard;
 
     IF p_category = 'streak' THEN

@@ -105,14 +105,18 @@ export class GymService {
   async generateAndSavePlan(prefs: WorkoutPreferences): Promise<WorkoutPlan> {
     const generated = WorkoutEngine.generateWeeklyPlan(prefs);
 
+    // M48: the whole plan save is ONE transaction. The old code ran
+    // deactivate + plan + days + exercises as separate awaits — a crash
+    // mid-save left a half-written plan (or two active plans).
+    return await db.transaction(async (tx: any) => {
     // Deactivate existing plans
-    await db
+    await tx
       .update(workoutPlans)
       .set({ isActive: 0 })
       .where(eq(workoutPlans.isActive, 1));
 
     // Insert new plan
-    const insertedPlan = await db
+    const insertedPlan = await tx
       .insert(workoutPlans)
       .values({
         title: generated.title,
@@ -127,7 +131,7 @@ export class GymService {
     const daysWithIds: WorkoutDayPlan[] = [];
 
     for (const day of generated.days) {
-      const insertedDay = await db
+      const insertedDay = await tx
         .insert(workoutDays)
         .values({
           planId,
@@ -143,7 +147,7 @@ export class GymService {
 
       for (let i = 0; i < day.exercises.length; i++) {
         const ex = day.exercises[i];
-        await db.insert(workoutExercises).values({
+        await tx.insert(workoutExercises).values({
           dayId,
           exerciseId: ex.exerciseId,
           exerciseName: ex.exerciseName,
@@ -174,6 +178,7 @@ export class GymService {
       id: planId,
       days: daysWithIds,
     };
+    });
   }
 
   /**
@@ -249,7 +254,10 @@ export class GymService {
 
     const todayDayOfWeek = new Date().getDay(); // 0..6
     const todayDay = plan.days.find((d) => d.dayOfWeek === todayDayOfWeek);
-    return todayDay || plan.days[0] || null;
+    // M49: no fallback to plan.days[0]. If today has no workout day
+    // (rest day, or the plan does not cover today), returning day 0
+    // scheduled a workout on a rest day. Callers already handle null.
+    return todayDay || null;
   }
 
   /**
@@ -478,15 +486,30 @@ export class GymService {
       .limit(1);
 
     if (existingPRs.length === 0 || weightKg > existingPRs[0].weightKg) {
-      await db.insert(personalRecords).values({
-        exerciseId,
-        exerciseName,
-        recordType: "MAX_WEIGHT",
-        value: weightKg,
-        weightKg,
-        reps,
-        achievedAt: new Date().toISOString(),
-      });
+      if (existingPRs.length === 0) {
+        await db.insert(personalRecords).values({
+          exerciseId,
+          exerciseName,
+          recordType: "MAX_WEIGHT",
+          value: weightKg,
+          weightKg,
+          reps,
+          achievedAt: new Date().toISOString(),
+        });
+      } else {
+        // M50: UPDATE the existing PR row instead of inserting a new one
+        // on every beaten record — the old code accumulated one row per
+        // PR beat, forever. One row per (exercise, MAX_WEIGHT).
+        await db
+          .update(personalRecords)
+          .set({
+            value: weightKg,
+            weightKg,
+            reps,
+            achievedAt: new Date().toISOString(),
+          })
+          .where(eq(personalRecords.id, existingPRs[0].id));
+      }
       return true;
     }
 
@@ -586,7 +609,8 @@ export class GymService {
       target: completedSets.length,
       completedReps: totalReps,
       durationSeconds: actualDurationSeconds,
-      formScore: 100,
+      // M71: 0 = form not measured (no real pose score exists here).
+      formScore: 0,
       timestamp: now,
     });
 
@@ -611,19 +635,12 @@ export class GymService {
       return { coinsEarned: 0, xpEarned: 0, totalVolumeKg: 0 };
     }
 
-    // Check if daily quest exists for workout
-    try {
-      const todayQuests = await questService.getDailyQuests();
-      const workoutQuest = todayQuests.find(
-        (q) =>
-          !q.completed &&
-          (q.category?.toUpperCase() === "STRENGTH" ||
-            q.category?.toUpperCase() === "FITNESS"),
-      );
-      if (workoutQuest) {
-        await questService.completeQuest(workoutQuest.id);
-      }
-    } catch (_) {}
+    // M47: NO auto-complete of a "related" quest here. The old code
+    // completed the first uncompleted STRENGTH/FITNESS daily quest after
+    // ANY gym session — even when that quest had nothing to do with the
+    // workout (wrong exercise, wrong target). Quest completion belongs
+    // to the complete screen / reconcile flow, which matches the actual
+    // activity to the quest's requirement.
 
     // Send persistent notification
     await notificationService.createNotification(

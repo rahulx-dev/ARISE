@@ -76,7 +76,8 @@ export const useExerciseStore = create<ExerciseState>((set, get) => ({
       target: state.targetReps,
       completedReps: state.completedReps,
       durationSeconds: state.elapsedSeconds,
-      formScore: 95,
+      // M71: 0 = form not measured (no real pose score exists here).
+      formScore: 0,
       timestamp: new Date().toISOString(),
     };
     try {

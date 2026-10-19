@@ -212,8 +212,11 @@ export default function GuildScreen() {
           `Boss "${result.bossName}" has been annihilated!\n\nREWARDS ACQUIRED:\n+${result.rewardCoins} Mana Coins\n+${result.rewardXP} Hunter XP`
         );
       } else {
-        if (isCrit) {
-          Alert.alert('CRITICAL STRIKE', `Dealt ${finalDamage} CRITICAL damage to ${result.bossName}! Boss HP: ${result.newHp} / ${result.maxHp}`);
+        // N12: show the ACTUAL damage the service applied (clamped
+        // 1..200), not the UI's unclamped roll — and only when the
+        // attack actually landed (no alert on cooldown / not-member).
+        if (isCrit && typeof result.damageDealt === 'number') {
+          Alert.alert('CRITICAL STRIKE', `Dealt ${result.damageDealt} CRITICAL damage to ${result.bossName}! Boss HP: ${result.newHp} / ${result.maxHp}`);
         }
       }
       await loadData();
