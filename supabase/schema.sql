@@ -55,6 +55,163 @@ CREATE TABLE IF NOT EXISTS public.user_wallets (
 
 CREATE INDEX IF NOT EXISTS idx_user_wallets_synced ON public.user_wallets (last_synced_at);
 
+-- ==============================================================================
+-- Batch 5G — live-table shape normalization: existing tables created by
+-- older schema versions are never altered by CREATE TABLE IF NOT EXISTS,
+-- so every column the rest of this file relies on is first ensured here.
+-- ==============================================================================
+-- This is the bug that killed the live schema run: the live user_wallets
+-- is still the original coin-era table (user_id, display_name,
+-- cloud_coins, total_earned, device_id, app_version, last_synced_at) —
+-- it has NO mana_crystals / level / streak / total_reps / total_xp,
+-- while the Batch 5E clamp immediately below, sync_hunter_profile_secure
+-- and reconcile_wallets_admin all rely on those columns. The run died
+-- with: ERROR 42703: column "level" does not exist.
+--
+-- Placement: this section sits BEFORE the earliest DO upgrade block in
+-- the file (the Batch 5E clamp block directly below), before the Batch
+-- 5D cpx upgrade block, and before every policy and function. The
+-- CREATE TABLE statements for user_cloud_saves and the later tables sit
+-- further down the file, so every statement here uses
+-- ALTER TABLE IF EXISTS: on a fresh database those tables do not exist
+-- yet at this point and are skipped (each is then created in full shape
+-- by its CREATE TABLE below); on an existing database every table is
+-- present and is normalized NOW, before anything reads its columns.
+--
+-- Per-column rules, mirroring the CREATE TABLE definitions:
+--   * type and DEFAULT are copied from the definition;
+--   * NOT NULL is kept only where the definition provides a DEFAULT
+--     (existing rows backfill from it). A NOT NULL column with NO
+--     default in the definition is added NULLABLE with a zero-value
+--     default instead ('' / 0 / '{}') — adding it NOT NULL would fail
+--     on a populated table;
+--   * the serial id columns and any column carrying PRIMARY KEY or
+--     UNIQUE in the definition are NOT added (user_wallets.user_id,
+--     user_cloud_saves.email, crystal_leaderboard.user_id,
+--     cpx_postback_log.trans_id): a table missing its key column
+--     cannot be repaired by an ADD COLUMN, and keys cannot be
+--     retrofitted this way;
+--   * inline CHECK constraints are skipped — the named-constraint
+--     upgrade blocks enforce them — EXCEPT user_wallets.mana_crystals:
+--     its CHECK travels with the column add, because every backfilled
+--     value is 0 and satisfies mana_crystals >= 0;
+--   * nothing is dropped or renamed: legacy columns that exist only on
+--     live tables (user_wallets.total_earned, ...) are left untouched.
+
+-- 1. crystal_ledger (user_id/amount/type/source/source_id/description
+--    are NOT NULL with no default in the definition -> zero defaults)
+ALTER TABLE IF EXISTS public.crystal_ledger
+    ADD COLUMN IF NOT EXISTS user_id TEXT DEFAULT '',
+    ADD COLUMN IF NOT EXISTS amount INTEGER DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS type TEXT DEFAULT '',
+    ADD COLUMN IF NOT EXISTS source TEXT DEFAULT '',
+    ADD COLUMN IF NOT EXISTS source_id TEXT DEFAULT '',
+    ADD COLUMN IF NOT EXISTS description TEXT DEFAULT '',
+    ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW());
+
+-- 2. coin_ledger (source_id is nullable in the definition)
+ALTER TABLE IF EXISTS public.coin_ledger
+    ADD COLUMN IF NOT EXISTS user_id TEXT DEFAULT '',
+    ADD COLUMN IF NOT EXISTS amount INTEGER DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS type TEXT DEFAULT '',
+    ADD COLUMN IF NOT EXISTS source TEXT DEFAULT '',
+    ADD COLUMN IF NOT EXISTS source_id TEXT,
+    ADD COLUMN IF NOT EXISTS description TEXT DEFAULT '',
+    ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW());
+
+-- 3. user_wallets — the table that killed the live run. The five
+--    columns the live coin-era table is missing come first; the named
+--    CHECKs on level/streak/total_reps/total_xp/cloud_coins are added
+--    by the Batch 5E upgrade block below, mana_crystals keeps its
+--    CHECK inline (see rules above).
+ALTER TABLE IF EXISTS public.user_wallets
+    ADD COLUMN IF NOT EXISTS mana_crystals INTEGER NOT NULL DEFAULT 0 CHECK (mana_crystals >= 0),
+    ADD COLUMN IF NOT EXISTS level INTEGER NOT NULL DEFAULT 1,
+    ADD COLUMN IF NOT EXISTS streak INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS total_reps INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS total_xp INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS display_name TEXT DEFAULT 'Warrior',
+    ADD COLUMN IF NOT EXISTS rank_code TEXT DEFAULT 'E',
+    ADD COLUMN IF NOT EXISTS cloud_coins INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS device_id TEXT,
+    ADD COLUMN IF NOT EXISTS app_version TEXT,
+    ADD COLUMN IF NOT EXISTS last_synced_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW());
+
+-- 3b. user_cloud_saves (email is the PRIMARY KEY -> skipped).
+--     user_id is not in the CREATE TABLE definition — it arrives via
+--     the M17 ALTER below and is relied on by the uid RLS policy and
+--     the Batch 5F backfill, so it is ensured here as well.
+--     backup_data is NOT NULL with no default -> zero '{}' default.
+ALTER TABLE IF EXISTS public.user_cloud_saves
+    ADD COLUMN IF NOT EXISTS display_name TEXT DEFAULT 'Warrior',
+    ADD COLUMN IF NOT EXISTS avatar_icon TEXT DEFAULT 'img_pfp_01',
+    ADD COLUMN IF NOT EXISTS backup_data JSONB DEFAULT '{}'::jsonb,
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW()),
+    ADD COLUMN IF NOT EXISTS user_id TEXT;
+
+-- 4. crystal_leaderboard (user_id is the PRIMARY KEY -> skipped).
+--    The ad-hoc ALTER block after its CREATE TABLE below adds these
+--    same columns; the duplication is deliberate and harmless.
+ALTER TABLE IF EXISTS public.crystal_leaderboard
+    ADD COLUMN IF NOT EXISTS name TEXT NOT NULL DEFAULT 'Warrior',
+    ADD COLUMN IF NOT EXISTS avatar_icon TEXT NOT NULL DEFAULT 'img_pfp_01',
+    ADD COLUMN IF NOT EXISTS rank_code TEXT NOT NULL DEFAULT 'E',
+    ADD COLUMN IF NOT EXISTS level INTEGER NOT NULL DEFAULT 1,
+    ADD COLUMN IF NOT EXISTS streak INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS total_reps INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS total_xp INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS crystals_mined INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS title TEXT NOT NULL DEFAULT 'Hunter',
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW());
+
+-- 5. crystal_redemptions (inline amount/method/status CHECKs skipped
+--    per the rules above; request_id arrives via the ALTER below and
+--    is relied on by its unique index, so it is ensured here too)
+ALTER TABLE IF EXISTS public.crystal_redemptions
+    ADD COLUMN IF NOT EXISTS user_id TEXT DEFAULT '',
+    ADD COLUMN IF NOT EXISTS amount_inr INTEGER DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS crystals_spent INTEGER DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS method TEXT DEFAULT '',
+    ADD COLUMN IF NOT EXISTS destination TEXT DEFAULT '',
+    ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'PENDING',
+    ADD COLUMN IF NOT EXISTS rejection_reason TEXT,
+    ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW()),
+    ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS admin_notes TEXT,
+    ADD COLUMN IF NOT EXISTS request_id TEXT;
+
+-- 6. payout_requests (inline CHECKs skipped per the rules above)
+ALTER TABLE IF EXISTS public.payout_requests
+    ADD COLUMN IF NOT EXISTS user_id TEXT DEFAULT '',
+    ADD COLUMN IF NOT EXISTS user_name TEXT NOT NULL DEFAULT 'Warrior',
+    ADD COLUMN IF NOT EXISTS amount_inr NUMERIC(10, 2) DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS coins_spent INTEGER DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS upi_id TEXT DEFAULT '',
+    ADD COLUMN IF NOT EXISTS request_id TEXT,
+    ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'PENDING',
+    ADD COLUMN IF NOT EXISTS rejection_reason TEXT,
+    ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW()),
+    ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS admin_notes TEXT;
+
+-- 7. cpx_postback_log (trans_id carries UNIQUE -> skipped). The
+--    Batch 5D columns are also added by the upgrade DO block below;
+--    ensuring them here too means no statement can meet them missing.
+ALTER TABLE IF EXISTS public.cpx_postback_log
+    ADD COLUMN IF NOT EXISTS user_id TEXT DEFAULT '',
+    ADD COLUMN IF NOT EXISTS amount_crystals INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS amount_usd NUMERIC(10, 4) NOT NULL DEFAULT 0.0000,
+    ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'approved',
+    ADD COLUMN IF NOT EXISTS provider TEXT NOT NULL DEFAULT 'cpx',
+    ADD COLUMN IF NOT EXISTS signature_verified BOOLEAN NOT NULL DEFAULT false,
+    ADD COLUMN IF NOT EXISTS claimed BOOLEAN NOT NULL DEFAULT false,
+    ADD COLUMN IF NOT EXISTS callback_type TEXT,
+    ADD COLUMN IF NOT EXISTS reversed_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW());
+
+-- End of Batch 5G shape normalization. Everything below may now rely
+-- on the full column shape of every table above.
+
 -- Batch 5E (#8, #9): constraint upgrades for databases created before
 -- the CHECKs were added to the CREATE TABLE definitions above.
 -- #9: legacy wallet rows that violate the new bounds are clamped FIRST,
