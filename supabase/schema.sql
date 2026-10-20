@@ -480,12 +480,12 @@ BEGIN
     BEGIN
         ALTER TABLE public.cpx_postback_log
             ADD CONSTRAINT cpx_postback_status_check CHECK (status IN ('approved', 'rejected', 'reversed', 'legacy_completed'));
-    EXCEPTION WHEN duplicate_object THEN NULL;
+    EXCEPTION WHEN duplicate_object OR duplicate_table THEN NULL;
     END;
     BEGIN
         ALTER TABLE public.cpx_postback_log
             ADD CONSTRAINT cpx_postback_provider_check CHECK (provider IN ('cpx', 'bitlabs'));
-    EXCEPTION WHEN duplicate_object THEN NULL;
+    EXCEPTION WHEN duplicate_object OR duplicate_table THEN NULL;
     END;
     -- Replace the bare trans_id UNIQUE with (provider, trans_id).
     BEGIN
@@ -495,7 +495,11 @@ BEGIN
     BEGIN
         ALTER TABLE public.cpx_postback_log
             ADD CONSTRAINT cpx_postback_provider_trans_unique UNIQUE (provider, trans_id);
-    EXCEPTION WHEN duplicate_object THEN NULL;
+    -- Batch 5H: a UNIQUE constraint's backing index is a relation, so a
+    -- re-add after a partial previous run raises 42P07 duplicate_table,
+    -- NOT 42710 duplicate_object. Catching only duplicate_object let
+    -- every re-run die here (ERROR 42P07 on the live DB).
+    EXCEPTION WHEN duplicate_object OR duplicate_table THEN NULL;
     END;
 END $$;
 
