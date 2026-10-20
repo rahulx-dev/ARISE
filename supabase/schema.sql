@@ -298,10 +298,31 @@ BEGIN
     ALTER TABLE public.cpx_postback_log ADD COLUMN IF NOT EXISTS callback_type TEXT;
     ALTER TABLE public.cpx_postback_log ADD COLUMN IF NOT EXISTS reversed_at TIMESTAMPTZ;
     ALTER TABLE public.cpx_postback_log ALTER COLUMN status SET DEFAULT 'approved';
+    -- Batch 5F (#14): the status allowlist gains 'legacy_completed'
+    -- below, so an older copy of this CHECK (without it) must be
+    -- dropped BEFORE the rename runs — on a re-run it would otherwise
+    -- reject the new value. The constraint is re-added right after
+    -- with the full list.
+    ALTER TABLE public.cpx_postback_log DROP CONSTRAINT IF EXISTS cpx_postback_status_check;
     UPDATE public.cpx_postback_log SET status = 'approved' WHERE status = 'completed';
+    -- Batch 5F (#14): rows still 'approved' here with no provider
+    -- signature and never claimed are PRE-5D legacy rows. They were
+    -- logged under the old flow where the grant was immediate — those
+    -- crystals were already paid back then — and they carry no
+    -- provider authentication, so they must NEVER become claimable
+    -- (grant_crystals_secure requires status='approved' AND
+    -- signature_verified=true). Renaming them to 'legacy_completed'
+    -- makes the data honest instead of displaying them as approved,
+    -- and hard-blocks them by status as well. Idempotent: a re-run
+    -- matches nothing.
+    UPDATE public.cpx_postback_log
+    SET status = 'legacy_completed'
+    WHERE status = 'approved'
+      AND signature_verified IS FALSE
+      AND claimed IS FALSE;
     BEGIN
         ALTER TABLE public.cpx_postback_log
-            ADD CONSTRAINT cpx_postback_status_check CHECK (status IN ('approved', 'rejected', 'reversed'));
+            ADD CONSTRAINT cpx_postback_status_check CHECK (status IN ('approved', 'rejected', 'reversed', 'legacy_completed'));
     EXCEPTION WHEN duplicate_object THEN NULL;
     END;
     BEGIN
@@ -385,10 +406,13 @@ CREATE POLICY "cpx_postback_select_owner" ON public.cpx_postback_log
 FOR SELECT USING (user_id = auth.uid()::text);
 
 -- 8. User Cloud Saves: Owner read-write
--- M17: the email-keyed policy below is kept for backward compatibility
+-- M17: the email-keyed policy below was kept for backward compatibility
 -- (existing rows are keyed by email), but email is a mutable claim.
 -- New saves also carry auth.uid() in user_id, and the uid policy is the
 -- stable owner identity going forward.
+-- Batch 5F (#4): the email policy is retired — the 5F block below
+-- backfills user_id from auth.users and then drops it, leaving
+-- uid-only ownership.
 CREATE POLICY "user_cloud_saves_owner_rw" ON public.user_cloud_saves
 FOR ALL
 USING (lower(email) = lower(COALESCE(auth.jwt() ->> 'email', '')))
@@ -398,6 +422,39 @@ CREATE POLICY "user_cloud_saves_owner_uid" ON public.user_cloud_saves
 FOR ALL
 USING (user_id IS NOT NULL AND user_id = auth.uid()::text)
 WITH CHECK (user_id IS NOT NULL AND user_id = auth.uid()::text);
+
+-- Batch 5F (#4): user_cloud_saves ownership is uid-only.
+-- The backfill runs FIRST: legacy rows saved before M17 recorded only
+-- an email. Where that email is an auth account's email, the row gains
+-- its owner's uid (auth.users.email is unique, so the match is
+-- unambiguous). The client already always writes user_id = the
+-- authenticated uid (cloudSyncService upsert), and the uid policy
+-- above covers SELECT/INSERT/UPDATE/DELETE with USING + WITH CHECK,
+-- so no write path depends on the email policy anymore.
+-- Rows STILL user_id IS NULL after the backfill have no matching auth
+-- user at all. Once the email policy is dropped they become
+-- inaccessible — intended: an email claim alone no longer grants
+-- access to a cloud save. The count is surfaced as a NOTICE.
+UPDATE public.user_cloud_saves s
+SET user_id = u.id::text
+FROM auth.users u
+WHERE s.user_id IS NULL
+  AND u.email IS NOT NULL
+  AND lower(u.email) = lower(s.email);
+
+DO $$
+DECLARE
+    v_orphans INTEGER;
+BEGIN
+    SELECT COUNT(*) INTO v_orphans
+    FROM public.user_cloud_saves
+    WHERE user_id IS NULL;
+    IF v_orphans > 0 THEN
+        RAISE NOTICE '5F: % user_cloud_saves rows still have user_id IS NULL after backfill (no matching auth user); they are inaccessible under uid-only RLS', v_orphans;
+    END IF;
+END $$;
+
+DROP POLICY IF EXISTS "user_cloud_saves_owner_rw" ON public.user_cloud_saves;
 
 -- Drop any obsolete legacy function overloads that cause duplicate warnings in Supabase Linter
 DROP FUNCTION IF EXISTS public.sync_hunter_profile_secure(TEXT, TEXT, TEXT, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, TEXT);
@@ -1559,6 +1616,61 @@ BEGIN
 END;
 $$;
 
+-- 6. reconcile_wallets_admin: report-only wallet-vs-ledger diagnostic.
+-- Batch 5F (#5): user_wallets caches balances while crystal_ledger /
+-- coin_ledger are the transaction record, and nothing enforced that
+-- the two agree. This RPC SURFACES the difference per user — it never
+-- writes anything. A nonzero crystal diff can be legitimate: the 5D
+-- survey reversal floors the wallet at 0 (crystals the user already
+-- spent cannot be un-spent) while the ledger records the full
+-- reversal. The report surfaces; a human decides. There is no
+-- auto-fix. service_role ONLY (see grants section): the report
+-- exposes every user's balances, so clients must never execute it.
+CREATE OR REPLACE FUNCTION public.reconcile_wallets_admin(p_user_id TEXT DEFAULT NULL)
+RETURNS TABLE (
+    user_id TEXT,
+    wallet_crystals INTEGER,
+    ledger_crystals BIGINT,
+    crystal_diff BIGINT,
+    wallet_coins INTEGER,
+    ledger_coins BIGINT,
+    coin_diff BIGINT,
+    last_crystal_entry TIMESTAMPTZ,
+    last_coin_entry TIMESTAMPTZ
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        w.user_id,
+        w.mana_crystals,
+        COALESCE(cl.balance, 0),
+        w.mana_crystals::BIGINT - COALESCE(cl.balance, 0),
+        w.cloud_coins,
+        COALESCE(kl.balance, 0),
+        w.cloud_coins::BIGINT - COALESCE(kl.balance, 0),
+        cl.last_entry,
+        kl.last_entry
+    FROM public.user_wallets w
+    LEFT JOIN (
+        SELECT l.user_id AS uid, SUM(l.amount) AS balance, MAX(l.created_at) AS last_entry
+        FROM public.crystal_ledger l
+        GROUP BY l.user_id
+    ) cl ON cl.uid = w.user_id
+    LEFT JOIN (
+        SELECT l.user_id AS uid, SUM(l.amount) AS balance, MAX(l.created_at) AS last_entry
+        FROM public.coin_ledger l
+        GROUP BY l.user_id
+    ) kl ON kl.uid = w.user_id
+    WHERE p_user_id IS NULL OR w.user_id = p_user_id
+    ORDER BY w.user_id;
+END;
+$$;
+
 -- Harden all SECURITY DEFINER RPCs after every definition exists.
 ALTER FUNCTION public.grant_crystals_secure(
     INTEGER, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, INTEGER, INTEGER, INTEGER, INTEGER
@@ -1573,6 +1685,8 @@ ALTER FUNCTION public.sync_hunter_profile_secure(
 ALTER FUNCTION public.get_hunter_leaderboard(TEXT, INTEGER, TEXT)
     SET search_path = public;
 ALTER FUNCTION public.delete_account_secure()
+    SET search_path = public;
+ALTER FUNCTION public.reconcile_wallets_admin(TEXT)
     SET search_path = public;
 ALTER FUNCTION public.reverse_survey_grant_secure(TEXT, TEXT)
     SET search_path = public;
@@ -1613,4 +1727,10 @@ GRANT EXECUTE ON FUNCTION public.delete_account_secure()
 REVOKE EXECUTE ON FUNCTION public.reverse_survey_grant_secure(TEXT, TEXT)
     FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.reverse_survey_grant_secure(TEXT, TEXT)
+    TO service_role;
+-- Batch 5F (#5): the reconciliation report exposes EVERY user's
+-- balances — service_role only, exactly like the survey reversal.
+REVOKE EXECUTE ON FUNCTION public.reconcile_wallets_admin(TEXT)
+    FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.reconcile_wallets_admin(TEXT)
     TO service_role;

@@ -111,10 +111,8 @@ export const crystalRepository = {
             return { success: true, newBalance: authoritativeBalance };
           } else if (!rpcErr && rpcRes && rpcRes.success === false) {
             // H5: EXPLICIT server rejection (e.g. no verified postback,
-            // duplicate, cap reached). Do NOT fall through to the local
-            // fallback — that would mint crystals the server refused.
-            // The offline fallback below runs ONLY on transport errors
-            // (rpcErr) or when Supabase is unconfigured.
+            // duplicate, cap reached). Do NOT mint locally what the
+            // server refused.
             console.warn('[CrystalRPC] grant rejected by server:', (rpcRes as any)?.error);
             return { success: false, newBalance: Number(profile.manaCrystals) || 0 };
           } else if (rpcErr) {
@@ -125,26 +123,18 @@ export const crystalRepository = {
         }
       }
 
-      // 2. Offline Fallback: Update local SQLite cache
-      const newBalance = await db.transaction(async (tx: any) => {
-        const fresh = (await tx.select().from(userProfile).limit(1))[0];
-        if (!fresh) return 0;
-        const current = Number(fresh.manaCrystals) || 0;
-        const requestId = deterministicSourceId;
-        const existing = await tx.select().from(crystalTransaction)
-          .where(eq(crystalTransaction.requestId, requestId)).limit(1);
-        if (existing.length > 0) return current;
-        const next = current + amount;
-        await tx.update(userProfile).set({ manaCrystals: next } as any)
-          .where(eq(userProfile.id, fresh.id));
-        await tx.insert(crystalTransaction).values({
-          amount, type: 'earn', description, gateId: gateId ?? null,
-          timestamp: new Date().toISOString(), requestId,
-        });
-        return next;
-      });
-
-      return { success: true, newBalance };
+      // 2. Batch 5F (#12): NO local fallback mint. This point is only
+      // reached on a transport failure (rpcErr / thrown exception) or
+      // when Supabase is unconfigured — the old code minted crystals
+      // into the local cache here, deduped only by a local request id.
+      // If the RPC had actually reached the server but its response was
+      // lost, that local mint plus the server grant double-paid the
+      // same event once balances reconciled. A grant is now either
+      // confirmed by the server (path 1) or reported as failed; the
+      // caller can retry, and the server ledger's idempotency key
+      // (deterministicSourceId) makes the retry safe. The local
+      // balance is returned UNCHANGED.
+      return { success: false, newBalance: Number(profile.manaCrystals) || 0 };
     } catch (e) {
       console.warn('Failed to add mana crystals:', e);
       return { success: false, newBalance: 0 };
