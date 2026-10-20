@@ -390,6 +390,9 @@ export const cloudSyncService = {
               ((wallet.level && wallet.level > 1) ||
                 (wallet.total_xp && wallet.total_xp > 0) ||
                 (wallet.cloud_coins && wallet.cloud_coins > 0) ||
+                // 5E (#2): a crystal-only wallet is real progression too —
+                // without this, mana_crystals were silently lost on restore.
+                (wallet.mana_crystals && wallet.mana_crystals > 0) ||
                 (wallet.streak && wallet.streak > 0))
             ) {
               backup = {
@@ -584,10 +587,12 @@ export const cloudSyncService = {
           for (const f of validated.focusSessions) {
             expoDb.runSync(
               'INSERT INTO focus_session (target_minutes, completed_minutes, start_time, end_time, status, reward_coins, reward_xp) VALUES (?, ?, ?, ?, ?, ?, ?)',
-              // BUG-05: use the sanitizer's real field names. The old code read
-              // f.durationMinutes / f.timestamp / f.completed, which do not
-              // exist on sanitized focus sessions — every restore inserted
-              // NULLs into NOT NULL columns (and always marked ABORTED).
+              // 5E (#1): the sanitizer (validateBackupData) canonicalizes
+              // every focus session — DB-shaped or legacy — into exactly
+              // these fields, so a round-trip preserves the session. (The
+              // pre-5E sanitizer emitted only the legacy
+              // durationMinutes/completed/timestamp shape, which made
+              // every field read below fall back to 0/now/'COMPLETED'.)
               [
                 f.targetMinutes ?? 0,
                 f.completedMinutes ?? 0,

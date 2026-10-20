@@ -133,16 +133,68 @@ export function validateBackupData(data) {
     }
   }
 
-  // Sanitize focus sessions
+  // Sanitize focus sessions.
+  // 5E (#1): the canonical shape is the DB shape used by the
+  // focus_session table and the cloud restore path:
+  // {targetMinutes, completedMinutes, startTime, endTime, status,
+  // rewardCoins, rewardXP}. Older backups used the legacy shape
+  // {durationMinutes, completed, timestamp}. The old sanitizer emitted
+  // ONLY the legacy shape while gather/restore speak the DB shape, so
+  // uploaded sessions were clobbered to defaults here and every restored
+  // session came back 0 minutes / now / 'COMPLETED' / 0 rewards.
+  // Accept BOTH shapes per session; always emit the canonical DB shape.
+  const FOCUS_STATUSES = new Set(['ACTIVE', 'COMPLETED', 'ABANDONED']);
+  const clampFocusMinutes = (v, fallback) =>
+    Number.isInteger(v) ? Math.max(1, Math.min(1440, v)) : fallback;
+  const clampDoneMinutes = (v) =>
+    Number.isInteger(v) ? Math.max(0, Math.min(1440, v)) : 0;
+  const validIso = (v) => typeof v === 'string' && !isNaN(Date.parse(v));
   const focusSessions = [];
   if (Array.isArray(data.focusSessions)) {
     for (const f of data.focusSessions) {
       if (!f || typeof f !== 'object') continue;
-      focusSessions.push({
-        durationMinutes: Number.isInteger(f.durationMinutes) ? Math.max(1, Math.min(1440, f.durationMinutes)) : 25,
-        completed: f.completed ? 1 : 0,
-        timestamp: typeof f.timestamp === 'string' ? f.timestamp : now,
-      });
+      const hasDbShape =
+        Number.isInteger(f.targetMinutes) ||
+        typeof f.startTime === 'string' ||
+        typeof f.status === 'string';
+      if (hasDbShape) {
+        const targetMinutes = clampFocusMinutes(f.targetMinutes, 25);
+        const completedMinutes = clampDoneMinutes(f.completedMinutes);
+        const startTime = validIso(f.startTime) ? f.startTime : now;
+        const status =
+          typeof f.status === 'string' && FOCUS_STATUSES.has(f.status.toUpperCase())
+            ? f.status.toUpperCase()
+            : completedMinutes >= targetMinutes
+              ? 'COMPLETED'
+              : 'ABANDONED';
+        let endTime = validIso(f.endTime) ? f.endTime : null;
+        if (!endTime && status !== 'ACTIVE') {
+          endTime = new Date(Date.parse(startTime) + targetMinutes * 60000).toISOString();
+        }
+        focusSessions.push({
+          targetMinutes,
+          completedMinutes,
+          startTime,
+          endTime,
+          status,
+          rewardCoins: Number.isInteger(f.rewardCoins) ? Math.max(0, Math.min(1000, f.rewardCoins)) : 0,
+          rewardXP: Number.isInteger(f.rewardXP) ? Math.max(0, Math.min(5000, f.rewardXP)) : 0,
+        });
+      } else {
+        // Legacy shape: {durationMinutes, completed, timestamp}.
+        const targetMinutes = clampFocusMinutes(f.durationMinutes, 25);
+        const wasCompleted = f.completed ? 1 : 0;
+        const startTime = validIso(f.timestamp) ? f.timestamp : now;
+        focusSessions.push({
+          targetMinutes,
+          completedMinutes: wasCompleted ? targetMinutes : 0,
+          startTime,
+          endTime: new Date(Date.parse(startTime) + targetMinutes * 60000).toISOString(),
+          status: wasCompleted ? 'COMPLETED' : 'ABANDONED',
+          rewardCoins: 0,
+          rewardXP: 0,
+        });
+      }
     }
   }
 

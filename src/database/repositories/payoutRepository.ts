@@ -169,7 +169,39 @@ export const payoutRepository = {
                 .from(payoutRequest)
                 .where(condition)
                 .limit(1);
-              if (local.length === 0) continue;
+              if (local.length === 0) {
+                // 5E (#13): the server has a payout with NO local mirror —
+                // createRequest's mirror transaction failed AFTER the
+                // server RPC had already processed the payout. The old
+                // code just skipped the row, so the payout never appeared
+                // in local history and never self-healed. Upsert it.
+                // RESIDUAL (coin side): the failed mirror transaction also
+                // carried the local coin deduction, so local coins stay
+                // higher than they should be for this payout. There is no
+                // trustworthy server-side coin balance to reconcile from
+                // here — by design (C3) local coins are never synced up,
+                // so user_wallets.cloud_coins is not an authoritative
+                // source for the local balance. Only the history loss is
+                // fixed here; sponsorPassesUsed is likewise unknown for
+                // a server-only row and is mirrored as 0.
+                if (item.request_id) {
+                  try {
+                    await db.insert(payoutRequest).values({
+                      amountInr: Math.round(Number(item.amount_inr)),
+                      coinsSpent: Number(item.coins_spent),
+                      upiId: item.upi_id,
+                      sponsorPassesUsed: 0,
+                      status: item.status,
+                      createdAt: item.created_at,
+                      paidAt: item.paid_at ?? null,
+                      requestId: item.request_id,
+                    });
+                  } catch (insertErr) {
+                    console.warn('[PayoutCloudSync] Could not mirror server payout locally:', insertErr);
+                  }
+                }
+                continue;
+              }
 
               if (item.status === 'PAID') {
                 await db

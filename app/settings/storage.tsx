@@ -28,13 +28,13 @@ import { useSettingsStore } from "../../src/stores/useSettingsStore";
  *
  * Clear App Data: wipes ALL local data (progression, quests, photos,
  * guilds, settings, KV store) and signs out, then returns to onboarding.
- * Delete Account: same local wipe PLUS deletes the cloud save row for
- * the signed-in Google account, then signs out.
+ * Delete Account: calls the delete_account_secure RPC (Batch 5E #3),
+ * which deletes the caller's cloud save, wallet, ledgers, leaderboard
+ * row, redemptions, payout requests, postback log AND the Supabase
+ * login itself; local data is wiped only after the server confirms.
  *
- * Honest limit: the Supabase auth record and wallet/leaderboard rows
- * cannot be deleted from the client (no DELETE RLS policy covers them).
- * Those are removed via the support-email route within 30 days, exactly
- * as the Privacy Policy states.
+ * Documented policy: payout requests that are still PENDING are
+ * deleted with the account — deleting forfeits any pending payout.
  */
 export default function StorageSettingsScreen() {
   const router = useRouter();
@@ -81,7 +81,7 @@ export default function StorageSettingsScreen() {
     haptics.medium();
     showIOSAlert(
       "Delete My Account?",
-      "This permanently deletes ALL local data AND your cloud save. Your Supabase login record, wallet, and leaderboard rows are removed via support within 30 days (see Privacy Policy). This cannot be undone.",
+      "This permanently deletes your account: ALL local data, your cloud save, wallet, transaction history, leaderboard entry, and your login itself — immediately and completely. Any payout request still pending is forfeited. This cannot be undone.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -90,20 +90,33 @@ export default function StorageSettingsScreen() {
           onPress: async () => {
             setBusy(true);
             try {
-              // 1. Delete the cloud save row for the signed-in account
-              // (owner DELETE is allowed by the user_cloud_saves RLS policy).
-              try {
-                const stored = await googleAuthService.getStoredGoogleUser();
-                if (stored?.email && isSupabaseConfigured() && supabase) {
-                  await supabase
-                    .from("user_cloud_saves")
-                    .delete()
-                    .eq("email", stored.email.trim().toLowerCase());
-                }
-              } catch (cloudErr) {
-                console.warn("[Storage] Cloud save delete failed, continuing:", cloudErr);
+              // 1. Server-side deletion FIRST (fail-closed): the
+              // delete_account_secure RPC removes every cloud row for
+              // the caller plus the auth user. Local data is wiped ONLY
+              // after the server confirms — if the RPC fails, nothing
+              // is deleted anywhere and the user sees the error.
+              if (!isSupabaseConfigured() || !supabase) {
+                setBusy(false);
+                showIOSAlert(
+                  "Delete Failed",
+                  "Cloud account deletion is unavailable (cloud is not configured). Your account and data were NOT deleted.",
+                  undefined,
+                  { variant: "danger" },
+                );
+                return;
               }
-              // 2. Local wipe + sign out + back to onboarding.
+              const { data, error } = await supabase.rpc("delete_account_secure");
+              if (error || !(data as any)?.success) {
+                setBusy(false);
+                showIOSAlert(
+                  "Delete Failed",
+                  error?.message || (data as any)?.error || "The server could not delete your account. Nothing was deleted.",
+                  undefined,
+                  { variant: "danger" },
+                );
+                return;
+              }
+              // 2. Server confirmed: local wipe + sign out + onboarding.
               await userRepository.wipeAllLocalData();
               await signOutAndRestart();
             } catch (e: any) {
@@ -177,7 +190,7 @@ export default function StorageSettingsScreen() {
             <View style={styles.menuTextCol}>
               <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>Delete My Account</Text>
               <Text style={[styles.menuDesc, { color: colors.textSecondary }]}>
-                Delete local data + cloud save, then sign out
+                Permanently delete your account, all cloud data, and your login
               </Text>
             </View>
             {busy ? <ActivityIndicator size="small" color="#DC2626" /> : null}
@@ -187,10 +200,11 @@ export default function StorageSettingsScreen() {
         <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <ShieldAlert size={20} color="#F59E0B" />
           <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-            Your Supabase login record, wallet, and leaderboard rows cannot be
-            deleted from the app (server-side). To remove them, email
-            support@ariseapp.dev from your linked Google address — they are
-            permanently deleted within 30 days, as stated in the Privacy Policy.
+            Account deletion is immediate and complete: when you delete your
+            account, the server deletes your cloud save, wallet, transaction
+            history, leaderboard entry, and your login in one step — nothing
+            is kept for later removal. Payout requests that are still pending
+            are deleted with the account.
           </Text>
         </View>
       </ScrollView>

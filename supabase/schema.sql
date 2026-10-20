@@ -12,7 +12,10 @@ CREATE TABLE IF NOT EXISTS public.crystal_ledger (
     source_id TEXT NOT NULL, -- Canonical idempotency key (e.g. 'recon:e_mobile:user_1', 'redgate:rg_1:user_1', 'cpx:tx_1:user_1')
     description TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW()),
-    CONSTRAINT uq_crystal_ledger_event UNIQUE (source, source_id, user_id)
+    CONSTRAINT uq_crystal_ledger_event UNIQUE (source, source_id, user_id),
+    -- 5E (#8): amount sign must match type — an EARN of -500 or a SPEND
+    -- of +500 would corrupt every balance derived from this ledger.
+    CONSTRAINT ck_crystal_ledger_amount_sign CHECK ((type = 'EARN' AND amount > 0) OR (type = 'SPEND' AND amount < 0))
 );
 
 CREATE INDEX IF NOT EXISTS idx_crystal_ledger_user ON public.crystal_ledger (user_id);
@@ -27,7 +30,9 @@ CREATE TABLE IF NOT EXISTS public.coin_ledger (
     source TEXT NOT NULL, -- 'quest', 'workout', 'boss_raid', 'payout', 'shop'
     source_id TEXT,
     description TEXT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW())
+    created_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW()),
+    -- 5E (#8): amount sign must match type (see crystal_ledger).
+    CONSTRAINT ck_coin_ledger_amount_sign CHECK ((type = 'EARN' AND amount > 0) OR (type = 'SPEND' AND amount < 0))
 );
 
 CREATE INDEX IF NOT EXISTS idx_coin_ledger_user ON public.coin_ledger (user_id);
@@ -37,11 +42,11 @@ CREATE TABLE IF NOT EXISTS public.user_wallets (
     user_id TEXT PRIMARY KEY,
     display_name TEXT DEFAULT 'Warrior',
     rank_code TEXT DEFAULT 'E',
-    level INTEGER NOT NULL DEFAULT 1,
-    streak INTEGER NOT NULL DEFAULT 0,
-    total_reps INTEGER NOT NULL DEFAULT 0,
-    total_xp INTEGER NOT NULL DEFAULT 0,
-    cloud_coins INTEGER NOT NULL DEFAULT 0,
+    level INTEGER NOT NULL DEFAULT 1 CONSTRAINT ck_user_wallets_level CHECK (level >= 1),
+    streak INTEGER NOT NULL DEFAULT 0 CONSTRAINT ck_user_wallets_streak CHECK (streak >= 0),
+    total_reps INTEGER NOT NULL DEFAULT 0 CONSTRAINT ck_user_wallets_total_reps CHECK (total_reps >= 0),
+    total_xp INTEGER NOT NULL DEFAULT 0 CONSTRAINT ck_user_wallets_total_xp CHECK (total_xp >= 0),
+    cloud_coins INTEGER NOT NULL DEFAULT 0 CONSTRAINT ck_user_wallets_cloud_coins CHECK (cloud_coins >= 0),
     mana_crystals INTEGER NOT NULL DEFAULT 0 CHECK (mana_crystals >= 0),
     device_id TEXT,
     app_version TEXT,
@@ -49,6 +54,60 @@ CREATE TABLE IF NOT EXISTS public.user_wallets (
 );
 
 CREATE INDEX IF NOT EXISTS idx_user_wallets_synced ON public.user_wallets (last_synced_at);
+
+-- Batch 5E (#8, #9): constraint upgrades for databases created before
+-- the CHECKs were added to the CREATE TABLE definitions above.
+-- #9: legacy wallet rows that violate the new bounds are clamped FIRST,
+-- so the CHECKs can actually be added on a live DB.
+-- #8: the ledger sign CHECKs are added inside an exception guard — if
+-- legacy ledger rows violate the sign rule, the constraint is skipped
+-- with a NOTICE instead of aborting the whole schema run.
+DO $$
+BEGIN
+    UPDATE public.user_wallets SET
+        level = GREATEST(level, 1),
+        streak = GREATEST(streak, 0),
+        total_reps = GREATEST(total_reps, 0),
+        total_xp = GREATEST(total_xp, 0),
+        cloud_coins = GREATEST(cloud_coins, 0)
+    WHERE level < 1 OR streak < 0 OR total_reps < 0 OR total_xp < 0 OR cloud_coins < 0;
+
+    BEGIN
+        ALTER TABLE public.user_wallets ADD CONSTRAINT ck_user_wallets_level CHECK (level >= 1);
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+    BEGIN
+        ALTER TABLE public.user_wallets ADD CONSTRAINT ck_user_wallets_streak CHECK (streak >= 0);
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+    BEGIN
+        ALTER TABLE public.user_wallets ADD CONSTRAINT ck_user_wallets_total_reps CHECK (total_reps >= 0);
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+    BEGIN
+        ALTER TABLE public.user_wallets ADD CONSTRAINT ck_user_wallets_total_xp CHECK (total_xp >= 0);
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+    BEGIN
+        ALTER TABLE public.user_wallets ADD CONSTRAINT ck_user_wallets_cloud_coins CHECK (cloud_coins >= 0);
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+
+    BEGIN
+        ALTER TABLE public.crystal_ledger ADD CONSTRAINT ck_crystal_ledger_amount_sign
+            CHECK ((type = 'EARN' AND amount > 0) OR (type = 'SPEND' AND amount < 0));
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    WHEN check_violation THEN
+        RAISE NOTICE '5E: ck_crystal_ledger_amount_sign skipped — existing crystal_ledger rows violate the amount-sign rule; clean them up and re-run';
+    END;
+    BEGIN
+        ALTER TABLE public.coin_ledger ADD CONSTRAINT ck_coin_ledger_amount_sign
+            CHECK ((type = 'EARN' AND amount > 0) OR (type = 'SPEND' AND amount < 0));
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    WHEN check_violation THEN
+        RAISE NOTICE '5E: ck_coin_ledger_amount_sign skipped — existing coin_ledger rows violate the amount-sign rule; clean them up and re-run';
+    END;
+END $$;
 
 -- 3b. Persistent Google Cloud Saves (Preserves game progression across app uninstalls & reinstalls)
 CREATE TABLE IF NOT EXISTS public.user_cloud_saves (
@@ -402,6 +461,12 @@ DECLARE
     v_amount INTEGER := 0;
     v_provider TEXT := '';
     v_revenue_usd NUMERIC(10, 4) := 0;
+    -- 5E (#7): the transaction id is normalized ONCE and used for the
+    -- postback lookup, the claimed-flag update AND the ledger insert.
+    -- The old code looked up trim(p_source_id) but stored the raw value
+    -- in the ledger, so a whitespace-carrying id made the grant
+    -- unfindable by the reversal function.
+    v_trans_id TEXT;
 BEGIN
     -- 1. Determine & Authenticate User Identity STRICTLY from auth.uid()
     v_user_id := auth.uid()::text;
@@ -444,6 +509,8 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'error', 'Invalid reward source');
     END IF;
 
+    v_trans_id := trim(p_source_id);
+
     -- PROFIT GATE: the postback row must exist for THIS user + trans_id,
     -- be approved, be provider-authenticated (signature_verified), be
     -- unclaimed, and confirm revenue (amount_usd > 0). The row is
@@ -453,7 +520,7 @@ BEGIN
     -- same transaction serialize; the first marks it claimed.
     SELECT amount_crystals, amount_usd INTO v_postback_amount, v_revenue_usd
     FROM public.cpx_postback_log
-    WHERE trans_id = trim(p_source_id)
+    WHERE trans_id = v_trans_id
       AND user_id = v_user_id
       AND provider = v_provider
       AND status = 'approved'
@@ -487,7 +554,7 @@ BEGIN
 
     UPDATE public.cpx_postback_log
     SET claimed = true
-    WHERE trans_id = trim(p_source_id)
+    WHERE trans_id = v_trans_id
       AND user_id = v_user_id
       AND provider = v_provider;
 
@@ -506,7 +573,7 @@ BEGIN
             v_amount,
             'EARN',
             p_source,
-            p_source_id,
+            v_trans_id,
             -- L27: description is NOT NULL in crystal_ledger. A NULL
             -- description raised an unhandled NOT NULL violation.
             COALESCE(NULLIF(trim(p_description), ''), 'Crystal grant'),
@@ -608,7 +675,7 @@ BEGIN
         'already_processed', false,
         'amount_granted', v_amount,
         'revenue_usd', v_revenue_usd,
-        'trans_id', trim(p_source_id),
+        'trans_id', v_trans_id,
         'new_balance', v_new_crystals,
         'user_id', v_user_id
     );
@@ -641,6 +708,8 @@ DECLARE
     v_current_crystals INTEGER := 0;
     v_new_crystals INTEGER := 0;
     v_source TEXT;
+    -- 5E (#7): normalized once, used for every lookup/insert below.
+    v_trans_id TEXT;
 BEGIN
     IF auth.role() <> 'service_role' THEN
         RETURN jsonb_build_object('success', false, 'error', 'Service-role only');
@@ -649,9 +718,11 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'error', 'Invalid provider or transaction id');
     END IF;
 
+    v_trans_id := trim(p_trans_id);
+
     SELECT * INTO v_postback
     FROM public.cpx_postback_log
-    WHERE provider = p_provider AND trans_id = trim(p_trans_id)
+    WHERE provider = p_provider AND trans_id = v_trans_id
     FOR UPDATE;
 
     IF NOT FOUND THEN
@@ -668,41 +739,53 @@ BEGIN
     SELECT amount INTO v_granted
     FROM public.crystal_ledger
     WHERE source = v_source
-      AND source_id = trim(p_trans_id)
+      AND source_id = v_trans_id
       AND user_id = v_postback.user_id
       AND type = 'EARN';
 
-    IF FOUND AND v_granted > 0 THEN
-        BEGIN
-            INSERT INTO public.crystal_ledger (
-                user_id, amount, type, source, source_id, description, created_at
-            ) VALUES (
-                v_postback.user_id,
-                -v_granted,
-                'SPEND',
-                v_source,
-                trim(p_trans_id) || ':reversal',
-                'Survey grant reversed: partner clawback',
-                TIMEZONE('utc'::text, NOW())
-            );
-        EXCEPTION WHEN unique_violation THEN
-            -- Reversal already recorded; fall through to mark the row.
-            NULL;
-        END;
+    -- 5E (#7): no grant row means no crystals were ever minted for this
+    -- transaction (never claimed, or already clawed back outside this
+    -- path). Report that honestly and leave the postback un-marked —
+    -- the old code marked it 'reversed' and returned success with
+    -- amount_reversed 0, hiding the miss.
+    IF NOT FOUND OR COALESCE(v_granted, 0) <= 0 THEN
+        RETURN jsonb_build_object(
+            'success', false,
+            'already_processed', false,
+            'amount_reversed', 0,
+            'error', 'No crystal grant found for this transaction; nothing to reverse'
+        );
+    END IF;
 
-        UPDATE public.user_wallets
-        SET mana_crystals = GREATEST(0, mana_crystals - v_granted),
-            last_synced_at = TIMEZONE('utc'::text, NOW())
-        WHERE user_id = v_postback.user_id
-        RETURNING mana_crystals INTO v_new_crystals;
+    BEGIN
+        INSERT INTO public.crystal_ledger (
+            user_id, amount, type, source, source_id, description, created_at
+        ) VALUES (
+            v_postback.user_id,
+            -v_granted,
+            'SPEND',
+            v_source,
+            v_trans_id || ':reversal',
+            'Survey grant reversed: partner clawback',
+            TIMEZONE('utc'::text, NOW())
+        );
+    EXCEPTION WHEN unique_violation THEN
+        -- Reversal already recorded; fall through to mark the row.
+        NULL;
+    END;
 
-        IF FOUND THEN
-            v_current_crystals := v_new_crystals;
-            UPDATE public.crystal_leaderboard
-            SET crystals_mined = v_new_crystals,
-                updated_at = TIMEZONE('utc'::text, NOW())
-            WHERE user_id = v_postback.user_id;
-        END IF;
+    UPDATE public.user_wallets
+    SET mana_crystals = GREATEST(0, mana_crystals - v_granted),
+        last_synced_at = TIMEZONE('utc'::text, NOW())
+    WHERE user_id = v_postback.user_id
+    RETURNING mana_crystals INTO v_new_crystals;
+
+    IF FOUND THEN
+        v_current_crystals := v_new_crystals;
+        UPDATE public.crystal_leaderboard
+        SET crystals_mined = v_new_crystals,
+            updated_at = TIMEZONE('utc'::text, NOW())
+        WHERE user_id = v_postback.user_id;
     END IF;
 
     UPDATE public.cpx_postback_log
@@ -713,7 +796,7 @@ BEGIN
     RETURN jsonb_build_object(
         'success', true,
         'already_processed', false,
-        'amount_reversed', COALESCE(v_granted, 0),
+        'amount_reversed', v_granted,
         'new_balance', v_current_crystals
     );
 END;
@@ -741,6 +824,10 @@ DECLARE
     v_new_crystals INTEGER := 0;
     v_redemption_id BIGINT;
     v_expected_crystals INTEGER;
+    -- 5E (#6): normalized once; every dedupe check and insert below uses
+    -- this, never the raw parameter (whitespace variants of the same id
+    -- previously bypassed idempotency and stored inconsistent keys).
+    v_request_uuid TEXT;
 BEGIN
     v_user_id := auth.uid()::text;
     IF v_user_id IS NULL OR length(trim(v_user_id)) = 0 THEN
@@ -774,6 +861,7 @@ BEGIN
     IF length(trim(p_request_uuid)) > 128 THEN
         RETURN jsonb_build_object('success', false, 'error', 'Invalid redemption request id');
     END IF;
+    v_request_uuid := trim(p_request_uuid);
 
     -- 2. Row Lock on User Wallet FIRST (M15). The idempotency EXISTS check
     -- below must run AFTER the lock: two concurrent calls for the same user
@@ -791,7 +879,7 @@ BEGIN
     -- (successful) redemption dropped their balance below the amount.
     IF EXISTS (
         SELECT 1 FROM public.crystal_ledger
-        WHERE source = 'redemption' AND source_id = p_request_uuid AND user_id = v_user_id
+        WHERE source = 'redemption' AND source_id = v_request_uuid AND user_id = v_user_id
     ) THEN
         RETURN jsonb_build_object('success', true, 'already_processed', true, 'error', 'Redemption request already processed');
     END IF;
@@ -816,7 +904,7 @@ BEGIN
         -p_crystals_spent,
         'SPEND',
         'redemption',
-        p_request_uuid,
+        v_request_uuid,
         'Redemption INR ' || p_amount_inr || ' via ' || p_method,
         TIMEZONE('utc'::text, NOW())
     );
@@ -838,7 +926,7 @@ BEGIN
         p_method,
         trim(p_destination),
         'PENDING',
-        p_request_uuid,
+        v_request_uuid,
         TIMEZONE('utc'::text, NOW())
     ) RETURNING id INTO v_redemption_id;
 
@@ -902,6 +990,9 @@ DECLARE
     v_new_coins INTEGER := 0;
     v_payout_id BIGINT;
     v_expected_coins INTEGER;
+    -- 5E (#6): normalized once; every compare/insert below uses this,
+    -- never the raw parameter (see request_redemption_secure).
+    v_request_id TEXT;
 BEGIN
     v_user_id := auth.uid()::text;
     IF v_user_id IS NULL OR length(trim(v_user_id)) = 0 THEN
@@ -928,6 +1019,7 @@ BEGIN
     IF length(trim(p_request_id)) > 128 THEN
         RETURN jsonb_build_object('success', false, 'error', 'Invalid payout request id');
     END IF;
+    v_request_id := trim(p_request_id);
 
     -- 2. Row Lock on User Wallet FIRST (M15, same race as redemption).
     -- The EXISTS checks below must run after the lock so concurrent calls
@@ -942,7 +1034,7 @@ BEGIN
     -- already_processed even if later spending dropped the balance.
     IF EXISTS (
         SELECT 1 FROM public.payout_requests
-        WHERE user_id = v_user_id AND request_id = p_request_id
+        WHERE user_id = v_user_id AND request_id = v_request_id
     ) THEN
         RETURN jsonb_build_object('success', true, 'already_processed', true, 'error', 'Payout request already processed');
     END IF;
@@ -976,7 +1068,7 @@ BEGIN
         -p_coins_spent,
         'SPEND',
         'payout',
-        p_request_id,
+        v_request_id,
         'UPI Cashout INR ' || p_amount_inr,
         TIMEZONE('utc'::text, NOW())
     );
@@ -995,7 +1087,7 @@ BEGIN
         p_amount_inr,
         p_coins_spent,
         trim(p_upi_id),
-        p_request_id,
+        v_request_id,
         'PENDING',
         TIMEZONE('utc'::text, NOW())
     ) RETURNING id INTO v_payout_id;
@@ -1174,6 +1266,9 @@ $$;
 
 -- 4. get_hunter_leaderboard: Returns real hunter rankings with deterministic tie-breaking,
 -- accurate total user counts, and current user rank even if outside top 100.
+-- 5E (#15): entries no longer expose the raw auth user_id of every hunter;
+-- each entry carries is_current_user instead so the client can still
+-- highlight/locate its own row.
 CREATE OR REPLACE FUNCTION public.get_hunter_leaderboard(
     p_category TEXT DEFAULT 'streak',
     p_limit INTEGER DEFAULT 100,
@@ -1194,7 +1289,10 @@ BEGIN
     -- a huge p_limit meant a DoS-sized JSON payload.
     p_limit := LEAST(100, GREATEST(1, COALESCE(p_limit, 100)));
     -- Unknown categories fall back to 'streak' instead of returning empty.
-    IF p_category IS NULL OR p_category NOT IN ('streak', 'reps', 'power') THEN
+    -- 5E (#10): 'crystals' is a real category (the ELSE branch below) —
+    -- without it in the allowlist it was coerced to 'streak' and the
+    -- crystals branch was unreachable.
+    IF p_category IS NULL OR p_category NOT IN ('streak', 'reps', 'power', 'crystals') THEN
         p_category := 'streak';
     END IF;
 
@@ -1203,7 +1301,7 @@ BEGIN
     IF p_category = 'streak' THEN
         SELECT jsonb_agg(sub) INTO v_entries FROM (
             SELECT 
-                user_id,
+                (user_id = auth.uid()::text) AS is_current_user,
                 name,
                 avatar_icon,
                 rank_code,
@@ -1221,7 +1319,7 @@ BEGIN
 
         IF p_current_user_id IS NOT NULL THEN
             SELECT jsonb_build_object(
-                'user_id', user_id,
+                'is_current_user', true,
                 'name', name,
                 'avatar_icon', avatar_icon,
                 'rank_code', rank_code,
@@ -1243,7 +1341,7 @@ BEGIN
     ELSIF p_category = 'reps' THEN
         SELECT jsonb_agg(sub) INTO v_entries FROM (
             SELECT 
-                user_id,
+                (user_id = auth.uid()::text) AS is_current_user,
                 name,
                 avatar_icon,
                 rank_code,
@@ -1261,7 +1359,7 @@ BEGIN
 
         IF p_current_user_id IS NOT NULL THEN
             SELECT jsonb_build_object(
-                'user_id', user_id,
+                'is_current_user', true,
                 'name', name,
                 'avatar_icon', avatar_icon,
                 'rank_code', rank_code,
@@ -1283,7 +1381,7 @@ BEGIN
     ELSIF p_category = 'power' THEN
         SELECT jsonb_agg(sub) INTO v_entries FROM (
             SELECT 
-                user_id,
+                (user_id = auth.uid()::text) AS is_current_user,
                 name,
                 avatar_icon,
                 rank_code,
@@ -1301,7 +1399,7 @@ BEGIN
 
         IF p_current_user_id IS NOT NULL THEN
             SELECT jsonb_build_object(
-                'user_id', user_id,
+                'is_current_user', true,
                 'name', name,
                 'avatar_icon', avatar_icon,
                 'rank_code', rank_code,
@@ -1321,10 +1419,10 @@ BEGIN
         END IF;
 
     ELSE
-        -- Default to crystal mining category
+        -- Crystal mining category ('crystals')
         SELECT jsonb_agg(sub) INTO v_entries FROM (
             SELECT 
-                user_id,
+                (user_id = auth.uid()::text) AS is_current_user,
                 name,
                 avatar_icon,
                 rank_code,
@@ -1342,7 +1440,7 @@ BEGIN
 
         IF p_current_user_id IS NOT NULL THEN
             SELECT jsonb_build_object(
-                'user_id', user_id,
+                'is_current_user', true,
                 'name', name,
                 'avatar_icon', avatar_icon,
                 'rank_code', rank_code,
@@ -1370,6 +1468,97 @@ BEGIN
 END;
 $$;
 
+
+-- 5. delete_account_secure: Deletes the CALLER's complete cloud account.
+-- Batch 5E (#3): previously the Delete Account flow removed only the
+-- user_cloud_saves row; the wallet, both ledgers, leaderboard row,
+-- redemptions, payout requests, postback log and the Supabase login
+-- itself all survived. This RPC deletes the caller's rows from every
+-- user-scoped table and removes the auth.users record LAST, so the
+-- login is gone too.
+-- POLICY (documented): payout_requests that are still PENDING are
+-- deleted with the account like everything else — deleting your
+-- account forfeits any pending payout.
+-- The client wipes local data ONLY after this RPC confirms success.
+CREATE OR REPLACE FUNCTION public.delete_account_secure()
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_uid UUID;
+    v_user_id TEXT;
+    v_email TEXT;
+    v_saves INTEGER := 0;
+    v_wallets INTEGER := 0;
+    v_crystal_ledger INTEGER := 0;
+    v_coin_ledger INTEGER := 0;
+    v_leaderboard INTEGER := 0;
+    v_redemptions INTEGER := 0;
+    v_payouts INTEGER := 0;
+    v_postbacks INTEGER := 0;
+    v_auth INTEGER := 0;
+BEGIN
+    v_uid := auth.uid();
+    IF v_uid IS NULL THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Unauthenticated caller');
+    END IF;
+    v_user_id := v_uid::text;
+
+    SELECT email INTO v_email FROM auth.users WHERE id = v_uid;
+
+    -- Cloud saves are keyed by email with a nullable user_id (M17):
+    -- match the caller by uid OR by their auth email.
+    DELETE FROM public.user_cloud_saves
+    WHERE user_id = v_user_id
+       OR (v_email IS NOT NULL AND lower(email) = lower(v_email));
+    GET DIAGNOSTICS v_saves = ROW_COUNT;
+
+    DELETE FROM public.user_wallets WHERE user_id = v_user_id;
+    GET DIAGNOSTICS v_wallets = ROW_COUNT;
+
+    DELETE FROM public.crystal_ledger WHERE user_id = v_user_id;
+    GET DIAGNOSTICS v_crystal_ledger = ROW_COUNT;
+
+    DELETE FROM public.coin_ledger WHERE user_id = v_user_id;
+    GET DIAGNOSTICS v_coin_ledger = ROW_COUNT;
+
+    DELETE FROM public.crystal_leaderboard WHERE user_id = v_user_id;
+    GET DIAGNOSTICS v_leaderboard = ROW_COUNT;
+
+    DELETE FROM public.crystal_redemptions WHERE user_id = v_user_id;
+    GET DIAGNOSTICS v_redemptions = ROW_COUNT;
+
+    -- Pending payout_requests are deleted with the account (policy above).
+    DELETE FROM public.payout_requests WHERE user_id = v_user_id;
+    GET DIAGNOSTICS v_payouts = ROW_COUNT;
+
+    DELETE FROM public.cpx_postback_log WHERE user_id = v_user_id;
+    GET DIAGNOSTICS v_postbacks = ROW_COUNT;
+
+    -- The login itself, deleted LAST.
+    DELETE FROM auth.users WHERE id = v_uid;
+    GET DIAGNOSTICS v_auth = ROW_COUNT;
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'user_id', v_user_id,
+        'auth_user_deleted', v_auth > 0,
+        'deleted', jsonb_build_object(
+            'user_cloud_saves', v_saves,
+            'user_wallets', v_wallets,
+            'crystal_ledger', v_crystal_ledger,
+            'coin_ledger', v_coin_ledger,
+            'crystal_leaderboard', v_leaderboard,
+            'crystal_redemptions', v_redemptions,
+            'payout_requests', v_payouts,
+            'cpx_postback_log', v_postbacks
+        )
+    );
+END;
+$$;
+
 -- Harden all SECURITY DEFINER RPCs after every definition exists.
 ALTER FUNCTION public.grant_crystals_secure(
     INTEGER, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, INTEGER, INTEGER, INTEGER, INTEGER
@@ -1382,6 +1571,8 @@ ALTER FUNCTION public.sync_hunter_profile_secure(
     TEXT, TEXT, TEXT, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, TEXT, INTEGER
 ) SET search_path = public;
 ALTER FUNCTION public.get_hunter_leaderboard(TEXT, INTEGER, TEXT)
+    SET search_path = public;
+ALTER FUNCTION public.delete_account_secure()
     SET search_path = public;
 ALTER FUNCTION public.reverse_survey_grant_secure(TEXT, TEXT)
     SET search_path = public;
@@ -1398,6 +1589,8 @@ REVOKE EXECUTE ON FUNCTION public.sync_hunter_profile_secure(
 ) FROM PUBLIC, anon;
 REVOKE EXECUTE ON FUNCTION public.get_hunter_leaderboard(TEXT, INTEGER, TEXT)
     FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.delete_account_secure()
+    FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.grant_crystals_secure(
     INTEGER, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, INTEGER, INTEGER, INTEGER, INTEGER
 ) TO authenticated, service_role;
@@ -1409,6 +1602,11 @@ GRANT EXECUTE ON FUNCTION public.sync_hunter_profile_secure(
     TEXT, TEXT, TEXT, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, TEXT, INTEGER
 ) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.get_hunter_leaderboard(TEXT, INTEGER, TEXT)
+    TO authenticated, service_role;
+-- Batch 5E (#3): account deletion is caller-only — authenticated users
+-- can delete their OWN account (identity comes from auth.uid() inside);
+-- anon can never execute it.
+GRANT EXECUTE ON FUNCTION public.delete_account_secure()
     TO authenticated, service_role;
 -- Batch 5D: reversal is service_role ONLY (the Edge Function). The
 -- function itself also rejects non-service_role callers via auth.role().

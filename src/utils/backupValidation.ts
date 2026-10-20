@@ -46,9 +46,14 @@ export interface ValidatedExerciseSession {
 }
 
 export interface ValidatedFocusSession {
-  durationMinutes: number;
-  completed: number;
-  timestamp: string;
+  // 5E (#1): canonical DB shape (focus_session table / cloud restore).
+  targetMinutes: number;
+  completedMinutes: number;
+  startTime: string;
+  endTime: string | null;
+  status: string; // 'ACTIVE' | 'COMPLETED' | 'ABANDONED'
+  rewardCoins: number;
+  rewardXP: number;
 }
 
 export interface ValidatedHunterBackup {
